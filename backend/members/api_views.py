@@ -6,12 +6,16 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from .models import Member
 from .serializers import MemberSerializer
+from rest_framework.pagination import PageNumberPagination
 
+class MemberPagination(PageNumberPagination):
+    page_size = 25
 
 class MemberViewSet(viewsets.ModelViewSet):
     queryset = Member.objects.all().order_by("id")
     serializer_class = MemberSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = MemberPagination  # ✅ das fehlte!
 
     def list(self, request, *args, **kwargs):
         response = super().list(request, *args, **kwargs)

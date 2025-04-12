@@ -29,16 +29,11 @@ export default function Topbar() {
     { label: 'Track & Trace', path: '/trace', icon: <TimelineIcon fontSize="small" /> },
     { label: 'Buchhaltung', path: '/buchhaltung', icon: <PaymentsIcon fontSize="small" /> },
     { label: 'Raumverwaltung', path: '/rooms', icon: <MeetingRoomIcon fontSize="small" /> },
-    { label: 'UniFi Access', path: '/unifi-access/dashboard', icon: <KeyIcon fontSize="small" /> },  // Neuer Menüpunkt
+    { label: 'UniFi Access', path: '/unifi-access/dashboard', icon: <KeyIcon fontSize="small" /> },  // ✅ aktualisierter Pfad
   ]
 
   return (
-    <AppBar
-      position="fixed"
-      color="success"
-      elevation={2}
-      sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}
-    >
+    <AppBar position="fixed" color="success" elevation={2} sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
       <Toolbar sx={{ height: '56px', justifyContent: 'space-between' }}>
         <Typography variant="h6" sx={{ fontWeight: 'bold', fontSize: '1.2rem' }}>
           Anbauvereinigung Recklinghausen e.V.
@@ -55,7 +50,7 @@ export default function Topbar() {
                 sx={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 0.5,  // Noch geringerer Abstand zwischen Icon und Text
+                  gap: 0.5,
                   px: 1,
                   fontSize: '0.9rem',
                   '& svg': { color: 'inherit', fontSize: '20px' },
@@ -65,26 +60,14 @@ export default function Topbar() {
                 {item.label}
               </Link>
               {index < menuItems.length - 1 && (
-                <Divider
-                  orientation="vertical"
-                  flexItem
-                  sx={{ mx: 0.5, borderColor: 'rgba(255,255,255,0.5)' }} // Noch geringerer Abstand
-                />
+                <Divider orientation="vertical" flexItem sx={{ mx: 0.5, borderColor: 'rgba(255,255,255,0.5)' }} />
               )}
             </Box>
           ))}
 
-          <Divider
-            orientation="vertical"
-            flexItem
-            sx={{ mx: 0.5, borderColor: 'rgba(255,255,255,0.5)' }} // Noch geringerer Abstand
-          />
+          <Divider orientation="vertical" flexItem sx={{ mx: 0.5, borderColor: 'rgba(255,255,255,0.5)' }} />
 
-          <IconButton
-            onClick={colorMode.toggleColorMode}
-            color="inherit"
-            sx={{ ml: 1 }}
-          >
+          <IconButton onClick={colorMode.toggleColorMode} color="inherit" sx={{ ml: 1 }}>
             {theme.palette.mode === 'dark' ? <Brightness7Icon /> : <Brightness4Icon />}
           </IconButton>
         </Box>

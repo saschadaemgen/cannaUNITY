@@ -27,6 +27,7 @@ INSTALLED_APPS = [
     'members',
     'rooms',
     "interface",
+    'unifi_access',
 ]
 
 # 🔄 Middleware

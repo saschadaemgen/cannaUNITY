@@ -1,26 +1,22 @@
-// src/utils/api.js
+// utils/api.js
 import axios from 'axios'
 
-// 💡 Gemeinsame Axios-Instanz für alle API-Aufrufe
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: '/api',  // ⚠️ Proxy wird über Vite geregelt
   headers: {
     'Content-Type': 'application/json',
   },
-  //withCredentials: true, // für Cookies (z. B. CSRF, falls nötig)
 })
 
-// 🔐 Token bei jeder Anfrage automatisch mitsenden
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('authToken')
   if (token) {
     config.headers.Authorization = `Token ${token}`
   }
-  console.log("Sende Request:", config)  // ← Zum Debuggen
+  console.log('🔐 Auth-Header:', config.headers.Authorization || 'Kein Token')
   return config
 })
 
-// 🟢 Login-Funktion (Token wird gespeichert)
 export const login = async (username, password) => {
   try {
     const response = await api.post('/token/', { username, password })
@@ -28,20 +24,18 @@ export const login = async (username, password) => {
     localStorage.setItem('authToken', token)
     return true
   } catch (err) {
-    console.error('Login fehlgeschlagen', err)
+    console.error('❌ Login fehlgeschlagen:', err.response?.data || err.message)
     return false
   }
 }
 
-// 🔴 Logout-Funktion (Token entfernen)
 export const logout = async () => {
   try {
-    await api.post('/logout/') // optional, falls dein Backend etwas tut
+    await api.post('/logout/')
   } catch (e) {
-    // Ignorieren, wenn Logout-Endpoint nichts zurückgibt
+    // ignorieren
   }
   localStorage.removeItem('authToken')
 }
 
-// ✨ Standard-Export für alle API-Aufrufe
 export default api
