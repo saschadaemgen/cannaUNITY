@@ -1,0 +1,13 @@
+# Python/Django
+*.pyc
+__pycache__/
+.env
+*.sqlite3
+media/
+staticfiles/
+backend/static/frontend/
+
+# Node/Vite
+frontend/node_modules/
+frontend/dist/
+.vite/

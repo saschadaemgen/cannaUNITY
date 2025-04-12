@@ -1,0 +1,305 @@
+
+# cannaUNITY – Projektübersicht & Technologie-Konzept
+
+## 🧠 Grundidee
+
+cannaUNITY ist eine moderne Webanwendung für Mitgliederverwaltung, Aufgabenplanung und Track & Trace von Cannabis-Produkten. Die Anwendung basiert auf einer Kombination aus **Django** im Backend und **React + Vite** im Frontend – umgesetzt als **Single Page Application (SPA)**.
+
+---
+
+## 🧩 Verwendete Technologien
+
+| Bereich          | Technologie            | Zweck                                              |
+|------------------|------------------------|-----------------------------------------------------|
+| Backend          | Django 5.x             | Haupt-Framework für API, Authentifizierung, Logik  |
+| Backend-API      | Django REST Framework  | Aufbau der JSON-API für alle Datenzugriffe         |
+| Authentifizierung| TokenAuth (DRF)        | Login über API mit Token für SPA-Frontend          |
+| Frontend         | React (mit Vite)       | Schnelles modernes Frontend mit Live-Reload etc.   |
+| Styling          | Material UI (MUI)      | UI-Komponenten im Google-Material-Design           |
+| Auth-Sync        | UniFi Access & Home Assistant | Hardware-Integration für RFID & Zutritt       |
+
+---
+
+## 📁 Ordnerstruktur (vereinfacht)
+
+```
+cannaUNITY/
+├── backend/
+│   ├── config/              # Django-Settings, URLs, WSGI
+│   ├── members/             # Mitglieder-App (inkl. API)
+│   ├── rooms/               # Räume & Sensorik
+│   └── static/frontend/     # Build-Ausgabe aus React/Vite
+│
+├── frontend/
+│   ├── public/              # Favicon etc.
+│   ├── src/
+│   │   ├── apps/members/    # React-Komponenten der Members-App
+│   │   ├── layout/          # Layout-Komponenten (Sidebar, Footer)
+│   │   ├── utils/           # z. B. axios-Konfiguration
+│   │   └── main.jsx         # Einstiegspunkt der App
+│   └── index.html           # Wurzel-Template für Vite
+```
+
+---
+
+## 🧭 Unser Architektur-Ansatz
+
+- **Single Page Application**: Die React-App wird bei Django unter `/` eingebunden und übernimmt das komplette Frontend-Routing.
+- **API-only Backend**: Django liefert nur JSON-Daten – keine klassischen HTML-Seiten außer für das Index-Template.
+- **Ordner-Spiegelung**: Jede Django-App bekommt ein Gegenstück im React-Bereich unter `apps/[appname]` für bessere Struktur und Erweiterbarkeit.
+- **Token-Login**: Nach erfolgreichem Login erhält das React-Frontend einen API-Token, der für alle Anfragen genutzt wird.
+
+---
+
+## 🔐 Authentifizierungskonzept (Zusammenfassung)
+
+- Nutzer loggen sich über `/api/token/` ein → erhalten einen API-Token
+- Token wird in `localStorage` gespeichert & via Axios bei jeder Anfrage gesendet
+- Logout löscht den Token lokal und optional per Server-API
+
+---
+
+## 📦 Besonderheiten & Vorteile
+
+- **RFID-Anbindung**: über UniFi Access + Home Assistant → Zugriff via Karte möglich
+- **Admin-API-Tools**: Memberverwaltung, Räume, Sensoren u. v. m.
+- **Sicherheit durch Struktur**: Zugriff nur mit gültigem Token + IP-Firewall + Host-Filterung (Starlink-Setup)
+- **Flexible Ausbaufähigkeit**: vorbereitet für Containerisierung, zusätzliche Dienste, Offline-Modus
+
+---
+
+## 💡 Warum dieser Aufbau sinnvoll ist
+
+- **Schnelle Entwicklung** dank Trennung von Backend & Frontend
+- **Modernes UX/UI** mit React + Material UI
+- **Zentrale Verwaltung** über Django-Admin & APIs
+- **Hohe Wiederverwendbarkeit** durch komponentenbasierte Struktur
+- **Zukunftssicher** – alles API-basiert, gut dockerisierbar, stabil & erweiterbar
+
+---
+
+## ✅ Status (April 2025)
+
+- [x] Token-Login/Logout funktioniert stabil
+- [x] Mitgliederliste via React lädt korrekt
+- [x] Aufgaben & Track & Trace sind in Entwicklung
+- [ ] Automatischer Abgleich mit externer Joomla-Datenbank via SSH-Tunnel geplant
+
+
+---
+
+## 🪄 Automatisches Einbinden von React-Build-Dateien in Django (Vite Manifest Integration)
+
+Die gebauten React-Dateien (mit Hash im Dateinamen, z. B. `index-ABC123.js`) werden automatisch in Django eingebunden.  
+Dafür wird `vite.config.js` wie folgt erweitert:
+
+```js
+build: {
+  manifest: true,
+  outDir: path.resolve(__dirname, '../backend/static/frontend'),
+  emptyOutDir: true,
+  rollupOptions: {
+    input: 'src/main.jsx'  // Einstiegspunkt der App
+  }
+}
+```
+
+Zusätzlich wurde in Django ein Template-Tag eingerichtet (`vite_asset`), das das Manifest (`manifest.json`) automatisch ausliest.  
+Dieses Tag wird in `index.html` verwendet:
+
+```django
+{% load static vite_tags %}
+...
+<script type="module" src="{% vite_asset 'src/main.jsx' %}"></script>
+```
+
+Das bedeutet:  
+**Beim nächsten `npm run build` wird die neue Datei automatisch erkannt und geladen** – ohne manuelles Anpassen der `index.html`.  
+Der Template-Tag liegt unter:  
+`backend/members/templatetags/vite_tags.py`
+
+Damit ist die Anbindung zwischen React + Vite und Django vollständig dynamisch und zukunftssicher.
+
+---
+
+
+
+## 🔐 Authentifizierungssystem in cannaUNITY (Django + React)
+
+## 🧩 Überblick
+
+Wir verwenden in diesem Projekt **Token-basierte Authentifizierung** via `rest_framework.authtoken`. Der Token wird beim Login generiert und bei allen weiteren API-Anfragen mitgesendet. Das System schützt unsere API zuverlässig, besonders in Kombination mit `IsAuthenticated`.
+
+---
+
+## 1. 🔙 Django Backend
+
+### 🧱 Installed Apps (`settings.py`)
+```python
+INSTALLED_APPS = [
+    ...
+    'rest_framework',
+    'rest_framework.authtoken',
+    'corsheaders',
+    ...
+]
+```
+
+### 🔐 Authentication Settings (`settings.py`)
+```python
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+}
+```
+
+### 🔁 API-Routen (`config/urls.py`)
+```python
+from rest_framework.authtoken.views import obtain_auth_token
+from members.api_views import user_info, login_view, logout_view
+
+urlpatterns = [
+    path('api/token/', obtain_auth_token),        # → Login mit Token
+    path('api/user-info/', user_info),            # → Aktueller Benutzer
+    path('api/login/', login_view),               # → Optional eigene Logik
+    path('api/logout/', logout_view),             # → Logout API
+]
+```
+
+---
+
+## 2. 🌐 React Frontend
+
+### 🔧 Axios-Setup (`frontend/src/utils/api.js`)
+```js
+import axios from 'axios'
+
+const api = axios.create({
+  baseURL: '/api',
+  headers: { 'Content-Type': 'application/json' },
+})
+
+// Token automatisch setzen
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('authToken')
+  if (token) {
+    config.headers.Authorization = `Token ${token}`
+  }
+  return config
+})
+
+// Login-Funktion
+export const login = async (username, password) => {
+  try {
+    const res = await api.post('/token/', { username, password })
+    localStorage.setItem('authToken', res.data.token)
+    return true
+  } catch {
+    return false
+  }
+}
+
+// Logout-Funktion
+export const logout = async () => {
+  try {
+    await api.post('/logout/')
+  } catch (e) {}
+  localStorage.removeItem('authToken')
+}
+
+export default api
+```
+
+---
+
+### 🔐 Login-Component (Beispiel)
+```jsx
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { login } from '../utils/api'
+
+export default function Login() {
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState(null)
+  const navigate = useNavigate()
+
+  const handleLogin = async () => {
+    const success = await login(username, password)
+    if (success) {
+      navigate('/')
+    } else {
+      setError('Login fehlgeschlagen.')
+    }
+  }
+
+  return (
+    <>
+      {/* Login-Formular */}
+    </>
+  )
+}
+```
+
+---
+
+### 🧠 MemberList-Absicherung (Beispiel)
+```js
+useEffect(() => {
+  api.get('/user-info/')
+    .then((res) => setUser(res.data))
+    .catch(() => setUser(null))
+}, [])
+```
+
+---
+
+## ✅ Ablauf in Kurzform
+
+| Schritt | Wer?       | Was passiert?                                                              |
+|--------:|------------|-----------------------------------------------------------------------------|
+| 1       | User       | Loggt sich mit Benutzername + Passwort ein                                 |
+| 2       | Django     | Gibt einen Token zurück (`/api/token/`)                                    |
+| 3       | React      | Speichert Token in `localStorage`, sendet ihn bei jedem API-Request mit    |
+| 4       | Django API | Prüft Token mit `TokenAuthentication` und gibt Zugriff frei/verbietet ihn  |
+| 5       | Logout     | Token wird aus `localStorage` entfernt (optional: API-Logout)              |
+
+---
+
+## 🔐 Sicherheit & Bewertung
+
+| Aspekt           | Bewertung                                      |
+|------------------|------------------------------------------------|
+| Lokale Sicherheit | ✅ Gut, da auf geschlossenen Systemen |
+| Token im Browser  | ⚠️ Im `localStorage`, deshalb später evtl. `httpOnly cookie` verwenden |
+| Zugriffskontrolle | ✅ Streng durch `IsAuthenticated` in der API |
+| Datenlecks möglich? | ❌ Nur bei Codefehlern oder offenem Browser |
+
+---
+
+## 🧾 Fazit
+
+> Dieses Setup ist **ideal für lokale Umgebungen mit geschützter Hardware (Touchscreens, Terminals)**. Es funktioniert sicher, einfach und erweiterbar. Später kann es problemlos auf produktionssichere Methoden (z. B. JWT, Session-Cookies) umgestellt werden.
+
+---
+
+Erstellt mit ❤️ für Sascha.
+
+---
+
+## 🔁 Für neue Kontexte
+
+Wenn dieses Dokument beim Chat-Start geladen wird, kann ich direkt verstehen:
+
+- Welche Technologien genutzt werden
+- Wo Dateien liegen & wie strukturiert wird
+- Wie der Login funktioniert
+- Was aktuell geplant & umgesetzt ist
+
+---
+
