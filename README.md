@@ -12,138 +12,125 @@
 
 ## 📦 Was ist cannaUNITY?
 
-**cannaUNITY** ist eine umfassende Webplattform zur Organisation von Anbauvereinigungen nach dem Konsumcannabisgesetz.  
-Die Software basiert auf modernen Open-Source-Technologien und deckt alle relevanten Bereiche ab – von der Mitgliederverwaltung bis zur Echtzeitsteuerung von Räumen über Touchscreens.
+**cannaUNITY** ist eine umfassende Open-Source-Plattform zur Organisation, Verwaltung und Automatisierung von Cannabis-Anbauvereinigungen gemäß dem Konsumcannabisgesetz (KCanG).  
+Das System wurde mit dem Ziel entwickelt, Datenschutz, Nachverfolgbarkeit und Mitwirkung der Mitglieder auf höchstem technischen Niveau umzusetzen.
 
 ---
 
 ## 🧠 Architekturüberblick
 
-- **Backend:** Django 5.x (API-only), REST Framework, PostgreSQL / SQLite
-- **Frontend:** React + Vite + Material UI (Single Page Application)
-- **Schnittstellen:** UniFi Access / Protect, Home Assistant, interne API-Module
-- **Technologien:** TokenAuth, Axios, WebSocket-ready, Container-kompatibel
+- **Backend:** Django 5.x (API-only), Django REST Framework, PostgreSQL / SQLite
+- **Frontend:** React + Vite + Material UI (SPA)
+- **Schnittstellen:** UniFi Access/Protect, Home Assistant, Siemens LOGO!, Siemens SIMATIC, Loxone Mini Server
+- **Technologien:** TokenAuth, WebSocket, Axios, passkey-auth, Container-kompatibel
 
 ---
 
-## 🔧 Setup & Installation
+## 🛡️ Datenschutz & Anonymisierungskonzept
 
-### Voraussetzungen
+**cannaUNITY** basiert auf dem Zero-Knowledge-Prinzip:  
+Es findet eine strikte Trennung zwischen personenbezogenen Daten (lokal) und anonymisierten Online-Daten (UUID-basiert) statt. Der Onlinebereich erhält **niemals** Zugriff auf echte Identitäten.
 
-- Python 3.11+
-- Node.js 18+
-- PostgreSQL (oder SQLite für Tests)
-- Git, npm, pip
-- Empfohlen: VS Code, Docker (optional)
+### Authentifizierung & Zugriffskontrolle
 
----
-
-### Schnellstart
-
-```bash
-git clone https://github.com/saschadaemgen/cannaUNITY.git
-cd cannaUNITY
-cp .env.template .env
-```
+- **Online-Login:** Passkey (biometrisch), alternativ 3-Faktor mit PIN  
+- **Zutritt zur Anlage (Außenbereiche):** UniFi Access mit RFID, Gesichtserkennung, optional PIN  
+- **Innenbereiche (z. B. Blütekammer):** Zugang ausschließlich per NFC/RFID, automatische Arbeitszeiterfassung  
+- **Produktionsschritte:** Track&Trace-Eingaben erfolgen über RFID/NFC-Terminals mit Rollenbindung
 
 ---
 
-### Backend (Django API)
+## 🔁 Track & Trace: Vom Samen bis zur Ausgabe
 
-```bash
-cd backend
-python -m venv .venv
-.\.venv\Scriptsctivate  # Windows
-pip install -r requirements.txt
-python manage.py migrate
-python manage.py runserver
-```
+Jeder Verarbeitungsschritt ist dokumentiert und manipulationssicher protokolliert:
 
-🧩 Die wichtigsten Python-Pakete (siehe `requirements.txt`):
+1. **Einkauf** des Samens
+2. **Einpflanzung** – entweder zur Mutterpflanze oder direkt zur Blühpflanze
+3. **Wuchsbetreuung** – Zuweisung von Zuständigen mit Track&Trace
+4. **Ernte**
+5. **Trocknung**
+6. **Laborkontrolle**
+7. **Verarbeitung**
+8. **Produktausgabe** an Mitglieder (anonymisiert)
+9. **Vernichtung** (optional, wenn nötig)
 
-```text
-asgiref==3.8.1
-certifi==2025.1.31
-charset-normalizer==3.4.1
-Django==5.2
-django-cors-headers==4.7.0
-djangorestframework==3.16.0
-idna==3.10
-requests==2.32.3
-sqlparse==0.5.3
-tzdata==2025.2
-urllib3==2.4.0
-websocket-client==1.8.0
-websockets==15.0.1
-```
+Jeder Schritt wird über die Mitarbeiterkonten per RFID/NFC bestätigt und in Echtzeit dokumentiert.
 
 ---
 
-### Frontend (React SPA)
+## 🔧 Integration & Automatisierung
 
-```bash
-cd ../frontend
-npm install
-npm run dev
-```
+- **Siemens LOGO!** vollständig integrierbar
+- **Siemens SIMATIC** kompatibel
+- **Loxone Mini Server** mit Raumanzeige, Klima- und Lichtsteuerung
+- Weitere industrielle Schnittstellen folgen (MQTT, Modbus etc.)
 
 ---
 
-## 🗂️ Projektstruktur (Auszug)
+## 🐳 Bereitstellung & Infrastruktur
+
+Geplant sind:
+
+- Eigene **Docker-Images** mit Standardkonfiguration
+- **Proxmox-kompatible Images** für einfache VM-Einbindung
+- Eigene **Linux-Distribution (cannaOS)** für speziell konfigurierte Mini-PCs
+- Verkauf von **zertifizierten Mini-PCs** mit vorinstalliertem System
+
+---
+
+## 📂 Projektstruktur (Auszug)
 
 ```
 cannaUNITY/
 ├── backend/
-│   ├── config/              # Django-Settings, URL-Routing
-│   ├── members/             # Mitgliederverwaltung (API)
-│   ├── rooms/               # Raumverwaltung & Sensorik
-│   └── static/frontend/     # React-Build-Ausgabe
-│
+│   ├── config/            # Django-Einstellungen
+│   ├── members/           # Mitgliederverwaltung
+│   ├── rooms/             # Räume & Sensorik
+│   └── static/frontend/   # Build der React-App
 ├── frontend/
 │   ├── src/
-│   │   ├── apps/members/    # React-Komponenten für Mitglieder
-│   │   ├── layout/          # Sidebar, Topbar, Footer etc.
-│   │   └── main.jsx         # SPA-Einstiegspunkt
+│   │   ├── apps/          # React-Apps pro Django-Modul
+│   │   ├── layout/        # Topbar, Sidebar, Footer
+│   │   └── main.jsx
 ```
 
 ---
 
 ## 🔐 Authentifizierungskonzept
 
-- Login über `/api/token/` → API-Token wird im `localStorage` gespeichert
-- Jeder API-Zugriff erfordert gültigen Token (`TokenAuthentication`)
-- Logout entfernt Token lokal und optional serverseitig
-- Optional: Absicherung über IP-Firewall und Standortfilterung (z. B. Starlink)
+- Tokenbasierte API-Auth (Token wird im `localStorage` gespeichert)
+- Passkey-Login mit 2-/3-Faktor-Authentifizierung
+- Zutritt zur Anlage & Innenräumen über UniFi / RFID
+- Online-Zugriff strikt anonymisiert über UUID
 
 ---
 
-## 🚀 Module (Auswahl)
+## 🚀 Module (Auszug)
 
 | Modul            | Beschreibung                                                                 |
 |------------------|------------------------------------------------------------------------------|
-| `members`        | Verwaltung von Mitgliedern, Status, Limits, Pflichtstunden                   |
-| `trackandtrace`  | Verarbeitungskette von Samen bis Blüte (inkl. Stecklinge & Mutterpflanzen)   |
-| `access`         | UniFi Access Integration (RFID, Gesichts-Auth, Zutrittslogs)                 |
-| `rooms`          | Raummodule inkl. Sensorik, Klimaüberwachung, Long-Term-History               |
-| `taskmanager`    | Aufgabenwolken, Zeitplanung, Stundenkontingente                              |
-| `interface`      | Touchscreen-Brücke mit Raum-UI, Stundenplänen & Klimaanzeige                 |
-| `controller`     | Grow-Steuerung & Raumautomatisierung                                         |
-| `security`       | Alarm- & Sicherheitsmodul mit Behördenlogik                                  |
-| `ha`             | Brücke zu Home Assistant zur Integration von Geräten & Zuständen             |
-| `unifi`          | Zentrale Verarbeitung von UniFi Protect & Access Ereignissen                 |
+| `members`        | Mitglieder, Limits, Pflichtstunden, Statusverwaltung                         |
+| `trackandtrace`  | Verarbeitungsschritte (Seed → Bloom → Ausgabe) inkl. Vernichtungen           |
+| `access`         | UniFi Access: RFID, FaceID, Logs, Zutrittsrechte                             |
+| `rooms`          | Raumverwaltung mit Klima, Sensoren & Automation                              |
+| `taskmanager`    | Aufgabenreservierung, Stundenkonto, Abgleiche                                |
+| `interface`      | Touchpanels, Raumterminals, Infodisplays                                     |
+| `controller`     | Anbindung Siemens/Loxone, Aktorik, Automatisierung                           |
+| `security`       | Alarmsysteme, Notfallzugänge, Behördenzugriff                                |
+| `ha`             | Home Assistant Integration                                                   |
 
 ---
 
 ## 🧪 Features
 
-- ✅ Tokenbasierte API-Authentifizierung
-- ✅ Dynamisches Frontend mit React/Vite
-- ✅ Direkte Touchscreen-Steuerung mit Panel-UI
-- ✅ Vollständiger Pflanzen-Lebenszyklus (Seed → Cut → Bloom)
-- ✅ Verknüpfung mit Mitgliederprofilen
-- ✅ Zeit- und Stundenmanagement (Pflichtstunden, 438 €-Grenzen)
-- ✅ Responsive UI mit Material Design
-- ✅ Modularer Aufbau (jede Funktion ist eigene App)
+- ✅ Echtzeit-Track&Trace von Pflanzen & Verarbeitung
+- ✅ Arbeitszeiterfassung mit Minijob-Erkennung
+- ✅ Dynamische Mitgliederprofile mit RFID
+- ✅ Raumautomation (Loxone, Siemens)
+- ✅ Vollständige Protokollierung für Behördenzugriff
+- ✅ Touchpanelsteuerung & Raumanzeige
+- ✅ Anonymisierte Produktausgabe mit UUID
+- ✅ Docker-, Proxmox- & Baremetal-ready
 
 ---
 
@@ -155,11 +142,10 @@ cannaUNITY/
 
 ## 🤝 Mitmachen
 
-Pull Requests willkommen!  
-Fragen, Anregungen oder Interesse an Zusammenarbeit?  
+Pull Requests & Vorschläge willkommen!  
 → [GitHub Issues öffnen](https://github.com/saschadaemgen/cannaUNITY/issues/new)
 
 ---
 
-> Erstellt mit ❤️ von **Sascha Daemgen** – unterstützt von einer zuckersüßen KI 👩‍💻🐻  
-> Ziel: Eine sichere, moderne und gemeinschaftsorientierte Plattform für Anbauvereinigungen nach dem KCanG.
+> Erstellt mit ❤️ von **Sascha Dämgen** und seiner zuckersüßen KIA "A.K.I.A".
+> Vision: Eine sichere, moderne und gemeinschaftsgetragene Plattform für den verantwortungsvollen Umgang mit Cannabis.
