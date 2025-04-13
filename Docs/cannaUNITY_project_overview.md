@@ -36,6 +36,13 @@ cannaUNITY/
 │   │   ├── apps/members/    # React-Komponenten der Members-App
 │   │   ├── layout/          # Layout-Komponenten (Sidebar, Footer)
 │   │   ├── utils/           # z. B. axios-Konfiguration
+│   │   ├── utils/date.js                 # parseDate für Datumskonvertierung
+│   │   ├── apps/unifi_access/
+│   │   │   ├── components/EventTable.jsx         # nutzt parseDate
+│   │   │   ├── components/LastActivityCard.jsx   # nutzt parseDate
+│   │   │   ├── components/ActivityInfo.jsx       # nutzt parseDate
+│   │   │   └── pages/Dashboard.jsx               # nutzt parseDate
+
 │   │   └── main.jsx         # Einstiegspunkt der App
 │   └── index.html           # Wurzel-Template für Vite
 ```
@@ -43,6 +50,8 @@ cannaUNITY/
 ---
 
 ## 🧭 Unser Architektur-Ansatz
+- **Zentrale Utilitys**: Funktionen wie `parseDate()` für standardisierte Logik (z. B. Datumskonvertierung) werden zentral in `src/utils/` abgelegt und projektweit verwendet.
+
 
 - **Single Page Application**: Die React-App wird bei Django unter `/` eingebunden und übernimmt das komplette Frontend-Routing.
 - **API-only Backend**: Django liefert nur JSON-Daten – keine klassischen HTML-Seiten außer für das Index-Template.
@@ -60,6 +69,8 @@ cannaUNITY/
 ---
 
 ## 📦 Besonderheiten & Vorteile
+- **Zentrale Datumsformatierung**: Reaktionssichere Anzeige von deutschen Zeitstempeln via zentraler `parseDate()`-Funktion (`frontend/src/utils/date.js`)
+
 
 - **RFID-Anbindung**: über UniFi Access + Home Assistant → Zugriff via Karte möglich
 - **Admin-API-Tools**: Memberverwaltung, Räume, Sensoren u. v. m.
@@ -79,6 +90,10 @@ cannaUNITY/
 ---
 
 ## ✅ Status (April 2025)
+- [x] WebSocket-Listener läuft extern und stabil
+- [x] Datum wird korrekt dargestellt (kein Invalid Date mehr)
+- [ ] Automatischer Heartbeat-Monitor für Listener geplant
+
 
 - [x] Token-Login/Logout funktioniert stabil
 - [x] Mitgliederliste via React lädt korrekt
@@ -89,6 +104,19 @@ cannaUNITY/
 ---
 
 ## 🪄 Automatisches Einbinden von React-Build-Dateien in Django (Vite Manifest Integration)
+
+
+Hinweis: React-Projekt verwendet aktuell relative Pfade (`../../../utils/date`) anstelle von `@/utils/date`, da der `@`-Alias noch nicht in der `vite.config.js` definiert wurde.
+
+Optional: Alias-Konfiguration in `vite.config.js` könnte hinzugefügt werden:
+```js
+resolve: {
+  alias: {
+    '@': path.resolve(__dirname, './src'),
+  },
+}
+```
+
 
 Die gebauten React-Dateien (mit Hash im Dateinamen, z. B. `index-ABC123.js`) werden automatisch in Django eingebunden.  
 Dafür wird `vite.config.js` wie folgt erweitert:
@@ -303,3 +331,15 @@ Wenn dieses Dokument beim Chat-Start geladen wird, kann ich direkt verstehen:
 
 ---
 
+## 🔁 WebSocket-Listener (ha_listener.py)
+
+- Lauscht über WebSocket auf `unifi_access_entry`-Events aus Home Assistant
+- Speichert die Events in das Django-Modell `AccessEvent`
+- Muss manuell gestartet werden: `python backend/unifi_access/ha_listener.py`
+- Django wird korrekt initialisiert über:
+  ```python
+  sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../config')))
+  os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'settings')
+  django.setup()
+  ```
+- Die automatische Integration in `apps.py` wurde entfernt, um doppelte Starts zu vermeiden.

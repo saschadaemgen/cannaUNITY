@@ -26,6 +26,7 @@ INSTALLED_APPS = [
     # Eigene Apps
     'members',
     'rooms',
+    "options",
     "interface",
     'unifi_access',
 ]

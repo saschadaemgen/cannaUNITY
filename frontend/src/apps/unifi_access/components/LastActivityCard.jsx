@@ -2,6 +2,7 @@ import { Box, Typography } from '@mui/material'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import LockOpenIcon from '@mui/icons-material/LockOpen'
 import DoorFrontIcon from '@mui/icons-material/DoorFront'
+import { parseDate } from '../../../utils/date'
 
 export default function ActivityInfo({ actor, timestamp, door, method }) {
   return (
@@ -26,7 +27,7 @@ export default function ActivityInfo({ actor, timestamp, door, method }) {
         <LockOpenIcon sx={{ fontSize: 18, mx: 0.5, verticalAlign: 'middle' }} />
         <strong>{actor}</strong>
         <Typography sx={{ mx: 0.5 }}>hat sich am</Typography>
-        <strong>{timestamp}</strong>
+        <strong>{parseDate(timestamp)}</strong>
         <Typography sx={{ mx: 0.5 }}>über {method} am</Typography>
         <DoorFrontIcon sx={{ fontSize: 18, mx: 0.5, verticalAlign: 'middle' }} />
         <strong>{door}</strong>

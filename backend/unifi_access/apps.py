@@ -15,5 +15,5 @@ class UnifiAccessConfig(AppConfig):
 
         print("✅ RUN_MAIN erkannt – Starte WebSocket Listener...")
 
-        from . import ha_listener
-        ha_listener.start_listener()
+       # from . import ha_listener
+       # ha_listener.start_listener()

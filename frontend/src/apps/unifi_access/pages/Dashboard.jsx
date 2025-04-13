@@ -46,6 +46,17 @@ export default function Dashboard() {
     return () => clearInterval(interval)
   }, [])
 
+  const parseDate = (ts) => {
+    if (!ts) return 'Ungültiges Datum'
+    try {
+      const [datePart, timePart] = ts.split(' ')
+      const [day, month, year] = datePart.split('.')
+      return new Date(`${year}-${month}-${day}T${timePart}`).toLocaleString()
+    } catch (e) {
+      return 'Ungültiges Datum'
+    }
+  }  
+
   return (
     <Box sx={{ p: 3 }}>
       <Typography variant="h5" fontWeight="bold" gutterBottom>
@@ -74,7 +85,7 @@ export default function Dashboard() {
               <Typography variant="body1">
                 <AssignmentInd sx={{ mr: 1, verticalAlign: 'middle', position: 'relative', top: -2 }} fontSize="small" />
                 <strong>{lastEvent.actor}</strong> hat sich am{' '}
-                <strong>{new Date(lastEvent.timestamp).toLocaleString()}</strong>{' '}
+                <strong>{parseDate(lastEvent.timestamp)}</strong>{' '}
                 über <strong>{lastEvent.authentication}</strong> am{' '}
                 <DoorFront fontSize="small" sx={{ mr: 1, verticalAlign: 'middle', position: 'relative', top: -2 }} />
                 <strong>{lastEvent.door}</strong> eingeloggt.

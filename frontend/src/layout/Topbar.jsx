@@ -8,29 +8,31 @@ import {
   IconButton,
   useTheme,
 } from '@mui/material'
-import { NavLink } from 'react-router-dom'
-import { ColorModeContext } from '../context/ColorModeContext'
+import { NavLink, useNavigate } from 'react-router-dom'
 import { useContext } from 'react'
 
 import GroupIcon from '@mui/icons-material/Groups'
 import TimelineIcon from '@mui/icons-material/Timeline'
 import PaymentsIcon from '@mui/icons-material/Payments'
 import MeetingRoomIcon from '@mui/icons-material/MeetingRoom'
-import Brightness4Icon from '@mui/icons-material/Brightness4'
-import Brightness7Icon from '@mui/icons-material/Brightness7'
+import SettingsIcon from '@mui/icons-material/Settings'
 import KeyIcon from '@mui/icons-material/VpnKey'
 
 export default function Topbar() {
   const theme = useTheme()
-  const colorMode = useContext(ColorModeContext)
+  const navigate = useNavigate()
 
   const menuItems = [
     { label: 'Gemeinschaftsnetzwerk', path: '/mitglieder', icon: <GroupIcon fontSize="small" /> },
     { label: 'Track & Trace', path: '/trace', icon: <TimelineIcon fontSize="small" /> },
     { label: 'Buchhaltung', path: '/buchhaltung', icon: <PaymentsIcon fontSize="small" /> },
     { label: 'Raumverwaltung', path: '/rooms', icon: <MeetingRoomIcon fontSize="small" /> },
-    { label: 'UniFi Access', path: '/unifi-access/dashboard', icon: <KeyIcon fontSize="small" /> },  // ✅ aktualisierter Pfad
+    { label: 'UniFi Access', path: '/unifi-access/dashboard', icon: <KeyIcon fontSize="small" /> },
   ]
+
+  const handleOptionsClick = () => {
+    navigate('/options')
+  }
 
   return (
     <AppBar position="fixed" color="success" elevation={2} sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
@@ -67,8 +69,8 @@ export default function Topbar() {
 
           <Divider orientation="vertical" flexItem sx={{ mx: 0.5, borderColor: 'rgba(255,255,255,0.5)' }} />
 
-          <IconButton onClick={colorMode.toggleColorMode} color="inherit" sx={{ ml: 1 }}>
-            {theme.palette.mode === 'dark' ? <Brightness7Icon /> : <Brightness4Icon />}
+          <IconButton onClick={handleOptionsClick} color="inherit" sx={{ ml: 1 }}>
+            <SettingsIcon />
           </IconButton>
         </Box>
       </Toolbar>

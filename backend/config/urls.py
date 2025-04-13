@@ -6,6 +6,7 @@ from interface.views import index_view
 
 from members.api_views import MemberViewSet, user_info, login_view, logout_view
 from rooms.api_views import RoomViewSet
+from options.api_views import OptionListAPIView
 
 router = DefaultRouter()
 router.register(r'members', MemberViewSet)
@@ -29,6 +30,5 @@ urlpatterns = [
     path("unifi_access/", include("unifi_access.urls")),             # Für Port 8000 (Django direkt)
     path("api/unifi_access/", include("unifi_access.urls")),         # Für React-Testserver
 
-    # ❌ unifi/api_urls entfernen, wenn du diese nicht brauchst
-    # path('api/unifi/', include('unifi_access.api_urls')),          # (nur verwenden, wenn separat)
+   path("api/options/", OptionListAPIView.as_view(), name="api-options"),
 ]
