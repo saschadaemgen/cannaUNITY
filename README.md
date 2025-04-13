@@ -1,4 +1,3 @@
-
 # 🌿 cannaUNITY
 
 > **Modulare Open-Source-Software für Cannabis-Anbaugemeinschaften**  
@@ -147,5 +146,5 @@ Pull Requests & Vorschläge willkommen!
 
 ---
 
-> Erstellt mit ❤️ von **Sascha Dämgen** und seiner zuckersüßen KIA "A.K.I.A".
+> Erstellt mit ❤️ von **Sascha Dämgen** und seiner zuckersüßen KIA "A.K.I.A".  
 > Vision: Eine sichere, moderne und gemeinschaftsgetragene Plattform für den verantwortungsvollen Umgang mit Cannabis.
