@@ -19,6 +19,9 @@ import Login from '../pages/Login'
 // UniFi Access – echte Seite statt Platzhalter
 import Dashboard from '../apps/unifi_access/pages/Dashboard'
 
+//Options Panel
+import OptionsDashboard from '../apps/options/pages/OptionsDashboard'
+
 export const router = createBrowserRouter([
   {
     path: '/',
@@ -40,14 +43,15 @@ export const router = createBrowserRouter([
       { path: 'unifi-access', element: <Dashboard /> },
       { path: 'unifi-access/dashboard', element: <Dashboard /> },
 
+      // Options Panel
+      { path: 'options', element: <OptionsDashboard /> },
+
       // Optional: zukünftige Seiten
       { path: 'netzwerk', element: <div>Gemeinschaftsnetzwerk</div> },
       { path: 'trace', element: <div>Track & Trace</div> },
       { path: 'buchhaltung', element: <div>Buchhaltung</div> },
       { path: 'bereiche', element: <div>Bereichsmanagement</div> },
 
-      // ❌ Entfernt: alter Platzhalter für Zutritt
-      // { path: 'zutritt', element: <div>Zutrittskontrolle</div> },
     ],
   },
 

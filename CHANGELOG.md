@@ -6,6 +6,27 @@ Das Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/en/1
 
 ---
 
+## [0.6.15] – 2025-04-14
+### ✨ Hinzugefügt
+- Neues Optionspanel im Frontend implementiert (`OptionsDashboard`)
+- `OptionCard`-Komponente mit wiederverwendbarem Layout & Switch-Funktion
+- Dark-Mode-Toggle als erste Systemoption integriert
+- Autostart-Support für den WebSocket Listener (`ha_listener.py`) via `.vbs` realisiert
+- Installer- & Uninstaller-Skripte für Windows (versteckter Hintergrundstart)
+- Erkennung & Entfernung alter Tasks aus der Windows-Aufgabenplanung
+
+### ♻️ Geändert
+- UI-Karten mit einheitlichem Design: Border, Schatten & kompakter Stil
+- `install_listener.vbs` komplett überarbeitet mit sauberen Anführungszeichen (kein Syntaxfehler mehr)
+- OptionCard vereinfacht: keine 3D-Effekte mehr, sauberes UX
+
+### 🐛 Gefixt
+- Ungültige `.vbs`-Erstellung durch fehlerhafte Quotes
+- „Anweisungssende erwartet“-Fehler beim Windows-Start
+- Ungültiger Autostart durch fehlerhafte VBS-Pfade
+
+---
+
 ## [0.6.14] – 2025-04-13
 ### ✨ Hinzugefügt
 - `DISCLAIMER.md`: Haftungsausschluss zu Nutzung, Risiken & Verantwortung

@@ -1,29 +1,39 @@
-import React, { useEffect, useState } from 'react'
+import { useContext, useState } from 'react'
+import { Grid, Typography, Box, useTheme } from '@mui/material'
 import OptionCard from '../components/OptionCard'
-import { fetchOptions } from '@/utils/api'
+import { ColorModeContext } from '../../../context/ColorModeContext'
 
-const OptionsDashboard = () => {
-  const [options, setOptions] = useState([])
+export default function OptionsDashboard() {
+  const colorMode = useContext(ColorModeContext)
+  const theme = useTheme()
+  const [mode, setMode] = useState(theme.palette.mode)
 
-  useEffect(() => {
-    fetchOptions().then(setOptions).catch(console.error)
-  }, [])
+  const toggleMode = () => {
+    colorMode.toggleColorMode()
+    setMode(prev => (prev === 'dark' ? 'light' : 'dark'))
+  }
+
+  const options = [
+    {
+      id: 1,
+      title: 'Dark Mode',
+      value: mode === 'dark' ? '🌑 Dunkel' : '🌕 Hell',
+      description: 'Wechselt zwischen hellem und dunklem Erscheinungsbild.',
+      toggleValue: mode === 'dark',
+      onToggle: () => toggleMode(),
+    },
+  ]
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">Systemeinstellungen</h1>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <Box sx={{ p: 3 }}>
+      <Typography variant="h5" gutterBottom>Systemoptionen</Typography>
+      <Grid container spacing={2}>
         {options.map((opt) => (
-          <OptionCard
-            key={opt.key}
-            title={opt.key}
-            value={opt.value}
-            description={opt.description}
-          />
+          <Grid item xs={12} sm={6} md={4} key={opt.id}>
+            <OptionCard {...opt} />
+          </Grid>
         ))}
-      </div>
-    </div>
+      </Grid>
+    </Box>
   )
 }
-
-export default OptionsDashboard
