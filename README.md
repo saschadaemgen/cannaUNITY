@@ -1,4 +1,4 @@
-# 🌿 cannaUNITY
+# 🌿 cannaUNITY v0.6.16
 
 > **Modulare Open-Source-Software für Cannabis-Anbaugemeinschaften**  
 > Mitgliederverwaltung · Aufgabenplanung · Zutrittskontrolle · Track & Trace · Raumautomation · Sicherheitssysteme
@@ -113,6 +113,7 @@ cannaUNITY/
 | `access`         | UniFi Access: RFID, FaceID, Logs, Zutrittsrechte                             |
 | `rooms`          | Raumverwaltung mit Klima, Sensoren & Automation                              |
 | `taskmanager`    | Aufgabenreservierung, Stundenkonto, Abgleiche                                |
+| `buchhaltung`    | GoB-konforme Buchhaltung mit HBCI Abgleich,                                  |
 | `interface`      | Touchpanels, Raumterminals, Infodisplays                                     |
 | `controller`     | Anbindung Siemens/Loxone, Aktorik, Automatisierung                           |
 | `security`       | Alarmsysteme, Notfallzugänge, Behördenzugriff                                |
@@ -129,6 +130,11 @@ cannaUNITY/
 - ✅ Vollständige Protokollierung für Behördenzugriff
 - ✅ Touchpanelsteuerung & Raumanzeige
 - ✅ Anonymisierte Produktausgabe mit UUID
+- ✅ GoB-konforme Buchhaltung mit vollständiger Journaldarstellung
+- ✅ Stornobuchungen mit gegenbuchender Rückabwicklung (SOLL/HABEN)
+- ✅ Einzel- und Mehrfachbuchungen inkl. Subtransaktionen & Kontenwahl
+- ✅ Vollständige Verknüpfung zu Mitgliedskonten & Mitgliedsbeiträgen
+- ✅ Filterbare Journalansicht nach Jahr, Monat, Typ & Stornostatus
 - ✅ Docker-, Proxmox- & Baremetal-ready
 
 ---
