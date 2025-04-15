@@ -4,6 +4,7 @@ from rest_framework import viewsets
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from django.db.models import Q
 from .models import Member
 from .serializers import MemberSerializer
 from rest_framework.pagination import PageNumberPagination
@@ -15,13 +16,56 @@ class MemberViewSet(viewsets.ModelViewSet):
     queryset = Member.objects.all().order_by("id")
     serializer_class = MemberSerializer
     permission_classes = [IsAuthenticated]
-    pagination_class = MemberPagination  # ✅ das fehlte!
+    pagination_class = MemberPagination
+
+    def get_queryset(self):
+        queryset = Member.objects.all().order_by('last_name', 'first_name')
+        
+        # Prüfe, ob Suchanfrage existiert
+        search = self.request.query_params.get('search', '')
+        limit = self.request.query_params.get('limit')
+        exact = self.request.query_params.get('exact', 'false').lower() == 'true'
+        
+        if search and len(search) >= 2:
+            if exact:
+                # Exakte Suche (für Anfangsbuchstaben)
+                queryset = queryset.filter(
+                    Q(first_name__istartswith=search) | 
+                    Q(last_name__istartswith=search)
+                )
+            else:
+                # Allgemeine Suche (enthält)
+                queryset = queryset.filter(
+                    Q(first_name__icontains=search) | 
+                    Q(last_name__icontains=search)
+                )
+        
+        # Begrenzen, falls limit Parameter existiert
+        if limit:
+            try:
+                limit_val = int(limit)
+                queryset = queryset[:limit_val]
+            except ValueError:
+                pass
+        
+        return queryset
 
     def list(self, request, *args, **kwargs):
-        response = super().list(request, *args, **kwargs)
-        is_teamleiter = request.user.groups.filter(name="teamleiter").exists()
-        response.data["extra"] = {"is_teamleiter": is_teamleiter}
-        return response
+        # Für normale Liste mit Pagination
+        if not request.query_params.get('search'):
+            response = super().list(request, *args, **kwargs)
+            is_teamleiter = request.user.groups.filter(name="teamleiter").exists()
+            response.data["extra"] = {"is_teamleiter": is_teamleiter}
+            return response
+            
+        # Für Suchanfragen ohne Pagination
+        if request.query_params.get('search'):
+            self.pagination_class = None
+            queryset = self.get_queryset()
+            serializer = self.get_serializer(queryset, many=True)
+            return Response(serializer.data)
+            
+        return super().list(request, *args, **kwargs)
 
 
 @api_view(['GET'])

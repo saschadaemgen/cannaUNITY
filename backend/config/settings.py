@@ -27,6 +27,7 @@ INSTALLED_APPS = [
     'members',
     'rooms',
     "options",
+    'buchhaltung',
     "interface",
     'unifi_access',
 ]

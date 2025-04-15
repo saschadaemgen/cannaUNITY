@@ -16,6 +16,6 @@ Set file = FSO.CreateTextFile(vbsPath, True)
 file.Write vbsContent
 file.Close
 
-MsgBox "Der cannaUNITY Listener wurde erfolgreich zum Autostart hinzugefügt." & vbCrLf & vbCrLf & _
+MsgBox "Der cannaUNITY Listener wurde erfolgreich zum Autostart hinzugefuegt." & vbCrLf & vbCrLf & _
        "Er startet beim nächsten Systemstart automatisch im Hintergrund." & vbCrLf & _
-       "Alternativ können Sie sich ab- und wieder anmelden.", vbInformation, "Autostart eingerichtet"
+       "Alternativ koennen Sie sich ab- und wieder anmelden.", vbInformation, "Autostart eingerichtet"
