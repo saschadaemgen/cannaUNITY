@@ -17,8 +17,6 @@ from django.utils.timezone import now
 from decimal import Decimal
 from django.db import transaction
 from django.utils import timezone
-
-# Neue Importe für MainBookAPIView
 from django.utils.dateparse import parse_date
 from django.db.models import Sum
 import datetime

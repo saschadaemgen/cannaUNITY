@@ -15,7 +15,6 @@ import AccountList from '../apps/buchhaltung/pages/AccountList'
 import AccountForm from '../apps/buchhaltung/pages/AccountForm'
 import AccountImport from '../apps/buchhaltung/pages/AccountImport'
 import JournalList from '../apps/buchhaltung/pages/JournalList'
-import JournalByAccount from '../apps/buchhaltung/pages/JournalByAccount'
 import BookingForm from '../apps/buchhaltung/pages/BookingForm'
 import BookingDetail from '../apps/buchhaltung/pages/BookingDetail'
 import MainBook from '../apps/buchhaltung/pages/MainBook'
@@ -51,7 +50,6 @@ export const router = createBrowserRouter([
       { path: 'buchhaltung/konten/:id/edit', element: <AccountForm /> },
       { path: 'buchhaltung/konten/import', element: <AccountImport /> },
       { path: 'buchhaltung/journal', element: <JournalList /> },
-      { path: 'buchhaltung/journal/konten', element: <JournalByAccount /> },
       { path: 'buchhaltung/buchung/neu', element: <BookingForm /> },
       { path: 'buchhaltung/buchung/:id', element: <BookingDetail /> },
       { path: 'buchhaltung/hauptbuch', element: <MainBook /> },
@@ -61,7 +59,6 @@ export const router = createBrowserRouter([
       // Optional: zukünftige Seiten
       { path: 'netzwerk', element: <div>Gemeinschaftsnetzwerk</div> },
       { path: 'trace', element: <div>Track & Trace</div> },
-      { path: 'bereiche', element: <div>Bereichsmanagement</div> },
     ],
   },
 

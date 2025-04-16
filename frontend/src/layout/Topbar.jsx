@@ -47,11 +47,10 @@ export default function Topbar() {
         { label: 'Kontenübersicht', path: '/buchhaltung/konten' },
         { label: 'Neues Konto', path: '/buchhaltung/konten/neu' },
         { label: 'Buchungsjournal', path: '/buchhaltung/journal' },
-        { label: 'Journal nach Konto', path: '/buchhaltung/journal/konten' },
+        { label: 'Neue Buchung', path: '/buchhaltung/buchung/neu' },
         { label: 'Hauptbuch', path: '/buchhaltung/hauptbuch' },
         { label: 'GuV', path: '/buchhaltung/guv' },
         { label: 'Bilanz', path: '/buchhaltung/bilanz' },
-        { label: 'Neue Buchung', path: '/buchhaltung/buchung/neu' },
       ],
     },
   
