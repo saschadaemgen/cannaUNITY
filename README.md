@@ -1,4 +1,4 @@
-# 🌿 cannaUNITY v0.6.16
+# 🌿 cannaUNITY v0.6.17
 
 > **Modulare Open-Source-Software für Cannabis-Anbaugemeinschaften**  
 > Mitgliederverwaltung · Aufgabenplanung · Zutrittskontrolle · Track & Trace · Raumautomation · Sicherheitssysteme
@@ -54,6 +54,26 @@ Jeder Verarbeitungsschritt ist dokumentiert und manipulationssicher protokollier
 9. **Vernichtung** (optional, wenn nötig)
 
 Jeder Schritt wird über die Mitarbeiterkonten per RFID/NFC bestätigt und in Echtzeit dokumentiert.
+
+---
+
+📘 Buchhaltungssystem: GoB-konforme, modulare Finanzübersicht
+Das integrierte Buchhaltungssystem ist vollständig GoB-konform aufgebaut und erlaubt eine transparente, strukturierte Abbildung aller finanziellen Vorgänge im Verein.
+Es wurde speziell für Anbauvereinigungen entwickelt und verbindet klassische Buchhaltungsprinzipien mit moderner, filterbarer Darstellung im Webinterface.
+
+Unterstützte Funktionen & Module:
+1. Hauptbuch – T-Konten-Übersicht mit SOLL-/HABEN-Salden und Journalanzeige
+2. Gewinn- und Verlustrechnung (GuV) – gruppierte Darstellung nach Kostenarten
+3. Bilanz – Stichtagsbezogene Bilanz mit Prüfung der Bilanzgleichheit
+4. Mitgliederverknüpfung – automatische Verbindung von Buchungen zu Mitgliedsbeiträgen
+5. Storno-Logik – rückwirkende Stornierung mit Gegenbuchung & Filteroptionen
+6. Mehrfachbuchungen – Subtransaktionen mit durchgehender Buchungsnummerierung
+7. Filterfunktionen – nach Jahr, Monat, Buchungstyp, Stornostatus und Zweck
+8. Schnittstellenvorbereitung – DATEV, CSV, PDF-Export geplant
+9. Zukunftssicher – Unterstützung für Jahresabschluss, EÜR/Umschaltung, Saldenübernahme
+
+Jede Buchung wird revisionssicher gespeichert, über das Journal vollständig einsehbar gemacht und kann in Echtzeit ausgewertet werden.
+Die Umsetzung folgt den Grundsätzen ordnungsgemäßer Buchführung (GoB) und bildet die Basis für steuerlich relevante Auswertungen.
 
 ---
 
