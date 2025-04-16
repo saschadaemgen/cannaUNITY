@@ -51,6 +51,7 @@ export default function Topbar() {
         { label: 'Hauptbuch', path: '/buchhaltung/hauptbuch' },
         { label: 'GuV', path: '/buchhaltung/guv' },
         { label: 'Bilanz', path: '/buchhaltung/bilanz' },
+        { label: 'Jahresabschluss', path: '/buchhaltung/jahresabschluss' },
       ],
     },
   

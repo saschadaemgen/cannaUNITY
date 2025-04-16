@@ -1,9 +1,10 @@
 from rest_framework import serializers
-from .models import Booking, SubTransaction, Account, MemberAccount
+from .models import Booking, SubTransaction, Account, MemberAccount, BusinessYear, YearClosingStep, ClosingAdjustment
 from decimal import Decimal
 from django.db import transaction
 from django.utils.timezone import make_aware
 from collections import defaultdict
+from django.db.models import Q
 
 # Diese Version wird im Journal angezeigt – Name & Nummer der Konten
 class KontoInfoSerializer(serializers.ModelSerializer):
@@ -168,3 +169,71 @@ class BookingSummarySerializer(serializers.Serializer):
     total_expense = serializers.DecimalField(max_digits=10, decimal_places=2)
     balance = serializers.DecimalField(max_digits=10, decimal_places=2)
     monthly_data = serializers.ListField()
+
+class YearClosingStepSerializer(serializers.ModelSerializer):
+    step_display = serializers.CharField(source='get_step_display', read_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    
+    class Meta:
+        model = YearClosingStep
+        fields = [
+            'id', 'business_year', 'step', 'step_display', 
+            'status', 'status_display', 'created_at', 
+            'updated_at', 'completed_at', 'notes'
+        ]
+
+
+class ClosingAdjustmentSerializer(serializers.ModelSerializer):
+    adjustment_type_display = serializers.CharField(source='get_adjustment_type_display', read_only=True)
+    
+    class Meta:
+        model = ClosingAdjustment
+        fields = [
+            'id', 'business_year', 'name', 'adjustment_type', 
+            'adjustment_type_display', 'description', 'booking', 
+            'amount', 'is_completed', 'created_at', 'completed_at'
+        ]
+
+
+class BusinessYearSerializer(serializers.ModelSerializer):
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    steps = YearClosingStepSerializer(source='closing_steps', many=True, read_only=True)
+    adjustments = ClosingAdjustmentSerializer(many=True, read_only=True)
+    is_current = serializers.BooleanField(source='is_current_year', read_only=True)
+    duration_days = serializers.IntegerField(source='year_duration_in_days', read_only=True)
+    
+    class Meta:
+        model = BusinessYear
+        fields = [
+            'id', 'name', 'start_date', 'end_date', 'status', 
+            'status_display', 'is_retroactive', 'created_at', 
+            'closed_at', 'closing_notes', 'closing_document',
+            'steps', 'adjustments', 'is_current', 'duration_days'
+        ]
+
+
+class BusinessYearCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BusinessYear
+        fields = ['name', 'start_date', 'end_date', 'is_retroactive']
+        
+    def validate(self, data):
+        """Prüft, ob die Daten für ein Geschäftsjahr gültig sind"""
+        start_date = data['start_date']
+        end_date = data['end_date']
+        
+        # Startdatum muss vor Enddatum liegen
+        if start_date >= end_date:
+            raise serializers.ValidationError("Das Startdatum muss vor dem Enddatum liegen.")
+        
+        # Prüfen, ob sich mit bestehendem Geschäftsjahr überschneidet
+        overlapping = BusinessYear.objects.filter(
+            Q(start_date__lte=end_date) & Q(end_date__gte=start_date)
+        ).exists()
+        
+        if overlapping:
+            raise serializers.ValidationError(
+                "Das Geschäftsjahr überschneidet sich mit einem bestehenden Geschäftsjahr."
+            )
+        
+        return data

@@ -10,11 +10,17 @@ from .views_api import (
     MainBookAPIView,
     ProfitLossAPIView,
     BalanceSheetAPIView,
+    BusinessYearViewSet,
+    YearClosingStepViewSet,
+    ClosingAdjustmentViewSet
 )
 
 router = DefaultRouter()
 router.register(r'accounts', AccountViewSet)
 router.register(r'bookings', BookingViewSet)  # ✅ Damit /bookings/<id>/delete-with-rollback/ funktioniert
+router.register(r'business-years', BusinessYearViewSet)
+router.register(r'closing-steps', YearClosingStepViewSet)
+router.register(r'closing-adjustments', ClosingAdjustmentViewSet)
 
 urlpatterns = [
     path('dashboard/', BookingDashboardAPIView.as_view(), name='dashboard-api'),

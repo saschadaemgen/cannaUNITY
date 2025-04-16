@@ -478,8 +478,8 @@ class ProfitLossAPIView(APIView):
         # Zusammenfassung - KORRIGIERT
         result['summary'] = {
             'total_income': total_income,
-            'total_expenses': total_expenses,  # Bereits negative Werte!
-            'profit': total_income + total_expenses  # PLUS statt MINUS, da expenses bereits negativ sind
+            'total_expenses': total_expenses,  # Positive Werte für Aufwendungen
+            'profit': total_income - total_expenses  # KORRIGIERT: Subtrahieren statt Addieren
         }
         
         return Response(result)
@@ -642,3 +642,192 @@ class BalanceSheetAPIView(APIView):
                 
         # Nach Kategorie gruppieren
         return sorted(result, key=lambda x: x['category'] + x['number'])
+    
+# Zusätzliche Imports hinzufügen
+from .models import BusinessYear, YearClosingStep, ClosingAdjustment
+from .serializers import (
+    BusinessYearSerializer, BusinessYearCreateSerializer,
+    YearClosingStepSerializer, ClosingAdjustmentSerializer
+)
+from django.db.models import Q
+
+class BusinessYearViewSet(viewsets.ModelViewSet):
+    """API für Geschäftsjahre"""
+    queryset = BusinessYear.objects.all()
+    
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return BusinessYearCreateSerializer
+        return BusinessYearSerializer
+    
+    @action(detail=True, methods=['post'], url_path='start-closing')
+    def start_closing(self, request, pk=None):
+        """Startet den Jahresabschluss-Workflow für ein Geschäftsjahr"""
+        business_year = self.get_object()
+        
+        # Prüfen, ob das Geschäftsjahr bereits abgeschlossen ist
+        if business_year.status == 'CLOSED':
+            return Response(
+                {'error': 'Das Geschäftsjahr ist bereits abgeschlossen.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Status auf "In Bearbeitung" setzen
+        business_year.status = 'IN_PROGRESS'
+        business_year.save()
+        
+        # Schritte erstellen, falls noch nicht vorhanden
+        steps = [
+            ('PREPARATION', 'Vorbereitung des Jahresabschlusses'),
+            ('ADJUSTMENTS', 'Erfassung von Abschlussbuchungen'),
+            ('CLOSING', 'Durchführung des Jahresabschlusses'),
+            ('OPENING', 'Eröffnung des neuen Geschäftsjahres')
+        ]
+        
+        for step_code, step_notes in steps:
+            step, created = YearClosingStep.objects.get_or_create(
+                business_year=business_year,
+                step=step_code,
+                defaults={'notes': step_notes}
+            )
+            
+            # Ersten Schritt als "In Bearbeitung" markieren, falls neu
+            if created and step_code == 'PREPARATION':
+                step.status = 'IN_PROGRESS'
+                step.save()
+        
+        return Response(BusinessYearSerializer(business_year).data)
+    
+    @action(detail=True, methods=['post'], url_path='complete-closing')
+    def complete_closing(self, request, pk=None):
+        """Schließt den Jahresabschluss-Workflow ab"""
+        business_year = self.get_object()
+        closing_notes = request.data.get('closing_notes', '')
+        
+        # Prüfen, ob alle Schritte abgeschlossen sind
+        incomplete_steps = business_year.closing_steps.exclude(
+            Q(status='COMPLETED') | Q(status='SKIPPED')
+        )
+        
+        if incomplete_steps.exists():
+            return Response(
+                {'error': 'Es gibt noch nicht abgeschlossene Schritte im Jahresabschluss.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Geschäftsjahr als abgeschlossen markieren
+        business_year.status = 'CLOSED'
+        business_year.closed_at = timezone.now()
+        business_year.closing_notes = closing_notes
+        business_year.save()
+        
+        # TODO: Hier könnte man den Jahresabschluss-Bericht generieren
+        
+        return Response(BusinessYearSerializer(business_year).data)
+
+
+class YearClosingStepViewSet(viewsets.ModelViewSet):
+    """API für Jahresabschluss-Schritte"""
+    queryset = YearClosingStep.objects.all()
+    serializer_class = YearClosingStepSerializer
+    
+    @action(detail=True, methods=['post'], url_path='start')
+    def start_step(self, request, pk=None):
+        """Markiert einen Schritt als begonnen"""
+        step = self.get_object()
+        
+        # Prüfen, ob das Geschäftsjahr noch bearbeitet werden kann
+        if not step.business_year.can_be_modified():
+            return Response(
+                {'error': 'Das Geschäftsjahr kann nicht mehr bearbeitet werden.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        step.start()
+        return Response(YearClosingStepSerializer(step).data)
+    
+    @action(detail=True, methods=['post'], url_path='complete')
+    def complete_step(self, request, pk=None):
+        """Markiert einen Schritt als abgeschlossen"""
+        step = self.get_object()
+        notes = request.data.get('notes', '')
+        
+        # Prüfen, ob das Geschäftsjahr noch bearbeitet werden kann
+        if not step.business_year.can_be_modified():
+            return Response(
+                {'error': 'Das Geschäftsjahr kann nicht mehr bearbeitet werden.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Notizen aktualisieren
+        step.notes = notes
+        step.complete()
+        
+        # Wenn es Folgephasen gibt und dies nicht die letzte ist, 
+        # die nächste Phase automatisch starten
+        next_steps = {
+            'PREPARATION': 'ADJUSTMENTS',
+            'ADJUSTMENTS': 'CLOSING',
+            'CLOSING': 'OPENING'
+        }
+        
+        if step.step in next_steps:
+            next_step_code = next_steps[step.step]
+            try:
+                next_step = YearClosingStep.objects.get(
+                    business_year=step.business_year,
+                    step=next_step_code
+                )
+                next_step.start()
+            except YearClosingStep.DoesNotExist:
+                pass
+        
+        return Response(YearClosingStepSerializer(step).data)
+    
+    @action(detail=True, methods=['post'], url_path='skip')
+    def skip_step(self, request, pk=None):
+        """Überspringt einen Schritt"""
+        step = self.get_object()
+        reason = request.data.get('reason', '')
+        
+        # Prüfen, ob das Geschäftsjahr noch bearbeitet werden kann
+        if not step.business_year.can_be_modified():
+            return Response(
+                {'error': 'Das Geschäftsjahr kann nicht mehr bearbeitet werden.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        step.status = 'SKIPPED'
+        step.notes = f"Übersprungen: {reason}"
+        step.save()
+        
+        return Response(YearClosingStepSerializer(step).data)
+
+
+class ClosingAdjustmentViewSet(viewsets.ModelViewSet):
+    """API für Abschlussbuchungen"""
+    queryset = ClosingAdjustment.objects.all()
+    serializer_class = ClosingAdjustmentSerializer
+    
+    @action(detail=True, methods=['post'], url_path='complete')
+    def complete_adjustment(self, request, pk=None):
+        """Markiert eine Abschlussbuchung als durchgeführt"""
+        adjustment = self.get_object()
+        booking_id = request.data.get('booking_id')
+        
+        # Prüfen, ob die Buchung existiert
+        try:
+            booking = Booking.objects.get(pk=booking_id)
+        except Booking.DoesNotExist:
+            return Response(
+                {'error': 'Die angegebene Buchung existiert nicht.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Verknüpfen und als abgeschlossen markieren
+        adjustment.booking = booking
+        adjustment.is_completed = True
+        adjustment.completed_at = timezone.now()
+        adjustment.save()
+        
+        return Response(ClosingAdjustmentSerializer(adjustment).data)

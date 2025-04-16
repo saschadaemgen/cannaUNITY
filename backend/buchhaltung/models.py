@@ -2,6 +2,8 @@ from django.db import models
 from django.utils.timezone import now
 from decimal import Decimal
 from members.models import Member
+import datetime
+from django.utils import timezone
 
 class Account(models.Model):
     KONTO_TYPEN = [
@@ -88,3 +90,125 @@ class MemberAccount(models.Model):
 
     def __str__(self):
         return f"{self.mitglied.first_name} {self.mitglied.last_name} - {self.kontostand} EUR"
+    
+# Bestehende Imports beibehalten
+import datetime
+from django.utils import timezone
+
+class BusinessYear(models.Model):
+    """Geschäftsjahr-Modell für die Buchhaltung"""
+    STATUS_CHOICES = [
+        ('OPEN', 'Offen'),
+        ('IN_PROGRESS', 'In Bearbeitung'),
+        ('CLOSED', 'Abgeschlossen'),
+    ]
+    
+    name = models.CharField(max_length=100, verbose_name="Bezeichnung")
+    start_date = models.DateField(verbose_name="Beginn")
+    end_date = models.DateField(verbose_name="Ende")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='OPEN')
+    
+    # Flags für Nachvollziehbarkeit
+    is_retroactive = models.BooleanField(default=False, verbose_name="Rückwirkend angelegt")
+    created_at = models.DateTimeField(auto_now_add=True)
+    closed_at = models.DateTimeField(null=True, blank=True)
+    closing_notes = models.TextField(blank=True, null=True, verbose_name="Abschlussnotizen")
+    
+    # Referenz auf Abschlussdokumente
+    closing_document = models.FileField(upload_to='closings/', null=True, blank=True)
+    
+    class Meta:
+        verbose_name = "Geschäftsjahr"
+        verbose_name_plural = "Geschäftsjahre"
+        ordering = ['-start_date']
+    
+    def __str__(self):
+        return f"{self.name} ({self.start_date.strftime('%d.%m.%Y')} - {self.end_date.strftime('%d.%m.%Y')})"
+    
+    def year_duration_in_days(self):
+        """Dauer des Geschäftsjahres in Tagen"""
+        return (self.end_date - self.start_date).days + 1
+    
+    def is_current_year(self):
+        """Prüft, ob es das laufende Geschäftsjahr ist"""
+        today = datetime.date.today()
+        return self.start_date <= today <= self.end_date
+    
+    def can_be_modified(self):
+        """Prüft, ob Änderungen am Geschäftsjahr noch erlaubt sind"""
+        return self.status != 'CLOSED'
+
+
+class YearClosingStep(models.Model):
+    """Schritt im Jahresabschluss-Workflow"""
+    STEP_CHOICES = [
+        ('PREPARATION', 'Vorbereitung'),
+        ('ADJUSTMENTS', 'Abschlussbuchungen'),
+        ('CLOSING', 'Jahresabschluss durchführen'),
+        ('OPENING', 'Neues Jahr eröffnen'),
+    ]
+    
+    STATUS_CHOICES = [
+        ('NOT_STARTED', 'Nicht begonnen'),
+        ('IN_PROGRESS', 'In Bearbeitung'),
+        ('COMPLETED', 'Abgeschlossen'),
+        ('SKIPPED', 'Übersprungen'),
+    ]
+    
+    business_year = models.ForeignKey(BusinessYear, on_delete=models.CASCADE, related_name='closing_steps')
+    step = models.CharField(max_length=20, choices=STEP_CHOICES)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='NOT_STARTED')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    notes = models.TextField(blank=True, null=True)
+    
+    class Meta:
+        verbose_name = "Jahresabschluss-Schritt"
+        verbose_name_plural = "Jahresabschluss-Schritte"
+        ordering = ['business_year', 'step']
+        unique_together = ['business_year', 'step']
+    
+    def __str__(self):
+        return f"{self.get_step_display()} für {self.business_year}"
+    
+    def complete(self):
+        """Markiert diesen Schritt als abgeschlossen"""
+        self.status = 'COMPLETED'
+        self.completed_at = timezone.now()
+        self.save()
+    
+    def start(self):
+        """Markiert diesen Schritt als begonnen"""
+        self.status = 'IN_PROGRESS'
+        self.save()
+
+
+class ClosingAdjustment(models.Model):
+    """Abschlussbuchung im Rahmen des Jahresabschlusses"""
+    TYPE_CHOICES = [
+        ('DEPRECIATION', 'Abschreibung'),
+        ('PROVISION', 'Rückstellung'),
+        ('ACCRUAL', 'Rechnungsabgrenzung'),
+        ('VALUATION', 'Bewertungskorrektur'),
+        ('OTHER', 'Sonstige'),
+    ]
+    
+    business_year = models.ForeignKey(BusinessYear, on_delete=models.CASCADE, related_name='adjustments')
+    name = models.CharField(max_length=255, verbose_name="Bezeichnung")
+    adjustment_type = models.CharField(max_length=20, choices=TYPE_CHOICES, verbose_name="Typ")
+    description = models.TextField(blank=True, null=True, verbose_name="Beschreibung")
+    booking = models.ForeignKey(Booking, null=True, blank=True, on_delete=models.SET_NULL, 
+                               related_name='closing_adjustments', verbose_name="Zugehörige Buchung")
+    amount = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Betrag")
+    is_completed = models.BooleanField(default=False, verbose_name="Abgeschlossen")
+    created_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        verbose_name = "Abschlussbuchung"
+        verbose_name_plural = "Abschlussbuchungen"
+        ordering = ['business_year', 'adjustment_type']
+    
+    def __str__(self):
+        return f"{self.name} ({self.get_adjustment_type_display()}) - {self.amount} €"

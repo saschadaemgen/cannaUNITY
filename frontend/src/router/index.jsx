@@ -20,6 +20,11 @@ import BookingDetail from '../apps/buchhaltung/pages/BookingDetail'
 import MainBook from '../apps/buchhaltung/pages/MainBook'
 import ProfitLoss from '../apps/buchhaltung/pages/ProfitLoss'
 import BalanceSheet from '../apps/buchhaltung/pages/BalanceSheet'
+import YearClosingList from '../apps/buchhaltung/pages/YearClosingList'
+import YearClosingPrep from '../apps/buchhaltung/pages/YearClosingPrep'
+import MemberCreate from '../apps/members/pages/MemberCreate'
+import MemberEdit from '../apps/members/pages/MemberEdit'
+import MemberDelete from '../apps/members/pages/MemberDelete'
 
 export const router = createBrowserRouter([
   {
@@ -30,6 +35,9 @@ export const router = createBrowserRouter([
 
       // Mitglieder
       { path: 'mitglieder', element: <MemberList /> },
+      { path: 'mitglieder/:id/edit', element: <MemberEdit /> },
+      { path: 'mitglieder/:id/delete', element: <MemberDelete /> },
+      { path: 'mitglieder/neu', element: <MemberCreate /> },
 
       // Räume
       { path: 'rooms', element: <RoomList /> },
@@ -55,6 +63,8 @@ export const router = createBrowserRouter([
       { path: 'buchhaltung/hauptbuch', element: <MainBook /> },
       { path: 'buchhaltung/guv', element: <ProfitLoss /> },
       { path: 'buchhaltung/bilanz', element: <BalanceSheet /> },
+      { path: 'buchhaltung/jahresabschluss', element: <YearClosingList /> },
+      { path: 'buchhaltung/jahresabschluss/:id/vorbereitung', element: <YearClosingPrep /> },
 
       // Optional: zukünftige Seiten
       { path: 'netzwerk', element: <div>Gemeinschaftsnetzwerk</div> },

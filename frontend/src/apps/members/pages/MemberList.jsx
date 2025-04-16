@@ -1,15 +1,20 @@
 import React, { useEffect, useState } from 'react'
-import api from '../../../utils/api'
+import { useNavigate } from 'react-router-dom'
 import {
   Typography,
-  List,
-  ListItem,
-  ListItemText,
   Button,
   Box,
   Pagination,
   CircularProgress,
+  Table,
+  TableHead,
+  TableBody,
+  TableCell,
+  TableRow,
+  TableContainer,
+  Paper,
 } from '@mui/material'
+import api from '../../../utils/api'
 
 export default function MemberList() {
   const [members, setMembers] = useState([])
@@ -19,30 +24,28 @@ export default function MemberList() {
   const [loading, setLoading] = useState(false)
   const [userGroups, setUserGroups] = useState([])
 
-  // ✅ Benutzergruppen abrufen (für Teamleiter-Buttons)
+  const navigate = useNavigate()
+  const isTeamleiter = userGroups.includes('teamleiter')
+
+  // Benutzergruppen laden
   useEffect(() => {
     const fetchUserInfo = async () => {
       try {
         const res = await api.get('/user-info/')
         setUserGroups(res.data.groups || [])
-        console.debug('[user-info]', res.data)
-      } catch (err) {
-        console.warn('❌ Fehler beim Abrufen der Benutzerinfo', err)
+      } catch {
         setUserGroups([])
       }
     }
-
     fetchUserInfo()
   }, [])
 
-  // ✅ Mitglieder laden (paginiert)
+  // Mitglieder laden
   useEffect(() => {
     const fetchMembers = async () => {
       setLoading(true)
       try {
         const res = await api.get(`/members/?page=${page}`)
-        console.debug('[members]', res.data)
-
         if (Array.isArray(res.data.results)) {
           setMembers(res.data.results)
           setTotalPages(Math.ceil(res.data.count / 25))
@@ -50,25 +53,24 @@ export default function MemberList() {
         } else {
           setError('API-Fehler: Kein gültiges results-Feld')
         }
-      } catch (err) {
-        console.warn('❌ Fehler beim Laden der Mitglieder:', err)
-        setError('Nicht autorisiert oder Serverfehler')
+      } catch {
+        setError('Fehler beim Laden der Mitglieder.')
         setMembers([])
       } finally {
         setLoading(false)
       }
     }
-
     fetchMembers()
   }, [page])
 
-  const isTeamleiter = userGroups.includes('teamleiter')
-
   return (
     <Box>
-      <Typography variant="h4" gutterBottom>
-        Mitgliederliste
-      </Typography>
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+        <Typography variant="h4">Mitgliederliste</Typography>
+        <Button variant="contained" color="primary" onClick={() => navigate('/mitglieder/neu')}>
+          Mitglied neu
+        </Button>
+      </Box>
 
       {error && (
         <Typography color="error" sx={{ mb: 2 }}>
@@ -78,44 +80,48 @@ export default function MemberList() {
 
       {loading ? (
         <CircularProgress />
-      ) : members.length === 0 ? (
-        <Typography>Keine Mitglieder gefunden.</Typography>
       ) : (
-        <List>
-          {members.map((member) => (
-            <ListItem
-              key={member.id}
-              secondaryAction={
-                isTeamleiter && (
-                  <>
-                    <Button
-                      size="small"
-                      color="primary"
-                      onClick={() => console.log('Bearbeiten:', member.id)}
-                    >
-                      Bearbeiten
-                    </Button>
-                    <Button
-                      size="small"
-                      color="error"
-                      onClick={() => console.log('Löschen:', member.id)}
-                    >
-                      Löschen
-                    </Button>
-                  </>
-                )
-              }
-            >
-              <ListItemText
-                primary={`${member.first_name} ${member.last_name}`}
-                secondary={member.email}
-              />
-            </ListItem>
-          ))}
-        </List>
+        <TableContainer component={Paper}>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Name</TableCell>
+                <TableCell>Geburtsdatum</TableCell>
+                <TableCell>Adresse</TableCell>
+                <TableCell>E-Mail</TableCell>
+                <TableCell>Kontostand</TableCell>
+                {isTeamleiter && <TableCell align="right">Aktionen</TableCell>}
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {members.map((member) => (
+                <TableRow key={member.id}>
+                  <TableCell>{member.first_name} {member.last_name}</TableCell>
+                  <TableCell>{member.birthdate || '—'}</TableCell>
+                  <TableCell>
+                    {member.street} {member.house_number},<br />
+                    {member.zip_code} {member.city}
+                  </TableCell>
+                  <TableCell>{member.email || '—'}</TableCell>
+                  <TableCell>{member.kontostand} €</TableCell>
+                  {isTeamleiter && (
+                    <TableCell align="right">
+                      <Button size="small" onClick={() => navigate(`/mitglieder/${member.id}/edit`)}>
+                        Bearbeiten
+                      </Button>
+                      <Button size="small" color="error" onClick={() => navigate(`/mitglieder/${member.id}/delete`)}>
+                        Löschen
+                      </Button>
+                    </TableCell>
+                  )}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
       )}
 
-      <Box mt={3} display="flex" justifyContent="center">
+      <Box mt={4} display="flex" justifyContent="center">
         <Pagination
           count={totalPages}
           page={page}
