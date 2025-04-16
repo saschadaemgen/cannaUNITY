@@ -6,6 +6,17 @@ Das Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/en/1
 
 ---
 
+## [0.6.17] – 2025-04-16
+### 📊 Hauptbuch & Bilanzfunktionen
+- Neues Hauptbuch-Modul mit Kontenübersicht, Journalansicht & Filter
+- Bilanzdarstellung mit Saldenprüfung, Eigenkapital-Übernahme & Spaltenansicht
+- GuV-Ergebnisse fließen automatisch in Passivseite ein
+- Korrekte Filterung stornierter Buchungen
+- Darstellung: SOLL/HABEN-Spalten mit Subbuchungen & farbiger Storno-Kennung
+- Zeitzonenstandardisierung für alle Auswertungen
+
+> 💚 GoB-konforme Buchhaltung auf dem Weg zur Vollversion.
+
 ## [0.6.16] 2025-04-15 – Buchhaltungssystem vollständig implementiert und erweitert
 ### 🎯 Neue Funktionen (komplett implementiert)
 - **Einführung eines vollständigen Buchhaltungssystems** mit:
