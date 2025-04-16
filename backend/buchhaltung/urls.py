@@ -7,6 +7,9 @@ from .views_api import (
     AccountImportAPIView,
     BookingCreateAPIView,
     BookingDetailAPIView,
+    MainBookAPIView,
+    ProfitLossAPIView,
+    BalanceSheetAPIView,
 )
 
 router = DefaultRouter()
@@ -19,4 +22,7 @@ urlpatterns = [
     path('', include(router.urls)),  # Enthält nun /accounts/ UND /bookings/
     path("bookings/create/", BookingCreateAPIView.as_view(), name="api-buchung-anlegen"),  # optional: Pfad ändern
     path("bookings/<int:pk>/", BookingDetailAPIView.as_view(), name="booking-detail"),
+    path("mainbook/", MainBookAPIView.as_view(), name="hauptbuch"),
+    path("guv/", ProfitLossAPIView.as_view(), name="guv"),
+    path("bilanz/", BalanceSheetAPIView.as_view(), name="bilanz"),
 ]

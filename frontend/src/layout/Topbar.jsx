@@ -46,15 +46,18 @@ export default function Topbar() {
         { label: 'Dashboard', path: '/buchhaltung' },
         { label: 'Kontenübersicht', path: '/buchhaltung/konten' },
         { label: 'Neues Konto', path: '/buchhaltung/konten/neu' },
-        { label: 'Buchungsjournal', path: '/buchhaltung/journal' },                // 🆕
-        { label: 'Journal nach Konto', path: '/buchhaltung/journal/konten' },      // 🆕
-        { label: 'Neue Buchung', path: '/buchhaltung/buchung/neu' },               // 🆕
+        { label: 'Buchungsjournal', path: '/buchhaltung/journal' },
+        { label: 'Journal nach Konto', path: '/buchhaltung/journal/konten' },
+        { label: 'Hauptbuch', path: '/buchhaltung/hauptbuch' },
+        { label: 'GuV', path: '/buchhaltung/guv' },
+        { label: 'Bilanz', path: '/buchhaltung/bilanz' },
+        { label: 'Neue Buchung', path: '/buchhaltung/buchung/neu' },
       ],
     },
   
     { label: 'Raumverwaltung', path: '/rooms', icon: <MeetingRoomIcon fontSize="small" /> },
     { label: 'UniFi Access', path: '/unifi-access/dashboard', icon: <KeyIcon fontSize="small" /> },
-  ]  
+  ]
 
   const handleOptionsClick = () => {
     navigate('/options')

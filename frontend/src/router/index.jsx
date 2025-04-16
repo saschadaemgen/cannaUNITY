@@ -8,8 +8,6 @@ import RoomCreate from "../apps/rooms/pages/RoomCreate"
 import RoomEdit from "../apps/rooms/pages/RoomEdit"
 import RoomDelete from "../apps/rooms/pages/RoomDelete"
 import Login from '../pages/Login'
-
-// Dashboards
 import Dashboard from '../apps/unifi_access/pages/Dashboard'
 import OptionsDashboard from '../apps/options/pages/OptionsDashboard'
 import BuchhaltungDashboard from '../apps/buchhaltung/pages/Dashboard'
@@ -20,6 +18,9 @@ import JournalList from '../apps/buchhaltung/pages/JournalList'
 import JournalByAccount from '../apps/buchhaltung/pages/JournalByAccount'
 import BookingForm from '../apps/buchhaltung/pages/BookingForm'
 import BookingDetail from '../apps/buchhaltung/pages/BookingDetail'
+import MainBook from '../apps/buchhaltung/pages/MainBook'
+import ProfitLoss from '../apps/buchhaltung/pages/ProfitLoss'
+import BalanceSheet from '../apps/buchhaltung/pages/BalanceSheet'
 
 export const router = createBrowserRouter([
   {
@@ -53,6 +54,9 @@ export const router = createBrowserRouter([
       { path: 'buchhaltung/journal/konten', element: <JournalByAccount /> },
       { path: 'buchhaltung/buchung/neu', element: <BookingForm /> },
       { path: 'buchhaltung/buchung/:id', element: <BookingDetail /> },
+      { path: 'buchhaltung/hauptbuch', element: <MainBook /> },
+      { path: 'buchhaltung/guv', element: <ProfitLoss /> },
+      { path: 'buchhaltung/bilanz', element: <BalanceSheet /> },
 
       // Optional: zukünftige Seiten
       { path: 'netzwerk', element: <div>Gemeinschaftsnetzwerk</div> },

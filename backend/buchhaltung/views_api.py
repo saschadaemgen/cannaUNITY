@@ -18,6 +18,11 @@ from decimal import Decimal
 from django.db import transaction
 from django.utils import timezone
 
+# Neue Importe für MainBookAPIView
+from django.utils.dateparse import parse_date
+from django.db.models import Sum
+import datetime
+
 # 🔁 1. ViewSet für Buchungen mit Delete-Rollback
 class BookingViewSet(viewsets.ModelViewSet):
     queryset = Booking.objects.all().order_by('-datum')
@@ -246,3 +251,396 @@ class AccountViewSet(viewsets.ModelViewSet):
     queryset = Account.objects.all()
     serializer_class = AccountSerializer
     pagination_class = None
+
+class MainBookAPIView(APIView):
+    def get(self, request):
+        # Parameter für Zeitraum
+        start_date_param = request.query_params.get('start_date')
+        end_date_param = request.query_params.get('end_date')
+        
+        # Falls keine Daten angegeben, nehmen wir das aktuelle Jahr
+        if not start_date_param:
+            # Startdatum: 1. Januar des aktuellen Jahres (als Datum, nicht DateTime)
+            start_date = timezone.now().replace(month=1, day=1).date()
+        else:
+            # String zu Date-Objekt konvertieren
+            start_date = parse_date(start_date_param)
+        
+        if not end_date_param:
+            # Enddatum: Heute (als Datum, nicht DateTime)
+            end_date = timezone.now().date()
+        else:
+            # String zu Date-Objekt konvertieren
+            end_date = parse_date(end_date_param)
+        
+        # DateTime-Objekte mit Zeitzone für Vergleiche erstellen
+        start_datetime = timezone.make_aware(
+            datetime.datetime.combine(start_date, datetime.time.min)
+        )
+        end_datetime = timezone.make_aware(
+            datetime.datetime.combine(end_date, datetime.time.max)
+        )
+        
+        # Alle Konten holen
+        accounts = Account.objects.all().order_by('kontonummer')
+        
+        # Ergebnis vorbereiten
+        result = []
+        
+        for account in accounts:
+            # Anfangsbestand berechnen - alle Buchungen VOR dem Startdatum
+            opening_debits = SubTransaction.objects.filter(
+                soll_konto=account,
+                booking__datum__lt=start_datetime
+            ).aggregate(Sum('betrag'))['betrag__sum'] or 0
+            
+            opening_credits = SubTransaction.objects.filter(
+                haben_konto=account, 
+                booking__datum__lt=start_datetime
+            ).aggregate(Sum('betrag'))['betrag__sum'] or 0
+            
+            # Anfangsbestand je nach Kontotyp berechnen
+            if account.konto_typ in ['AKTIV', 'AUFWAND']:
+                opening_balance = opening_debits - opening_credits
+            else:
+                opening_balance = opening_credits - opening_debits
+                
+            # Alle relevanten Buchungen im Zeitraum
+            transactions = []
+            
+            # SOLL-Buchungen im Zeitraum
+            debit_txs = SubTransaction.objects.filter(
+                soll_konto=account,
+                booking__datum__gte=start_datetime,
+                booking__datum__lte=end_datetime
+            ).select_related('booking', 'haben_konto')
+            
+            for tx in debit_txs:
+                transactions.append({
+                    'date': tx.booking.datum,
+                    'booking_no': tx.booking.buchungsnummer,
+                    'description': tx.booking.verwendungszweck,
+                    'debit': tx.betrag,
+                    'credit': 0,
+                    'counter_account': tx.haben_konto.kontonummer,
+                    'is_storno': tx.booking.is_storno,
+                    'is_storniert': tx.booking.storniert_am is not None
+                })
+                
+            # HABEN-Buchungen im Zeitraum
+            credit_txs = SubTransaction.objects.filter(
+                haben_konto=account,
+                booking__datum__gte=start_datetime,
+                booking__datum__lte=end_datetime
+            ).select_related('booking', 'soll_konto')
+            
+            for tx in credit_txs:
+                transactions.append({
+                    'date': tx.booking.datum,
+                    'booking_no': tx.booking.buchungsnummer,
+                    'description': tx.booking.verwendungszweck,
+                    'debit': 0, 
+                    'credit': tx.betrag,
+                    'counter_account': tx.soll_konto.kontonummer,
+                    'is_storno': tx.booking.is_storno,
+                    'is_storniert': tx.booking.storniert_am is not None
+                })
+                
+            # Nach Datum sortieren
+            transactions.sort(key=lambda x: x['date'])
+            
+            # Summen für den Zeitraum
+            period_debits = sum(float(tx['debit']) for tx in transactions)
+            period_credits = sum(float(tx['credit']) for tx in transactions)
+            
+            # Endbestand berechnen
+            if account.konto_typ in ['AKTIV', 'AUFWAND']:
+                closing_balance = opening_balance + (period_debits - period_credits)
+            else:
+                closing_balance = opening_balance + (period_credits - period_debits)
+                
+            # Ins Ergebnis einfügen
+            result.append({
+                'account': {
+                    'id': account.id,
+                    'number': account.kontonummer,
+                    'name': account.name,
+                    'type': account.konto_typ,
+                    'category': account.category
+                },
+                'opening_balance': opening_balance,
+                'transactions': transactions,
+                'period_debits': period_debits,
+                'period_credits': period_credits,
+                'turnover': period_debits + period_credits,  # Umsatz
+                'closing_balance': closing_balance
+            })
+            
+        return Response(result)
+    
+class ProfitLossAPIView(APIView):
+    def get(self, request):
+        # Parameter für Zeitraum
+        start_date_param = request.query_params.get('start_date')
+        end_date_param = request.query_params.get('end_date')
+        
+        # Falls keine Daten angegeben, nehmen wir das aktuelle Jahr
+        if not start_date_param:
+            start_date = timezone.now().replace(month=1, day=1).date()
+        else:
+            start_date = parse_date(start_date_param)
+            
+        if not end_date_param:
+            end_date = timezone.now().date()
+        else:
+            end_date = parse_date(end_date_param)
+            
+        # DateTime-Objekte mit Zeitzone für Vergleiche erstellen
+        start_datetime = timezone.make_aware(
+            datetime.datetime.combine(start_date, datetime.time.min)
+        )
+        end_datetime = timezone.make_aware(
+            datetime.datetime.combine(end_date, datetime.time.max)
+        )
+        
+        # Ertragskonten holen
+        income_accounts = Account.objects.filter(konto_typ='ERTRAG')
+        expense_accounts = Account.objects.filter(konto_typ='AUFWAND')
+        
+        result = {
+            'period': {
+                'start': start_date,
+                'end': end_date,
+            },
+            'income': [],
+            'expenses': [],
+            'summary': {
+                'total_income': 0,
+                'total_expenses': 0,
+                'profit': 0
+            }
+        }
+        
+        # Erträge berechnen
+        total_income = 0
+        for account in income_accounts:
+            # Salden für den Zeitraum berechnen - KORRIGIERT:
+            # 1. Nur Buchungen, die NICHT storniert wurden
+            # 2. Storno-Buchungen werden berücksichtigt, um die ursprünglichen zu neutralisieren
+            
+            # Normale Buchungen (nicht storniert)
+            debit_sum = SubTransaction.objects.filter(
+                soll_konto=account,
+                booking__datum__gte=start_datetime,
+                booking__datum__lte=end_datetime,
+                booking__storniert_am__isnull=True,  # Nicht storniert
+                booking__is_storno=False  # Keine Storno-Buchungen
+            ).aggregate(Sum('betrag'))['betrag__sum'] or 0
+            
+            credit_sum = SubTransaction.objects.filter(
+                haben_konto=account,
+                booking__datum__gte=start_datetime,
+                booking__datum__lte=end_datetime,
+                booking__storniert_am__isnull=True,  # Nicht storniert
+                booking__is_storno=False  # Keine Storno-Buchungen
+            ).aggregate(Sum('betrag'))['betrag__sum'] or 0
+            
+            # Bei Ertragskonten ist der Saldo: Haben - Soll
+            balance = credit_sum - debit_sum
+            total_income += balance
+        
+        # Aufwendungen berechnen
+        total_expenses = 0
+        for account in expense_accounts:
+            # Gleiche Filterlogik wie oben
+            debit_sum = SubTransaction.objects.filter(
+                soll_konto=account,
+                booking__datum__gte=start_datetime,
+                booking__datum__lte=end_datetime,
+                booking__storniert_am__isnull=True,  # Nicht storniert
+                booking__is_storno=False  # Keine Storno-Buchungen
+            ).aggregate(Sum('betrag'))['betrag__sum'] or 0
+            
+            credit_sum = SubTransaction.objects.filter(
+                haben_konto=account,
+                booking__datum__gte=start_datetime,
+                booking__datum__lte=end_datetime,
+                booking__storniert_am__isnull=True,  # Nicht storniert
+                booking__is_storno=False  # Keine Storno-Buchungen
+            ).aggregate(Sum('betrag'))['betrag__sum'] or 0
+            
+            # Bei Aufwandskonten ist der Saldo: Soll - Haben
+            balance = debit_sum - credit_sum
+            total_expenses += balance
+        
+        # Nach Kategorien gruppieren
+        result['income'] = self._group_by_category(result['income'])
+        result['expenses'] = self._group_by_category(result['expenses'])
+        
+        # Zusammenfassung - KORRIGIERT
+        result['summary'] = {
+            'total_income': total_income,
+            'total_expenses': total_expenses,  # Bereits negative Werte!
+            'profit': total_income + total_expenses  # PLUS statt MINUS, da expenses bereits negativ sind
+        }
+        
+        return Response(result)
+    
+    def _group_by_category(self, accounts):
+        """Konten nach Kategorien gruppieren"""
+        categories = {}
+        
+        for acc in accounts:
+            category = acc['category'] or 'Sonstige'
+            
+            if category not in categories:
+                categories[category] = {
+                    'name': category,
+                    'accounts': [],
+                    'total': 0
+                }
+                
+            categories[category]['accounts'].append(acc)
+            categories[category]['total'] += acc['balance']
+        
+        # Als Liste zurückgeben und nach Kategoriename sortieren
+        return sorted(categories.values(), key=lambda x: x['name'])
+    
+class BalanceSheetAPIView(APIView):
+    def get(self, request):
+        # Parameter für Zeitraum
+        balance_date_param = request.query_params.get('balance_date')
+        
+        # Falls kein Datum angegeben, nehmen wir das aktuelle Datum
+        if not balance_date_param:
+            balance_date = timezone.now().date()
+        else:
+            balance_date = parse_date(balance_date_param)
+        
+        # DateTime-Objekt mit Zeitzone für Vergleiche erstellen
+        balance_datetime = timezone.make_aware(
+            datetime.datetime.combine(balance_date, datetime.time.max)
+        )
+        
+        # Konten nach Typen holen
+        aktiva_accounts = Account.objects.filter(konto_typ='AKTIV').order_by('kontonummer')
+        passiva_accounts = Account.objects.filter(konto_typ='PASSIV').order_by('kontonummer')
+        
+        result = {
+            'balance_date': balance_date,
+            'assets': self._get_account_balances(aktiva_accounts, balance_datetime),
+            'liabilities': self._get_account_balances(passiva_accounts, balance_datetime),
+            'summary': {
+                'total_assets': 0,
+                'total_liabilities': 0,
+                'is_balanced': False
+            }
+        }
+        
+        # Summen berechnen
+        total_assets = sum(account['balance'] for account in result['assets'])
+        total_liabilities = sum(account['balance'] for account in result['liabilities'])
+        
+        # GuV-Ergebnis berechnen (Jahresüberschuss/-fehlbetrag)
+        income_accounts = Account.objects.filter(konto_typ='ERTRAG')
+        expense_accounts = Account.objects.filter(konto_typ='AUFWAND')
+        
+        # Erträge und Aufwendungen berechnen (nur für nicht stornierte Buchungen)
+        income_total = 0
+        for account in income_accounts:
+            debit_sum = SubTransaction.objects.filter(
+                soll_konto=account,
+                booking__datum__lte=balance_datetime,
+                booking__storniert_am__isnull=True,
+                booking__is_storno=False
+            ).aggregate(Sum('betrag'))['betrag__sum'] or 0
+            
+            credit_sum = SubTransaction.objects.filter(
+                haben_konto=account,
+                booking__datum__lte=balance_datetime,
+                booking__storniert_am__isnull=True,
+                booking__is_storno=False
+            ).aggregate(Sum('betrag'))['betrag__sum'] or 0
+            
+            income_total += credit_sum - debit_sum
+        
+        expense_total = 0
+        for account in expense_accounts:
+            debit_sum = SubTransaction.objects.filter(
+                soll_konto=account,
+                booking__datum__lte=balance_datetime,
+                booking__storniert_am__isnull=True,
+                booking__is_storno=False
+            ).aggregate(Sum('betrag'))['betrag__sum'] or 0
+            
+            credit_sum = SubTransaction.objects.filter(
+                haben_konto=account,
+                booking__datum__lte=balance_datetime,
+                booking__storniert_am__isnull=True,
+                booking__is_storno=False
+            ).aggregate(Sum('betrag'))['betrag__sum'] or 0
+            
+            expense_total += debit_sum - credit_sum
+            
+        # GuV-Ergebnis
+        profit_loss = income_total - expense_total
+        
+        # Das Ergebnis gehört zu den Passiva als Eigenkapital
+        # (Jahresüberschuss bei Gewinn, Jahresfehlbetrag bei Verlust)
+        if profit_loss != 0:
+            result['liabilities'].append({
+                'number': 'GuV',
+                'name': 'Jahresergebnis (vorläufig)',
+                'category': 'Eigenkapital',
+                'balance': profit_loss
+            })
+            total_liabilities += profit_loss
+            
+        # Zusammenfassung aktualisieren
+        result['summary'] = {
+            'total_assets': total_assets,
+            'total_liabilities': total_liabilities,
+            'is_balanced': abs(total_assets - total_liabilities) < 0.01
+        }
+        
+        return Response(result)
+    
+    def _get_account_balances(self, accounts, balance_date):
+        """Konten mit Salden zum Stichtag berechnen"""
+        result = []
+        
+        for account in accounts:
+            # Buchungen bis zum Stichtag berücksichtigen, 
+            # aber nur aktive (nicht stornierte)
+            debit_sum = SubTransaction.objects.filter(
+                soll_konto=account,
+                booking__datum__lte=balance_date,
+                booking__storniert_am__isnull=True,
+                booking__is_storno=False
+            ).aggregate(Sum('betrag'))['betrag__sum'] or 0
+            
+            credit_sum = SubTransaction.objects.filter(
+                haben_konto=account,
+                booking__datum__lte=balance_date,
+                booking__storniert_am__isnull=True,
+                booking__is_storno=False
+            ).aggregate(Sum('betrag'))['betrag__sum'] or 0
+            
+            # Saldo berechnen je nach Kontotyp
+            if account.konto_typ == 'AKTIV':
+                balance = debit_sum - credit_sum
+            else:  # PASSIV
+                balance = credit_sum - debit_sum
+                
+            # Nur Konten mit Saldo ≠ 0 anzeigen
+            if balance != 0:
+                result.append({
+                    'id': account.id,
+                    'number': account.kontonummer,
+                    'name': account.name,
+                    'category': account.category or 'Sonstiges',
+                    'balance': balance
+                })
+                
+        # Nach Kategorie gruppieren
+        return sorted(result, key=lambda x: x['category'] + x['number'])
