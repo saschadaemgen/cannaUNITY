@@ -9,7 +9,12 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  TextField
+  TextField,
+  Grid,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Select 
 } from '@mui/material';
 import { Add } from '@mui/icons-material';
 import api from '../../../../utils/api';
@@ -23,17 +28,19 @@ const MotherPlantPage = () => {
   const [error, setError] = useState(null);
   const [showDestroyed, setShowDestroyed] = useState(false);
   const [openForm, setOpenForm] = useState(false);
-  const [currentMotherPlant, setCurrentMotherPlant] = useState(null);
+  const [currentPlant, setCurrentPlant] = useState(null);
   const [openDestroyDialog, setOpenDestroyDialog] = useState(false);
   const [destroyReason, setDestroyReason] = useState('');
+  const [openPhaseDialog, setOpenPhaseDialog] = useState(false);
+  const [selectedPhase, setSelectedPhase] = useState('');
 
   // Tabellenspalten definieren
   const columns = [
     { id: 'batch_number', label: 'Charge', minWidth: 100 },
-    { id: 'strain_name', label: 'Sorte', minWidth: 150 },
+    { id: 'genetic_name', label: 'Genetik', minWidth: 150 },
     { 
       id: 'planting_date', 
-      label: 'Pflanztermin', 
+      label: 'Pflanzungsdatum', 
       minWidth: 120,
       format: (value) => {
         // Einfache Datumsformatierung
@@ -52,20 +59,12 @@ const MotherPlantPage = () => {
         return '';
       }
     },
-    { id: 'location', label: 'Standort', minWidth: 120 },
+    { id: 'plant_count', label: 'Pflanzen gesamt', minWidth: 120, align: 'right' },
+    { id: 'remaining_plants', label: 'Pflanzen übrig', minWidth: 120, align: 'right' },
     { 
-      id: 'status', 
-      label: 'Status', 
-      minWidth: 120,
-      format: (value) => {
-        switch(value) {
-          case 'vegetative': return 'Vegetativ';
-          case 'flowering': return 'Blühend';
-          case 'harvested': return 'Geerntet';
-          case 'retired': return 'Ausgemustert';
-          default: return value;
-        }
-      }
+      id: 'growth_phase_display', 
+      label: 'Wachstumsphase', 
+      minWidth: 120 
     },
   ];
 
@@ -73,7 +72,7 @@ const MotherPlantPage = () => {
   const fetchMotherPlants = async () => {
     setLoading(true);
     try {
-      console.log(`Fetching motherplants with destroyed=${showDestroyed}`);
+      console.log(`Fetching mother plants with destroyed=${showDestroyed}`);
       const response = await api.get(`/trackandtrace/motherplants/?destroyed=${showDestroyed}`);
       console.log('API Response:', response.data);
       
@@ -101,21 +100,21 @@ const MotherPlantPage = () => {
   }, [showDestroyed]);
 
   // Formular-Handling
-  const handleOpenForm = (motherPlant = null) => {
-    setCurrentMotherPlant(motherPlant);
+  const handleOpenForm = (plant = null) => {
+    setCurrentPlant(plant);
     setOpenForm(true);
   };
 
   const handleCloseForm = () => {
     setOpenForm(false);
-    setCurrentMotherPlant(null);
+    setCurrentPlant(null);
   };
 
   const handleSaveForm = async (formData) => {
     try {
-      if (currentMotherPlant) {
+      if (currentPlant) {
         // Update
-        await api.put(`/trackandtrace/motherplants/${currentMotherPlant.uuid}/`, formData);
+        await api.put(`/trackandtrace/motherplants/${currentPlant.uuid}/`, formData);
       } else {
         // Create
         await api.post('/trackandtrace/motherplants/', formData);
@@ -125,18 +124,23 @@ const MotherPlantPage = () => {
     } catch (err) {
       console.error('Fehler beim Speichern:', err);
       // Hier könnte man ein Fehler-Feedback im Formular anzeigen
+      if (err.response && err.response.data) {
+        alert(`Fehler beim Speichern: ${JSON.stringify(err.response.data)}`);
+      } else {
+        alert('Ein unbekannter Fehler ist aufgetreten');
+      }
     }
   };
 
   // Destroy-Dialog-Handling
-  const handleOpenDestroyDialog = (motherPlant) => {
-    setCurrentMotherPlant(motherPlant);
+  const handleOpenDestroyDialog = (plant) => {
+    setCurrentPlant(plant);
     setOpenDestroyDialog(true);
   };
 
   const handleCloseDestroyDialog = () => {
     setOpenDestroyDialog(false);
-    setCurrentMotherPlant(null);
+    setCurrentPlant(null);
     setDestroyReason('');
   };
 
@@ -144,7 +148,7 @@ const MotherPlantPage = () => {
     if (!destroyReason) return;
     
     try {
-      await api.post(`/trackandtrace/motherplants/${currentMotherPlant.uuid}/destroy_item/`, {
+      await api.post(`/trackandtrace/motherplants/${currentPlant.uuid}/destroy_item/`, {
         reason: destroyReason
       });
       fetchMotherPlants();
@@ -154,11 +158,39 @@ const MotherPlantPage = () => {
     }
   };
 
+  // Phase-Dialog-Handling
+  const handleOpenPhaseDialog = (plant) => {
+    setCurrentPlant(plant);
+    setSelectedPhase(plant.growth_phase);
+    setOpenPhaseDialog(true);
+  };
+
+  const handleClosePhaseDialog = () => {
+    setOpenPhaseDialog(false);
+    setCurrentPlant(null);
+    setSelectedPhase('');
+  };
+
+  const handleUpdatePhase = async () => {
+    if (!selectedPhase) return;
+    
+    try {
+      await api.post(`/trackandtrace/motherplants/${currentPlant.uuid}/update_growth_phase/`, {
+        growth_phase: selectedPhase
+      });
+      fetchMotherPlants();
+      handleClosePhaseDialog();
+    } catch (err) {
+      console.error('Fehler beim Aktualisieren der Wachstumsphase:', err);
+    }
+  };
+
   // Delete-Handling
-  const handleDelete = async (motherPlant) => {
-    if (window.confirm(`Sind Sie sicher, dass Sie ${motherPlant.strain_name} löschen möchten?`)) {
+  const handleDelete = async (plant) => {
+    // Hier sollte es eigentlich eine Bestätigungsdialog geben
+    if (window.confirm(`Sind Sie sicher, dass Sie ${plant.genetic_name} löschen möchten?`)) {
       try {
-        await api.delete(`/trackandtrace/motherplants/${motherPlant.uuid}/`);
+        await api.delete(`/trackandtrace/motherplants/${plant.uuid}/`);
         fetchMotherPlants();
       } catch (err) {
         console.error('Fehler beim Löschen:', err);
@@ -166,7 +198,7 @@ const MotherPlantPage = () => {
     }
   };
 
-  if (loading) return <Typography>Lade Daten...</Typography>;
+  if (loading && motherPlants.length === 0) return <Typography>Lade Daten...</Typography>;
   if (error) return <Typography color="error">{error}</Typography>;
 
   return (
@@ -203,6 +235,7 @@ const MotherPlantPage = () => {
             <MotherPlantDetails 
               {...props} 
               onMarkAsDestroyed={handleOpenDestroyDialog}
+              onUpdatePhase={handleOpenPhaseDialog}
             />
           )}
           onEdit={handleOpenForm}
@@ -218,11 +251,11 @@ const MotherPlantPage = () => {
         fullWidth
       >
         <DialogTitle>
-          {currentMotherPlant ? 'Mutterpflanze bearbeiten' : 'Neue Mutterpflanze'}
+          {currentPlant ? 'Mutterpflanze bearbeiten' : 'Neue Mutterpflanze'}
         </DialogTitle>
         <DialogContent>
           <MotherPlantForm 
-            initialData={currentMotherPlant} 
+            initialData={currentPlant} 
             onSave={handleSaveForm}
             onCancel={handleCloseForm}
           />
@@ -257,6 +290,41 @@ const MotherPlantPage = () => {
             disabled={!destroyReason}
           >
             Als vernichtet markieren
+          </Button>
+        </DialogActions>
+      </Dialog>
+      
+      {/* Phase-Dialog */}
+      <Dialog
+        open={openPhaseDialog}
+        onClose={handleClosePhaseDialog}
+      >
+        <DialogTitle>Wachstumsphase aktualisieren</DialogTitle>
+        <DialogContent>
+          <Typography gutterBottom>
+            Bitte wählen Sie die aktuelle Wachstumsphase:
+          </Typography>
+          <FormControl fullWidth margin="normal">
+            <InputLabel>Wachstumsphase</InputLabel>
+            <Select
+              value={selectedPhase}
+              onChange={(e) => setSelectedPhase(e.target.value)}
+              label="Wachstumsphase"
+            >
+              <MenuItem value="seedling">Keimling</MenuItem>
+              <MenuItem value="vegetative">Vegetative Phase</MenuItem>
+              <MenuItem value="mother">Mutterpflanze</MenuItem>
+            </Select>
+          </FormControl>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleClosePhaseDialog}>Abbrechen</Button>
+          <Button 
+            onClick={handleUpdatePhase}
+            color="primary"
+            disabled={!selectedPhase}
+          >
+            Aktualisieren
           </Button>
         </DialogActions>
       </Dialog>

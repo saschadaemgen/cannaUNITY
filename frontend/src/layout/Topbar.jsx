@@ -47,6 +47,7 @@ export default function Topbar() {
         { label: 'Übersicht', path: '/trace' },
         { label: 'Samen-Verwaltung', path: '/trace/samen' },
         { label: 'Mutterpflanzen', path: '/trace/mutterpflanzen' },
+        { label: 'Stecklinge', path: '/trace/stecklinge' },
         { label: 'Blühpflanzen', path: '/trace/bluehpflanzen' }
 
       ],
@@ -68,7 +69,7 @@ export default function Topbar() {
       ],
     },
     { label: 'Raumverwaltung', path: '/rooms', icon: <MeetingRoomIcon fontSize="small" /> },
-    { label: 'UniFi Access', path: '/unifi-access/dashboard', icon: <KeyIcon fontSize="small" /> },
+    { label: 'Sicherheit', path: '/unifi-access/dashboard', icon: <KeyIcon fontSize="small" /> },
   ];
 
   const handleOptionsClick = () => {

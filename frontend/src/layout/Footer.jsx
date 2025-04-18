@@ -48,7 +48,7 @@ export default function Footer() {
       }}
     >
       <Typography variant="caption" color="text.secondary">
-        ❤️ cannaUNITY v0.50.03
+        ❤️ cannaUNITY v0.6.17
       </Typography>
 
       {isLoggedIn ? (

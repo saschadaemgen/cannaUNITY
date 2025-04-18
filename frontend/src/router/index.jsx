@@ -27,6 +27,8 @@ import MemberEdit from '../apps/members/pages/MemberEdit'
 import MemberDelete from '../apps/members/pages/MemberDelete'
 import SeedPurchasePage from '../apps/trackandtrace/pages/SeedPurchase/SeedPurchasePage';
 import MotherPlantPage from '../apps/trackandtrace/pages/MotherPlant/MotherPlantPage';
+import CuttingPage from '../apps/trackandtrace/pages/Cutting/CuttingPage';
+import FloweringPlantPage from '../apps/trackandtrace/pages/FloweringPlant/FloweringPlantPage';
 
 export const router = createBrowserRouter([
   {
@@ -70,6 +72,9 @@ export const router = createBrowserRouter([
 
       { path: 'trace', element: <div>Track & Trace</div> },
       { path: 'trace/samen', element: <SeedPurchasePage /> },
+      { path: 'trace/mutterpflanzen', element: <MotherPlantPage /> },
+      { path: 'trace/stecklinge', element: <CuttingPage /> },
+      { path: 'trace/bluehpflanzen', element: <FloweringPlantPage /> },
 
       // Optional: zukünftige Seiten
       { path: 'netzwerk', element: <div>Gemeinschaftsnetzwerk</div> },

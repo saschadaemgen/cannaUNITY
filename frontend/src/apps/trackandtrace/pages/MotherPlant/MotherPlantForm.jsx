@@ -9,60 +9,124 @@ import {
   InputLabel,
   Select,
   FormHelperText,
-  Box
+  Box,
+  Typography
 } from '@mui/material';
 import api from '../../../../utils/api';
 
 const MotherPlantForm = ({ initialData, onSave, onCancel }) => {
-  const [seeds, setSeeds] = useState([]);
   const [members, setMembers] = useState([]);
+  const [seeds, setSeeds] = useState([]);
+  const [rooms, setRooms] = useState([]);
   const [formData, setFormData] = useState({
+    genetic_name: '',
     seed_source: '',
-    planting_date: new Date().toISOString().split('T')[0],
-    location: '',
-    strain_name: '',
-    nutrition_plan: '',
-    status: 'vegetative',
+    planting_date: new Date().toISOString().split('T')[0], // Format YYYY-MM-DD
+    plant_count: 1,
+    growth_phase: 'seedling',
+    growth_medium: '',
+    fertilizer: '',
+    light_cycle: '18/6',
     notes: '',
     temperature: '',
     humidity: '',
     responsible_member: '',
+    room: '',
   });
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   
-  // Mitglieder und Samen laden
+  // Mitglieder und Räume separat laden
   useEffect(() => {
-    const fetchData = async () => {
+    // Mitglieder laden
+    const fetchMembers = async () => {
       try {
-        const [membersRes, seedsRes] = await Promise.all([
-          api.get('/members/'),
-          api.get('/trackandtrace/seeds/?destroyed=false')
-        ]);
+        const response = await api.get('/members/');
+        console.log('Mitglieder-Antwort:', response.data);
         
-        // Setze Mitglieder
-        if (Array.isArray(membersRes.data)) {
-          setMembers(membersRes.data);
-        } else if (membersRes.data && membersRes.data.results) {
-          setMembers(membersRes.data.results);
+        if (Array.isArray(response.data)) {
+          setMembers(response.data);
+        } else if (response.data && Array.isArray(response.data.results)) {
+          setMembers(response.data.results);
         } else {
+          console.error('Unerwartetes Datenformat für Mitglieder:', response.data);
           setMembers([]);
         }
+      } catch (err) {
+        console.error('Fehler beim Laden der Mitglieder:', err);
+        setMembers([]);
+      }
+    };
+
+  // Räume laden mit zusätzlichem Debugging
+  const fetchRooms = async () => {
+    console.log('Starte Räume-Anfrage...');
+    try {
+      // Verschiedene mögliche API-Pfade für Räume testen
+      let response;
+      try {
+        response = await api.get('/rooms/');
+        console.log('Erster Versuch (/rooms/):', response);
+      } catch (err) {
+        console.log('Erster Pfad fehlgeschlagen, versuche /api/rooms/');
+        response = await api.get('/api/rooms/');
+        console.log('Zweiter Versuch (/api/rooms/):', response);
+      }
+
+      console.log('Vollständige Raum-Antwort:', response);
+      
+      // Detaillierte Prüfung der Datenstruktur
+      console.log('Datentyp:', typeof response.data);
+      console.log('Ist Array?', Array.isArray(response.data));
+      console.log('Datenstruktur:', JSON.stringify(response.data, null, 2).slice(0, 500));
+      
+      if (Array.isArray(response.data)) {
+        console.log('Setze Räume aus Array:', response.data.length, 'Elemente');
+        setRooms(response.data);
+      } else if (response.data && Array.isArray(response.data.results)) {
+        console.log('Setze Räume aus results-Array:', response.data.results.length, 'Elemente');
+        setRooms(response.data.results);
+      } else {
+        console.error('Unerwartetes Datenformat für Räume:', response.data);
+        setRooms([]);
+      }
+      
+      // Prüfe, ob Räume-State korrekt gesetzt wurde
+      setTimeout(() => {
+        console.log('Räume-State nach Setzen:', rooms);
+      }, 0);
+    } catch (err) {
+      console.error('Fehler beim Laden der Räume:', err);
+      console.error('Fehlerdetails:', err.response ? err.response.data : 'Keine Antwortdaten');
+      console.error('Status:', err.response ? err.response.status : 'Kein Status');
+      setRooms([]);
+    }
+  };
+
+    // Samen laden (wenn benötigt)
+    const fetchSeeds = async () => {
+      try {
+        const response = await api.get('/trackandtrace/seeds/?destroyed=false');
+        console.log('Samen-Antwort:', response.data);
         
-        // Setze Samen
-        if (Array.isArray(seedsRes.data)) {
-          setSeeds(seedsRes.data.filter(seed => seed.remaining_seeds > 0));
-        } else if (seedsRes.data && seedsRes.data.results) {
-          setSeeds(seedsRes.data.results.filter(seed => seed.remaining_seeds > 0));
+        if (Array.isArray(response.data)) {
+          setSeeds(response.data.filter(seed => seed.remaining_seeds > 0));
+        } else if (response.data && Array.isArray(response.data.results)) {
+          setSeeds(response.data.results.filter(seed => seed.remaining_seeds > 0));
         } else {
+          console.error('Unerwartetes Datenformat für Samen:', response.data);
           setSeeds([]);
         }
       } catch (err) {
-        console.error('Fehler beim Laden der Daten:', err);
+        console.error('Fehler beim Laden der Samen:', err);
+        setSeeds([]);
       }
     };
-    
-    fetchData();
+
+    // Alle Funktionen ausführen
+    fetchMembers();
+    fetchRooms();
+    fetchSeeds();
   }, []);
   
   // Formulardaten initialisieren, wenn initialData vorhanden
@@ -80,14 +144,14 @@ const MotherPlantForm = ({ initialData, onSave, onCancel }) => {
       [name]: value
     });
     
-    // Wenn seed_source geändert wird, den strain_name automatisch setzen
-    if (name === 'seed_source' && !initialData) {
+    // Automatisches Setzen des Genetiknamens, wenn Samen ausgewählt wird
+    if (name === 'seed_source' && value) {
       const selectedSeed = seeds.find(seed => seed.uuid === value);
       if (selectedSeed) {
         setFormData(prev => ({
           ...prev,
           seed_source: value,
-          strain_name: selectedSeed.strain_name
+          genetic_name: selectedSeed.strain_name // Genetikname vom Samen übernehmen
         }));
       }
     }
@@ -96,12 +160,21 @@ const MotherPlantForm = ({ initialData, onSave, onCancel }) => {
   const validateForm = () => {
     const newErrors = {};
     
-    if (!formData.seed_source) newErrors.seed_source = 'Samen-Quelle ist erforderlich';
-    if (!formData.planting_date) newErrors.planting_date = 'Pflanztermin ist erforderlich';
-    if (!formData.location) newErrors.location = 'Standort ist erforderlich';
-    if (!formData.strain_name) newErrors.strain_name = 'Sortenname ist erforderlich';
-    if (!formData.status) newErrors.status = 'Status ist erforderlich';
+    if (!formData.genetic_name) newErrors.genetic_name = 'Genetik ist erforderlich';
+    if (!formData.seed_source) newErrors.seed_source = 'Samenquelle ist erforderlich';
+    if (!formData.planting_date) newErrors.planting_date = 'Pflanzungsdatum ist erforderlich';
+    if (!formData.plant_count || formData.plant_count <= 0) {
+      newErrors.plant_count = 'Anzahl muss größer als 0 sein';
+    }
     if (!formData.responsible_member) newErrors.responsible_member = 'Verantwortlicher ist erforderlich';
+    
+    // Überprüfen, ob genügend Samen verfügbar sind (nur bei neuem Eintrag)
+    if (!initialData && formData.seed_source && formData.plant_count) {
+      const selectedSeed = seeds.find(seed => seed.uuid === formData.seed_source);
+      if (selectedSeed && selectedSeed.remaining_seeds < formData.plant_count) {
+        newErrors.plant_count = `Nicht genügend Samen verfügbar. Nur ${selectedSeed.remaining_seeds} übrig.`;
+      }
+    }
     
     // Validate date format (YYYY-MM-DD)
     if (formData.planting_date && !/^\d{4}-\d{2}-\d{2}$/.test(formData.planting_date)) {
@@ -127,109 +200,122 @@ const MotherPlantForm = ({ initialData, onSave, onCancel }) => {
   return (
     <form onSubmit={handleSubmit}>
       <Grid container spacing={2}>
-        {/* Samendaten */}
-        <Grid item xs={12}>
-          <FormControl 
-            fullWidth 
-            margin="normal"
-            error={!!errors.seed_source}
-            disabled={!!initialData} // Nur bei neuer Pflanze änderbar
-          >
-            <InputLabel>Samen-Quelle</InputLabel>
+        {/* Stammdaten */}
+        <Grid item xs={12} sm={6}>
+          <FormControl fullWidth margin="normal" error={!!errors.seed_source}>
+            <InputLabel>Samenquelle</InputLabel>
             <Select
               name="seed_source"
               value={formData.seed_source}
               onChange={handleChange}
-              label="Samen-Quelle"
+              label="Samenquelle"
+              disabled={!!initialData} // Nur bei neuem Eintrag bearbeitbar
             >
-              {seeds.length > 0 ? (
+              {seeds.length > 0 ? 
                 seeds.map((seed) => (
                   <MenuItem key={seed.uuid} value={seed.uuid}>
-                    {`${seed.strain_name} (${seed.batch_number}) - ${seed.remaining_seeds} verfügbar`}
+                    {`${seed.strain_name} (${seed.batch_number}, ${seed.remaining_seeds} Samen übrig)`}
                   </MenuItem>
-                ))
-              ) : (
+                )) : 
                 <MenuItem disabled>Keine Samen verfügbar</MenuItem>
-              )}
+              }
             </Select>
-            {errors.seed_source && (
-              <FormHelperText>{errors.seed_source}</FormHelperText>
-            )}
+            {errors.seed_source && <FormHelperText>{errors.seed_source}</FormHelperText>}
           </FormControl>
+        </Grid>
+        
+        <Grid item xs={12} sm={6}>
+          <TextField
+            fullWidth
+            label="Genetische Bezeichnung"
+            name="genetic_name"
+            value={formData.genetic_name}
+            onChange={handleChange}
+            error={!!errors.genetic_name}
+            helperText={errors.genetic_name}
+            margin="normal"
+          />
         </Grid>
         
         {/* Pflanzendaten */}
         <Grid item xs={12} sm={6}>
           <TextField
             fullWidth
-            label="Pflanztermin (YYYY-MM-DD)"
+            label="Pflanzungsdatum (YYYY-MM-DD)"
             name="planting_date"
             value={formData.planting_date}
             onChange={handleChange}
             error={!!errors.planting_date}
             helperText={errors.planting_date || "Format: YYYY-MM-DD"}
             margin="normal"
-          />
-        </Grid>
-        <Grid item xs={12} sm={6}>
-          <TextField
-            fullWidth
-            label="Standort"
-            name="location"
-            value={formData.location}
-            onChange={handleChange}
-            error={!!errors.location}
-            helperText={errors.location}
-            margin="normal"
+            disabled={!!initialData} // Nur bei neuem Eintrag bearbeitbar
           />
         </Grid>
         
         <Grid item xs={12} sm={6}>
           <TextField
             fullWidth
-            label="Sortenname"
-            name="strain_name"
-            value={formData.strain_name}
+            label="Anzahl Pflanzen"
+            name="plant_count"
+            type="number"
+            inputProps={{ min: 1 }}
+            value={formData.plant_count}
             onChange={handleChange}
-            error={!!errors.strain_name}
-            helperText={errors.strain_name}
+            error={!!errors.plant_count}
+            helperText={errors.plant_count}
             margin="normal"
+            disabled={!!initialData} // Nur bei neuem Eintrag bearbeitbar
           />
         </Grid>
+        
         <Grid item xs={12} sm={6}>
-          <FormControl 
-            fullWidth 
-            margin="normal"
-            error={!!errors.status}
-          >
-            <InputLabel>Status</InputLabel>
+          <FormControl fullWidth margin="normal">
+            <InputLabel>Wachstumsphase</InputLabel>
             <Select
-              name="status"
-              value={formData.status}
+              name="growth_phase"
+              value={formData.growth_phase}
               onChange={handleChange}
-              label="Status"
+              label="Wachstumsphase"
             >
-              <MenuItem value="vegetative">Vegetativ</MenuItem>
-              <MenuItem value="flowering">Blühend</MenuItem>
-              <MenuItem value="harvested">Geerntet</MenuItem>
-              <MenuItem value="retired">Ausgemustert</MenuItem>
+              <MenuItem value="seedling">Keimling</MenuItem>
+              <MenuItem value="vegetative">Vegetative Phase</MenuItem>
+              <MenuItem value="mother">Mutterpflanze</MenuItem>
             </Select>
-            {errors.status && (
-              <FormHelperText>{errors.status}</FormHelperText>
-            )}
           </FormControl>
         </Grid>
         
-        <Grid item xs={12}>
+        <Grid item xs={12} sm={6}>
           <TextField
             fullWidth
-            label="Nährstoffplan"
-            name="nutrition_plan"
-            value={formData.nutrition_plan}
+            label="Wachstumsmedium"
+            name="growth_medium"
+            value={formData.growth_medium}
             onChange={handleChange}
-            multiline
-            rows={3}
             margin="normal"
+            placeholder="z.B. Erde, Kokos, Hydrokultur"
+          />
+        </Grid>
+        
+        <Grid item xs={12} sm={6}>
+          <TextField
+            fullWidth
+            label="Dünger"
+            name="fertilizer"
+            value={formData.fertilizer}
+            onChange={handleChange}
+            margin="normal"
+          />
+        </Grid>
+        
+        <Grid item xs={12} sm={6}>
+          <TextField
+            fullWidth
+            label="Lichtzyklus"
+            name="light_cycle"
+            value={formData.light_cycle}
+            onChange={handleChange}
+            margin="normal"
+            placeholder="z.B. 18/6, 24/0"
           />
         </Grid>
         
@@ -246,6 +332,7 @@ const MotherPlantForm = ({ initialData, onSave, onCancel }) => {
             margin="normal"
           />
         </Grid>
+        
         <Grid item xs={12} sm={6}>
           <TextField
             fullWidth
@@ -257,6 +344,30 @@ const MotherPlantForm = ({ initialData, onSave, onCancel }) => {
             onChange={handleChange}
             margin="normal"
           />
+        </Grid>
+        
+        {/* Raumauswahl */}
+        <Grid item xs={12}>
+          <FormControl fullWidth margin="normal">
+            <InputLabel>Raum</InputLabel>
+            <Select
+              name="room"
+              value={formData.room || ''}
+              onChange={handleChange}
+              label="Raum"
+            >
+              <MenuItem value="">Keinen Raum zuweisen</MenuItem>
+              {Array.isArray(rooms) && rooms.length > 0 ? 
+                rooms.map((room) => (
+                  <MenuItem key={room.id} value={room.id}>
+                    {room.name}
+                  </MenuItem>
+                )) : 
+                <MenuItem disabled>Keine Räume verfügbar</MenuItem>
+              }
+            </Select>
+            <FormHelperText>Raum für diesen Prozessschritt (optional)</FormHelperText>
+          </FormControl>
         </Grid>
         
         {/* Verantwortlicher */}
@@ -273,15 +384,14 @@ const MotherPlantForm = ({ initialData, onSave, onCancel }) => {
               onChange={handleChange}
               label="Verantwortlicher"
             >
-              {Array.isArray(members) && members.length > 0 ? (
+              {Array.isArray(members) && members.length > 0 ? 
                 members.map((member) => (
                   <MenuItem key={member.id} value={member.id}>
                     {`${member.first_name} ${member.last_name}`}
                   </MenuItem>
-                ))
-              ) : (
+                )) : 
                 <MenuItem disabled>Keine Mitglieder verfügbar</MenuItem>
-              )}
+              }
             </Select>
             {errors.responsible_member && (
               <FormHelperText>{errors.responsible_member}</FormHelperText>

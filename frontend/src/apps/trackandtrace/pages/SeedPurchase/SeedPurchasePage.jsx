@@ -10,7 +10,11 @@ import {
   DialogContent,
   DialogActions,
   TextField,
-  Grid 
+  Grid,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Select 
 } from '@mui/material';
 import { Add } from '@mui/icons-material';
 import api from '../../../../utils/api';
@@ -20,6 +24,7 @@ import SeedPurchaseForm from './SeedPurchaseForm';
 
 const SeedPurchasePage = () => {
   const [seeds, setSeeds] = useState([]);
+  const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showDestroyed, setShowDestroyed] = useState(false);
@@ -27,6 +32,7 @@ const SeedPurchasePage = () => {
   const [currentSeed, setCurrentSeed] = useState(null);
   const [openDestroyDialog, setOpenDestroyDialog] = useState(false);
   const [destroyReason, setDestroyReason] = useState('');
+  const [destroyingMember, setDestroyingMember] = useState('');
 
   // Tabellenspalten definieren
   const columns = [
@@ -59,7 +65,7 @@ const SeedPurchasePage = () => {
   ];
 
   // Daten laden
-  const fetchSeeds = async () => {
+  const fetchData = async () => {
     setLoading(true);
     try {
       console.log(`Fetching seeds with destroyed=${showDestroyed}`);
@@ -76,6 +82,22 @@ const SeedPurchasePage = () => {
         setSeeds([]);
       }
       
+      // Mitglieder laden (für Vernichtungsdialog)
+      try {
+        const membersResponse = await api.get('/members/');
+        if (membersResponse.data && Array.isArray(membersResponse.data)) {
+          setMembers(membersResponse.data);
+        } else if (membersResponse.data && membersResponse.data.results && Array.isArray(membersResponse.data.results)) {
+          setMembers(membersResponse.data.results);
+        } else {
+          console.error('Unerwartetes Datenformat für Mitglieder:', membersResponse.data);
+          setMembers([]);
+        }
+      } catch (membersErr) {
+        console.error('Fehler beim Laden der Mitglieder:', membersErr);
+        setMembers([]);
+      }
+      
       setError(null);
     } catch (err) {
       console.error('Fehler beim Laden der Samen-Daten:', err);
@@ -86,7 +108,7 @@ const SeedPurchasePage = () => {
   };
 
   useEffect(() => {
-    fetchSeeds();
+    fetchData();
   }, [showDestroyed]);
 
   // Formular-Handling
@@ -109,7 +131,7 @@ const SeedPurchasePage = () => {
         // Create
         await api.post('/trackandtrace/seeds/', formData);
       }
-      fetchSeeds();
+      fetchData();
       handleCloseForm();
     } catch (err) {
       console.error('Fehler beim Speichern:', err);
@@ -127,16 +149,18 @@ const SeedPurchasePage = () => {
     setOpenDestroyDialog(false);
     setCurrentSeed(null);
     setDestroyReason('');
+    setDestroyingMember('');
   };
 
   const handleMarkAsDestroyed = async () => {
-    if (!destroyReason) return;
+    if (!destroyReason || !destroyingMember) return;
     
     try {
       await api.post(`/trackandtrace/seeds/${currentSeed.uuid}/destroy_item/`, {
-        reason: destroyReason
+        reason: destroyReason,
+        destroying_member: destroyingMember
       });
-      fetchSeeds();
+      fetchData();
       handleCloseDestroyDialog();
     } catch (err) {
       console.error('Fehler beim Markieren als vernichtet:', err);
@@ -149,14 +173,14 @@ const SeedPurchasePage = () => {
     if (window.confirm(`Sind Sie sicher, dass Sie ${seed.strain_name} löschen möchten?`)) {
       try {
         await api.delete(`/trackandtrace/seeds/${seed.uuid}/`);
-        fetchSeeds();
+        fetchData();
       } catch (err) {
         console.error('Fehler beim Löschen:', err);
       }
     }
   };
 
-  if (loading) return <Typography>Lade Daten...</Typography>;
+  if (loading && seeds.length === 0) return <Typography>Lade Daten...</Typography>;
   if (error) return <Typography color="error">{error}</Typography>;
 
   return (
@@ -238,13 +262,32 @@ const SeedPurchasePage = () => {
             value={destroyReason}
             onChange={(e) => setDestroyReason(e.target.value)}
           />
+          
+          {/* Mitgliedauswahl für Vernichtung */}
+          <FormControl fullWidth margin="normal">
+            <InputLabel>Verantwortliches Mitglied</InputLabel>
+            <Select
+              value={destroyingMember}
+              onChange={(e) => setDestroyingMember(e.target.value)}
+              label="Verantwortliches Mitglied"
+            >
+              {Array.isArray(members) && members.length > 0 ? 
+                members.map((member) => (
+                  <MenuItem key={member.id} value={member.id}>
+                    {`${member.first_name} ${member.last_name}`}
+                  </MenuItem>
+                )) : 
+                <MenuItem disabled>Keine Mitglieder verfügbar</MenuItem>
+              }
+            </Select>
+          </FormControl>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseDestroyDialog}>Abbrechen</Button>
           <Button 
             onClick={handleMarkAsDestroyed}
             color="error"
-            disabled={!destroyReason}
+            disabled={!destroyReason || !destroyingMember}
           >
             Als vernichtet markieren
           </Button>

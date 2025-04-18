@@ -148,14 +148,22 @@ const SeedPurchaseDetails = ({ data, onMarkAsDestroyed }) => {
             <Divider sx={{ mb: 2 }} />
             
             <Grid container spacing={2}>
-              <Grid item xs={12} md={6}>
+              <Grid item xs={12} md={4}>
                 <Typography variant="body2" color="textSecondary">Vernichtungsgrund:</Typography>
                 <Typography variant="body1">{data.destruction_reason}</Typography>
               </Grid>
-              <Grid item xs={12} md={6}>
+              <Grid item xs={12} md={4}>
                 <Typography variant="body2" color="textSecondary">Vernichtungsdatum:</Typography>
                 <Typography variant="body1">
                   {formatDate(data.destruction_date)}
+                </Typography>
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <Typography variant="body2" color="textSecondary">Vernichtet durch:</Typography>
+                <Typography variant="body1">
+                  {data.destroying_member_details ? 
+                    `${data.destroying_member_details.first_name} ${data.destroying_member_details.last_name}` : 
+                    'Nicht angegeben'}
                 </Typography>
               </Grid>
             </Grid>
