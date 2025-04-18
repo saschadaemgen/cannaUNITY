@@ -1,6 +1,6 @@
-# CanaUNITY Listener-System
+# cannaUNITY Listener v1.0
 
-Willkommen zum **CanaUNITY Listener** – einem erweiterbaren Hintergrunddienst für die zentrale Ereignisverarbeitung und Automatisierung in der CanaUNITY-Infrastruktur.
+Willkommen zum **cannaUNITY Listener** – einem erweiterbaren Hintergrunddienst für die zentrale Ereignisverarbeitung und Automatisierung in der cannaUNITY-Infrastruktur.
 
 ---
 
@@ -104,7 +104,7 @@ Der Listener wird bald eine Vielzahl von nativen Integrationen unterstützen:
 
 ## 💡 Vision
 
-Mit CanaUNITY entsteht ein flexibles, modulares System zur Ereignisverarbeitung, Automatisierung und intelligenten Steuerung – ideal für Anbauvereinigungen, Smart Homes, Gewerbe und Industrie.
+Mit cannaUNITY entsteht ein flexibles, modulares System zur Ereignisverarbeitung, Automatisierung und intelligenten Steuerung – ideal für Anbauvereinigungen, Smart Homes, Gewerbe und Industrie.
 
 ---
 
