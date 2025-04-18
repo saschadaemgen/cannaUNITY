@@ -286,15 +286,19 @@ class MainBookAPIView(APIView):
         result = []
         
         for account in accounts:
-            # Anfangsbestand berechnen - alle Buchungen VOR dem Startdatum
+            # SCHRITT 1: Anfangsbestand berechnen - alle Buchungen VOR dem Startdatum
             opening_debits = SubTransaction.objects.filter(
                 soll_konto=account,
-                booking__datum__lt=start_datetime
+                booking__datum__lt=start_datetime,
+                booking__storniert_am__isnull=True,  # Nicht stornierte Buchungen
+                booking__is_storno=False              # Keine Storno-Buchungen
             ).aggregate(Sum('betrag'))['betrag__sum'] or 0
             
             opening_credits = SubTransaction.objects.filter(
                 haben_konto=account, 
-                booking__datum__lt=start_datetime
+                booking__datum__lt=start_datetime,
+                booking__storniert_am__isnull=True,  # Nicht stornierte Buchungen
+                booking__is_storno=False              # Keine Storno-Buchungen
             ).aggregate(Sum('betrag'))['betrag__sum'] or 0
             
             # Anfangsbestand je nach Kontotyp berechnen
@@ -303,14 +307,16 @@ class MainBookAPIView(APIView):
             else:
                 opening_balance = opening_credits - opening_debits
                 
-            # Alle relevanten Buchungen im Zeitraum
+            # SCHRITT 2: Alle relevanten Buchungen im Zeitraum
             transactions = []
             
             # SOLL-Buchungen im Zeitraum
             debit_txs = SubTransaction.objects.filter(
                 soll_konto=account,
                 booking__datum__gte=start_datetime,
-                booking__datum__lte=end_datetime
+                booking__datum__lte=end_datetime,
+                booking__storniert_am__isnull=True,  # Nicht stornierte Buchungen
+                booking__is_storno=False              # Keine Storno-Buchungen
             ).select_related('booking', 'haben_konto')
             
             for tx in debit_txs:
@@ -329,7 +335,9 @@ class MainBookAPIView(APIView):
             credit_txs = SubTransaction.objects.filter(
                 haben_konto=account,
                 booking__datum__gte=start_datetime,
-                booking__datum__lte=end_datetime
+                booking__datum__lte=end_datetime,
+                booking__storniert_am__isnull=True,  # Nicht stornierte Buchungen
+                booking__is_storno=False              # Keine Storno-Buchungen
             ).select_related('booking', 'soll_konto')
             
             for tx in credit_txs:
@@ -347,17 +355,17 @@ class MainBookAPIView(APIView):
             # Nach Datum sortieren
             transactions.sort(key=lambda x: x['date'])
             
-            # Summen für den Zeitraum
+            # SCHRITT 3: Summen für den Zeitraum berechnen
             period_debits = sum(float(tx['debit']) for tx in transactions)
             period_credits = sum(float(tx['credit']) for tx in transactions)
             
-            # Endbestand berechnen
+            # SCHRITT 4: Endbestand berechnen
             if account.konto_typ in ['AKTIV', 'AUFWAND']:
-                closing_balance = opening_balance + (period_debits - period_credits)
+                closing_balance = opening_balance + Decimal(str(period_debits - period_credits))
             else:
-                closing_balance = opening_balance + (period_credits - period_debits)
+                closing_balance = opening_balance + Decimal(str(period_credits - period_debits))
                 
-            # Ins Ergebnis einfügen
+            # SCHRITT 5: Ins Ergebnis einfügen
             result.append({
                 'account': {
                     'id': account.id,

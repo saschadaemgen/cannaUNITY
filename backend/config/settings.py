@@ -30,6 +30,7 @@ INSTALLED_APPS = [
     'buchhaltung',
     "interface",
     'unifi_access',
+    'trackandtrace',
 ]
 
 # 🔄 Middleware

@@ -41,4 +41,7 @@ urlpatterns = [
     path('api/buchhaltung/', include('buchhaltung.urls')),  # → /api/buchhaltung/dashboard/
     path('api/buchhaltung/journal/', BookingJournalAPIView.as_view(), name="api-booking-journal"),
     path('buchhaltung/journal/', BookingJournalAPIView.as_view(), name='booking-journal'),
+
+    # ⚙️ UUID Track and Trace
+    path('api/trackandtrace/', include('trackandtrace.urls')),
 ]

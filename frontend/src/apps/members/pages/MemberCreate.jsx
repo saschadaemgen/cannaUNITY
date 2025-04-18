@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Box,
@@ -6,22 +6,22 @@ import {
   TextField,
   Typography,
   Grid,
-  Paper,
-  Divider,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
+  MenuItem,
+  CircularProgress
 } from '@mui/material'
+import api from '../../../utils/api'
 
 export default function MemberCreate() {
   const navigate = useNavigate()
 
+  // Heute - 18 Jahre
   const today = new Date()
-  const minBirthdate = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate())
+  const minBirthdate = new Date(
+    today.getFullYear() - 18,
+    today.getMonth(),
+    today.getDate()
+  )
   const minBirthdateISO = minBirthdate.toISOString().split('T')[0]
-
-  const [mojoOpen, setMojoOpen] = useState(false)
 
   const [member, setMember] = useState({
     first_name: '',
@@ -36,130 +36,125 @@ export default function MemberCreate() {
     physical_limitations: '',
     mental_limitations: '',
     notes: '',
-    warnings: ''
+    warnings: '',
+    beitragsmodell: ''
   })
+  const [contributionModels, setContributionModels] = useState([])
+  const [loadingModels, setLoadingModels] = useState(true)
+
+  // Beiträge laden
+  useEffect(() => {
+    api.get('/beitragsmodelle/')
+      .then(res => setContributionModels(res.data.results))
+      .catch(() => setContributionModels([]))
+      .finally(() => setLoadingModels(false))
+  }, [])
 
   const handleChange = (e) => {
-    const { name, value } = e.target
-
-    if (name === 'birthdate') {
-      setMember(prev => ({ ...prev, birthdate: value }))
-      if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-        const inputDate = new Date(value)
-        if (!isNaN(inputDate.getTime()) && inputDate > minBirthdate) {
-          setMember(prev => ({ ...prev, birthdate: minBirthdateISO }))
-          setMojoOpen(true)
-        }
-      }
-    } else {
-      setMember(prev => ({ ...prev, [name]: value }))
-    }
+    setMember({ ...member, [e.target.name]: e.target.value })
   }
 
   const handleSave = () => {
-    fetch('/api/members/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(member)
-    })
-      .then(res => {
-        if (!res.ok) throw new Error('Fehler beim Speichern')
-        navigate('/mitglieder')
-      })
-      .catch(err => {
-        console.error(err)
-        alert('Fehler beim Speichern. Bitte Eingaben prüfen.')
+    api.post('/members/', member)
+      .then(() => navigate('/mitglieder'))
+      .catch((err) => {
+        console.error('Fehler beim Speichern:', err)
+        alert('Fehler beim Speichern. Bitte prüfen Sie die Eingaben.')
       })
   }
 
+  if (loadingModels) return <CircularProgress />
+
   return (
-    <Paper sx={{ p: 4, maxWidth: 1000, mx: 'auto', mt: 4, backgroundColor: '#fafafa', boxShadow: 3 }}>
+    <Box>
       <Typography variant="h4" gutterBottom>Neues Mitglied anlegen</Typography>
+      <Grid container spacing={2}>
+        {/* Vorname, Nachname, E‑Mail */}
+        <Grid item xs={6}>
+          <TextField fullWidth label="Vorname" name="first_name" value={member.first_name} onChange={handleChange} />
+        </Grid>
+        <Grid item xs={6}>
+          <TextField fullWidth label="Nachname" name="last_name" value={member.last_name} onChange={handleChange} />
+        </Grid>
+        <Grid item xs={12}>
+          <TextField fullWidth label="E‑Mail" name="email" value={member.email} onChange={handleChange} />
+        </Grid>
 
-      {/* Persönlich */}
+        {/* Geburtsdatum */}
+        <Grid item xs={6}>
+          <TextField
+            fullWidth
+            label="Geburtsdatum"
+            type="date"
+            name="birthdate"
+            value={member.birthdate}
+            onChange={handleChange}
+            inputProps={{ max: minBirthdateISO }}
+            InputLabelProps={{ shrink: true }}
+          />
+        </Grid>
+
+        {/* Kontostand */}
+        <Grid item xs={6}>
+          <TextField fullWidth label="Kontostand (€)" type="number" name="kontostand" value={member.kontostand} onChange={handleChange} />
+        </Grid>
+
+        {/* Adresse */}
+        <Grid item xs={3}>
+          <TextField fullWidth label="PLZ" name="zip_code" value={member.zip_code} onChange={handleChange} />
+        </Grid>
+        <Grid item xs={5}>
+          <TextField fullWidth label="Stadt" name="city" value={member.city} onChange={handleChange} />
+        </Grid>
+        <Grid item xs={3}>
+          <TextField fullWidth label="Straße" name="street" value={member.street} onChange={handleChange} />
+        </Grid>
+        <Grid item xs={1}>
+          <TextField fullWidth label="Nr." name="house_number" value={member.house_number} onChange={handleChange} />
+        </Grid>
+
+        {/* Dropdown Beitragsmodell */}
+        <Grid item xs={6}>
+          <TextField
+            fullWidth
+            select
+            label="Beitragsmodell"
+            name="beitragsmodell"
+            value={member.beitragsmodell}
+            onChange={handleChange}
+          >
+            <MenuItem value="">– Keines –</MenuItem>
+            {contributionModels.map((m) => (
+              <MenuItem key={m.id} value={m.id}>
+                {m.name} – {m.preis_monatlich} € / {m.maximalmenge} g
+              </MenuItem>
+            ))}
+          </TextField>
+        </Grid>
+
+        {/* Weitere Felder */}
+        <Grid item xs={6}>
+          <TextField fullWidth multiline minRows={2} label="Körperliche Einschränkungen" name="physical_limitations" value={member.physical_limitations} onChange={handleChange} />
+        </Grid>
+        <Grid item xs={6}>
+          <TextField fullWidth multiline minRows={2} label="Geistige Einschränkungen" name="mental_limitations" value={member.mental_limitations} onChange={handleChange} />
+        </Grid>
+        <Grid item xs={6}>
+          <TextField fullWidth multiline minRows={2} label="Bemerkungen" name="notes" value={member.notes} onChange={handleChange} />
+        </Grid>
+        <Grid item xs={6}>
+          <TextField fullWidth multiline minRows={2} label="Verwarnungen" name="warnings" value={member.warnings} onChange={handleChange} />
+        </Grid>
+      </Grid>
+
       <Box mt={3}>
-        <Typography variant="h6">🧍 Persönliche Daten</Typography>
-        <Divider sx={{ mb: 2 }} />
-        <Grid container spacing={2}>
-          <Grid item xs={6}><TextField fullWidth label="Vorname" name="first_name" value={member.first_name} onChange={handleChange} /></Grid>
-          <Grid item xs={6}><TextField fullWidth label="Nachname" name="last_name" value={member.last_name} onChange={handleChange} /></Grid>
-          <Grid item xs={12}><TextField fullWidth label="E-Mail" name="email" value={member.email} onChange={handleChange} /></Grid>
-          <Grid item xs={12}>
-            <TextField
-              fullWidth
-              label="Geburtsdatum"
-              type="date"
-              name="birthdate"
-              value={member.birthdate}
-              onChange={handleChange}
-              inputProps={{ max: minBirthdateISO }}
-              InputLabelProps={{ shrink: true }}
-              helperText="Mindestalter: 18 Jahre (§ 3 Abs. 1 KCanG)"
-            />
-          </Grid>
-        </Grid>
+        <Button variant="contained" color="primary" onClick={handleSave}>
+          Speichern
+        </Button>
+        <Button onClick={() => navigate('/mitglieder')} sx={{ ml: 2 }}>
+          Abbrechen
+        </Button>
       </Box>
-
-      {/* Adresse */}
-      <Box mt={4}>
-        <Typography variant="h6">🏠 Adresse</Typography>
-        <Divider sx={{ mb: 2 }} />
-        <Grid container spacing={2}>
-          <Grid item xs={3}><TextField fullWidth label="PLZ" name="zip_code" value={member.zip_code} onChange={handleChange} /></Grid>
-          <Grid item xs={5}><TextField fullWidth label="Stadt" name="city" value={member.city} onChange={handleChange} /></Grid>
-          <Grid item xs={3}><TextField fullWidth label="Straße" name="street" value={member.street} onChange={handleChange} /></Grid>
-          <Grid item xs={1}><TextField fullWidth label="Nr." name="house_number" value={member.house_number} onChange={handleChange} /></Grid>
-        </Grid>
-      </Box>
-
-      {/* Finanzen */}
-      <Box mt={4}>
-        <Typography variant="h6">💳 Finanzen</Typography>
-        <Divider sx={{ mb: 2 }} />
-        <TextField fullWidth label="Kontostand (€)" type="number" name="kontostand" value={member.kontostand} onChange={handleChange} />
-      </Box>
-
-      {/* Gesundheit */}
-      <Box mt={4}>
-        <Typography variant="h6">🧑‍⚕️ Gesundheit</Typography>
-        <Divider sx={{ mb: 2 }} />
-        <Grid container spacing={2}>
-          <Grid item xs={6}><TextField fullWidth multiline minRows={2} label="Körperliche Einschränkungen" name="physical_limitations" value={member.physical_limitations} onChange={handleChange} /></Grid>
-          <Grid item xs={6}><TextField fullWidth multiline minRows={2} label="Geistige Einschränkungen" name="mental_limitations" value={member.mental_limitations} onChange={handleChange} /></Grid>
-        </Grid>
-      </Box>
-
-      {/* Intern */}
-      <Box mt={4}>
-        <Typography variant="h6">📝 Intern</Typography>
-        <Divider sx={{ mb: 2 }} />
-        <Grid container spacing={2}>
-          <Grid item xs={6}><TextField fullWidth multiline minRows={2} label="Bemerkungen" name="notes" value={member.notes} onChange={handleChange} /></Grid>
-          <Grid item xs={6}><TextField fullWidth multiline minRows={2} label="Verwarnungen" name="warnings" value={member.warnings} onChange={handleChange} /></Grid>
-        </Grid>
-      </Box>
-
-      {/* Buttons */}
-      <Box mt={4} display="flex" justifyContent="flex-end">
-        <Button variant="contained" onClick={handleSave}>Speichern</Button>
-        <Button onClick={() => navigate('/mitglieder')} sx={{ ml: 2 }}>Abbrechen</Button>
-      </Box>
-
-      {/* Mojo Dialog */}
-      <Dialog open={mojoOpen} onClose={() => setMojoOpen(false)} PaperProps={{ sx: { p: 2, backdropFilter: 'blur(4px)', borderRadius: 2 } }}>
-        <DialogTitle sx={{ fontWeight: 'bold' }}>Altersprüfung nicht bestanden</DialogTitle>
-        <DialogContent>
-          <Typography gutterBottom>
-            Laut § 3 Absatz 1 des Konsumcannabisgesetzes (KCanG) ist eine Mitgliedschaft ausschließlich volljährigen Personen ab 18 Jahren gestattet.
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Das eingegebene Geburtsdatum wurde automatisch auf das Mindestalter korrigiert.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setMojoOpen(false)} variant="contained">Verstanden</Button>
-        </DialogActions>
-      </Dialog>
-    </Paper>
+    </Box>
   )
 }

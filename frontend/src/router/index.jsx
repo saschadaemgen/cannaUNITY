@@ -25,6 +25,8 @@ import YearClosingPrep from '../apps/buchhaltung/pages/YearClosingPrep'
 import MemberCreate from '../apps/members/pages/MemberCreate'
 import MemberEdit from '../apps/members/pages/MemberEdit'
 import MemberDelete from '../apps/members/pages/MemberDelete'
+import SeedPurchasePage from '../apps/trackandtrace/pages/SeedPurchase/SeedPurchasePage';
+import MotherPlantPage from '../apps/trackandtrace/pages/MotherPlant/MotherPlantPage';
 
 export const router = createBrowserRouter([
   {
@@ -66,9 +68,11 @@ export const router = createBrowserRouter([
       { path: 'buchhaltung/jahresabschluss', element: <YearClosingList /> },
       { path: 'buchhaltung/jahresabschluss/:id/vorbereitung', element: <YearClosingPrep /> },
 
+      { path: 'trace', element: <div>Track & Trace</div> },
+      { path: 'trace/samen', element: <SeedPurchasePage /> },
+
       // Optional: zukünftige Seiten
       { path: 'netzwerk', element: <div>Gemeinschaftsnetzwerk</div> },
-      { path: 'trace', element: <div>Track & Trace</div> },
     ],
   },
 
