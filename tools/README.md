@@ -1,4 +1,4 @@
-# CanaUNITY Listener-System
+# canaUNITY Listener v1.0
 
 Willkommen zum **CanaUNITY Listener** – einem erweiterbaren Hintergrunddienst für die zentrale Ereignisverarbeitung und Automatisierung in der CanaUNITY-Infrastruktur.
 
