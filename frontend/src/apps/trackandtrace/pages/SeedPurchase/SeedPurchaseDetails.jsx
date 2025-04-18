@@ -98,6 +98,12 @@ const SeedPurchaseDetails = ({ data, onMarkAsDestroyed }) => {
                   'Unbekannt'}
               </Typography>
             </Grid>
+            <Grid item xs={6}>
+              <Typography variant="body2" color="textSecondary">Lagerraum:</Typography>
+              <Typography variant="body1">
+                {data.room_details ? data.room_details.name : 'Nicht zugewiesen'}
+              </Typography>
+            </Grid>
             <Grid item xs={6} md={3}>
               <Typography variant="body2" color="textSecondary">Erstelldatum:</Typography>
               <Typography variant="body1">{formatDate(data.created_at)}</Typography>
@@ -116,6 +122,26 @@ const SeedPurchaseDetails = ({ data, onMarkAsDestroyed }) => {
           </Grid>
         </Grid>
         
+        <Grid item xs={12}>
+          <Typography variant="subtitle2">Systemdaten</Typography>
+          <Divider sx={{ mb: 2 }} />
+          
+          <Grid container spacing={2}>
+            <Grid item xs={12} md={6}>
+              <Typography variant="body2" color="textSecondary">UUID:</Typography>
+              <Typography variant="body1" sx={{ fontFamily: 'monospace', wordBreak: 'break-all' }}>
+                {data.uuid}
+              </Typography>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <Typography variant="body2" color="textSecondary">Chargennummer:</Typography>
+              <Typography variant="body1">
+                {data.batch_number}
+              </Typography>
+            </Grid>
+          </Grid>
+        </Grid>
+
         {data.is_destroyed && (
           <Grid item xs={12}>
             <Typography variant="subtitle2" color="error">Vernichtungsdaten</Typography>

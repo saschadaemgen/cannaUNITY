@@ -3,6 +3,7 @@ import uuid
 from django.db import models
 from django.utils import timezone
 from members.models import Member
+from rooms.models import Room
 
 class BaseTrackingModel(models.Model):
     """Basis-Modell für alle Track & Trace Einträge"""
@@ -85,6 +86,14 @@ class SeedPurchase(BaseTrackingModel):
         blank=True,
         help_text="Begleitdokumente (Kaufbeleg, Zertifikate, etc.)"
     )
+    room = models.ForeignKey(
+        Room,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="seed_purchases",
+        help_text="Raum, in dem die Samen gelagert werden"
+    )
     
     class Meta:
         verbose_name = "Samen-Einkauf"
@@ -115,3 +124,5 @@ class SeedPurchase(BaseTrackingModel):
             self.remaining_seeds = self.total_seeds
             
         super().save(*args, **kwargs)
+
+

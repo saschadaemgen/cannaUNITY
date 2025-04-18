@@ -1,4 +1,5 @@
-// frontend/src/apps/trackandtrace/pages/SeedPurchase/SeedPurchaseForm.jsx
+// Korrigierte Version für SeedPurchaseForm.jsx
+
 import React, { useState, useEffect } from 'react';
 import { 
   Grid, 
@@ -15,6 +16,7 @@ import api from '../../../../utils/api';
 
 const SeedPurchaseForm = ({ initialData, onSave, onCancel }) => {
   const [members, setMembers] = useState([]);
+  const [rooms, setRooms] = useState([]); // Stelle sicher, dass rooms als leeres Array initialisiert wird
   const [formData, setFormData] = useState({
     manufacturer: '',
     genetics: '',
@@ -23,30 +25,48 @@ const SeedPurchaseForm = ({ initialData, onSave, onCancel }) => {
     indica_percentage: 50,
     thc_value: '',
     cbd_value: '',
-    purchase_date: new Date().toISOString().split('T')[0], // Format YYYY-MM-DD
+    purchase_date: new Date().toISOString().split('T')[0],
     total_seeds: 0,
     notes: '',
     temperature: '',
     humidity: '',
     responsible_member: '',
+    room: '', // Raum-Feld hinzufügen
   });
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   
-  // Mitglieder laden
+  // Mitglieder und Räume laden
   useEffect(() => {
-    const fetchMembers = async () => {
+    const fetchData = async () => {
       try {
-        const response = await api.get('/members/');
-        // Sicherstellen, dass response.data ein Array ist
-        if (response.data && Array.isArray(response.data)) {
-          setMembers(response.data);
-        } else if (response.data && response.data.results && Array.isArray(response.data.results)) {
-          // Für den Fall, dass die API paginierte Ergebnisse zurückgibt
-          setMembers(response.data.results);
+        // Lade Mitglieder
+        const membersResponse = await api.get('/members/');
+        if (Array.isArray(membersResponse.data)) {
+          setMembers(membersResponse.data);
+        } else if (membersResponse.data && Array.isArray(membersResponse.data.results)) {
+          setMembers(membersResponse.data.results);
         } else {
-          console.error('Unerwartetes Datenformat:', response.data);
+          console.error('Unerwartetes Mitglieder-Datenformat:', membersResponse.data);
           setMembers([]);
+        }
+        
+        // Lade Räume
+        try {
+          const roomsResponse = await api.get('/rooms/');
+          console.log('Rooms API response:', roomsResponse.data);
+          
+          if (Array.isArray(roomsResponse.data)) {
+            setRooms(roomsResponse.data);
+          } else if (roomsResponse.data && Array.isArray(roomsResponse.data.results)) {
+            setRooms(roomsResponse.data.results);
+          } else {
+            console.error('Unerwartetes Räume-Datenformat:', roomsResponse.data);
+            setRooms([]);
+          }
+        } catch (roomErr) {
+          console.error('Fehler beim Laden der Räume:', roomErr);
+          setRooms([]); // Stelle sicher, dass rooms ein leeres Array ist bei Fehlern
         }
       } catch (err) {
         console.error('Fehler beim Laden der Mitglieder:', err);
@@ -54,13 +74,12 @@ const SeedPurchaseForm = ({ initialData, onSave, onCancel }) => {
       }
     };
     
-    fetchMembers();
+    fetchData();
   }, []);
   
   // Formulardaten initialisieren, wenn initialData vorhanden
   useEffect(() => {
     if (initialData) {
-      // Daten kopieren und verwenden
       setFormData({...initialData});
     }
   }, [initialData]);
@@ -80,7 +99,6 @@ const SeedPurchaseForm = ({ initialData, onSave, onCancel }) => {
         indica_percentage: 100 - value
       }));
     }
-    // Wenn Indica geändert wird, Sativa automatisch anpassen
     else if (name === 'indica_percentage') {
       setFormData(prev => ({
         ...prev,
@@ -122,6 +140,9 @@ const SeedPurchaseForm = ({ initialData, onSave, onCancel }) => {
     // Submit
     onSave(submitData);
   };
+  
+  // Debugging-Ausgabe
+  console.log('Verfügbare Räume:', rooms);
   
   return (
     <form onSubmit={handleSubmit}>
@@ -296,6 +317,30 @@ const SeedPurchaseForm = ({ initialData, onSave, onCancel }) => {
             {errors.responsible_member && (
               <FormHelperText>{errors.responsible_member}</FormHelperText>
             )}
+          </FormControl>
+        </Grid>
+        
+        {/* Lagerraum - Hier war das Problem */}
+        <Grid item xs={12}>
+          <FormControl fullWidth margin="normal">
+            <InputLabel>Lagerraum</InputLabel>
+            <Select
+              name="room"
+              value={formData.room || ''}
+              onChange={handleChange}
+              label="Lagerraum"
+            >
+              <MenuItem value="">Keinen Raum zuweisen</MenuItem>
+              {Array.isArray(rooms) && rooms.length > 0 ? 
+                rooms.map((room) => (
+                  <MenuItem key={room.id} value={room.id}>
+                    {room.name}
+                  </MenuItem>
+                )) : 
+                <MenuItem disabled>Keine Räume verfügbar</MenuItem>
+              }
+            </Select>
+            <FormHelperText>Raum, in dem die Samen gelagert werden (optional)</FormHelperText>
           </FormControl>
         </Grid>
         
