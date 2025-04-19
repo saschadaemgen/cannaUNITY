@@ -30,7 +30,7 @@ const DryingPage = () => {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [status, setStatus] = useState('active'); // 'active', 'partially_transferred', 'fully_transferred', 'destroyed'
+  const [status, setStatus] = useState('active'); // 'active', 'transferred', 'destroyed'
   const [openForm, setOpenForm] = useState(false);
   const [currentDrying, setCurrentDrying] = useState(null);
   const [openDestroyDialog, setOpenDestroyDialog] = useState(false);
@@ -157,13 +157,11 @@ const DryingPage = () => {
     switch (status) {
       case 'destroyed':
         return '?destroyed=true';
-      case 'partially_transferred':
-        return '?transfer_status=partially_transferred';
-      case 'fully_transferred':
-        return '?transfer_status=fully_transferred';
+      case 'transferred':
+        return '?transfer_status=partially_transferred,fully_transferred';
       case 'active':
       default:
-        return ''; // Aktive (weder vernichtet noch vollständig übergeführt)
+        return ''; // Aktive (weder vernichtet noch übergeführt)
     }
   };
 
@@ -373,14 +371,9 @@ const DryingPage = () => {
             <ToggleButton value="active" color="primary">
               Aktiv
             </ToggleButton>
-            <Tooltip title="Einheiten wurden teilweise für den nächsten Prozessschritt verwendet (1-99%)">
-              <ToggleButton value="partially_transferred" color="info">
-                Teilweise übergeführt
-              </ToggleButton>
-            </Tooltip>
-            <Tooltip title="Alle Einheiten wurden für den nächsten Prozessschritt verwendet (100%)">
-              <ToggleButton value="fully_transferred" color="success">
-                Vollständig übergeführt
+            <Tooltip title="An den nächsten Prozessschritt übergeführt (teilweise oder vollständig)">
+              <ToggleButton value="transferred" color="success">
+                Übergeführt
               </ToggleButton>
             </Tooltip>
             <ToggleButton value="destroyed" color="error">

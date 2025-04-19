@@ -341,7 +341,7 @@ const DryingDetails = ({
               )}
               
               {/* Überführungsbutton sollte nur erscheinen, wenn besondere Umstände */}
-              {data.dried_weight && false && (
+              {data.dried_weight && (
                 <>
                   <Button 
                     variant="outlined" 

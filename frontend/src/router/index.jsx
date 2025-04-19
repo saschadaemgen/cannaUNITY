@@ -33,8 +33,8 @@ import HarvestPage from '../apps/trackandtrace/pages/Harvest/HarvestPage';
 import DryingPage from '../apps/trackandtrace/pages/Drying/DryingPage';
 import ProcessingPage from '../apps/trackandtrace/pages/Processing/ProcessingPage';
 import LabTestingPage from '../apps/trackandtrace/pages/LabTesting/LabTestingPage';
-//import PackagingPage from '../apps/trackandtrace/pages/Packaging/PackagingPage';
-//import ProductDistributionPage from '../apps/trackandtrace/pages/ProductDistribution/ProductDistributionPage';
+import PackagingPage from '../apps/trackandtrace/pages/Packaging/PackagingPage';
+import ProductDistributionPage from '../apps/trackandtrace/pages/ProductDistribution/ProductDistributionPage';
 
 export const router = createBrowserRouter([
   {
@@ -85,8 +85,8 @@ export const router = createBrowserRouter([
       { path: 'trace/trocknung', element: <DryingPage /> },
       { path: 'trace/verarbeitung', element: <ProcessingPage /> },
       { path: 'trace/laborkontrolle', element: <LabTestingPage /> },
-      //{ path: 'trace/verpackung', element: <PackagingPage /> },
-      //{ path: 'trace/ausgabe', element: <ProductDistributionPage /> },
+      { path: 'trace/verpackung', element: <PackagingPage /> },
+      { path: 'trace/ausgabe', element: <ProductDistributionPage /> },
 
       // Optional: zukünftige Seiten
       { path: 'netzwerk', element: <div>Gemeinschaftsnetzwerk</div> },

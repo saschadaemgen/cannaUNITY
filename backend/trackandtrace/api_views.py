@@ -19,22 +19,23 @@ class SeedPurchaseViewSet(viewsets.ModelViewSet):
         """Filtering für aktive/vernichtete/übergeführte Einträge"""
         queryset = SeedPurchase.objects.all()
         destroyed = self.request.query_params.get('destroyed', None)
-        transferred = self.request.query_params.get('transferred', None)
+        transfer_status = self.request.query_params.get('transfer_status', None)
         
-        # Drei mögliche Status: aktiv, vernichtet, übergeführt
-        if destroyed is not None and transferred is not None:
-            # Beide Parameter angegeben - ungültige Kombination
-            return SeedPurchase.objects.none()
-        elif destroyed is not None:
-            # Nur destroyed Parameter
+        # Filter für Vernichtung anwenden
+        if destroyed is not None:
             is_destroyed = destroyed.lower() == 'true'
-            queryset = queryset.filter(is_destroyed=is_destroyed, is_transferred=False)
-        elif transferred is not None:
-            # Nur transferred Parameter
-            is_transferred = transferred.lower() == 'true'
-            queryset = queryset.filter(is_transferred=is_transferred, is_destroyed=False)
-        else:
-            # Keine Parameter - zeige aktive (weder vernichtet noch übergeführt)
+            queryset = queryset.filter(is_destroyed=is_destroyed)
+            
+        # Erweiterter Filter für Überführungsstatus
+        if transfer_status is not None:
+            if transfer_status == 'transferred':
+                # Für Abwärtskompatibilität: is_transferred=True entspricht dem alten Schema
+                queryset = queryset.filter(is_transferred=True)
+            elif transfer_status == 'not_transferred':
+                queryset = queryset.filter(is_transferred=False)
+        
+        # Standardfilter: Wenn keine Parameter angegeben, zeige aktive (nicht vernichtet, nicht übergeführt)
+        if destroyed is None and transfer_status is None:
             queryset = queryset.filter(is_destroyed=False, is_transferred=False)
             
         return queryset
@@ -142,22 +143,23 @@ class CuttingViewSet(viewsets.ModelViewSet):
         """Filtering für aktive/vernichtete/übergeführte Einträge"""
         queryset = Cutting.objects.all()
         destroyed = self.request.query_params.get('destroyed', None)
-        transferred = self.request.query_params.get('transferred', None)
+        transfer_status = self.request.query_params.get('transfer_status', None)
         
-        # Drei mögliche Status: aktiv, vernichtet, übergeführt
-        if destroyed is not None and transferred is not None:
-            # Beide Parameter angegeben - ungültige Kombination
-            return Cutting.objects.none()
-        elif destroyed is not None:
-            # Nur destroyed Parameter
+        # Filter für Vernichtung anwenden
+        if destroyed is not None:
             is_destroyed = destroyed.lower() == 'true'
-            queryset = queryset.filter(is_destroyed=is_destroyed, is_transferred=False)
-        elif transferred is not None:
-            # Nur transferred Parameter
-            is_transferred = transferred.lower() == 'true'
-            queryset = queryset.filter(is_transferred=is_transferred, is_destroyed=False)
-        else:
-            # Keine Parameter - zeige aktive (weder vernichtet noch übergeführt)
+            queryset = queryset.filter(is_destroyed=is_destroyed)
+            
+        # Erweiterter Filter für Überführungsstatus
+        if transfer_status is not None:
+            if transfer_status == 'transferred':
+                # Für Abwärtskompatibilität: is_transferred=True entspricht dem alten Schema
+                queryset = queryset.filter(is_transferred=True)
+            elif transfer_status == 'not_transferred':
+                queryset = queryset.filter(is_transferred=False)
+        
+        # Standardfilter: Wenn keine Parameter angegeben, zeige aktive (nicht vernichtet, nicht übergeführt)
+        if destroyed is None and transfer_status is None:
             queryset = queryset.filter(is_destroyed=False, is_transferred=False)
             
         return queryset
@@ -233,19 +235,23 @@ class FloweringPlantViewSet(viewsets.ModelViewSet):
         """Filtering für aktive/vernichtete/übergeführte Einträge"""
         queryset = FloweringPlant.objects.all()
         destroyed = self.request.query_params.get('destroyed', None)
-        transferred = self.request.query_params.get('transferred', None)
+        transfer_status = self.request.query_params.get('transfer_status', None)
         
-        # Filter anwenden
+        # Filter für Vernichtung anwenden
         if destroyed is not None:
             is_destroyed = destroyed.lower() == 'true'
             queryset = queryset.filter(is_destroyed=is_destroyed)
         
-        if transferred is not None:
-            is_transferred = transferred.lower() == 'true'
-            queryset = queryset.filter(is_transferred=is_transferred)
+        # Erweiterter Filter für Überführungsstatus
+        if transfer_status is not None:
+            if transfer_status == 'transferred':
+                # Für Abwärtskompatibilität: is_transferred=True entspricht dem alten Schema
+                queryset = queryset.filter(is_transferred=True)
+            elif transfer_status == 'not_transferred':
+                queryset = queryset.filter(is_transferred=False)
         
         # Standardfilter: Wenn keine Parameter angegeben, zeige aktive
-        if destroyed is None and transferred is None:
+        if destroyed is None and transfer_status is None:
             queryset = queryset.filter(is_destroyed=False, is_transferred=False)
                 
         return queryset
@@ -355,12 +361,13 @@ class HarvestViewSet(viewsets.ModelViewSet):
         
         # Erweiterter Filter für Überführungsstatus
         if transfer_status is not None:
-            if transfer_status in ['not_transferred', 'partially_transferred', 'fully_transferred']:
+            if transfer_status == 'transferred':
+                # Beide Status abfragen für Abwärtskompatibilität
+                queryset = queryset.filter(
+                    transfer_status__in=['partially_transferred', 'fully_transferred']
+                )
+            elif transfer_status in ['not_transferred', 'partially_transferred', 'fully_transferred']:
                 queryset = queryset.filter(transfer_status=transfer_status)
-            else:
-                # Für Abwärtskompatibilität
-                if transfer_status == 'transferred':
-                    queryset = queryset.filter(transfer_status='fully_transferred')
         
         # Standardfilter: Wenn keine Parameter angegeben, zeige aktive (nicht vernichtet, nicht vollständig übergeführt)
         if destroyed is None and transfer_status is None:
@@ -464,19 +471,23 @@ class DryingViewSet(viewsets.ModelViewSet):
         """Filtering für aktive/vernichtete/übergeführte Einträge"""
         queryset = Drying.objects.all()
         destroyed = self.request.query_params.get('destroyed', None)
-        transferred = self.request.query_params.get('transferred', None)
+        transfer_status = self.request.query_params.get('transfer_status', None)
         
-        # Filter anwenden
+        # Filter für Vernichtung anwenden
         if destroyed is not None:
             is_destroyed = destroyed.lower() == 'true'
             queryset = queryset.filter(is_destroyed=is_destroyed)
         
-        if transferred is not None:
-            is_transferred = transferred.lower() == 'true'
-            queryset = queryset.filter(is_transferred=is_transferred)
+        # Erweiterter Filter für Überführungsstatus
+        if transfer_status is not None:
+            if transfer_status == 'transferred':
+                # Für Abwärtskompatibilität: is_transferred=True entspricht dem alten Schema
+                queryset = queryset.filter(is_transferred=True)
+            elif transfer_status == 'not_transferred':
+                queryset = queryset.filter(is_transferred=False)
         
         # Standardfilter: Wenn keine Parameter angegeben, zeige aktive
-        if destroyed is None and transferred is None:
+        if destroyed is None and transfer_status is None:
             queryset = queryset.filter(is_destroyed=False, is_transferred=False)
             
         return queryset
@@ -549,6 +560,56 @@ class DryingViewSet(viewsets.ModelViewSet):
         
         serializer = self.get_serializer(drying)
         return Response(serializer.data)
+
+    @action(detail=True, methods=['post'])
+    def mark_as_fully_transferred(self, request, pk=None):
+        """Markiert einen Eintrag als vollständig übergeführt"""
+        drying = self.get_object()
+        transferring_member_id = request.data.get('transferring_member', None)
+        
+        if not transferring_member_id:
+            return Response(
+                {'error': 'Verantwortliches Mitglied für die Überführung muss angegeben werden'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            transferring_member = Member.objects.get(id=transferring_member_id)
+        except Member.DoesNotExist:
+            return Response(
+                {'error': 'Das angegebene Mitglied existiert nicht'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        drying.mark_as_fully_transferred(transferring_member)
+        
+        serializer = self.get_serializer(drying)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'])
+    def mark_as_partially_transferred(self, request, pk=None):
+        """Markiert einen Eintrag als teilweise übergeführt"""
+        drying = self.get_object()
+        transferring_member_id = request.data.get('transferring_member', None)
+        
+        if not transferring_member_id:
+            return Response(
+                {'error': 'Verantwortliches Mitglied für die Überführung muss angegeben werden'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            transferring_member = Member.objects.get(id=transferring_member_id)
+        except Member.DoesNotExist:
+            return Response(
+                {'error': 'Das angegebene Mitglied existiert nicht'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        drying.mark_as_partially_transferred(transferring_member)
+        
+        serializer = self.get_serializer(drying)
+        return Response(serializer.data)
     
 
 class ProcessingViewSet(viewsets.ModelViewSet):
@@ -570,12 +631,13 @@ class ProcessingViewSet(viewsets.ModelViewSet):
         
         # Erweiterter Filter für Überführungsstatus
         if transfer_status is not None:
-            if transfer_status in ['not_transferred', 'partially_transferred', 'fully_transferred']:
+            if transfer_status == 'transferred':
+                # Beide Status abfragen für Abwärtskompatibilität
+                queryset = queryset.filter(
+                    transfer_status__in=['partially_transferred', 'fully_transferred']
+                )
+            elif transfer_status in ['not_transferred', 'partially_transferred', 'fully_transferred']:
                 queryset = queryset.filter(transfer_status=transfer_status)
-            else:
-                # Für Abwärtskompatibilität
-                if transfer_status == 'transferred':
-                    queryset = queryset.filter(transfer_status='fully_transferred')
         
         # Standardfilter: Wenn keine Parameter angegeben, zeige aktive (nicht vernichtet, nicht vollständig übergeführt)
         if destroyed is None and transfer_status is None:
@@ -669,7 +731,6 @@ class ProcessingViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
     
 
-# LabTesting ViewSet für api_views.py
 class LabTestingViewSet(viewsets.ModelViewSet):
     """API-Endpunkte für Laborkontrollen mit erweiterter Überführungslogik"""
     queryset = LabTesting.objects.all()
@@ -691,12 +752,13 @@ class LabTestingViewSet(viewsets.ModelViewSet):
         
         # Erweiterter Filter für Überführungsstatus
         if transfer_status is not None:
-            if transfer_status in ['not_transferred', 'partially_transferred', 'fully_transferred']:
+            if transfer_status == 'transferred':
+                # Beide Status abfragen für Abwärtskompatibilität
+                queryset = queryset.filter(
+                    transfer_status__in=['partially_transferred', 'fully_transferred']
+                )
+            elif transfer_status in ['not_transferred', 'partially_transferred', 'fully_transferred']:
                 queryset = queryset.filter(transfer_status=transfer_status)
-            else:
-                # Für Abwärtskompatibilität
-                if transfer_status == 'transferred':
-                    queryset = queryset.filter(transfer_status='fully_transferred')
         
         # Filter für Teststatus
         if test_status is not None:
@@ -840,7 +902,6 @@ class LabTestingViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
     
 
-# Packaging ViewSet für api_views.py
 class PackagingViewSet(viewsets.ModelViewSet):
     """API-Endpunkte für Verpackungen mit erweiterter Überführungslogik"""
     queryset = Packaging.objects.all()
@@ -865,7 +926,7 @@ class PackagingViewSet(viewsets.ModelViewSet):
         # Erweiterter Filter für Überführungsstatus
         if transfer_status is not None:
             if transfer_status == 'transferred':
-                # Beide Status abfragen
+                # Beide Status abfragen für Abwärtskompatibilität
                 queryset = queryset.filter(
                     transfer_status__in=['partially_transferred', 'fully_transferred']
                 )
@@ -1009,7 +1070,6 @@ class PackagingViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
     
 
-# ProductDistribution ViewSet für api_views.py
 class ProductDistributionViewSet(viewsets.ModelViewSet):
     """API-Endpunkte für Produktausgaben mit erweiterter Überführungslogik"""
     queryset = ProductDistribution.objects.all()
@@ -1035,7 +1095,7 @@ class ProductDistributionViewSet(viewsets.ModelViewSet):
         # Erweiterter Filter für Überführungsstatus
         if transfer_status is not None:
             if transfer_status == 'transferred':
-                # Beide Status abfragen
+                # Beide Status abfragen für Abwärtskompatibilität
                 queryset = queryset.filter(
                     transfer_status__in=['partially_transferred', 'fully_transferred']
                 )

@@ -794,6 +794,36 @@ class Drying(BaseTrackingModel):
         
         super().save(*args, **kwargs)
 
+    def mark_as_partially_transferred(self, transferring_member):
+        """Markiert einen Eintrag als teilweise übergeführt"""
+        self.transfer_status = 'partially_transferred'
+        self.last_transfer_date = timezone.now()
+        self.transferring_member = transferring_member
+        
+        # Wenn Trockengewicht gesetzt ist, aber verbleibendes Trockengewicht nicht,
+        # setzen wir das verbleibende Trockengewicht gleich dem Trockengewicht
+        if self.dried_weight and not self.remaining_dried_weight:
+            self.remaining_dried_weight = self.dried_weight
+        
+        self.save()
+        
+    def mark_as_fully_transferred(self, transferring_member):
+        """Markiert einen Eintrag als vollständig übergeführt"""
+        self.is_transferred = True  # Für Abwärtskompatibilität
+        self.transfer_status = 'fully_transferred'
+        self.transfer_date = timezone.now()
+        self.last_transfer_date = timezone.now()
+        self.transferring_member = transferring_member
+        
+        # Stelle sicher, dass remaining_dried_weight gesetzt ist, bevor wir es auf 0 setzen
+        if self.dried_weight and not self.remaining_dried_weight:
+            self.remaining_dried_weight = self.dried_weight
+            
+        # Bei vollständiger Überführung verbleibendes Gewicht auf 0 setzen
+        self.remaining_dried_weight = 0
+        
+        self.save()
+
 
 class Processing(BaseTrackingModel):
     """Modell für die Verarbeitung nach der Trocknung"""

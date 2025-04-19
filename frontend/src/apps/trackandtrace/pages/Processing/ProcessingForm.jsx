@@ -55,29 +55,28 @@ const ProcessingForm = ({ initialData, onSave, onCancel }) => {
           setMembers([]);
         }
         
-        // Aktive Trocknungen laden (nicht vernichtet, nicht vollständig übergeführt)
-        const dryingsResponse = await api.get('/trackandtrace/dryings/');
-        if (dryingsResponse.data && Array.isArray(dryingsResponse.data)) {
-          // Nur Trocknungen mit abgeschlossener Trocknung (dried_weight vorhanden) und remaining_dried_weight > 0
-          setDryings(
-            dryingsResponse.data.filter(
-              drying => drying.dried_weight && 
-                        parseFloat(drying.remaining_dried_weight) > 0 &&
-                        !drying.is_destroyed &&
-                        drying.transfer_status !== 'fully_transferred'
-            )
+        // Überführte Trocknungen mit korrektem Parameter laden
+        const dryingsResponse = await api.get('/trackandtrace/dryings/?transfer_status=partially_transferred,fully_transferred');
+        if (dryingsResponse.data) {
+          console.log("Überführte Trocknungen:", dryingsResponse.data);
+          
+          // Daten verarbeiten, je nach Format der Antwort
+          let availableDryings = [];
+          if (Array.isArray(dryingsResponse.data)) {
+            availableDryings = dryingsResponse.data;
+          } else if (dryingsResponse.data && dryingsResponse.data.results && Array.isArray(dryingsResponse.data.results)) {
+            availableDryings = dryingsResponse.data.results;
+          }
+          
+          // Nur noch minimale Filterung auf Trockengewicht und nicht vernichtet
+          const filteredDryings = availableDryings.filter(
+            drying => drying.dried_weight && !drying.is_destroyed
           );
-        } else if (dryingsResponse.data && dryingsResponse.data.results && Array.isArray(dryingsResponse.data.results)) {
-          setDryings(
-            dryingsResponse.data.results.filter(
-              drying => drying.dried_weight && 
-                        parseFloat(drying.remaining_dried_weight) > 0 &&
-                        !drying.is_destroyed &&
-                        drying.transfer_status !== 'fully_transferred'
-            )
-          );
+          
+          console.log("Gefilterte überführte Trocknungen:", filteredDryings);
+          setDryings(filteredDryings);
         } else {
-          console.error('Unerwartetes Datenformat für Trocknungen:', dryingsResponse.data);
+          console.error('Unerwartetes Datenformat für Trocknungen:', dryingsResponse);
           setDryings([]);
         }
         
