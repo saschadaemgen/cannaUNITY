@@ -1,4 +1,4 @@
-// frontend/src/apps/trackandtrace/pages/Drying/DryingPage.jsx
+// frontend/src/apps/trackandtrace/pages/Processing/ProcessingPage.jsx
 import React, { useState, useEffect } from 'react';
 import { 
   Container, 
@@ -22,21 +22,20 @@ import {
 import { Add } from '@mui/icons-material';
 import api from '../../../../utils/api';
 import TableComponent from '../../components/TableComponent';
-import DryingDetails from './DryingDetails';
-import DryingForm from './DryingForm';
+import ProcessingDetails from './ProcessingDetails';
+import ProcessingForm from './ProcessingForm';
 
-const DryingPage = () => {
-  const [dryings, setDryings] = useState([]);
+const ProcessingPage = () => {
+  const [processings, setProcessings] = useState([]);
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [status, setStatus] = useState('active'); // 'active', 'partially_transferred', 'fully_transferred', 'destroyed'
   const [openForm, setOpenForm] = useState(false);
-  const [currentDrying, setCurrentDrying] = useState(null);
+  const [currentProcessing, setCurrentProcessing] = useState(null);
   const [openDestroyDialog, setOpenDestroyDialog] = useState(false);
   const [destroyReason, setDestroyReason] = useState('');
   const [destroyingMember, setDestroyingMember] = useState('');
-  const [openCompleteDryingDialog, setOpenCompleteDryingDialog] = useState(false);
   const [openTransferDialog, setOpenTransferDialog] = useState(false);
   const [transferType, setTransferType] = useState(''); // 'partially' oder 'fully'
   const [transferringMember, setTransferringMember] = useState('');
@@ -46,11 +45,10 @@ const DryingPage = () => {
     { id: 'batch_number', label: 'Charge', minWidth: 100 },
     { id: 'genetic_name', label: 'Genetik', minWidth: 150 },
     { 
-      id: 'drying_start_date', 
-      label: 'Beginn', 
+      id: 'processing_date', 
+      label: 'Verarbeitungsdatum', 
       minWidth: 120,
       format: (value) => {
-        // Einfache Datumsformatierung
         if (value) {
           try {
             const parts = value.split('-');
@@ -66,70 +64,42 @@ const DryingPage = () => {
         return '';
       }
     },
-    { 
-      id: 'drying_end_date', 
-      label: 'Ende', 
+    {
+      id: 'product_type',
+      label: 'Produkttyp',
       minWidth: 120,
-      format: (value) => {
-        if (!value) return 'In Trocknung';
-        try {
-          const parts = value.split('-');
-          if (parts.length === 3) {
-            return `${parts[2]}.${parts[1]}.${parts[0]}`;  // DD.MM.YYYY
-          }
-          return value;
-        } catch (e) {
-          console.error('Fehler bei der Datumsformatierung:', e);
-          return value;
-        }
-      }
+      format: (value, row) => row.product_type_display || value
     },
     { 
-      id: 'fresh_weight', 
-      label: 'Frischgewicht (g)', 
+      id: 'input_weight', 
+      label: 'Eingangsgewicht (g)', 
       minWidth: 150, 
       align: 'right',
       format: (value) => value ? Number(value).toLocaleString('de-DE') : ''
     },
     { 
-      id: 'dried_weight', 
-      label: 'Trockengewicht (g)', 
+      id: 'remaining_weight', 
+      label: 'Verbl. Gewicht (g)', 
       minWidth: 150, 
       align: 'right',
-      format: (value) => value ? Number(value).toLocaleString('de-DE') : 'Nicht erfasst'
-    },
-    {
-      id: 'weight_loss',
-      label: 'Gewichtsverlust (%)',
-      minWidth: 150,
-      align: 'right',
-      format: (value, row) => {
-        if (row.fresh_weight && row.dried_weight) {
-          const freshWeight = parseFloat(row.fresh_weight);
-          const driedWeight = parseFloat(row.dried_weight);
-          const loss = freshWeight - driedWeight;
-          const lossPercentage = (loss / freshWeight) * 100;
-          return lossPercentage.toFixed(2) + '%';
-        }
-        return 'Nicht berechenbar';
-      }
+      format: (value) => value ? Number(value).toLocaleString('de-DE') : ''
     },
     {
       id: 'transfer_status',
       label: 'Überführungsstatus',
       minWidth: 180,
       format: (value, row) => {
-        // Bei Gewichten (Trocknung)
-        if (row.dried_weight !== undefined && row.remaining_dried_weight !== undefined) {
-          const used = parseFloat(row.dried_weight) - parseFloat(row.remaining_dried_weight);
-          const percentage = Math.round((used / parseFloat(row.dried_weight)) * 100);
+        // Gewichtsberechnung
+        if (row.input_weight !== undefined && row.remaining_weight !== undefined) {
+          const used = parseFloat(row.input_weight) - parseFloat(row.remaining_weight);
+          const percentage = Math.round((used / parseFloat(row.input_weight)) * 100);
           
           if (percentage === 0) return 'Nicht übergeführt';
-          if (percentage === 100) return `Vollständig übergeführt (${used.toFixed(2)}g/${parseFloat(row.dried_weight).toFixed(2)}g)`;
-          return `Teilweise übergeführt (${used.toFixed(2)}g/${parseFloat(row.dried_weight).toFixed(2)}g, ${percentage}%)`;
+          if (percentage === 100) return `Vollständig übergeführt (${used}g/${row.input_weight}g)`;
+          return `Teilweise übergeführt (${used}g/${row.input_weight}g, ${percentage}%)`;
         }
         
-        // Fallback für andere Typen oder wenn keine entsprechenden Daten vorhanden sind
+        // Fallback
         switch (row.transfer_status) {
           case 'fully_transferred': return 'Vollständig übergeführt';
           case 'partially_transferred': return 'Teilweise übergeführt';
@@ -144,8 +114,8 @@ const DryingPage = () => {
       label: 'Herkunft',
       minWidth: 150,
       format: (value, row) => {
-        if (row.harvest_source_details) {
-          return `${row.harvest_source_details.genetic_name} (${row.harvest_source_details.batch_number})`;
+        if (row.drying_source_details) {
+          return `${row.drying_source_details.genetic_name} (${row.drying_source_details.batch_number})`;
         }
         return 'Unbekannt';
       }
@@ -171,21 +141,19 @@ const DryingPage = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // API-Parameter je nach Status
       const queryParams = getQueryParams();
-      
-      console.log(`Fetching dryings with status=${status}, query=${queryParams}`);
-      const response = await api.get(`/trackandtrace/dryings/${queryParams}`);
+      console.log(`Fetching processings with status=${status}, query=${queryParams}`);
+      const response = await api.get(`/trackandtrace/processings/${queryParams}`);
       console.log('API Response:', response.data);
       
       // Prüfen, ob response.data ein Array ist oder eine paginierte Struktur hat
       if (Array.isArray(response.data)) {
-        setDryings(response.data);
+        setProcessings(response.data);
       } else if (response.data && response.data.results && Array.isArray(response.data.results)) {
-        setDryings(response.data.results);
+        setProcessings(response.data.results);
       } else {
         console.error('Unerwartetes Datenformat:', response.data);
-        setDryings([]);
+        setProcessings([]);
       }
       
       // Mitglieder laden (für Vernichtungs- und Überführungsdialog)
@@ -206,7 +174,7 @@ const DryingPage = () => {
       
       setError(null);
     } catch (err) {
-      console.error('Fehler beim Laden der Trocknungs-Daten:', err);
+      console.error('Fehler beim Laden der Verarbeitungs-Daten:', err);
       setError('Fehler beim Laden der Daten. Bitte versuchen Sie es später erneut.');
     } finally {
       setLoading(false);
@@ -218,24 +186,24 @@ const DryingPage = () => {
   }, [status]);
 
   // Formular-Handling
-  const handleOpenForm = (drying = null) => {
-    setCurrentDrying(drying);
+  const handleOpenForm = (processing = null) => {
+    setCurrentProcessing(processing);
     setOpenForm(true);
   };
 
   const handleCloseForm = () => {
     setOpenForm(false);
-    setCurrentDrying(null);
+    setCurrentProcessing(null);
   };
 
   const handleSaveForm = async (formData) => {
     try {
-      if (currentDrying) {
+      if (currentProcessing) {
         // Update
-        await api.put(`/trackandtrace/dryings/${currentDrying.uuid}/`, formData);
+        await api.put(`/trackandtrace/processings/${currentProcessing.uuid}/`, formData);
       } else {
         // Create
-        await api.post('/trackandtrace/dryings/', formData);
+        await api.post('/trackandtrace/processings/', formData);
       }
       fetchData();
       handleCloseForm();
@@ -251,14 +219,14 @@ const DryingPage = () => {
   };
 
   // Destroy-Dialog-Handling
-  const handleOpenDestroyDialog = (drying) => {
-    setCurrentDrying(drying);
+  const handleOpenDestroyDialog = (processing) => {
+    setCurrentProcessing(processing);
     setOpenDestroyDialog(true);
   };
 
   const handleCloseDestroyDialog = () => {
     setOpenDestroyDialog(false);
-    setCurrentDrying(null);
+    setCurrentProcessing(null);
     setDestroyReason('');
     setDestroyingMember('');
   };
@@ -267,7 +235,7 @@ const DryingPage = () => {
     if (!destroyReason || !destroyingMember) return;
     
     try {
-      await api.post(`/trackandtrace/dryings/${currentDrying.uuid}/destroy_item/`, {
+      await api.post(`/trackandtrace/processings/${currentProcessing.uuid}/destroy_item/`, {
         reason: destroyReason,
         destroying_member: destroyingMember
       });
@@ -278,44 +246,16 @@ const DryingPage = () => {
     }
   };
   
-  // Complete Drying Dialog Handling
-  const handleOpenCompleteDryingDialog = (drying) => {
-    setCurrentDrying(drying);
-    setOpenCompleteDryingDialog(true);
-  };
-  
-  const handleCloseCompleteDryingDialog = () => {
-    setOpenCompleteDryingDialog(false);
-    setCurrentDrying(null);
-  };
-  
-  const handleCompleteDrying = async (formData) => {
-    try {
-      await api.post(`/trackandtrace/dryings/${currentDrying.uuid}/complete_drying/`, {
-        dried_weight: formData.dried_weight
-      });
-      fetchData();
-      handleCloseCompleteDryingDialog();
-    } catch (err) {
-      console.error('Fehler beim Abschließen der Trocknung:', err);
-      if (err.response && err.response.data) {
-        alert(`Fehler: ${JSON.stringify(err.response.data)}`);
-      } else {
-        alert('Ein unbekannter Fehler ist aufgetreten');
-      }
-    }
-  };
-  
-  // Transfer Dialog Handling
-  const handleOpenTransferDialog = (drying, type) => {
-    setCurrentDrying(drying);
+  // Transfer-Dialog-Handling
+  const handleOpenTransferDialog = (processing, type) => {
+    setCurrentProcessing(processing);
     setTransferType(type); // 'partially' oder 'fully'
     setOpenTransferDialog(true);
   };
   
   const handleCloseTransferDialog = () => {
     setOpenTransferDialog(false);
-    setCurrentDrying(null);
+    setCurrentProcessing(null);
     setTransferType('');
     setTransferringMember('');
   };
@@ -328,7 +268,7 @@ const DryingPage = () => {
         ? 'mark_as_partially_transferred' 
         : 'mark_as_fully_transferred';
         
-      await api.post(`/trackandtrace/dryings/${currentDrying.uuid}/${endpoint}/`, {
+      await api.post(`/trackandtrace/processings/${currentProcessing.uuid}/${endpoint}/`, {
         transferring_member: transferringMember
       });
       fetchData();
@@ -339,11 +279,11 @@ const DryingPage = () => {
   };
 
   // Delete-Handling
-  const handleDelete = async (drying) => {
+  const handleDelete = async (processing) => {
     // Hier sollte es eigentlich einen Bestätigungsdialog geben
-    if (window.confirm(`Sind Sie sicher, dass Sie ${drying.genetic_name} löschen möchten?`)) {
+    if (window.confirm(`Sind Sie sicher, dass Sie ${processing.genetic_name} löschen möchten?`)) {
       try {
-        await api.delete(`/trackandtrace/dryings/${drying.uuid}/`);
+        await api.delete(`/trackandtrace/processings/${processing.uuid}/`);
         fetchData();
       } catch (err) {
         console.error('Fehler beim Löschen:', err);
@@ -352,14 +292,14 @@ const DryingPage = () => {
     }
   };
 
-  if (loading && dryings.length === 0) return <Typography>Lade Daten...</Typography>;
+  if (loading && processings.length === 0) return <Typography>Lade Daten...</Typography>;
   if (error) return <Typography color="error">{error}</Typography>;
 
   return (
     <Container maxWidth="lg">
       <Box mb={4} mt={2}>
         <Typography variant="h4" component="h1" gutterBottom>
-          Trocknungs-Verwaltung
+          Verarbeitungs-Verwaltung
         </Typography>
         
         <Box display="flex" justifyContent="flex-end" mb={2}>
@@ -373,12 +313,12 @@ const DryingPage = () => {
             <ToggleButton value="active" color="primary">
               Aktiv
             </ToggleButton>
-            <Tooltip title="Einheiten wurden teilweise für den nächsten Prozessschritt verwendet (1-99%)">
+            <Tooltip title="Teilweise an den nächsten Prozessschritt übergeführt">
               <ToggleButton value="partially_transferred" color="info">
                 Teilweise übergeführt
               </ToggleButton>
             </Tooltip>
-            <Tooltip title="Alle Einheiten wurden für den nächsten Prozessschritt verwendet (100%)">
+            <Tooltip title="Vollständig an den nächsten Prozessschritt übergeführt">
               <ToggleButton value="fully_transferred" color="success">
                 Vollständig übergeführt
               </ToggleButton>
@@ -395,20 +335,19 @@ const DryingPage = () => {
             onClick={() => handleOpenForm()}
             disabled={status !== 'active'} // Nur bei aktivem Filter neue Einträge zulassen
           >
-            Neue Trocknung
+            Neue Verarbeitung
           </Button>
         </Box>
         
         <TableComponent 
           columns={columns}
-          data={dryings}
+          data={processings}
           detailsComponent={(props) => (
-            <DryingDetails 
+            <ProcessingDetails 
               {...props} 
               onMarkAsDestroyed={handleOpenDestroyDialog}
-              onCompleteDrying={handleOpenCompleteDryingDialog}
-              onMarkAsPartiallyTransferred={(drying) => handleOpenTransferDialog(drying, 'partially')}
-              onMarkAsFullyTransferred={(drying) => handleOpenTransferDialog(drying, 'fully')}
+              onMarkAsPartiallyTransferred={(processing) => handleOpenTransferDialog(processing, 'partially')}
+              onMarkAsFullyTransferred={(processing) => handleOpenTransferDialog(processing, 'fully')}
               status={status}
             />
           )}
@@ -417,19 +356,19 @@ const DryingPage = () => {
         />
       </Box>
       
-      {/* Formular-Dialog */}
-      <Dialog 
+{/* Formular-Dialog */}
+<Dialog 
         open={openForm} 
         onClose={handleCloseForm}
         maxWidth="md"
         fullWidth
       >
         <DialogTitle>
-          {currentDrying ? 'Trocknung bearbeiten' : 'Neue Trocknung'}
+          {currentProcessing ? 'Verarbeitung bearbeiten' : 'Neue Verarbeitung'}
         </DialogTitle>
         <DialogContent>
-          <DryingForm 
-            initialData={currentDrying} 
+          <ProcessingForm 
+            initialData={currentProcessing} 
             onSave={handleSaveForm}
             onCancel={handleCloseForm}
           />
@@ -441,7 +380,7 @@ const DryingPage = () => {
         open={openDestroyDialog}
         onClose={handleCloseDestroyDialog}
       >
-        <DialogTitle>Trocknung als vernichtet markieren</DialogTitle>
+        <DialogTitle>Verarbeitung als vernichtet markieren</DialogTitle>
         <DialogContent>
           <Typography gutterBottom>
             Bitte geben Sie einen Grund für die Vernichtung an:
@@ -487,25 +426,6 @@ const DryingPage = () => {
         </DialogActions>
       </Dialog>
       
-      {/* Trocknungsabschluss-Dialog */}
-      <Dialog
-        open={openCompleteDryingDialog}
-        onClose={handleCloseCompleteDryingDialog}
-        maxWidth="md"
-        fullWidth
-      >
-        <DialogTitle>Trocknung abschließen</DialogTitle>
-        <DialogContent>
-          {currentDrying && (
-            <DryingForm 
-              initialData={currentDrying} 
-              onSave={handleCompleteDrying}
-              onCancel={handleCloseCompleteDryingDialog}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
-      
       {/* Überführungs-Dialog */}
       <Dialog
         open={openTransferDialog}
@@ -519,8 +439,8 @@ const DryingPage = () => {
         <DialogContent>
           <Typography gutterBottom>
             {transferType === 'partially'
-              ? 'Markieren Sie diese Trocknung als teilweise an den nächsten Prozessschritt übergeführt.'
-              : 'Markieren Sie diese Trocknung als vollständig an den nächsten Prozessschritt übergeführt.'}
+              ? 'Markieren Sie diese Verarbeitung als teilweise an den nächsten Prozessschritt übergeführt.'
+              : 'Markieren Sie diese Verarbeitung als vollständig an den nächsten Prozessschritt übergeführt.'}
           </Typography>
           
           {/* Mitgliedauswahl für Überführung */}
@@ -559,4 +479,4 @@ const DryingPage = () => {
   );
 };
 
-export default DryingPage;
+export default ProcessingPage;

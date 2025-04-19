@@ -16,7 +16,8 @@ import {
   InputLabel,
   Select,
   ToggleButtonGroup,
-  ToggleButton 
+  ToggleButton,
+  Tooltip
 } from '@mui/material';
 import { Add } from '@mui/icons-material';
 import api from '../../../../utils/api';
@@ -29,12 +30,16 @@ const HarvestPage = () => {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [status, setStatus] = useState('active'); // 'active', 'destroyed', 'transferred'
+  // Erweiterte Status-Optionen
+  const [status, setStatus] = useState('active'); // 'active', 'partially_transferred', 'fully_transferred', 'destroyed'
   const [openForm, setOpenForm] = useState(false);
   const [currentHarvest, setCurrentHarvest] = useState(null);
   const [openDestroyDialog, setOpenDestroyDialog] = useState(false);
   const [destroyReason, setDestroyReason] = useState('');
   const [destroyingMember, setDestroyingMember] = useState('');
+  const [openTransferDialog, setOpenTransferDialog] = useState(false);
+  const [transferType, setTransferType] = useState(''); // 'partially' oder 'fully'
+  const [transferringMember, setTransferringMember] = useState('');
 
   // Tabellenspalten definieren
   const columns = [
@@ -77,6 +82,31 @@ const HarvestPage = () => {
       format: (value) => value ? Number(value).toLocaleString('de-DE') : ''
     },
     {
+      id: 'transfer_status',
+      label: 'Überführungsstatus',
+      minWidth: 180,
+      format: (value, row) => {
+        // Bei Gewichten (Ernte, Trocknung)
+        if (row.fresh_weight !== undefined && row.remaining_fresh_weight !== undefined) {
+          const used = parseFloat(row.fresh_weight) - parseFloat(row.remaining_fresh_weight);
+          const percentage = Math.round((used / parseFloat(row.fresh_weight)) * 100);
+          
+          if (percentage === 0) return 'Nicht übergeführt';
+          if (percentage === 100) return `Vollständig übergeführt (${used.toFixed(2)}g/${parseFloat(row.fresh_weight).toFixed(2)}g)`;
+          return `Teilweise übergeführt (${used.toFixed(2)}g/${parseFloat(row.fresh_weight).toFixed(2)}g, ${percentage}%)`;
+        }
+        
+        // Fallback für andere Typen oder wenn keine entsprechenden Daten vorhanden sind
+        switch (row.transfer_status) {
+          case 'fully_transferred': return 'Vollständig übergeführt';
+          case 'partially_transferred': return 'Teilweise übergeführt';
+          case 'not_transferred':
+          default:
+            return 'Nicht übergeführt';
+        }
+      }
+    },
+    {
       id: 'source',
       label: 'Herkunft',
       minWidth: 150,
@@ -89,20 +119,26 @@ const HarvestPage = () => {
     },
   ];
 
+  // API-Parameter je nach Status
+  const getQueryParams = () => {
+    switch (status) {
+      case 'destroyed':
+        return '?destroyed=true';
+      case 'partially_transferred':
+        return '?transfer_status=partially_transferred';
+      case 'fully_transferred':
+        return '?transfer_status=fully_transferred';
+      case 'active':
+      default:
+        return ''; // Aktive (weder vernichtet noch vollständig übergeführt)
+    }
+  };
+
   // Daten laden
   const fetchData = async () => {
     setLoading(true);
     try {
-      // API-Parameter je nach Status
-      let queryParams = '';
-      if (status === 'destroyed') {
-        queryParams = '?destroyed=true';
-      } else if (status === 'transferred') {
-        queryParams = '?transferred=true';
-      } else {
-        queryParams = ''; // Aktive (weder vernichtet noch übergeführt)
-      }
-      
+      const queryParams = getQueryParams();
       console.log(`Fetching harvests with status=${status}, query=${queryParams}`);
       const response = await api.get(`/trackandtrace/harvests/${queryParams}`);
       console.log('API Response:', response.data);
@@ -117,7 +153,7 @@ const HarvestPage = () => {
         setHarvests([]);
       }
       
-      // Mitglieder laden (für Vernichtungsdialog)
+      // Mitglieder laden (für Vernichtungs- und Überführungsdialog)
       try {
         const membersResponse = await api.get('/members/');
         if (membersResponse.data && Array.isArray(membersResponse.data)) {
@@ -206,6 +242,38 @@ const HarvestPage = () => {
       console.error('Fehler beim Markieren als vernichtet:', err);
     }
   };
+  
+  // Transfer-Dialog-Handling
+  const handleOpenTransferDialog = (harvest, type) => {
+    setCurrentHarvest(harvest);
+    setTransferType(type); // 'partially' oder 'fully'
+    setOpenTransferDialog(true);
+  };
+  
+  const handleCloseTransferDialog = () => {
+    setOpenTransferDialog(false);
+    setCurrentHarvest(null);
+    setTransferType('');
+    setTransferringMember('');
+  };
+  
+  const handleMarkAsTransferred = async () => {
+    if (!transferringMember) return;
+    
+    try {
+      const endpoint = transferType === 'partially' 
+        ? 'mark_as_partially_transferred' 
+        : 'mark_as_fully_transferred';
+        
+      await api.post(`/trackandtrace/harvests/${currentHarvest.uuid}/${endpoint}/`, {
+        transferring_member: transferringMember
+      });
+      fetchData();
+      handleCloseTransferDialog();
+    } catch (err) {
+      console.error(`Fehler beim Markieren als ${transferType === 'partially' ? 'teilweise' : 'vollständig'} übergeführt:`, err);
+    }
+  };
 
   // Delete-Handling
   const handleDelete = async (harvest) => {
@@ -225,7 +293,7 @@ const HarvestPage = () => {
   if (error) return <Typography color="error">{error}</Typography>;
 
   return (
-    <Container maxWidth="lg">
+    <Container maxWidth={false} sx={{ px: 4 }}>
       <Box mb={4} mt={2}>
         <Typography variant="h4" component="h1" gutterBottom>
           Ernte-Verwaltung
@@ -242,11 +310,18 @@ const HarvestPage = () => {
             <ToggleButton value="active" color="primary">
               Aktiv
             </ToggleButton>
+            <Tooltip title="Einheiten wurden teilweise für den nächsten Prozessschritt verwendet (1-99%)">
+              <ToggleButton value="partially_transferred" color="info">
+                Teilweise übergeführt
+              </ToggleButton>
+            </Tooltip>
+            <Tooltip title="Alle Einheiten wurden für den nächsten Prozessschritt verwendet (100%)">
+              <ToggleButton value="fully_transferred" color="success">
+                Vollständig übergeführt
+              </ToggleButton>
+            </Tooltip>
             <ToggleButton value="destroyed" color="error">
               Vernichtet
-            </ToggleButton>
-            <ToggleButton value="transferred" color="success">
-              Überführt
             </ToggleButton>
           </ToggleButtonGroup>
           
@@ -268,6 +343,8 @@ const HarvestPage = () => {
             <HarvestDetails 
               {...props} 
               onMarkAsDestroyed={handleOpenDestroyDialog}
+              onMarkAsPartiallyTransferred={(harvest) => handleOpenTransferDialog(harvest, 'partially')}
+              onMarkAsFullyTransferred={(harvest) => handleOpenTransferDialog(harvest, 'fully')}
               status={status}
             />
           )}
@@ -342,6 +419,56 @@ const HarvestPage = () => {
             disabled={!destroyReason || !destroyingMember}
           >
             Als vernichtet markieren
+          </Button>
+        </DialogActions>
+      </Dialog>
+      
+      {/* Überführungs-Dialog */}
+      <Dialog
+        open={openTransferDialog}
+        onClose={handleCloseTransferDialog}
+      >
+        <DialogTitle>
+          {transferType === 'partially' 
+            ? 'Als teilweise übergeführt markieren' 
+            : 'Als vollständig übergeführt markieren'}
+        </DialogTitle>
+        <DialogContent>
+          <Typography gutterBottom>
+            {transferType === 'partially'
+              ? 'Markieren Sie diese Ernte als teilweise an den nächsten Prozessschritt übergeführt.'
+              : 'Markieren Sie diese Ernte als vollständig an den nächsten Prozessschritt übergeführt.'}
+          </Typography>
+          
+          {/* Mitgliedauswahl für Überführung */}
+          <FormControl fullWidth margin="normal">
+            <InputLabel>Verantwortliches Mitglied</InputLabel>
+            <Select
+              value={transferringMember}
+              onChange={(e) => setTransferringMember(e.target.value)}
+              label="Verantwortliches Mitglied"
+            >
+              {Array.isArray(members) && members.length > 0 ? 
+                members.map((member) => (
+                  <MenuItem key={member.id} value={member.id}>
+                    {`${member.first_name} ${member.last_name}`}
+                  </MenuItem>
+                )) : 
+                <MenuItem disabled>Keine Mitglieder verfügbar</MenuItem>
+              }
+            </Select>
+          </FormControl>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseTransferDialog}>Abbrechen</Button>
+          <Button 
+            onClick={handleMarkAsTransferred}
+            color={transferType === 'partially' ? 'info' : 'success'}
+            disabled={!transferringMember}
+          >
+            {transferType === 'partially' 
+              ? 'Als teilweise übergeführt markieren' 
+              : 'Als vollständig übergeführt markieren'}
           </Button>
         </DialogActions>
       </Dialog>

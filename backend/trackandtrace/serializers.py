@@ -1,6 +1,6 @@
 # trackandtrace/serializers.py
 from rest_framework import serializers
-from .models import SeedPurchase, MotherPlant, Cutting, FloweringPlant, Harvest, Drying
+from .models import SeedPurchase, MotherPlant, Cutting, FloweringPlant, Harvest, Drying, Processing
 from members.models import Member
 from rooms.models import Room
 
@@ -179,4 +179,38 @@ class DryingSerializer(serializers.ModelSerializer):
             'uuid', 'batch_number', 'created_at', 'updated_at', 
             'remaining_dried_weight',
             'is_transferred', 'transfer_date', 'transferring_member'
+        ]
+
+class ProcessingSerializer(serializers.ModelSerializer):
+    drying_source_details = DryingSerializer(source='drying_source', read_only=True)
+    responsible_member_details = MemberSerializer(source='responsible_member', read_only=True)
+    destroying_member_details = MemberSerializer(source='destroying_member', read_only=True)
+    transferring_member_details = MemberSerializer(source='transferring_member', read_only=True)
+    product_type_display = serializers.CharField(source='get_product_type_display', read_only=True)
+    room_details = RoomSerializer(source='room', read_only=True)
+    
+    class Meta:
+        model = Processing
+        fields = [
+            'uuid', 'batch_number', 
+            'drying_source', 'drying_source_details',
+            'processing_date', 'genetic_name', 
+            'input_weight', 'remaining_weight',
+            'processing_method', 'product_type', 'product_type_display',
+            'flower_weight', 'trim_weight', 'waste_weight',
+            'potency_estimate', 'expected_lab_date', 'image',
+            'notes', 
+            'is_destroyed', 'destruction_reason', 'destruction_date', 
+            'destroying_member', 'destroying_member_details',
+            'transfer_status', 'is_transferred', 'transfer_date', 'last_transfer_date',
+            'transferring_member', 'transferring_member_details',
+            'temperature', 'humidity', 'created_at', 'updated_at',
+            'responsible_member', 'responsible_member_details',
+            'room', 'room_details'
+        ]
+        read_only_fields = [
+            'uuid', 'batch_number', 'created_at', 'updated_at', 
+            'remaining_weight', 'product_type_display',
+            'transfer_status', 'is_transferred', 'transfer_date', 'last_transfer_date',
+            'transferring_member'
         ]

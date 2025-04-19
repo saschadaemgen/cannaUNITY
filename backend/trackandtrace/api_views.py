@@ -6,8 +6,8 @@ from rest_framework.permissions import IsAuthenticated
 from django.utils import timezone
 from members.models import Member
 
-from .models import SeedPurchase, MotherPlant, Cutting, FloweringPlant, Harvest, Drying
-from .serializers import SeedPurchaseSerializer, MotherPlantSerializer, CuttingSerializer, FloweringPlantSerializer, HarvestSerializer, DryingSerializer
+from .models import SeedPurchase, MotherPlant, Cutting, FloweringPlant, Harvest, Drying, Processing
+from .serializers import SeedPurchaseSerializer, MotherPlantSerializer, CuttingSerializer, FloweringPlantSerializer, HarvestSerializer, DryingSerializer, ProcessingSerializer
 
 class SeedPurchaseViewSet(viewsets.ModelViewSet):
     """API-Endpunkte für Samen-Einkäufe"""
@@ -337,29 +337,37 @@ class FloweringPlantViewSet(viewsets.ModelViewSet):
     
 
 class HarvestViewSet(viewsets.ModelViewSet):
-    """API-Endpunkte für Ernten"""
+    """API-Endpunkte für Ernten mit erweiterter Überführungslogik"""
     queryset = Harvest.objects.all()
     serializer_class = HarvestSerializer
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
-        """Filtering für aktive/vernichtete/übergeführte Einträge"""
+        """Filtering für aktive/vernichtete/übergeführte Einträge mit erweitertem Transfer-Status"""
         queryset = Harvest.objects.all()
         destroyed = self.request.query_params.get('destroyed', None)
-        transferred = self.request.query_params.get('transferred', None)
+        transfer_status = self.request.query_params.get('transfer_status', None)
         
-        # Filter anwenden
+        # Filter für Vernichtung anwenden
         if destroyed is not None:
             is_destroyed = destroyed.lower() == 'true'
             queryset = queryset.filter(is_destroyed=is_destroyed)
         
-        if transferred is not None:
-            is_transferred = transferred.lower() == 'true'
-            queryset = queryset.filter(is_transferred=is_transferred)
+        # Erweiterter Filter für Überführungsstatus
+        if transfer_status is not None:
+            if transfer_status in ['not_transferred', 'partially_transferred', 'fully_transferred']:
+                queryset = queryset.filter(transfer_status=transfer_status)
+            else:
+                # Für Abwärtskompatibilität
+                if transfer_status == 'transferred':
+                    queryset = queryset.filter(transfer_status='fully_transferred')
         
-        # Standardfilter: Wenn keine Parameter angegeben, zeige aktive
-        if destroyed is None and transferred is None:
-            queryset = queryset.filter(is_destroyed=False, is_transferred=False)
+        # Standardfilter: Wenn keine Parameter angegeben, zeige aktive (nicht vernichtet, nicht vollständig übergeführt)
+        if destroyed is None and transfer_status is None:
+            queryset = queryset.filter(
+                is_destroyed=False, 
+                transfer_status__in=['not_transferred', 'partially_transferred']
+            )
             
         return queryset
     
@@ -391,6 +399,56 @@ class HarvestViewSet(viewsets.ModelViewSet):
             )
             
         harvest.mark_as_destroyed(reason, destroying_member)
+        
+        serializer = self.get_serializer(harvest)
+        return Response(serializer.data)
+    
+    @action(detail=True, methods=['post'])
+    def mark_as_partially_transferred(self, request, pk=None):
+        """Markiert einen Eintrag als teilweise übergeführt"""
+        harvest = self.get_object()
+        transferring_member_id = request.data.get('transferring_member', None)
+        
+        if not transferring_member_id:
+            return Response(
+                {'error': 'Verantwortliches Mitglied für die Überführung muss angegeben werden'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            transferring_member = Member.objects.get(id=transferring_member_id)
+        except Member.DoesNotExist:
+            return Response(
+                {'error': 'Das angegebene Mitglied existiert nicht'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        harvest.mark_as_partially_transferred(transferring_member)
+        
+        serializer = self.get_serializer(harvest)
+        return Response(serializer.data)
+    
+    @action(detail=True, methods=['post'])
+    def mark_as_fully_transferred(self, request, pk=None):
+        """Markiert einen Eintrag als vollständig übergeführt"""
+        harvest = self.get_object()
+        transferring_member_id = request.data.get('transferring_member', None)
+        
+        if not transferring_member_id:
+            return Response(
+                {'error': 'Verantwortliches Mitglied für die Überführung muss angegeben werden'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            transferring_member = Member.objects.get(id=transferring_member_id)
+        except Member.DoesNotExist:
+            return Response(
+                {'error': 'Das angegebene Mitglied existiert nicht'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        harvest.mark_as_fully_transferred(transferring_member)
         
         serializer = self.get_serializer(harvest)
         return Response(serializer.data)
@@ -490,4 +548,122 @@ class DryingViewSet(viewsets.ModelViewSet):
         drying.save()
         
         serializer = self.get_serializer(drying)
+        return Response(serializer.data)
+    
+
+class ProcessingViewSet(viewsets.ModelViewSet):
+    """API-Endpunkte für Verarbeitungen mit erweiterter Überführungslogik"""
+    queryset = Processing.objects.all()
+    serializer_class = ProcessingSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        """Filtering für aktive/vernichtete/übergeführte Einträge mit erweitertem Transfer-Status"""
+        queryset = Processing.objects.all()
+        destroyed = self.request.query_params.get('destroyed', None)
+        transfer_status = self.request.query_params.get('transfer_status', None)
+        
+        # Filter für Vernichtung anwenden
+        if destroyed is not None:
+            is_destroyed = destroyed.lower() == 'true'
+            queryset = queryset.filter(is_destroyed=is_destroyed)
+        
+        # Erweiterter Filter für Überführungsstatus
+        if transfer_status is not None:
+            if transfer_status in ['not_transferred', 'partially_transferred', 'fully_transferred']:
+                queryset = queryset.filter(transfer_status=transfer_status)
+            else:
+                # Für Abwärtskompatibilität
+                if transfer_status == 'transferred':
+                    queryset = queryset.filter(transfer_status='fully_transferred')
+        
+        # Standardfilter: Wenn keine Parameter angegeben, zeige aktive (nicht vernichtet, nicht vollständig übergeführt)
+        if destroyed is None and transfer_status is None:
+            queryset = queryset.filter(
+                is_destroyed=False, 
+                transfer_status__in=['not_transferred', 'partially_transferred']
+            )
+            
+        return queryset
+    
+    @action(detail=True, methods=['post'])
+    def destroy_item(self, request, pk=None):
+        """Markiert einen Eintrag als vernichtet"""
+        processing = self.get_object()
+        reason = request.data.get('reason', '')
+        destroying_member_id = request.data.get('destroying_member', None)
+        
+        if not reason:
+            return Response(
+                {'error': 'Vernichtungsgrund muss angegeben werden'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        if not destroying_member_id:
+            return Response(
+                {'error': 'Verantwortliches Mitglied für die Vernichtung muss angegeben werden'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            destroying_member = Member.objects.get(id=destroying_member_id)
+        except Member.DoesNotExist:
+            return Response(
+                {'error': 'Das angegebene Mitglied existiert nicht'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        processing.mark_as_destroyed(reason, destroying_member)
+        
+        serializer = self.get_serializer(processing)
+        return Response(serializer.data)
+    
+    @action(detail=True, methods=['post'])
+    def mark_as_partially_transferred(self, request, pk=None):
+        """Markiert einen Eintrag als teilweise übergeführt"""
+        processing = self.get_object()
+        transferring_member_id = request.data.get('transferring_member', None)
+        
+        if not transferring_member_id:
+            return Response(
+                {'error': 'Verantwortliches Mitglied für die Überführung muss angegeben werden'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            transferring_member = Member.objects.get(id=transferring_member_id)
+        except Member.DoesNotExist:
+            return Response(
+                {'error': 'Das angegebene Mitglied existiert nicht'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        processing.mark_as_partially_transferred(transferring_member)
+        
+        serializer = self.get_serializer(processing)
+        return Response(serializer.data)
+    
+    @action(detail=True, methods=['post'])
+    def mark_as_fully_transferred(self, request, pk=None):
+        """Markiert einen Eintrag als vollständig übergeführt"""
+        processing = self.get_object()
+        transferring_member_id = request.data.get('transferring_member', None)
+        
+        if not transferring_member_id:
+            return Response(
+                {'error': 'Verantwortliches Mitglied für die Überführung muss angegeben werden'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            transferring_member = Member.objects.get(id=transferring_member_id)
+        except Member.DoesNotExist:
+            return Response(
+                {'error': 'Das angegebene Mitglied existiert nicht'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        processing.mark_as_fully_transferred(transferring_member)
+        
+        serializer = self.get_serializer(processing)
         return Response(serializer.data)

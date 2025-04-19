@@ -10,13 +10,13 @@ import {
   DialogContent,
   DialogActions,
   TextField,
-  Grid,
   MenuItem,
   FormControl,
   InputLabel,
   Select,
   ToggleButtonGroup,
-  ToggleButton 
+  ToggleButton,
+  Tooltip
 } from '@mui/material';
 import { Add } from '@mui/icons-material';
 import api from '../../../../utils/api';
@@ -25,76 +25,93 @@ import SeedPurchaseDetails from './SeedPurchaseDetails';
 import SeedPurchaseForm from './SeedPurchaseForm';
 
 const SeedPurchasePage = () => {
-  const [seeds, setSeeds] = useState([]);
+  // Bestehende State-Variablen beibehalten
+  const [seedPurchases, setSeedPurchases] = useState([]);
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [status, setStatus] = useState('active'); // 'active', 'destroyed', 'transferred'
+  // Anpassung für erweiterten Status
+  const [status, setStatus] = useState('active'); // 'active', 'partially_transferred', 'fully_transferred', 'destroyed'
   const [openForm, setOpenForm] = useState(false);
-  const [currentSeed, setCurrentSeed] = useState(null);
+  const [currentSeedPurchase, setCurrentSeedPurchase] = useState(null);
   const [openDestroyDialog, setOpenDestroyDialog] = useState(false);
   const [destroyReason, setDestroyReason] = useState('');
   const [destroyingMember, setDestroyingMember] = useState('');
+  // Neue Status-Variablen für Überführungsdialog
+  const [openTransferDialog, setOpenTransferDialog] = useState(false);
+  const [transferType, setTransferType] = useState(''); // 'partially' oder 'fully'
+  const [transferringMember, setTransferringMember] = useState('');
 
-  // Tabellenspalten definieren
+  // Bestehende Tabellenspalten beibehalten und um Überführungsstatus erweitern
   const columns = [
+    // Bestehende Spalten beibehalten
+    // Beispiel:
     { id: 'batch_number', label: 'Charge', minWidth: 100 },
-    { id: 'strain_name', label: 'Sorte', minWidth: 150 },
-    { id: 'manufacturer', label: 'Hersteller', minWidth: 120 },
-    { 
-      id: 'purchase_date', 
-      label: 'Kaufdatum', 
-      minWidth: 120,
-      format: (value) => {
-        // Einfache Datumsformatierung
-        if (value) {
-          try {
-            const parts = value.split('-');
-            if (parts.length === 3) {
-              return `${parts[2]}.${parts[1]}.${parts[0]}`;  // DD.MM.YYYY
-            }
-            return value;
-          } catch (e) {
-            console.error('Fehler bei der Datumsformatierung:', e);
-            return value;
-          }
+    { id: 'strain_name', label: 'Sortenname', minWidth: 150 },
+    { id: 'genetics', label: 'Genetik', minWidth: 150 },
+    // ... weitere Spalten ...
+    
+    // Neue Spalte für Überführungsstatus
+    {
+      id: 'transfer_status',
+      label: 'Überführungsstatus',
+      minWidth: 180,
+      format: (value, row) => {
+        // Bei Samen
+        if (row.total_seeds !== undefined && row.remaining_seeds !== undefined) {
+          const used = row.total_seeds - row.remaining_seeds;
+          const percentage = Math.round((used / row.total_seeds) * 100);
+          
+          if (percentage === 0) return 'Nicht übergeführt';
+          if (percentage === 100) return `Vollständig übergeführt (${used}/${row.total_seeds})`;
+          return `Teilweise übergeführt (${used}/${row.total_seeds}, ${percentage}%)`;
         }
-        return '';
+        
+        // Fallback für andere Typen oder wenn keine entsprechenden Daten vorhanden sind
+        switch (row.transfer_status) {
+          case 'fully_transferred': return 'Vollständig übergeführt';
+          case 'partially_transferred': return 'Teilweise übergeführt';
+          case 'not_transferred':
+          default:
+            return 'Nicht übergeführt';
+        }
       }
     },
-    { id: 'total_seeds', label: 'Samen gesamt', minWidth: 120, align: 'right' },
-    { id: 'remaining_seeds', label: 'Samen übrig', minWidth: 120, align: 'right' },
   ];
 
-  // Daten laden
+  // API-Parameter je nach Status
+  const getQueryParams = () => {
+    switch (status) {
+      case 'destroyed':
+        return '?destroyed=true';
+      case 'partially_transferred':
+        return '?transfer_status=partially_transferred';
+      case 'fully_transferred':
+        return '?transfer_status=fully_transferred';
+      case 'active':
+      default:
+        return ''; // Aktive (weder vernichtet noch vollständig übergeführt)
+    }
+  };
+
+  // Bestehende Funktionen beibehalten
   const fetchData = async () => {
     setLoading(true);
     try {
-      // API-Parameter je nach Status
-      let queryParams = '';
-      if (status === 'destroyed') {
-        queryParams = '?destroyed=true';
-      } else if (status === 'transferred') {
-        queryParams = '?transferred=true';
-      } else {
-        queryParams = ''; // Aktive (weder vernichtet noch übergeführt)
-      }
-      
-      console.log(`Fetching seeds with status=${status}, query=${queryParams}`);
+      const queryParams = getQueryParams();
       const response = await api.get(`/trackandtrace/seeds/${queryParams}`);
-      console.log('API Response:', response.data);
       
-      // Prüfen, ob response.data ein Array ist oder eine paginierte Struktur hat
+      // Daten setzen (Anpassung je nach API-Struktur)
       if (Array.isArray(response.data)) {
-        setSeeds(response.data);
+        setSeedPurchases(response.data);
       } else if (response.data && response.data.results && Array.isArray(response.data.results)) {
-        setSeeds(response.data.results);
+        setSeedPurchases(response.data.results);
       } else {
         console.error('Unerwartetes Datenformat:', response.data);
-        setSeeds([]);
+        setSeedPurchases([]);
       }
       
-      // Mitglieder laden (für Vernichtungsdialog)
+      // Mitglieder laden (für Vernichtungs- und Überführungsdialog)
       try {
         const membersResponse = await api.get('/members/');
         if (membersResponse.data && Array.isArray(membersResponse.data)) {
@@ -121,24 +138,24 @@ const SeedPurchasePage = () => {
 
   useEffect(() => {
     fetchData();
-  }, [status]); // Status statt showDestroyed als Abhängigkeit
+  }, [status]);
 
-  // Formular-Handling
-  const handleOpenForm = (seed = null) => {
-    setCurrentSeed(seed);
+  // Formular-Handling (bestehend)
+  const handleOpenForm = (seedPurchase = null) => {
+    setCurrentSeedPurchase(seedPurchase);
     setOpenForm(true);
   };
 
   const handleCloseForm = () => {
     setOpenForm(false);
-    setCurrentSeed(null);
+    setCurrentSeedPurchase(null);
   };
 
   const handleSaveForm = async (formData) => {
     try {
-      if (currentSeed) {
+      if (currentSeedPurchase) {
         // Update
-        await api.put(`/trackandtrace/seeds/${currentSeed.uuid}/`, formData);
+        await api.put(`/trackandtrace/seeds/${currentSeedPurchase.uuid}/`, formData);
       } else {
         // Create
         await api.post('/trackandtrace/seeds/', formData);
@@ -147,19 +164,23 @@ const SeedPurchasePage = () => {
       handleCloseForm();
     } catch (err) {
       console.error('Fehler beim Speichern:', err);
-      // Hier könnte man ein Fehler-Feedback im Formular anzeigen
+      if (err.response && err.response.data) {
+        alert(`Fehler beim Speichern: ${JSON.stringify(err.response.data)}`);
+      } else {
+        alert('Ein unbekannter Fehler ist aufgetreten');
+      }
     }
   };
 
-  // Destroy-Dialog-Handling
-  const handleOpenDestroyDialog = (seed) => {
-    setCurrentSeed(seed);
+  // Destroy-Dialog-Handling (bestehend)
+  const handleOpenDestroyDialog = (seedPurchase) => {
+    setCurrentSeedPurchase(seedPurchase);
     setOpenDestroyDialog(true);
   };
 
   const handleCloseDestroyDialog = () => {
     setOpenDestroyDialog(false);
-    setCurrentSeed(null);
+    setCurrentSeedPurchase(null);
     setDestroyReason('');
     setDestroyingMember('');
   };
@@ -168,7 +189,7 @@ const SeedPurchasePage = () => {
     if (!destroyReason || !destroyingMember) return;
     
     try {
-      await api.post(`/trackandtrace/seeds/${currentSeed.uuid}/destroy_item/`, {
+      await api.post(`/trackandtrace/seeds/${currentSeedPurchase.uuid}/destroy_item/`, {
         reason: destroyReason,
         destroying_member: destroyingMember
       });
@@ -178,21 +199,58 @@ const SeedPurchasePage = () => {
       console.error('Fehler beim Markieren als vernichtet:', err);
     }
   };
-
-  // Delete-Handling
-  const handleDelete = async (seed) => {
-    // Hier sollte es eigentlich eine Bestätigungsdialog geben
-    if (window.confirm(`Sind Sie sicher, dass Sie ${seed.strain_name} löschen möchten?`)) {
-      try {
-        await api.delete(`/trackandtrace/seeds/${seed.uuid}/`);
-        fetchData();
-      } catch (err) {
-        console.error('Fehler beim Löschen:', err);
+  
+  // Neue Funktionen für Überführungsdialog
+  const handleOpenTransferDialog = (seedPurchase, type) => {
+    setCurrentSeedPurchase(seedPurchase);
+    setTransferType(type); // 'partially' oder 'fully'
+    setOpenTransferDialog(true);
+  };
+  
+  const handleCloseTransferDialog = () => {
+    setOpenTransferDialog(false);
+    setCurrentSeedPurchase(null);
+    setTransferType('');
+    setTransferringMember('');
+  };
+  
+  const handleMarkAsTransferred = async () => {
+    if (!transferringMember) return;
+    
+    try {
+      const endpoint = transferType === 'partially' 
+        ? 'mark_as_partially_transferred' 
+        : 'mark_as_fully_transferred';
+        
+      await api.post(`/trackandtrace/seeds/${currentSeedPurchase.uuid}/${endpoint}/`, {
+        transferring_member: transferringMember
+      });
+      fetchData();
+      handleCloseTransferDialog();
+    } catch (err) {
+      console.error(`Fehler beim Markieren als ${transferType === 'partially' ? 'teilweise' : 'vollständig'} übergeführt:`, err);
+      if (err.response && err.response.data) {
+        alert(`Fehler: ${JSON.stringify(err.response.data)}`);
+      } else {
+        alert('Ein unbekannter Fehler ist aufgetreten');
       }
     }
   };
 
-  if (loading && seeds.length === 0) return <Typography>Lade Daten...</Typography>;
+  // Delete-Handling (bestehend)
+  const handleDelete = async (seedPurchase) => {
+    if (window.confirm(`Sind Sie sicher, dass Sie ${seedPurchase.strain_name} löschen möchten?`)) {
+      try {
+        await api.delete(`/trackandtrace/seeds/${seedPurchase.uuid}/`);
+        fetchData();
+      } catch (err) {
+        console.error('Fehler beim Löschen:', err);
+        alert('Fehler beim Löschen. Möglicherweise gibt es abhängige Datensätze.');
+      }
+    }
+  };
+
+  if (loading && seedPurchases.length === 0) return <Typography>Lade Daten...</Typography>;
   if (error) return <Typography color="error">{error}</Typography>;
 
   return (
@@ -203,7 +261,6 @@ const SeedPurchasePage = () => {
         </Typography>
         
         <Box display="flex" justifyContent="flex-end" mb={2}>
-          {/* Status-Buttons als ToggleButtonGroup */}
           <ToggleButtonGroup
             value={status}
             exclusive
@@ -214,11 +271,18 @@ const SeedPurchasePage = () => {
             <ToggleButton value="active" color="primary">
               Aktiv
             </ToggleButton>
+            <Tooltip title="Einheiten wurden teilweise für den nächsten Prozessschritt verwendet (1-99%)">
+              <ToggleButton value="partially_transferred" color="info">
+                Teilweise übergeführt
+              </ToggleButton>
+            </Tooltip>
+            <Tooltip title="Alle Einheiten wurden für den nächsten Prozessschritt verwendet (100%)">
+              <ToggleButton value="fully_transferred" color="success">
+                Vollständig übergeführt
+              </ToggleButton>
+            </Tooltip>
             <ToggleButton value="destroyed" color="error">
               Vernichtet
-            </ToggleButton>
-            <ToggleButton value="transferred" color="success">
-              Überführt
             </ToggleButton>
           </ToggleButtonGroup>
           
@@ -235,12 +299,14 @@ const SeedPurchasePage = () => {
         
         <TableComponent 
           columns={columns}
-          data={seeds}
+          data={seedPurchases}
           detailsComponent={(props) => (
             <SeedPurchaseDetails 
               {...props} 
               onMarkAsDestroyed={handleOpenDestroyDialog}
-              status={status} // Status als Prop übergeben
+              onMarkAsPartiallyTransferred={(seedPurchase) => handleOpenTransferDialog(seedPurchase, 'partially')}
+              onMarkAsFullyTransferred={(seedPurchase) => handleOpenTransferDialog(seedPurchase, 'fully')}
+              status={status}
             />
           )}
           onEdit={handleOpenForm}
@@ -256,11 +322,11 @@ const SeedPurchasePage = () => {
         fullWidth
       >
         <DialogTitle>
-          {currentSeed ? 'Samen-Einkauf bearbeiten' : 'Neuer Samen-Einkauf'}
+          {currentSeedPurchase ? 'Samen-Einkauf bearbeiten' : 'Neuer Samen-Einkauf'}
         </DialogTitle>
         <DialogContent>
           <SeedPurchaseForm 
-            initialData={currentSeed} 
+            initialData={currentSeedPurchase} 
             onSave={handleSaveForm}
             onCancel={handleCloseForm}
           />
@@ -272,7 +338,7 @@ const SeedPurchasePage = () => {
         open={openDestroyDialog}
         onClose={handleCloseDestroyDialog}
       >
-        <DialogTitle>Samen als vernichtet markieren</DialogTitle>
+        <DialogTitle>Samen-Einkauf als vernichtet markieren</DialogTitle>
         <DialogContent>
           <Typography gutterBottom>
             Bitte geben Sie einen Grund für die Vernichtung an:
@@ -314,6 +380,56 @@ const SeedPurchasePage = () => {
             disabled={!destroyReason || !destroyingMember}
           >
             Als vernichtet markieren
+          </Button>
+        </DialogActions>
+      </Dialog>
+      
+      {/* Überführungs-Dialog */}
+      <Dialog
+        open={openTransferDialog}
+        onClose={handleCloseTransferDialog}
+      >
+        <DialogTitle>
+          {transferType === 'partially' 
+            ? 'Als teilweise übergeführt markieren' 
+            : 'Als vollständig übergeführt markieren'}
+        </DialogTitle>
+        <DialogContent>
+          <Typography gutterBottom>
+            {transferType === 'partially'
+              ? 'Markieren Sie diesen Samen-Einkauf als teilweise an den nächsten Prozessschritt übergeführt.'
+              : 'Markieren Sie diesen Samen-Einkauf als vollständig an den nächsten Prozessschritt übergeführt.'}
+          </Typography>
+          
+          {/* Mitgliedauswahl für Überführung */}
+          <FormControl fullWidth margin="normal">
+            <InputLabel>Verantwortliches Mitglied</InputLabel>
+            <Select
+              value={transferringMember}
+              onChange={(e) => setTransferringMember(e.target.value)}
+              label="Verantwortliches Mitglied"
+            >
+              {Array.isArray(members) && members.length > 0 ? 
+                members.map((member) => (
+                  <MenuItem key={member.id} value={member.id}>
+                    {`${member.first_name} ${member.last_name}`}
+                  </MenuItem>
+                )) : 
+                <MenuItem disabled>Keine Mitglieder verfügbar</MenuItem>
+              }
+            </Select>
+          </FormControl>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseTransferDialog}>Abbrechen</Button>
+          <Button 
+            onClick={handleMarkAsTransferred}
+            color={transferType === 'partially' ? 'info' : 'success'}
+            disabled={!transferringMember}
+          >
+            {transferType === 'partially' 
+              ? 'Als teilweise übergeführt markieren' 
+              : 'Als vollständig übergeführt markieren'}
           </Button>
         </DialogActions>
       </Dialog>

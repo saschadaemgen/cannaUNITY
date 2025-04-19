@@ -31,8 +31,22 @@ class BaseTrackingModel(models.Model):
     )
     
     # Überführung
+    # Erweiterte Überführungsoptionen: nicht übergeführt, teilweise übergeführt, vollständig übergeführt
+    TRANSFER_STATUS_CHOICES = [
+        ('not_transferred', 'Nicht übergeführt'),
+        ('partially_transferred', 'Teilweise übergeführt'),
+        ('fully_transferred', 'Vollständig übergeführt'),
+    ]
+    transfer_status = models.CharField(
+        max_length=30,
+        choices=TRANSFER_STATUS_CHOICES,
+        default='not_transferred',
+        help_text="Überführungsstatus: nicht, teilweise oder vollständig übergeführt"
+    )
+    # Für Abwärtskompatibilität beibehalten
     is_transferred = models.BooleanField(default=False)
     transfer_date = models.DateTimeField(null=True, blank=True)
+    last_transfer_date = models.DateTimeField(null=True, blank=True, help_text="Datum der letzten Überführung")
     transferring_member = models.ForeignKey(
         Member,
         on_delete=models.PROTECT,
@@ -78,12 +92,29 @@ class BaseTrackingModel(models.Model):
         self.destroying_member = destroying_member
         self.save()
         
-    def mark_as_transferred(self, transferring_member):
-        """Markiert einen Eintrag als übergeführt"""
-        self.is_transferred = True
+    def mark_as_fully_transferred(self, transferring_member):
+        """Markiert einen Eintrag als vollständig übergeführt"""
+        self.is_transferred = True  # Für Abwärtskompatibilität
+        self.transfer_status = 'fully_transferred'
         self.transfer_date = timezone.now()
+        self.last_transfer_date = timezone.now()
         self.transferring_member = transferring_member
         self.save()
+        
+    def mark_as_partially_transferred(self, transferring_member):
+        """Markiert einen Eintrag als teilweise übergeführt"""
+        self.transfer_status = 'partially_transferred'
+        self.last_transfer_date = timezone.now()
+        self.transferring_member = transferring_member
+        self.save()
+        
+    # Hilfsmethode für Abwärtskompatibilität
+    def mark_as_transferred(self, transferring_member):
+        """
+        Markiert einen Eintrag als übergeführt (vollständig) - 
+        für Abwärtskompatibilität, nutzt intern mark_as_fully_transferred
+        """
+        self.mark_as_fully_transferred(transferring_member)
 
 
 class SeedPurchase(BaseTrackingModel):
@@ -760,5 +791,154 @@ class Drying(BaseTrackingModel):
                     # Option 2: Teilweise Überführung - reduzieren des verbleibenden Gewichts
                     self.harvest_source.remaining_fresh_weight -= self.fresh_weight
                     self.harvest_source.save()
+        
+        super().save(*args, **kwargs)
+
+
+class Processing(BaseTrackingModel):
+    """Modell für die Verarbeitung nach der Trocknung"""
+    batch_number = models.CharField(
+        max_length=50, 
+        unique=True,
+        help_text="Automatisch generierte Chargennummer (PROC_YYYYMMDD_NNN)"
+    )
+    drying_source = models.ForeignKey(
+        Drying,
+        on_delete=models.PROTECT,
+        related_name="processings",
+        help_text="Ursprung der Verarbeitung (Trocknung)"
+    )
+    processing_date = models.DateField(help_text="Datum der Verarbeitung")
+    genetic_name = models.CharField(
+        max_length=255, 
+        help_text="Genetische Bezeichnung (übernommen von Trocknung)"
+    )
+    
+    # Gewichtsdaten
+    input_weight = models.DecimalField(
+        max_digits=8, 
+        decimal_places=2,
+        help_text="Eingangsgewicht in Gramm (aus Trocknung)"
+    )
+    remaining_weight = models.DecimalField(
+        max_digits=8, 
+        decimal_places=2,
+        help_text="Verbleibendes Gewicht in Gramm"
+    )
+    
+    # Verarbeitungsdetails
+    processing_method = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="Verwendete Verarbeitungsmethode (z.B. Trimmen, Mahlen, Extraktion)"
+    )
+    
+    # Produkttypen
+    PRODUCT_TYPE_CHOICES = [
+        ('flower', 'Blüte'),
+        ('trim', 'Schnittreste'),
+        ('extract', 'Extrakt'),
+        ('mix', 'Mischung')
+    ]
+    product_type = models.CharField(
+        max_length=50,
+        choices=PRODUCT_TYPE_CHOICES,
+        default='flower',
+        help_text="Art des erzeugten Produkts"
+    )
+    
+    # Ertrags- und Qualitätsdaten
+    flower_weight = models.DecimalField(
+        max_digits=8, 
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Gewicht der verarbeiteten Blüten in Gramm"
+    )
+    trim_weight = models.DecimalField(
+        max_digits=8, 
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Gewicht der Schnittreste in Gramm"
+    )
+    waste_weight = models.DecimalField(
+        max_digits=8, 
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Gewicht des Abfalls in Gramm"
+    )
+    
+    # Zusätzliche Details
+    potency_estimate = models.DecimalField(
+        max_digits=5, 
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Geschätzte Wirkstoffkonzentration in %"
+    )
+    expected_lab_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Erwartetes Datum der Laborprüfung"
+    )
+    image = models.ImageField(
+        upload_to='processings/', 
+        null=True, 
+        blank=True,
+        help_text="Bild der Verarbeitung oder des Endprodukts"
+    )
+    
+    class Meta:
+        verbose_name = "Verarbeitung"
+        verbose_name_plural = "Verarbeitungen"
+        ordering = ['-processing_date', 'genetic_name']
+    
+    def __str__(self):
+        return f"{self.genetic_name} ({self.batch_number})"
+    
+    def save(self, *args, **kwargs):
+        # Automatische Batch-Nummer generieren, wenn nicht vorhanden
+        if not self.batch_number:
+            today = timezone.now().strftime('%Y%m%d')
+            last_batch = Processing.objects.filter(
+                batch_number__startswith=f"PROC_{today}"
+            ).order_by('batch_number').last()
+            
+            if last_batch:
+                last_num = int(last_batch.batch_number.split('_')[-1])
+                new_num = last_num + 1
+            else:
+                new_num = 1
+                
+            self.batch_number = f"PROC_{today}_{new_num:03d}"
+        
+        # Bei erster Erstellung
+        is_new = self._state.adding
+        
+        if is_new:
+            # Automatische Übernahme von Trocknung-Daten
+            if not self.genetic_name and self.drying_source:
+                self.genetic_name = self.drying_source.genetic_name
+                
+            if not self.input_weight and self.drying_source:
+                self.input_weight = self.drying_source.remaining_dried_weight
+            
+            # Verbleibendes Gewicht ist initial gleich Eingangsgewicht
+            self.remaining_weight = self.input_weight
+            
+            # Trocknungsquelle als übergeführt markieren - verbesserte Überführungslogik
+            # WICHTIG: Hier implementieren wir die verbesserte Überführungslogik
+            if self.drying_source and not self.drying_source.is_destroyed:
+                # Wenn das gesamte Trockengewicht verwendet wird
+                if self.input_weight >= self.drying_source.remaining_dried_weight:
+                    # Vollständige Überführung
+                    self.drying_source.mark_as_fully_transferred(self.responsible_member)
+                else:
+                    # Teilweise Überführung
+                    self.drying_source.remaining_dried_weight -= self.input_weight
+                    self.drying_source.mark_as_partially_transferred(self.responsible_member)
+                    self.drying_source.save()
         
         super().save(*args, **kwargs)

@@ -6,10 +6,22 @@ import {
   Divider, 
   Button, 
   Paper,
-  Box
+  Box,
+  Chip
 } from '@mui/material';
 
-const SeedPurchaseDetails = ({ data, onMarkAsDestroyed, status }) => {
+const SeedPurchaseDetails = ({ 
+  data, 
+  onMarkAsDestroyed, 
+  onMarkAsPartiallyTransferred,
+  onMarkAsFullyTransferred,
+  status 
+}) => {
+  // Sicherstellen, dass data existiert
+  if (!data) {
+    return <Paper sx={{ p: 2 }}><Typography>Keine Daten verfügbar</Typography></Paper>;
+  }
+
   // Helfer-Funktion für Datumsformatierung
   const formatDate = (dateString) => {
     if (!dateString) return 'Nicht angegeben';
@@ -26,6 +38,38 @@ const SeedPurchaseDetails = ({ data, onMarkAsDestroyed, status }) => {
     }
   };
 
+  // Überführungsstatus als Chip anzeigen
+  const getTransferStatusChip = () => {
+    let color = 'default';
+    let label = 'Unbekannt';
+    let percentage = null;
+    
+    // Prozentberechnung basierend auf dem jeweiligen Typ
+    if (data.total_seeds !== undefined && data.remaining_seeds !== undefined) {
+      // Samen
+      const used = data.total_seeds - data.remaining_seeds;
+      percentage = Math.round((used / data.total_seeds) * 100);
+      label = `${used}/${data.total_seeds} (${percentage}%)`;
+    }
+    
+    const status = data.transfer_status || 'not_transferred';
+    
+    if (percentage === 100 || status === 'fully_transferred') {
+      color = 'success';
+      if (!percentage) label = 'Vollständig übergeführt';
+      else label = `Vollständig übergeführt: ${label}`;
+    } else if (percentage > 0 || status === 'partially_transferred') {
+      color = 'info';
+      if (!percentage) label = 'Teilweise übergeführt';
+      else label = `Teilweise übergeführt: ${label}`;
+    } else {
+      color = 'default';
+      label = 'Nicht übergeführt';
+    }
+    
+    return <Chip color={color} label={label} size="small" />;
+  };
+
   return (
     <Paper sx={{ p: 2 }}>
       <Grid container spacing={3}>
@@ -36,19 +80,19 @@ const SeedPurchaseDetails = ({ data, onMarkAsDestroyed, status }) => {
           <Grid container spacing={2}>
             <Grid item xs={6}>
               <Typography variant="body2" color="textSecondary">Genetik:</Typography>
-              <Typography variant="body1">{data.genetics}</Typography>
+              <Typography variant="body1">{data.genetics || 'Nicht angegeben'}</Typography>
             </Grid>
             <Grid item xs={6}>
               <Typography variant="body2" color="textSecondary">Sortenname:</Typography>
-              <Typography variant="body1">{data.strain_name}</Typography>
+              <Typography variant="body1">{data.strain_name || 'Nicht angegeben'}</Typography>
             </Grid>
             <Grid item xs={6}>
               <Typography variant="body2" color="textSecondary">Sativa-Anteil:</Typography>
-              <Typography variant="body1">{data.sativa_percentage}%</Typography>
+              <Typography variant="body1">{data.sativa_percentage !== undefined ? `${data.sativa_percentage}%` : 'Nicht angegeben'}</Typography>
             </Grid>
             <Grid item xs={6}>
               <Typography variant="body2" color="textSecondary">Indica-Anteil:</Typography>
-              <Typography variant="body1">{data.indica_percentage}%</Typography>
+              <Typography variant="body1">{data.indica_percentage !== undefined ? `${data.indica_percentage}%` : 'Nicht angegeben'}</Typography>
             </Grid>
             <Grid item xs={6}>
               <Typography variant="body2" color="textSecondary">THC-Wert:</Typography>
@@ -57,6 +101,14 @@ const SeedPurchaseDetails = ({ data, onMarkAsDestroyed, status }) => {
             <Grid item xs={6}>
               <Typography variant="body2" color="textSecondary">CBD-Wert:</Typography>
               <Typography variant="body1">{data.cbd_value ? `${data.cbd_value}%` : 'Nicht angegeben'}</Typography>
+            </Grid>
+
+            {/* Überführungsstatus anzeigen */}
+            <Grid item xs={12}>
+              <Typography variant="body2" color="textSecondary">Überführungsstatus:</Typography>
+              <Box sx={{ mt: 0.5 }}>
+                {getTransferStatusChip()}
+              </Box>
             </Grid>
           </Grid>
         </Grid>
@@ -68,7 +120,7 @@ const SeedPurchaseDetails = ({ data, onMarkAsDestroyed, status }) => {
           <Grid container spacing={2}>
             <Grid item xs={6}>
               <Typography variant="body2" color="textSecondary">Hersteller:</Typography>
-              <Typography variant="body1">{data.manufacturer}</Typography>
+              <Typography variant="body1">{data.manufacturer || 'Nicht angegeben'}</Typography>
             </Grid>
             <Grid item xs={6}>
               <Typography variant="body2" color="textSecondary">Kaufdatum:</Typography>
@@ -76,11 +128,11 @@ const SeedPurchaseDetails = ({ data, onMarkAsDestroyed, status }) => {
             </Grid>
             <Grid item xs={6}>
               <Typography variant="body2" color="textSecondary">Samen gesamt:</Typography>
-              <Typography variant="body1">{data.total_seeds}</Typography>
+              <Typography variant="body1">{data.total_seeds !== undefined ? data.total_seeds : 'Nicht angegeben'}</Typography>
             </Grid>
             <Grid item xs={6}>
               <Typography variant="body2" color="textSecondary">Samen verfügbar:</Typography>
-              <Typography variant="body1">{data.remaining_seeds}</Typography>
+              <Typography variant="body1">{data.remaining_seeds !== undefined ? data.remaining_seeds : 'Nicht angegeben'}</Typography>
             </Grid>
           </Grid>
         </Grid>
@@ -130,13 +182,13 @@ const SeedPurchaseDetails = ({ data, onMarkAsDestroyed, status }) => {
             <Grid item xs={12} md={6}>
               <Typography variant="body2" color="textSecondary">UUID:</Typography>
               <Typography variant="body1" sx={{ fontFamily: 'monospace', wordBreak: 'break-all' }}>
-                {data.uuid}
+                {data.uuid || 'Nicht angegeben'}
               </Typography>
             </Grid>
             <Grid item xs={12} md={6}>
               <Typography variant="body2" color="textSecondary">Chargennummer:</Typography>
               <Typography variant="body1">
-                {data.batch_number}
+                {data.batch_number || 'Nicht angegeben'}
               </Typography>
             </Grid>
           </Grid>
@@ -150,7 +202,7 @@ const SeedPurchaseDetails = ({ data, onMarkAsDestroyed, status }) => {
             <Grid container spacing={2}>
               <Grid item xs={12} md={4}>
                 <Typography variant="body2" color="textSecondary">Vernichtungsgrund:</Typography>
-                <Typography variant="body1">{data.destruction_reason}</Typography>
+                <Typography variant="body1">{data.destruction_reason || 'Nicht angegeben'}</Typography>
               </Grid>
               <Grid item xs={12} md={4}>
                 <Typography variant="body2" color="textSecondary">Vernichtungsdatum:</Typography>
@@ -170,19 +222,31 @@ const SeedPurchaseDetails = ({ data, onMarkAsDestroyed, status }) => {
           </Grid>
         )}
         
-        {data.is_transferred && (
+        {/* Überführungsdaten anzeigen, wenn teilweise oder vollständig übergeführt */}
+        {data.transfer_status && ['partially_transferred', 'fully_transferred'].includes(data.transfer_status) && (
           <Grid item xs={12}>
-            <Typography variant="subtitle2" color="success">Überführungsdaten</Typography>
+            <Typography 
+              variant="subtitle2" 
+              color={data.transfer_status === 'fully_transferred' ? 'success' : 'info'}
+            >
+              Überführungsdaten
+            </Typography>
             <Divider sx={{ mb: 2 }} />
             
             <Grid container spacing={2}>
-              <Grid item xs={12} md={6}>
-                <Typography variant="body2" color="textSecondary">Überführungsdatum:</Typography>
+              <Grid item xs={12} md={4}>
+                <Typography variant="body2" color="textSecondary">Überführungsstatus:</Typography>
                 <Typography variant="body1">
-                  {formatDate(data.transfer_date)}
+                  {data.transfer_status === 'fully_transferred' ? 'Vollständig übergeführt' : 'Teilweise übergeführt'}
                 </Typography>
               </Grid>
-              <Grid item xs={12} md={6}>
+              <Grid item xs={12} md={4}>
+                <Typography variant="body2" color="textSecondary">Letzte Überführung:</Typography>
+                <Typography variant="body1">
+                  {formatDate(data.last_transfer_date || data.transfer_date)}
+                </Typography>
+              </Grid>
+              <Grid item xs={12} md={4}>
                 <Typography variant="body2" color="textSecondary">Übergeführt durch:</Typography>
                 <Typography variant="body1">
                   {data.transferring_member_details ? 
@@ -202,13 +266,50 @@ const SeedPurchaseDetails = ({ data, onMarkAsDestroyed, status }) => {
           </Typography>
         </Grid>
         
+        {/* Aktionsbuttons basierend auf Status anzeigen */}
         {status === 'active' && (
           <Grid item xs={12}>
-            <Box display="flex" justifyContent="flex-end" mt={2}>
+            <Box display="flex" justifyContent="flex-end" mt={2} gap={2}>
+              {/* Überführungsbutton sollte nur erscheinen, wenn besondere Umstände */}
+              {false && (
+                <>
+                  <Button 
+                    variant="outlined" 
+                    color="info"
+                    onClick={() => onMarkAsPartiallyTransferred && onMarkAsPartiallyTransferred(data)}
+                  >
+                    Als teilweise übergeführt markieren
+                  </Button>
+                  
+                  <Button 
+                    variant="outlined" 
+                    color="success"
+                    onClick={() => onMarkAsFullyTransferred && onMarkAsFullyTransferred(data)}
+                  >
+                    Als vollständig übergeführt markieren
+                  </Button>
+                </>
+              )}
+              
               <Button 
                 variant="outlined" 
                 color="error"
-                onClick={() => onMarkAsDestroyed(data)}
+                onClick={() => onMarkAsDestroyed && onMarkAsDestroyed(data)}
+              >
+                Als vernichtet markieren
+              </Button>
+            </Box>
+          </Grid>
+        )}
+
+        {/* Bei teilweise übergeführtem Status nur den Vernichtungsbutton anbieten */}
+        {status === 'partially_transferred' && (
+          <Grid item xs={12}>
+            <Box display="flex" justifyContent="flex-end" mt={2} gap={2}>
+              <Button 
+                variant="outlined" 
+                color="error"
+                onClick={() => onMarkAsDestroyed && onMarkAsDestroyed(data)}
               >
                 Als vernichtet markieren
               </Button>

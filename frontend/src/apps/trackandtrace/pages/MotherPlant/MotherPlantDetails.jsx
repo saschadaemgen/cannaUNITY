@@ -183,30 +183,6 @@ const MotherPlantDetails = ({ data, onMarkAsDestroyed, onUpdatePhase, status }) 
           </Grid>
         )}
         
-        {data.is_transferred && (
-          <Grid item xs={12}>
-            <Typography variant="subtitle2" color="success">Überführungsdaten</Typography>
-            <Divider sx={{ mb: 2 }} />
-            
-            <Grid container spacing={2}>
-              <Grid item xs={12} md={6}>
-                <Typography variant="body2" color="textSecondary">Überführungsdatum:</Typography>
-                <Typography variant="body1">
-                  {formatDate(data.transfer_date)}
-                </Typography>
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <Typography variant="body2" color="textSecondary">Übergeführt durch:</Typography>
-                <Typography variant="body1">
-                  {data.transferring_member_details ? 
-                    `${data.transferring_member_details.first_name} ${data.transferring_member_details.last_name}` : 
-                    'Nicht angegeben'}
-                </Typography>
-              </Grid>
-            </Grid>
-          </Grid>
-        )}
-        
         <Grid item xs={12}>
           <Typography variant="subtitle2">Bemerkungen</Typography>
           <Divider sx={{ mb: 2 }} />

@@ -28,7 +28,7 @@ const MotherPlantPage = () => {
   const [motherPlants, setMotherPlants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [status, setStatus] = useState('active'); // 'active', 'destroyed', 'transferred'
+  const [status, setStatus] = useState('active'); // 'active', 'destroyed'
   const [openForm, setOpenForm] = useState(false);
   const [currentPlant, setCurrentPlant] = useState(null);
   const [openDestroyDialog, setOpenDestroyDialog] = useState(false);
@@ -78,10 +78,8 @@ const MotherPlantPage = () => {
       let queryParams = '';
       if (status === 'destroyed') {
         queryParams = '?destroyed=true';
-      } else if (status === 'transferred') {
-        queryParams = '?transferred=true';
       } else {
-        queryParams = ''; // Aktive (weder vernichtet noch übergeführt)
+        queryParams = ''; // Aktive (nicht vernichtet)
       }
       
       console.log(`Fetching mother plants with status=${status}, query=${queryParams}`);
@@ -109,7 +107,7 @@ const MotherPlantPage = () => {
 
   useEffect(() => {
     fetchData();
-  }, [status]); // Status statt showDestroyed als Abhängigkeit
+  }, [status]);
 
   // Formular-Handling
   const handleOpenForm = (plant = null) => {
@@ -199,7 +197,7 @@ const MotherPlantPage = () => {
 
   // Delete-Handling
   const handleDelete = async (plant) => {
-    // Hier sollte es eigentlich eine Bestätigungsdialog geben
+    // Hier sollte es eigentlich einen Bestätigungsdialog geben
     if (window.confirm(`Sind Sie sicher, dass Sie ${plant.genetic_name} löschen möchten?`)) {
       try {
         await api.delete(`/trackandtrace/motherplants/${plant.uuid}/`);
@@ -214,7 +212,7 @@ const MotherPlantPage = () => {
   if (error) return <Typography color="error">{error}</Typography>;
 
   return (
-    <Container maxWidth="lg">
+    <Container maxWidth={false} sx={{ px: 4 }}>
       <Box mb={4} mt={2}>
         <Typography variant="h4" component="h1" gutterBottom>
           Mutterpflanzen-Verwaltung
@@ -234,9 +232,6 @@ const MotherPlantPage = () => {
             </ToggleButton>
             <ToggleButton value="destroyed" color="error">
               Vernichtet
-            </ToggleButton>
-            <ToggleButton value="transferred" color="success">
-              Überführt
             </ToggleButton>
           </ToggleButtonGroup>
           

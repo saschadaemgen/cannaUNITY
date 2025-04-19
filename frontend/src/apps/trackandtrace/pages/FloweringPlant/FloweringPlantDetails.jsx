@@ -12,7 +12,7 @@ import {
 } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 
-const FloweringPlantDetails = ({ data, onMarkAsDestroyed, onUpdatePhase, onHarvest, status }) => {
+const FloweringPlantDetails = ({ data, onMarkAsDestroyed, onUpdatePhase, onHarvest, onMarkAsPartiallyTransferred, onMarkAsFullyTransferred, status }) => {
   // Helfer-Funktion für Datumsformatierung
   const formatDate = (dateString) => {
     if (!dateString) return 'Nicht angegeben';
@@ -39,6 +39,38 @@ const FloweringPlantDetails = ({ data, onMarkAsDestroyed, onUpdatePhase, onHarve
       case 'harvest_ready': return 'error';
       default: return 'default';
     }
+  };
+
+  // Überführungsstatus als Chip anzeigen
+  const getTransferStatusChip = () => {
+    let color = 'default';
+    let label = 'Unbekannt';
+    let percentage = null;
+    
+    // Prozentberechnung basierend auf dem jeweiligen Typ
+    if (data.plant_count !== undefined && data.remaining_plants !== undefined) {
+      // Pflanzen
+      const used = data.plant_count - data.remaining_plants;
+      percentage = Math.round((used / data.plant_count) * 100);
+      label = `${used}/${data.plant_count} (${percentage}%)`;
+    }
+    
+    const status = data.transfer_status || 'not_transferred';
+    
+    if (percentage === 100 || status === 'fully_transferred') {
+      color = 'success';
+      if (!percentage) label = 'Vollständig übergeführt';
+      else label = `Vollständig übergeführt: ${label}`;
+    } else if (percentage > 0 || status === 'partially_transferred') {
+      color = 'info';
+      if (!percentage) label = 'Teilweise übergeführt';
+      else label = `Teilweise übergeführt: ${label}`;
+    } else {
+      color = 'default';
+      label = 'Nicht übergeführt';
+    }
+    
+    return <Chip color={color} label={label} size="small" />;
   };
 
   return (
@@ -71,6 +103,12 @@ const FloweringPlantDetails = ({ data, onMarkAsDestroyed, onUpdatePhase, onHarve
                     Ändern
                   </Button>
                 )}
+              </Box>
+            </Grid>
+            <Grid item xs={12}>
+              <Typography variant="body2" color="textSecondary">Überführungsstatus:</Typography>
+              <Box display="flex" alignItems="center">
+                {getTransferStatusChip()}
               </Box>
             </Grid>
             
@@ -252,37 +290,61 @@ const FloweringPlantDetails = ({ data, onMarkAsDestroyed, onUpdatePhase, onHarve
           </Typography>
         </Grid>
         
-        {/* Erntebutton bei erntebereiten Pflanzen anzeigen */}
-        {status === 'active' && data.growth_phase === 'harvest_ready' && (
+        {/* Aktionsbuttons basierend auf Status anzeigen */}
+        {status === 'active' && (
           <Grid item xs={12}>
-            <Box display="flex" justifyContent="flex-end" mt={2}>
-              <Button 
-                variant="contained" 
-                color="success"
-                onClick={() => onHarvest(data)}
-                sx={{ mr: 2 }}
-              >
-                Ernten
-              </Button>
+            <Box display="flex" justifyContent="flex-end" mt={2} gap={2}>
+              {/* Überführungsbutton sollte nur erscheinen, wenn besondere Umstände */}
+              {false && (
+                <>
+                  <Button 
+                    variant="outlined" 
+                    color="info"
+                    onClick={() => onMarkAsPartiallyTransferred && onMarkAsPartiallyTransferred(data)}
+                  >
+                    Als teilweise übergeführt markieren
+                  </Button>
+                  
+                  <Button 
+                    variant="outlined" 
+                    color="success"
+                    onClick={() => onMarkAsFullyTransferred && onMarkAsFullyTransferred(data)}
+                  >
+                    Als vollständig übergeführt markieren
+                  </Button>
+                </>
+              )}
+              
+              {/* Erntebutton bei erntebereiten Pflanzen anzeigen */}
+              {data.growth_phase === 'harvest_ready' && (
+                <Button 
+                  variant="contained" 
+                  color="success"
+                  onClick={() => onHarvest && onHarvest(data)}
+                >
+                  Ernten
+                </Button>
+              )}
+              
               <Button 
                 variant="outlined" 
                 color="error"
-                onClick={() => onMarkAsDestroyed(data)}
+                onClick={() => onMarkAsDestroyed && onMarkAsDestroyed(data)}
               >
                 Als vernichtet markieren
               </Button>
             </Box>
           </Grid>
         )}
-        
-        {/* Nur bei aktiven Einträgen Vernichtungs-Button anzeigen, außer bei erntereifen Pflanzen (wird oben angezeigt) */}
-        {status === 'active' && data.growth_phase !== 'harvest_ready' && (
+
+        {/* Bei teilweise übergeführtem Status nur den Vernichtungsbutton anbieten */}
+        {status === 'partially_transferred' && (
           <Grid item xs={12}>
-            <Box display="flex" justifyContent="flex-end" mt={2}>
+            <Box display="flex" justifyContent="flex-end" mt={2} gap={2}>
               <Button 
                 variant="outlined" 
                 color="error"
-                onClick={() => onMarkAsDestroyed(data)}
+                onClick={() => onMarkAsDestroyed && onMarkAsDestroyed(data)}
               >
                 Als vernichtet markieren
               </Button>

@@ -12,7 +12,14 @@ import {
 } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 
-const DryingDetails = ({ data, onMarkAsDestroyed, onCompleteDrying, status }) => {
+const DryingDetails = ({ 
+  data, 
+  onMarkAsDestroyed, 
+  onCompleteDrying, 
+  onMarkAsPartiallyTransferred, 
+  onMarkAsFullyTransferred,
+  status 
+}) => {
   // Helfer-Funktion für Datumsformatierung
   const formatDate = (dateString) => {
     if (!dateString) return 'Nicht angegeben';
@@ -49,6 +56,38 @@ const DryingDetails = ({ data, onMarkAsDestroyed, onCompleteDrying, status }) =>
       };
     }
     return null;
+  };
+
+  // Überführungsstatus als Chip anzeigen
+  const getTransferStatusChip = () => {
+    let color = 'default';
+    let label = 'Unbekannt';
+    let percentage = null;
+    
+    // Prozentberechnung basierend auf dem jeweiligen Typ
+    if (data.dried_weight !== undefined && data.remaining_dried_weight !== undefined) {
+      // Gewichte (Trocknung)
+      const used = parseFloat(data.dried_weight) - parseFloat(data.remaining_dried_weight);
+      percentage = Math.round((used / parseFloat(data.dried_weight)) * 100);
+      label = `${used.toFixed(2)}g/${parseFloat(data.dried_weight).toFixed(2)}g (${percentage}%)`;
+    }
+    
+    const status = data.transfer_status || 'not_transferred';
+    
+    if (percentage === 100 || status === 'fully_transferred') {
+      color = 'success';
+      if (!percentage) label = 'Vollständig übergeführt';
+      else label = `Vollständig übergeführt: ${label}`;
+    } else if (percentage > 0 || status === 'partially_transferred') {
+      color = 'info';
+      if (!percentage) label = 'Teilweise übergeführt';
+      else label = `Teilweise übergeführt: ${label}`;
+    } else {
+      color = 'default';
+      label = 'Nicht übergeführt';
+    }
+    
+    return <Chip color={color} label={label} size="small" />;
   };
 
   const weightLoss = calculateWeightLoss();
@@ -100,6 +139,14 @@ const DryingDetails = ({ data, onMarkAsDestroyed, onCompleteDrying, status }) =>
                     size="small" 
                   />
                 )}
+              </Box>
+            </Grid>
+            
+            {/* Überführungsstatus anzeigen */}
+            <Grid item xs={12}>
+              <Typography variant="body2" color="textSecondary">Überführungsstatus:</Typography>
+              <Box sx={{ mt: 0.5 }}>
+                {getTransferStatusChip()}
               </Box>
             </Grid>
             
@@ -234,20 +281,31 @@ const DryingDetails = ({ data, onMarkAsDestroyed, onCompleteDrying, status }) =>
           </Grid>
         )}
         
-        {/* Überführungsdaten anzeigen, wenn übergeführt */}
-        {data.is_transferred && (
+        {/* Überführungsdaten anzeigen, wenn teilweise oder vollständig übergeführt */}
+        {(data.transfer_status === 'partially_transferred' || data.transfer_status === 'fully_transferred') && (
           <Grid item xs={12}>
-            <Typography variant="subtitle2" color="success">Überführungsdaten</Typography>
+            <Typography 
+              variant="subtitle2" 
+              color={data.transfer_status === 'fully_transferred' ? 'success' : 'info'}
+            >
+              Überführungsdaten
+            </Typography>
             <Divider sx={{ mb: 2 }} />
             
             <Grid container spacing={2}>
-              <Grid item xs={12} md={6}>
-                <Typography variant="body2" color="textSecondary">Überführungsdatum:</Typography>
+              <Grid item xs={12} md={4}>
+                <Typography variant="body2" color="textSecondary">Überführungsstatus:</Typography>
                 <Typography variant="body1">
-                  {formatDate(data.transfer_date)}
+                  {data.transfer_status === 'fully_transferred' ? 'Vollständig übergeführt' : 'Teilweise übergeführt'}
                 </Typography>
               </Grid>
-              <Grid item xs={12} md={6}>
+              <Grid item xs={12} md={4}>
+                <Typography variant="body2" color="textSecondary">Letzte Überführung:</Typography>
+                <Typography variant="body1">
+                  {formatDate(data.last_transfer_date || data.transfer_date)}
+                </Typography>
+              </Grid>
+              <Grid item xs={12} md={4}>
                 <Typography variant="body2" color="textSecondary">Übergeführt durch:</Typography>
                 <Typography variant="body1">
                   {data.transferring_member_details ? 
@@ -267,7 +325,7 @@ const DryingDetails = ({ data, onMarkAsDestroyed, onCompleteDrying, status }) =>
           </Typography>
         </Grid>
         
-        {/* Nur bei aktiven Einträgen Buttons anzeigen */}
+        {/* Aktionsbuttons basierend auf Status anzeigen */}
         {status === 'active' && (
           <Grid item xs={12}>
             <Box display="flex" justifyContent="flex-end" mt={2} gap={2}>
@@ -276,16 +334,52 @@ const DryingDetails = ({ data, onMarkAsDestroyed, onCompleteDrying, status }) =>
                 <Button 
                   variant="contained" 
                   color="primary"
-                  onClick={() => onCompleteDrying(data)}
+                  onClick={() => onCompleteDrying && onCompleteDrying(data)}
                 >
                   Trocknung abschließen
                 </Button>
               )}
               
+              {/* Überführungsbutton sollte nur erscheinen, wenn besondere Umstände */}
+              {data.dried_weight && false && (
+                <>
+                  <Button 
+                    variant="outlined" 
+                    color="info"
+                    onClick={() => onMarkAsPartiallyTransferred && onMarkAsPartiallyTransferred(data)}
+                  >
+                    Als teilweise übergeführt markieren
+                  </Button>
+                  
+                  <Button 
+                    variant="outlined" 
+                    color="success"
+                    onClick={() => onMarkAsFullyTransferred && onMarkAsFullyTransferred(data)}
+                  >
+                    Als vollständig übergeführt markieren
+                  </Button>
+                </>
+              )}
+              
               <Button 
                 variant="outlined" 
                 color="error"
-                onClick={() => onMarkAsDestroyed(data)}
+                onClick={() => onMarkAsDestroyed && onMarkAsDestroyed(data)}
+              >
+                Als vernichtet markieren
+              </Button>
+            </Box>
+          </Grid>
+        )}
+
+        {/* Bei teilweise übergeführtem Status nur den Vernichtungsbutton anbieten */}
+        {status === 'partially_transferred' && (
+          <Grid item xs={12}>
+            <Box display="flex" justifyContent="flex-end" mt={2} gap={2}>
+              <Button 
+                variant="outlined" 
+                color="error"
+                onClick={() => onMarkAsDestroyed && onMarkAsDestroyed(data)}
               >
                 Als vernichtet markieren
               </Button>

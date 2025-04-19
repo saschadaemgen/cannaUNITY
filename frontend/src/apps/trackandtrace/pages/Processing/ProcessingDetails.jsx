@@ -1,4 +1,4 @@
-// frontend/src/apps/trackandtrace/pages/Harvest/HarvestDetails.jsx
+// frontend/src/apps/trackandtrace/pages/Processing/ProcessingDetails.jsx
 import React from 'react';
 import { 
   Grid, 
@@ -12,13 +12,18 @@ import {
 } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 
-const HarvestDetails = ({ 
+const ProcessingDetails = ({ 
   data, 
   onMarkAsDestroyed, 
-  onMarkAsPartiallyTransferred, 
+  onMarkAsPartiallyTransferred,
   onMarkAsFullyTransferred,
   status 
 }) => {
+  // Sicherstellen, dass data existiert
+  if (!data) {
+    return <Paper sx={{ p: 2 }}><Typography>Keine Daten verfügbar</Typography></Paper>;
+  }
+
   // Helfer-Funktion für Datumsformatierung
   const formatDate = (dateString) => {
     if (!dateString) return 'Nicht angegeben';
@@ -47,12 +52,11 @@ const HarvestDetails = ({
     let label = 'Unbekannt';
     let percentage = null;
     
-    // Prozentberechnung basierend auf dem jeweiligen Typ
-    if (data.fresh_weight !== undefined && data.remaining_fresh_weight !== undefined) {
-      // Gewichte (Ernte, Trocknung)
-      const used = parseFloat(data.fresh_weight) - parseFloat(data.remaining_fresh_weight);
-      percentage = Math.round((used / parseFloat(data.fresh_weight)) * 100);
-      label = `${used.toFixed(2)}g/${parseFloat(data.fresh_weight).toFixed(2)}g (${percentage}%)`;
+    // Prozentberechnung basierend auf Gewicht
+    if (data.input_weight !== undefined && data.remaining_weight !== undefined) {
+      const used = parseFloat(data.input_weight) - parseFloat(data.remaining_weight);
+      percentage = Math.round((used / parseFloat(data.input_weight)) * 100);
+      label = `${used.toFixed(2)}g/${parseFloat(data.input_weight).toFixed(2)}g (${percentage}%)`;
     }
     
     const status = data.transfer_status || 'not_transferred';
@@ -83,19 +87,19 @@ const HarvestDetails = ({
           <Grid container spacing={2}>
             <Grid item xs={12}>
               <Typography variant="body2" color="textSecondary">Genetik:</Typography>
-              <Typography variant="body1">{data.genetic_name}</Typography>
+              <Typography variant="body1">{data.genetic_name || 'Nicht angegeben'}</Typography>
             </Grid>
             
             <Grid item xs={12}>
-              <Typography variant="body2" color="textSecondary">Herkunft aus Blühpflanze:</Typography>
+              <Typography variant="body2" color="textSecondary">Herkunft aus Trocknung:</Typography>
               <Typography variant="body1">
-                {data.flowering_plant_source_details ? (
+                {data.drying_source_details ? (
                   <Link 
                     component={RouterLink} 
-                    to={`/trace/bluehpflanzen`} 
-                    state={{ highlightUuid: data.flowering_plant_source }}
+                    to={`/trace/trocknung`} 
+                    state={{ highlightUuid: data.drying_source }}
                   >
-                    {data.flowering_plant_source_details.genetic_name} ({data.flowering_plant_source_details.batch_number})
+                    {data.drying_source_details.genetic_name} ({data.drying_source_details.batch_number})
                   </Link>
                 ) : (
                   'Keine Herkunftsdaten verfügbar'
@@ -115,52 +119,64 @@ const HarvestDetails = ({
             <Grid item xs={12}>
               <Typography variant="body2" color="textSecondary">UUID:</Typography>
               <Typography variant="body1" sx={{ fontSize: '0.8rem', fontFamily: 'monospace' }}>
-                {data.uuid}
+                {data.uuid || 'Nicht angegeben'}
               </Typography>
             </Grid>
           </Grid>
         </Grid>
         
         <Grid item xs={12} md={6}>
-          <Typography variant="subtitle2">Erntedaten</Typography>
+          <Typography variant="subtitle2">Verarbeitungsdaten</Typography>
           <Divider sx={{ mb: 2 }} />
           
           <Grid container spacing={2}>
             <Grid item xs={6}>
-              <Typography variant="body2" color="textSecondary">Erntedatum:</Typography>
-              <Typography variant="body1">{formatDate(data.harvest_date)}</Typography>
+              <Typography variant="body2" color="textSecondary">Verarbeitungsdatum:</Typography>
+              <Typography variant="body1">{formatDate(data.processing_date)}</Typography>
             </Grid>
             <Grid item xs={6}>
-              <Typography variant="body2" color="textSecondary">Anzahl Pflanzen:</Typography>
-              <Typography variant="body1">{data.plant_count}</Typography>
+              <Typography variant="body2" color="textSecondary">Produkttyp:</Typography>
+              <Typography variant="body1">{data.product_type_display || data.product_type || 'Nicht angegeben'}</Typography>
             </Grid>
             <Grid item xs={6}>
-              <Typography variant="body2" color="textSecondary">Frischgewicht:</Typography>
-              <Typography variant="body1">{formatWeight(data.fresh_weight)}</Typography>
+              <Typography variant="body2" color="textSecondary">Verarbeitungsmethode:</Typography>
+              <Typography variant="body1">{data.processing_method || 'Nicht angegeben'}</Typography>
             </Grid>
             <Grid item xs={6}>
+              <Typography variant="body2" color="textSecondary">Erwartetes Labordatum:</Typography>
+              <Typography variant="body1">{formatDate(data.expected_lab_date)}</Typography>
+            </Grid>
+            <Grid item xs={6}>
+              <Typography variant="body2" color="textSecondary">Potenz-Schätzung:</Typography>
+              <Typography variant="body1">{data.potency_estimate ? `${data.potency_estimate}%` : 'Nicht angegeben'}</Typography>
+            </Grid>
+          </Grid>
+        </Grid>
+        
+        <Grid item xs={12}>
+          <Typography variant="subtitle2">Gewichtsdaten</Typography>
+          <Divider sx={{ mb: 2 }} />
+          
+          <Grid container spacing={2}>
+            <Grid item xs={6} md={3}>
+              <Typography variant="body2" color="textSecondary">Eingangsgewicht:</Typography>
+              <Typography variant="body1">{formatWeight(data.input_weight)}</Typography>
+            </Grid>
+            <Grid item xs={6} md={3}>
               <Typography variant="body2" color="textSecondary">Verbleibendes Gewicht:</Typography>
-              <Typography variant="body1">{formatWeight(data.remaining_fresh_weight)}</Typography>
+              <Typography variant="body1">{formatWeight(data.remaining_weight)}</Typography>
             </Grid>
-            <Grid item xs={6}>
+            <Grid item xs={6} md={3}>
               <Typography variant="body2" color="textSecondary">Blütengewicht:</Typography>
               <Typography variant="body1">{formatWeight(data.flower_weight)}</Typography>
             </Grid>
-            <Grid item xs={6}>
-              <Typography variant="body2" color="textSecondary">Blattgewicht:</Typography>
-              <Typography variant="body1">{formatWeight(data.leaf_weight)}</Typography>
+            <Grid item xs={6} md={3}>
+              <Typography variant="body2" color="textSecondary">Schnittreste:</Typography>
+              <Typography variant="body1">{formatWeight(data.trim_weight)}</Typography>
             </Grid>
-            <Grid item xs={6}>
-              <Typography variant="body2" color="textSecondary">Stängelgewicht:</Typography>
-              <Typography variant="body1">{formatWeight(data.stem_weight)}</Typography>
-            </Grid>
-            <Grid item xs={6}>
-              <Typography variant="body2" color="textSecondary">Erntemethode:</Typography>
-              <Typography variant="body1">{data.harvest_method || 'Nicht angegeben'}</Typography>
-            </Grid>
-            <Grid item xs={6}>
-              <Typography variant="body2" color="textSecondary">Erwartetes Trocknungsdatum:</Typography>
-              <Typography variant="body1">{formatDate(data.expected_drying_date)}</Typography>
+            <Grid item xs={6} md={3}>
+              <Typography variant="body2" color="textSecondary">Abfallgewicht:</Typography>
+              <Typography variant="body1">{formatWeight(data.waste_weight)}</Typography>
             </Grid>
           </Grid>
         </Grid>
@@ -197,7 +213,7 @@ const HarvestDetails = ({
             </Grid>
             <Grid item xs={6} md={3}>
               <Typography variant="body2" color="textSecondary">Batch-Nummer:</Typography>
-              <Typography variant="body1">{data.batch_number}</Typography>
+              <Typography variant="body1">{data.batch_number || 'Nicht angegeben'}</Typography>
             </Grid>
           </Grid>
         </Grid>
@@ -211,7 +227,7 @@ const HarvestDetails = ({
             <Grid container spacing={2}>
               <Grid item xs={12} md={4}>
                 <Typography variant="body2" color="textSecondary">Vernichtungsgrund:</Typography>
-                <Typography variant="body1">{data.destruction_reason}</Typography>
+                <Typography variant="body1">{data.destruction_reason || 'Nicht angegeben'}</Typography>
               </Grid>
               <Grid item xs={12} md={4}>
                 <Typography variant="body2" color="textSecondary">Vernichtungsdatum:</Typography>
@@ -232,7 +248,7 @@ const HarvestDetails = ({
         )}
         
         {/* Überführungsdaten anzeigen, wenn teilweise oder vollständig übergeführt */}
-        {(data.transfer_status === 'partially_transferred' || data.transfer_status === 'fully_transferred') && (
+        {data.transfer_status && ['partially_transferred', 'fully_transferred'].includes(data.transfer_status) && (
           <Grid item xs={12}>
             <Typography 
               variant="subtitle2" 
@@ -244,13 +260,7 @@ const HarvestDetails = ({
             
             <Grid container spacing={2}>
               <Grid item xs={12} md={4}>
-                <Typography variant="body2" color="textSecondary">Überführungsstatus:</Typography>
-                <Typography variant="body1">
-                  {data.transfer_status === 'fully_transferred' ? 'Vollständig übergeführt' : 'Teilweise übergeführt'}
-                </Typography>
-              </Grid>
-              <Grid item xs={12} md={4}>
-                <Typography variant="body2" color="textSecondary">Letzte Überführung:</Typography>
+                <Typography variant="body2" color="textSecondary">Überführungsdatum:</Typography>
                 <Typography variant="body1">
                   {formatDate(data.last_transfer_date || data.transfer_date)}
                 </Typography>
@@ -279,27 +289,6 @@ const HarvestDetails = ({
         {status === 'active' && (
           <Grid item xs={12}>
             <Box display="flex" justifyContent="flex-end" mt={2} gap={2}>
-              {/* Überführungsbutton sollte nur erscheinen, wenn besondere Umstände */}
-              {false && (
-                <>
-                  <Button 
-                    variant="outlined" 
-                    color="info"
-                    onClick={() => onMarkAsPartiallyTransferred && onMarkAsPartiallyTransferred(data)}
-                  >
-                    Als teilweise übergeführt markieren
-                  </Button>
-                  
-                  <Button 
-                    variant="outlined" 
-                    color="success"
-                    onClick={() => onMarkAsFullyTransferred && onMarkAsFullyTransferred(data)}
-                  >
-                    Als vollständig übergeführt markieren
-                  </Button>
-                </>
-              )}
-              
               <Button 
                 variant="outlined" 
                 color="error"
@@ -310,7 +299,7 @@ const HarvestDetails = ({
             </Box>
           </Grid>
         )}
-
+        
         {/* Bei teilweise übergeführtem Status nur den Vernichtungsbutton anbieten */}
         {status === 'partially_transferred' && (
           <Grid item xs={12}>
@@ -330,4 +319,4 @@ const HarvestDetails = ({
   );
 };
 
-export default HarvestDetails;
+export default ProcessingDetails;

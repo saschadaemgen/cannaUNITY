@@ -16,7 +16,8 @@ import {
   Select,
   MenuItem,
   ToggleButtonGroup,
-  ToggleButton 
+  ToggleButton,
+  Tooltip
 } from '@mui/material';
 import { Add } from '@mui/icons-material';
 import api from '../../../../utils/api';
@@ -29,7 +30,7 @@ const FloweringPlantPage = () => {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [status, setStatus] = useState('active'); // 'active', 'destroyed', 'transferred'
+  const [status, setStatus] = useState('active'); // 'active', 'destroyed', 'partially_transferred', 'fully_transferred'
   const [openForm, setOpenForm] = useState(false);
   const [currentPlant, setCurrentPlant] = useState(null);
   const [openDestroyDialog, setOpenDestroyDialog] = useState(false);
@@ -86,21 +87,54 @@ const FloweringPlantPage = () => {
         return 'Unbekannt';
       }
     },
+    {
+      id: 'transfer_status',
+      label: 'Überführungsstatus',
+      minWidth: 180,
+      format: (value, row) => {
+        // Bei Pflanzen
+        if (row.plant_count !== undefined && row.remaining_plants !== undefined) {
+          const used = row.plant_count - row.remaining_plants;
+          const percentage = Math.round((used / row.plant_count) * 100);
+          
+          if (percentage === 0) return 'Nicht übergeführt';
+          if (percentage === 100) return `Vollständig übergeführt (${used}/${row.plant_count})`;
+          return `Teilweise übergeführt (${used}/${row.plant_count}, ${percentage}%)`;
+        }
+        
+        // Fallback für andere Typen oder wenn keine entsprechenden Daten vorhanden sind
+        switch (row.transfer_status) {
+          case 'fully_transferred': return 'Vollständig übergeführt';
+          case 'partially_transferred': return 'Teilweise übergeführt';
+          case 'not_transferred':
+          default:
+            return 'Nicht übergeführt';
+        }
+      }
+    },
   ];
+
+  // Query-Parameter basierend auf Status
+  const getQueryParams = () => {
+    switch (status) {
+      case 'destroyed':
+        return '?destroyed=true';
+      case 'partially_transferred':
+        return '?transfer_status=partially_transferred';
+      case 'fully_transferred':
+        return '?transfer_status=fully_transferred';
+      case 'active':
+      default:
+        return ''; // Aktive (weder vernichtet noch (teilweise) übergeführt)
+    }
+  };
 
   // Daten laden
   const fetchData = async () => {
     setLoading(true);
     try {
       // API-Parameter je nach Status
-      let queryParams = '';
-      if (status === 'destroyed') {
-        queryParams = '?destroyed=true';
-      } else if (status === 'transferred') {
-        queryParams = '?transferred=true';
-      } else {
-        queryParams = ''; // Aktive (weder vernichtet noch übergeführt)
-      }
+      const queryParams = getQueryParams();
       
       console.log(`Fetching flowering plants with status=${status}, query=${queryParams}`);
       const response = await api.get(`/trackandtrace/floweringplants/${queryParams}`);
@@ -285,7 +319,7 @@ const FloweringPlantPage = () => {
   if (error) return <Typography color="error">{error}</Typography>;
 
   return (
-    <Container maxWidth="lg">
+    <Container maxWidth={false} sx={{ px: 4 }}>
       <Box mb={4} mt={2}>
         <Typography variant="h4" component="h1" gutterBottom>
           Blühpflanzen-Verwaltung
@@ -302,11 +336,18 @@ const FloweringPlantPage = () => {
             <ToggleButton value="active" color="primary">
               Aktiv
             </ToggleButton>
+            <Tooltip title="Einheiten wurden teilweise für den nächsten Prozessschritt verwendet (1-99%)">
+              <ToggleButton value="partially_transferred" color="info">
+                Teilweise übergeführt
+              </ToggleButton>
+            </Tooltip>
+            <Tooltip title="Alle Einheiten wurden für den nächsten Prozessschritt verwendet (100%)">
+              <ToggleButton value="fully_transferred" color="success">
+                Vollständig übergeführt
+              </ToggleButton>
+            </Tooltip>
             <ToggleButton value="destroyed" color="error">
               Vernichtet
-            </ToggleButton>
-            <ToggleButton value="transferred" color="success">
-              Überführt
             </ToggleButton>
           </ToggleButtonGroup>
           

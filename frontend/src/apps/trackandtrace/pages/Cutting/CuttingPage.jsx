@@ -16,7 +16,8 @@ import {
   InputLabel,
   Select,
   ToggleButtonGroup,
-  ToggleButton 
+  ToggleButton,
+  Tooltip
 } from '@mui/material';
 import { Add } from '@mui/icons-material';
 import api from '../../../../utils/api';
@@ -29,7 +30,7 @@ const CuttingPage = () => {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [status, setStatus] = useState('active'); // 'active', 'destroyed', 'transferred'
+  const [status, setStatus] = useState('active'); // 'active', 'destroyed', 'partially_transferred', 'fully_transferred'
   const [openForm, setOpenForm] = useState(false);
   const [currentCutting, setCurrentCutting] = useState(null);
   const [openDestroyDialog, setOpenDestroyDialog] = useState(false);
@@ -70,21 +71,54 @@ const CuttingPage = () => {
       label: 'Wachstumsphase', 
       minWidth: 120 
     },
+    {
+      id: 'transfer_status',
+      label: 'Überführungsstatus',
+      minWidth: 180,
+      format: (value, row) => {
+        // Bei Stecklingen
+        if (row.cutting_count !== undefined && row.remaining_cuttings !== undefined) {
+          const used = row.cutting_count - row.remaining_cuttings;
+          const percentage = Math.round((used / row.cutting_count) * 100);
+          
+          if (percentage === 0) return 'Nicht übergeführt';
+          if (percentage === 100) return `Vollständig übergeführt (${used}/${row.cutting_count})`;
+          return `Teilweise übergeführt (${used}/${row.cutting_count}, ${percentage}%)`;
+        }
+        
+        // Fallback für andere Typen oder wenn keine entsprechenden Daten vorhanden sind
+        switch (row.transfer_status) {
+          case 'fully_transferred': return 'Vollständig übergeführt';
+          case 'partially_transferred': return 'Teilweise übergeführt';
+          case 'not_transferred':
+          default:
+            return 'Nicht übergeführt';
+        }
+      }
+    },
   ];
+
+  // Query-Parameter basierend auf Status
+  const getQueryParams = () => {
+    switch (status) {
+      case 'destroyed':
+        return '?destroyed=true';
+      case 'partially_transferred':
+        return '?transfer_status=partially_transferred';
+      case 'fully_transferred':
+        return '?transfer_status=fully_transferred';
+      case 'active':
+      default:
+        return ''; // Aktive (weder vernichtet noch (teilweise) übergeführt)
+    }
+  };
 
   // Daten laden
   const fetchData = async () => {
     setLoading(true);
     try {
       // API-Parameter je nach Status
-      let queryParams = '';
-      if (status === 'destroyed') {
-        queryParams = '?destroyed=true';
-      } else if (status === 'transferred') {
-        queryParams = '?transferred=true';
-      } else {
-        queryParams = ''; // Aktive (weder vernichtet noch übergeführt)
-      }
+      const queryParams = getQueryParams();
       
       console.log(`Fetching cuttings with status=${status}, query=${queryParams}`);
       const response = await api.get(`/trackandtrace/cuttings/${queryParams}`);
@@ -127,7 +161,7 @@ const CuttingPage = () => {
 
   useEffect(() => {
     fetchData();
-  }, [status]); // Status statt showDestroyed als Abhängigkeit
+  }, [status]); // Status als Abhängigkeit
 
   // Formular-Handling
   const handleOpenForm = (cutting = null) => {
@@ -234,7 +268,7 @@ const CuttingPage = () => {
   if (error) return <Typography color="error">{error}</Typography>;
 
   return (
-    <Container maxWidth="lg">
+    <Container maxWidth={false} sx={{ px: 4 }}>
       <Box mb={4} mt={2}>
         <Typography variant="h4" component="h1" gutterBottom>
           Stecklinge-Verwaltung
@@ -252,11 +286,18 @@ const CuttingPage = () => {
             <ToggleButton value="active" color="primary">
               Aktiv
             </ToggleButton>
+            <Tooltip title="Einheiten wurden teilweise für den nächsten Prozessschritt verwendet (1-99%)">
+              <ToggleButton value="partially_transferred" color="info">
+                Teilweise übergeführt
+              </ToggleButton>
+            </Tooltip>
+            <Tooltip title="Alle Einheiten wurden für den nächsten Prozessschritt verwendet (100%)">
+              <ToggleButton value="fully_transferred" color="success">
+                Vollständig übergeführt
+              </ToggleButton>
+            </Tooltip>
             <ToggleButton value="destroyed" color="error">
               Vernichtet
-            </ToggleButton>
-            <ToggleButton value="transferred" color="success">
-              Überführt
             </ToggleButton>
           </ToggleButtonGroup>
           

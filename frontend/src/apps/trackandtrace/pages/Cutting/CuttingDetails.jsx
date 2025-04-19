@@ -12,7 +12,7 @@ import {
 } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 
-const CuttingDetails = ({ data, onMarkAsDestroyed, onUpdatePhase, status }) => {
+const CuttingDetails = ({ data, onMarkAsDestroyed, onUpdatePhase, onMarkAsPartiallyTransferred, onMarkAsFullyTransferred, status }) => {
   // Helfer-Funktion für Datumsformatierung
   const formatDate = (dateString) => {
     if (!dateString) return 'Nicht angegeben';
@@ -37,6 +37,38 @@ const CuttingDetails = ({ data, onMarkAsDestroyed, onUpdatePhase, status }) => {
       case 'vegetative': return 'success';
       default: return 'default';
     }
+  };
+
+  // Überführungsstatus als Chip anzeigen
+  const getTransferStatusChip = () => {
+    let color = 'default';
+    let label = 'Unbekannt';
+    let percentage = null;
+    
+    // Prozentberechnung basierend auf dem jeweiligen Typ
+    if (data.cutting_count !== undefined && data.remaining_cuttings !== undefined) {
+      // Stecklinge
+      const used = data.cutting_count - data.remaining_cuttings;
+      percentage = Math.round((used / data.cutting_count) * 100);
+      label = `${used}/${data.cutting_count} (${percentage}%)`;
+    }
+    
+    const status = data.transfer_status || 'not_transferred';
+    
+    if (percentage === 100 || status === 'fully_transferred') {
+      color = 'success';
+      if (!percentage) label = 'Vollständig übergeführt';
+      else label = `Vollständig übergeführt: ${label}`;
+    } else if (percentage > 0 || status === 'partially_transferred') {
+      color = 'info';
+      if (!percentage) label = 'Teilweise übergeführt';
+      else label = `Teilweise übergeführt: ${label}`;
+    } else {
+      color = 'default';
+      label = 'Nicht übergeführt';
+    }
+    
+    return <Chip color={color} label={label} size="small" />;
   };
 
   return (
@@ -69,6 +101,12 @@ const CuttingDetails = ({ data, onMarkAsDestroyed, onUpdatePhase, status }) => {
                     Ändern
                   </Button>
                 )}
+              </Box>
+            </Grid>
+            <Grid item xs={12}>
+              <Typography variant="body2" color="textSecondary">Überführungsstatus:</Typography>
+              <Box display="flex" alignItems="center">
+                {getTransferStatusChip()}
               </Box>
             </Grid>
             <Grid item xs={12}>
@@ -215,13 +253,50 @@ const CuttingDetails = ({ data, onMarkAsDestroyed, onUpdatePhase, status }) => {
           </Typography>
         </Grid>
         
+        {/* Aktionsbuttons basierend auf Status anzeigen */}
         {status === 'active' && (
           <Grid item xs={12}>
-            <Box display="flex" justifyContent="flex-end" mt={2}>
+            <Box display="flex" justifyContent="flex-end" mt={2} gap={2}>
+              {/* Überführungsbutton sollte nur erscheinen, wenn besondere Umstände */}
+              {false && (
+                <>
+                  <Button 
+                    variant="outlined" 
+                    color="info"
+                    onClick={() => onMarkAsPartiallyTransferred && onMarkAsPartiallyTransferred(data)}
+                  >
+                    Als teilweise übergeführt markieren
+                  </Button>
+                  
+                  <Button 
+                    variant="outlined" 
+                    color="success"
+                    onClick={() => onMarkAsFullyTransferred && onMarkAsFullyTransferred(data)}
+                  >
+                    Als vollständig übergeführt markieren
+                  </Button>
+                </>
+              )}
+              
               <Button 
                 variant="outlined" 
                 color="error"
-                onClick={() => onMarkAsDestroyed(data)}
+                onClick={() => onMarkAsDestroyed && onMarkAsDestroyed(data)}
+              >
+                Als vernichtet markieren
+              </Button>
+            </Box>
+          </Grid>
+        )}
+
+        {/* Bei teilweise übergeführtem Status nur den Vernichtungsbutton anbieten */}
+        {status === 'partially_transferred' && (
+          <Grid item xs={12}>
+            <Box display="flex" justifyContent="flex-end" mt={2} gap={2}>
+              <Button 
+                variant="outlined" 
+                color="error"
+                onClick={() => onMarkAsDestroyed && onMarkAsDestroyed(data)}
               >
                 Als vernichtet markieren
               </Button>
