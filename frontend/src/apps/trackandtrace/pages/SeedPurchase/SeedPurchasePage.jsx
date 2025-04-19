@@ -254,7 +254,7 @@ const SeedPurchasePage = () => {
   if (error) return <Typography color="error">{error}</Typography>;
 
   return (
-    <Container maxWidth="lg">
+    <Container maxWidth={false} sx={{ px: 4 }}>
       <Box mb={4} mt={2}>
         <Typography variant="h4" component="h1" gutterBottom>
           Samen-Verwaltung

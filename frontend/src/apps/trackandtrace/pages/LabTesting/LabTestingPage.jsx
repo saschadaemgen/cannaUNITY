@@ -1,4 +1,4 @@
-// frontend/src/apps/trackandtrace/pages/Processing/ProcessingPage.jsx
+// frontend/src/apps/trackandtrace/pages/LabTesting/LabTestingPage.jsx
 import React, { useState, useEffect } from 'react';
 import { 
   Container, 
@@ -22,31 +22,35 @@ import {
 import { Add } from '@mui/icons-material';
 import api from '../../../../utils/api';
 import TableComponent from '../../components/TableComponent';
-import ProcessingDetails from './ProcessingDetails';
-import ProcessingForm from './ProcessingForm';
+import LabTestingDetails from './LabTestingDetails';
+import LabTestingForm from './LabTestingForm';
 
-const ProcessingPage = () => {
-  const [processings, setProcessings] = useState([]);
+const LabTestingPage = () => {
+  const [labTestings, setLabTestings] = useState([]);
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [status, setStatus] = useState('active'); // 'active', 'partially_transferred', 'fully_transferred', 'destroyed'
+  const [status, setStatus] = useState('active'); // 'active', 'partially_transferred', 'fully_transferred', 'destroyed', 'approved'
   const [openForm, setOpenForm] = useState(false);
-  const [currentProcessing, setCurrentProcessing] = useState(null);
+  const [currentLabTesting, setCurrentLabTesting] = useState(null);
+  
+  // Dialog-States
   const [openDestroyDialog, setOpenDestroyDialog] = useState(false);
   const [destroyReason, setDestroyReason] = useState('');
   const [destroyingMember, setDestroyingMember] = useState('');
   const [openTransferDialog, setOpenTransferDialog] = useState(false);
   const [transferType, setTransferType] = useState(''); // 'partially' oder 'fully'
   const [transferringMember, setTransferringMember] = useState('');
+  const [openUpdateStatusDialog, setOpenUpdateStatusDialog] = useState(false);
+  const [newTestStatus, setNewTestStatus] = useState('');
 
   // Tabellenspalten definieren
   const columns = [
     { id: 'batch_number', label: 'Charge', minWidth: 100 },
     { id: 'genetic_name', label: 'Genetik', minWidth: 150 },
     { 
-      id: 'processing_date', 
-      label: 'Verarbeitungsdatum', 
+      id: 'sample_date', 
+      label: 'Probenahme', 
       minWidth: 120,
       format: (value) => {
         if (value) {
@@ -64,25 +68,49 @@ const ProcessingPage = () => {
         return '';
       }
     },
-    {
-      id: 'product_type',
-      label: 'Produkttyp',
+    { 
+      id: 'test_date', 
+      label: 'Testdatum', 
       minWidth: 120,
-      format: (value, row) => row.product_type_display || value
+      format: (value) => {
+        if (!value) return 'Ausstehend';
+        try {
+          const parts = value.split('-');
+          if (parts.length === 3) {
+            return `${parts[2]}.${parts[1]}.${parts[0]}`;  // DD.MM.YYYY
+          }
+          return value;
+        } catch (e) {
+          console.error('Fehler bei der Datumsformatierung:', e);
+          return value;
+        }
+      }
+    },
+    {
+      id: 'test_status',
+      label: 'Status',
+      minWidth: 120,
+      format: (value, row) => row.test_status_display || value
+    },
+    {
+      id: 'is_approved',
+      label: 'Freigabe',
+      minWidth: 120,
+      format: (value) => value ? 'Freigegeben' : 'Nicht freigegeben'
     },
     { 
-      id: 'input_weight', 
-      label: 'Eingangsgewicht (g)', 
+      id: 'sample_weight', 
+      label: 'Probengewicht (g)', 
       minWidth: 150, 
       align: 'right',
       format: (value) => value ? Number(value).toLocaleString('de-DE') : ''
     },
     { 
-      id: 'remaining_weight', 
-      label: 'Verbl. Gewicht (g)', 
-      minWidth: 150, 
+      id: 'thc_content', 
+      label: 'THC (%)', 
+      minWidth: 100, 
       align: 'right',
-      format: (value) => value ? Number(value).toLocaleString('de-DE') : ''
+      format: (value) => value ? Number(value).toLocaleString('de-DE') : '-'
     },
     {
       id: 'transfer_status',
@@ -90,13 +118,13 @@ const ProcessingPage = () => {
       minWidth: 180,
       format: (value, row) => {
         // Gewichtsberechnung
-        if (row.input_weight !== undefined && row.remaining_weight !== undefined) {
-          const used = parseFloat(row.input_weight) - parseFloat(row.remaining_weight);
-          const percentage = Math.round((used / parseFloat(row.input_weight)) * 100);
+        if (row.sample_weight !== undefined && row.remaining_weight !== undefined) {
+          const used = parseFloat(row.sample_weight) - parseFloat(row.remaining_weight);
+          const percentage = Math.round((used / parseFloat(row.sample_weight)) * 100);
           
           if (percentage === 0) return 'Nicht übergeführt';
-          if (percentage === 100) return `Vollständig übergeführt (${used}g/${row.input_weight}g)`;
-          return `Teilweise übergeführt (${used}g/${row.input_weight}g, ${percentage}%)`;
+          if (percentage === 100) return `Vollständig übergeführt (${used}g/${row.sample_weight}g)`;
+          return `Teilweise übergeführt (${used}g/${row.sample_weight}g, ${percentage}%)`;
         }
         
         // Fallback
@@ -114,8 +142,8 @@ const ProcessingPage = () => {
       label: 'Herkunft',
       minWidth: 150,
       format: (value, row) => {
-        if (row.drying_source_details) {
-          return `${row.drying_source_details.genetic_name} (${row.drying_source_details.batch_number})`;
+        if (row.processing_source_details) {
+          return `${row.processing_source_details.genetic_name} (${row.processing_source_details.batch_number})`;
         }
         return 'Unbekannt';
       }
@@ -131,6 +159,8 @@ const ProcessingPage = () => {
         return '?transfer_status=partially_transferred';
       case 'fully_transferred':
         return '?transfer_status=fully_transferred';
+      case 'approved':
+        return '?is_approved=true';
       case 'active':
       default:
         return ''; // Aktive (weder vernichtet noch vollständig übergeführt)
@@ -142,21 +172,21 @@ const ProcessingPage = () => {
     setLoading(true);
     try {
       const queryParams = getQueryParams();
-      console.log(`Fetching processings with status=${status}, query=${queryParams}`);
-      const response = await api.get(`/trackandtrace/processings/${queryParams}`);
+      console.log(`Fetching lab testings with status=${status}, query=${queryParams}`);
+      const response = await api.get(`/trackandtrace/labtestings/${queryParams}`);
       console.log('API Response:', response.data);
       
       // Prüfen, ob response.data ein Array ist oder eine paginierte Struktur hat
       if (Array.isArray(response.data)) {
-        setProcessings(response.data);
+        setLabTestings(response.data);
       } else if (response.data && response.data.results && Array.isArray(response.data.results)) {
-        setProcessings(response.data.results);
+        setLabTestings(response.data.results);
       } else {
         console.error('Unerwartetes Datenformat:', response.data);
-        setProcessings([]);
+        setLabTestings([]);
       }
       
-      // Mitglieder laden (für Vernichtungs- und Überführungsdialog)
+      // Mitglieder laden (für Dialoge)
       try {
         const membersResponse = await api.get('/members/');
         if (membersResponse.data && Array.isArray(membersResponse.data)) {
@@ -174,7 +204,7 @@ const ProcessingPage = () => {
       
       setError(null);
     } catch (err) {
-      console.error('Fehler beim Laden der Verarbeitungs-Daten:', err);
+      console.error('Fehler beim Laden der Laborkontroll-Daten:', err);
       setError('Fehler beim Laden der Daten. Bitte versuchen Sie es später erneut.');
     } finally {
       setLoading(false);
@@ -186,24 +216,24 @@ const ProcessingPage = () => {
   }, [status]);
 
   // Formular-Handling
-  const handleOpenForm = (processing = null) => {
-    setCurrentProcessing(processing);
+  const handleOpenForm = (labTesting = null) => {
+    setCurrentLabTesting(labTesting);
     setOpenForm(true);
   };
 
   const handleCloseForm = () => {
     setOpenForm(false);
-    setCurrentProcessing(null);
+    setCurrentLabTesting(null);
   };
 
   const handleSaveForm = async (formData) => {
     try {
-      if (currentProcessing) {
+      if (currentLabTesting) {
         // Update
-        await api.put(`/trackandtrace/processings/${currentProcessing.uuid}/`, formData);
+        await api.put(`/trackandtrace/labtestings/${currentLabTesting.uuid}/`, formData);
       } else {
         // Create
-        await api.post('/trackandtrace/processings/', formData);
+        await api.post('/trackandtrace/labtestings/', formData);
       }
       fetchData();
       handleCloseForm();
@@ -219,14 +249,14 @@ const ProcessingPage = () => {
   };
 
   // Destroy-Dialog-Handling
-  const handleOpenDestroyDialog = (processing) => {
-    setCurrentProcessing(processing);
+  const handleOpenDestroyDialog = (labTesting) => {
+    setCurrentLabTesting(labTesting);
     setOpenDestroyDialog(true);
   };
 
   const handleCloseDestroyDialog = () => {
     setOpenDestroyDialog(false);
-    setCurrentProcessing(null);
+    setCurrentLabTesting(null);
     setDestroyReason('');
     setDestroyingMember('');
   };
@@ -235,7 +265,7 @@ const ProcessingPage = () => {
     if (!destroyReason || !destroyingMember) return;
     
     try {
-      await api.post(`/trackandtrace/processings/${currentProcessing.uuid}/destroy_item/`, {
+      await api.post(`/trackandtrace/labtestings/${currentLabTesting.uuid}/destroy_item/`, {
         reason: destroyReason,
         destroying_member: destroyingMember
       });
@@ -247,15 +277,15 @@ const ProcessingPage = () => {
   };
   
   // Transfer-Dialog-Handling
-  const handleOpenTransferDialog = (processing, type) => {
-    setCurrentProcessing(processing);
+  const handleOpenTransferDialog = (labTesting, type) => {
+    setCurrentLabTesting(labTesting);
     setTransferType(type); // 'partially' oder 'fully'
     setOpenTransferDialog(true);
   };
   
   const handleCloseTransferDialog = () => {
     setOpenTransferDialog(false);
-    setCurrentProcessing(null);
+    setCurrentLabTesting(null);
     setTransferType('');
     setTransferringMember('');
   };
@@ -268,7 +298,7 @@ const ProcessingPage = () => {
         ? 'mark_as_partially_transferred' 
         : 'mark_as_fully_transferred';
         
-      await api.post(`/trackandtrace/processings/${currentProcessing.uuid}/${endpoint}/`, {
+      await api.post(`/trackandtrace/labtestings/${currentLabTesting.uuid}/${endpoint}/`, {
         transferring_member: transferringMember
       });
       fetchData();
@@ -277,13 +307,55 @@ const ProcessingPage = () => {
       console.error(`Fehler beim Markieren als ${transferType === 'partially' ? 'teilweise' : 'vollständig'} übergeführt:`, err);
     }
   };
+  
+  // Update Test Status Dialog
+  const handleOpenUpdateStatusDialog = (labTesting, newStatus) => {
+    setCurrentLabTesting(labTesting);
+    setNewTestStatus(newStatus);
+    setOpenUpdateStatusDialog(true);
+  };
+  
+  const handleCloseUpdateStatusDialog = () => {
+    setOpenUpdateStatusDialog(false);
+    setCurrentLabTesting(null);
+    setNewTestStatus('');
+  };
+  
+  const handleUpdateTestStatus = async () => {
+    if (!newTestStatus) return;
+    
+    try {
+      await api.post(`/trackandtrace/labtestings/${currentLabTesting.uuid}/update_test_status/`, {
+        test_status: newTestStatus
+      });
+      fetchData();
+      handleCloseUpdateStatusDialog();
+    } catch (err) {
+      console.error('Fehler beim Aktualisieren des Test-Status:', err);
+    }
+  };
+  
+  // Approve Testing
+  const handleApprove = async (labTesting) => {
+    try {
+      await api.post(`/trackandtrace/labtestings/${labTesting.uuid}/approve_testing/`);
+      fetchData();
+    } catch (err) {
+      console.error('Fehler beim Freigeben des Tests:', err);
+      if (err.response && err.response.data) {
+        alert(`Fehler: ${JSON.stringify(err.response.data)}`);
+      } else {
+        alert('Ein unbekannter Fehler ist aufgetreten');
+      }
+    }
+  };
 
   // Delete-Handling
-  const handleDelete = async (processing) => {
+  const handleDelete = async (labTesting) => {
     // Hier sollte es eigentlich einen Bestätigungsdialog geben
-    if (window.confirm(`Sind Sie sicher, dass Sie ${processing.genetic_name} löschen möchten?`)) {
+    if (window.confirm(`Sind Sie sicher, dass Sie ${labTesting.genetic_name} löschen möchten?`)) {
       try {
-        await api.delete(`/trackandtrace/processings/${processing.uuid}/`);
+        await api.delete(`/trackandtrace/labtestings/${labTesting.uuid}/`);
         fetchData();
       } catch (err) {
         console.error('Fehler beim Löschen:', err);
@@ -292,14 +364,14 @@ const ProcessingPage = () => {
     }
   };
 
-  if (loading && processings.length === 0) return <Typography>Lade Daten...</Typography>;
+  if (loading && labTestings.length === 0) return <Typography>Lade Daten...</Typography>;
   if (error) return <Typography color="error">{error}</Typography>;
 
   return (
     <Container maxWidth={false} sx={{ px: 4 }}>
       <Box mb={4} mt={2}>
         <Typography variant="h4" component="h1" gutterBottom>
-          Verarbeitungs-Verwaltung
+          Laborkontroll-Verwaltung
         </Typography>
         
         <Box display="flex" justifyContent="flex-end" mb={2}>
@@ -313,6 +385,11 @@ const ProcessingPage = () => {
             <ToggleButton value="active" color="primary">
               Aktiv
             </ToggleButton>
+            <Tooltip title="Im Labor freigegebene Proben">
+              <ToggleButton value="approved" color="success">
+                Freigegeben
+              </ToggleButton>
+            </Tooltip>
             <Tooltip title="Teilweise an den nächsten Prozessschritt übergeführt">
               <ToggleButton value="partially_transferred" color="info">
                 Teilweise übergeführt
@@ -335,19 +412,21 @@ const ProcessingPage = () => {
             onClick={() => handleOpenForm()}
             disabled={status !== 'active'} // Nur bei aktivem Filter neue Einträge zulassen
           >
-            Neue Verarbeitung
+            Neue Laborkontrolle
           </Button>
         </Box>
         
         <TableComponent 
           columns={columns}
-          data={processings}
+          data={labTestings}
           detailsComponent={(props) => (
-            <ProcessingDetails 
+            <LabTestingDetails 
               {...props} 
               onMarkAsDestroyed={handleOpenDestroyDialog}
-              onMarkAsPartiallyTransferred={(processing) => handleOpenTransferDialog(processing, 'partially')}
-              onMarkAsFullyTransferred={(processing) => handleOpenTransferDialog(processing, 'fully')}
+              onUpdateTestStatus={handleOpenUpdateStatusDialog}
+              onApprove={handleApprove}
+              onMarkAsPartiallyTransferred={(labTesting) => handleOpenTransferDialog(labTesting, 'partially')}
+              onMarkAsFullyTransferred={(labTesting) => handleOpenTransferDialog(labTesting, 'fully')}
               status={status}
             />
           )}
@@ -356,19 +435,19 @@ const ProcessingPage = () => {
         />
       </Box>
       
-{/* Formular-Dialog */}
-<Dialog 
+      {/* Formular-Dialog */}
+      <Dialog 
         open={openForm} 
         onClose={handleCloseForm}
         maxWidth="md"
         fullWidth
       >
         <DialogTitle>
-          {currentProcessing ? 'Verarbeitung bearbeiten' : 'Neue Verarbeitung'}
+          {currentLabTesting ? 'Laborkontrolle bearbeiten' : 'Neue Laborkontrolle'}
         </DialogTitle>
         <DialogContent>
-          <ProcessingForm 
-            initialData={currentProcessing} 
+          <LabTestingForm 
+            initialData={currentLabTesting} 
             onSave={handleSaveForm}
             onCancel={handleCloseForm}
           />
@@ -380,7 +459,7 @@ const ProcessingPage = () => {
         open={openDestroyDialog}
         onClose={handleCloseDestroyDialog}
       >
-        <DialogTitle>Verarbeitung als vernichtet markieren</DialogTitle>
+        <DialogTitle>Laborkontrolle als vernichtet markieren</DialogTitle>
         <DialogContent>
           <Typography gutterBottom>
             Bitte geben Sie einen Grund für die Vernichtung an:
@@ -439,8 +518,8 @@ const ProcessingPage = () => {
         <DialogContent>
           <Typography gutterBottom>
             {transferType === 'partially'
-              ? 'Markieren Sie diese Verarbeitung als teilweise an den nächsten Prozessschritt übergeführt.'
-              : 'Markieren Sie diese Verarbeitung als vollständig an den nächsten Prozessschritt übergeführt.'}
+              ? 'Markieren Sie diese Laborkontrolle als teilweise an den nächsten Prozessschritt übergeführt.'
+              : 'Markieren Sie diese Laborkontrolle als vollständig an den nächsten Prozessschritt übergeführt.'}
           </Typography>
           
           {/* Mitgliedauswahl für Überführung */}
@@ -475,8 +554,35 @@ const ProcessingPage = () => {
           </Button>
         </DialogActions>
       </Dialog>
+      
+      {/* Test-Status-Update-Dialog */}
+      <Dialog
+        open={openUpdateStatusDialog}
+        onClose={handleCloseUpdateStatusDialog}
+      >
+        <DialogTitle>Test-Status aktualisieren</DialogTitle>
+        <DialogContent>
+          <Typography gutterBottom>
+            Möchten Sie den Status des Tests auf "{
+              newTestStatus === 'in_progress' ? 'In Bearbeitung' : 
+              newTestStatus === 'completed' ? 'Abgeschlossen' : 
+              newTestStatus === 'failed' ? 'Nicht bestanden' : 
+              'Ausstehend'
+            }" ändern?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseUpdateStatusDialog}>Abbrechen</Button>
+          <Button 
+            onClick={handleUpdateTestStatus}
+            color="primary"
+          >
+            Status aktualisieren
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 };
 
-export default ProcessingPage;
+export default LabTestingPage;

@@ -942,3 +942,582 @@ class Processing(BaseTrackingModel):
                     self.drying_source.save()
         
         super().save(*args, **kwargs)
+
+# LabTesting Modell für models.py
+class LabTesting(BaseTrackingModel):
+    """Modell für die Laborkontrolle nach der Verarbeitung"""
+    batch_number = models.CharField(
+        max_length=50, 
+        unique=True,
+        help_text="Automatisch generierte Chargennummer (LAB_YYYYMMDD_NNN)"
+    )
+    processing_source = models.ForeignKey(
+        Processing,
+        on_delete=models.PROTECT,
+        related_name="lab_testings",
+        help_text="Ursprung der Laborkontrolle (Verarbeitung)"
+    )
+    sample_date = models.DateField(help_text="Datum der Probennahme")
+    test_date = models.DateField(help_text="Datum der Durchführung des Tests")
+    genetic_name = models.CharField(
+        max_length=255, 
+        help_text="Genetische Bezeichnung (übernommen von Verarbeitung)"
+    )
+    
+    # Status für die Laborkontrolle
+    STATUS_CHOICES = [
+        ('pending', 'Ausstehend'),
+        ('in_progress', 'In Bearbeitung'),
+        ('completed', 'Abgeschlossen'),
+        ('failed', 'Nicht bestanden')
+    ]
+    test_status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='pending',
+        help_text="Status der Laborkontrolle"
+    )
+    
+    # Gewichtsdaten
+    sample_weight = models.DecimalField(
+        max_digits=8, 
+        decimal_places=2,
+        help_text="Gewicht der Probe in Gramm"
+    )
+    remaining_weight = models.DecimalField(
+        max_digits=8, 
+        decimal_places=2,
+        help_text="Verbleibendes Gewicht in Gramm nach der Laborkontrolle"
+    )
+    
+    # Analyseergebnisse
+    thc_content = models.DecimalField(
+        max_digits=5, 
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="THC-Gehalt in %"
+    )
+    cbd_content = models.DecimalField(
+        max_digits=5, 
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="CBD-Gehalt in %"
+    )
+    moisture_content = models.DecimalField(
+        max_digits=5, 
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Feuchtigkeitsgehalt in %"
+    )
+    
+    # Qualitätsprüfung
+    contaminants_check = models.BooleanField(
+        default=False,
+        help_text="Prüfung auf Verunreinigungen (bestanden=True)"
+    )
+    pesticides_check = models.BooleanField(
+        default=False,
+        help_text="Prüfung auf Pestizide (bestanden=True)"
+    )
+    microbes_check = models.BooleanField(
+        default=False,
+        help_text="Mikrobiologische Prüfung (bestanden=True)"
+    )
+    heavy_metals_check = models.BooleanField(
+        default=False,
+        help_text="Prüfung auf Schwermetalle (bestanden=True)"
+    )
+    
+    # Testdetails
+    lab_name = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Name des Labors, das die Analyse durchgeführt hat"
+    )
+    test_method = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Verwendete Prüfmethode"
+    )
+    notes_from_lab = models.TextField(
+        blank=True,
+        help_text="Notizen und Anmerkungen vom Labor"
+    )
+    
+    # Dokumente
+    lab_report = models.FileField(
+        upload_to='lab_reports/',
+        null=True,
+        blank=True,
+        help_text="Hochgeladener Laborbericht (PDF)"
+    )
+    
+    # Ergebnisbewertung
+    is_approved = models.BooleanField(
+        default=False,
+        help_text="Freigabe des Produkts nach Laborprüfung"
+    )
+    approval_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Datum der Produktfreigabe"
+    )
+    
+    class Meta:
+        verbose_name = "Laborkontrolle"
+        verbose_name_plural = "Laborkontrollen"
+        ordering = ['-test_date', 'genetic_name']
+    
+    def __str__(self):
+        return f"{self.genetic_name} ({self.batch_number})"
+    
+    def save(self, *args, **kwargs):
+        # Automatische Batch-Nummer generieren, wenn nicht vorhanden
+        if not self.batch_number:
+            today = timezone.now().strftime('%Y%m%d')
+            last_batch = LabTesting.objects.filter(
+                batch_number__startswith=f"LAB_{today}"
+            ).order_by('batch_number').last()
+            
+            if last_batch:
+                last_num = int(last_batch.batch_number.split('_')[-1])
+                new_num = last_num + 1
+            else:
+                new_num = 1
+                
+            self.batch_number = f"LAB_{today}_{new_num:03d}"
+        
+        # Bei erster Erstellung
+        is_new = self._state.adding
+        
+        if is_new:
+            # Automatische Übernahme von Verarbeitungs-Daten
+            if not self.genetic_name and self.processing_source:
+                self.genetic_name = self.processing_source.genetic_name
+                
+            # Restgewicht ist initial gleich Probengewicht
+            self.remaining_weight = self.sample_weight
+            
+            # Verarbeitungsquelle als übergeführt markieren - verbesserte Überführungslogik
+            if self.processing_source and not self.processing_source.is_destroyed:
+                # Wenn das gesamte Produkt für die Laborkontrolle verwendet wird
+                if self.sample_weight >= self.processing_source.remaining_weight:
+                    # Vollständige Überführung
+                    self.processing_source.mark_as_fully_transferred(self.responsible_member)
+                else:
+                    # Teilweise Überführung - Restgewicht reduzieren
+                    self.processing_source.remaining_weight = (
+                        float(self.processing_source.remaining_weight) - float(self.sample_weight)
+                    )
+                    self.processing_source.mark_as_partially_transferred(self.responsible_member)
+                    self.processing_source.save()
+        
+        # Bei Änderung des Status auf 'completed' automatisch das heutige Datum als Testdatum setzen
+        if not is_new and self.test_status == 'completed' and not self.approval_date and self.is_approved:
+            self.approval_date = timezone.now().date()
+        
+        super().save(*args, **kwargs)
+        
+    def all_checks_passed(self):
+        """Prüft, ob alle Qualitätsprüfungen bestanden wurden"""
+        return (self.contaminants_check and 
+                self.pesticides_check and 
+                self.microbes_check and 
+                self.heavy_metals_check)
+    
+    def get_approval_status_display(self):
+        """Gibt einen lesbaren Status der Freigabe zurück"""
+        if self.test_status != 'completed':
+            return "Prüfung ausstehend"
+        
+        if not self.is_approved:
+            return "Nicht freigegeben"
+        
+        return f"Freigegeben am {self.approval_date}"
+    
+
+# Packaging Modell für models.py
+class Packaging(BaseTrackingModel):
+    """Modell für die Verpackung nach der Laborkontrolle"""
+    batch_number = models.CharField(
+        max_length=50, 
+        unique=True,
+        help_text="Automatisch generierte Chargennummer (PACK_YYYYMMDD_NNN)"
+    )
+    lab_testing_source = models.ForeignKey(
+        LabTesting,
+        on_delete=models.PROTECT,
+        related_name="packagings",
+        help_text="Ursprung der Verpackung (Laborkontrolle)"
+    )
+    packaging_date = models.DateField(help_text="Datum der Verpackung")
+    genetic_name = models.CharField(
+        max_length=255, 
+        help_text="Genetische Bezeichnung (übernommen von Laborkontrolle)"
+    )
+    
+    # Gewichtsdaten
+    input_weight = models.DecimalField(
+        max_digits=8, 
+        decimal_places=2,
+        help_text="Eingangsgewicht in Gramm"
+    )
+    remaining_weight = models.DecimalField(
+        max_digits=8, 
+        decimal_places=2,
+        help_text="Verbleibendes Gewicht in Gramm"
+    )
+    
+    # Verpackungsdetails
+    PACKAGING_TYPE_CHOICES = [
+        ('bulk', 'Bulk/Großverpackung'),
+        ('single', 'Einzelverpackung'),
+        ('mixed', 'Mischverpackung')
+    ]
+    packaging_type = models.CharField(
+        max_length=20,
+        choices=PACKAGING_TYPE_CHOICES,
+        default='single',
+        help_text="Art der Verpackung"
+    )
+    
+    # Produktdetails
+    PRODUCT_TYPE_CHOICES = [
+        ('flower', 'Blüte'),
+        ('extract', 'Extrakt'),
+        ('oil', 'Öl'),
+        ('edible', 'Essbar'),
+        ('other', 'Sonstiges')
+    ]
+    product_type = models.CharField(
+        max_length=20,
+        choices=PRODUCT_TYPE_CHOICES,
+        default='flower',
+        help_text="Art des Produkts"
+    )
+    
+    # Paketdetails
+    package_count = models.IntegerField(
+        default=1,
+        help_text="Anzahl der erstellten Pakete"
+    )
+    unit_weight = models.DecimalField(
+        max_digits=8, 
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Gewicht pro Einheit in Gramm"
+    )
+    
+    # Verpackungsmaterial
+    packaging_material = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Verwendetes Verpackungsmaterial"
+    )
+    
+    # Qualitätssicherung
+    is_quality_checked = models.BooleanField(
+        default=False,
+        help_text="Qualitätskontrolle durchgeführt"
+    )
+    quality_check_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Datum der Qualitätskontrolle"
+    )
+    quality_check_notes = models.TextField(
+        blank=True,
+        help_text="Anmerkungen zur Qualitätskontrolle"
+    )
+    
+    # Labeling
+    has_labels = models.BooleanField(
+        default=False,
+        help_text="Produkt ist etikettiert"
+    )
+    label_details = models.TextField(
+        blank=True,
+        help_text="Details zu den Etiketten"
+    )
+    
+    # Lagerdetails
+    shelf_life = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text="Haltbarkeit in Tagen"
+    )
+    storage_conditions = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Empfohlene Lagerbedingungen"
+    )
+    expiry_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Ablaufdatum"
+    )
+    
+    # Dokumente
+    label_image = models.ImageField(
+        upload_to='packaging_labels/',
+        null=True,
+        blank=True,
+        help_text="Bild des Etiketts"
+    )
+    
+    class Meta:
+        verbose_name = "Verpackung"
+        verbose_name_plural = "Verpackungen"
+        ordering = ['-packaging_date', 'genetic_name']
+    
+    def __str__(self):
+        return f"{self.genetic_name} ({self.batch_number})"
+    
+    def save(self, *args, **kwargs):
+        # Automatische Batch-Nummer generieren, wenn nicht vorhanden
+        if not self.batch_number:
+            today = timezone.now().strftime('%Y%m%d')
+            last_batch = Packaging.objects.filter(
+                batch_number__startswith=f"PACK_{today}"
+            ).order_by('batch_number').last()
+            
+            if last_batch:
+                last_num = int(last_batch.batch_number.split('_')[-1])
+                new_num = last_num + 1
+            else:
+                new_num = 1
+                
+            self.batch_number = f"PACK_{today}_{new_num:03d}"
+        
+        # Bei erster Erstellung
+        is_new = self._state.adding
+        
+        if is_new:
+            # Automatische Übernahme von Laborkontroll-Daten
+            if not self.genetic_name and self.lab_testing_source:
+                self.genetic_name = self.lab_testing_source.genetic_name
+                
+            # Restgewicht ist initial gleich Eingangsgewicht
+            self.remaining_weight = self.input_weight
+            
+            # Automatisches Setzen des Ablaufdatums, wenn Haltbarkeit angegeben
+            if self.shelf_life and not self.expiry_date:
+                self.expiry_date = self.packaging_date + timezone.timedelta(days=self.shelf_life)
+            
+            # Laborkontrollquelle als übergeführt markieren - verbesserte Überführungslogik
+            if self.lab_testing_source and not self.lab_testing_source.is_destroyed:
+                # Wenn das gesamte freigegebene Material für die Verpackung verwendet wird
+                if self.input_weight >= self.lab_testing_source.remaining_weight:
+                    # Vollständige Überführung
+                    self.lab_testing_source.mark_as_fully_transferred(self.responsible_member)
+                else:
+                    # Teilweise Überführung - Restgewicht reduzieren
+                    self.lab_testing_source.remaining_weight = (
+                        float(self.lab_testing_source.remaining_weight) - float(self.input_weight)
+                    )
+                    self.lab_testing_source.mark_as_partially_transferred(self.responsible_member)
+                    self.lab_testing_source.save()
+        
+        super().save(*args, **kwargs)
+
+
+# ProductDistribution Modell für models.py
+class ProductDistribution(BaseTrackingModel):
+    """Modell für die Produktausgabe nach der Verpackung"""
+    batch_number = models.CharField(
+        max_length=50, 
+        unique=True,
+        help_text="Automatisch generierte Chargennummer (DIST_YYYYMMDD_NNN)"
+    )
+    packaging_source = models.ForeignKey(
+        Packaging,
+        on_delete=models.PROTECT,
+        related_name="distributions",
+        help_text="Ursprung der Produktausgabe (Verpackung)"
+    )
+    distribution_date = models.DateField(help_text="Datum der Ausgabe")
+    genetic_name = models.CharField(
+        max_length=255, 
+        help_text="Genetische Bezeichnung (übernommen von Verpackung)"
+    )
+    
+    # Wichtig: Zweites Mitgliederfeld für den Empfänger der Produktausgabe
+    receiving_member = models.ForeignKey(
+        Member, 
+        on_delete=models.PROTECT,
+        related_name="received_products",
+        help_text="Mitglied, das das Produkt erhält"
+    )
+    
+    # Gewichtsdaten
+    quantity = models.DecimalField(
+        max_digits=8, 
+        decimal_places=2,
+        help_text="Menge des ausgegebenen Produkts in Gramm"
+    )
+    remaining_quantity = models.DecimalField(
+        max_digits=8, 
+        decimal_places=2,
+        help_text="Verbleibende Menge in Gramm (relevant für Rückgaben)"
+    )
+    
+    # Package-Anzahl
+    package_count = models.IntegerField(
+        default=1,
+        help_text="Anzahl der ausgegebenen Pakete"
+    )
+    
+    # Ausgabedetails
+    DISTRIBUTION_TYPE_CHOICES = [
+        ('member', 'Mitgliedsausgabe'),
+        ('return', 'Rückgabe'),
+        ('donation', 'Spende'),
+        ('disposal', 'Entsorgung'),
+        ('other', 'Sonstiges')
+    ]
+    distribution_type = models.CharField(
+        max_length=20,
+        choices=DISTRIBUTION_TYPE_CHOICES,
+        default='member',
+        help_text="Art der Ausgabe"
+    )
+    
+    # Zahlungsinformationen
+    price_per_unit = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Preis pro Einheit"
+    )
+    total_price = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Gesamtpreis"
+    )
+    is_paid = models.BooleanField(
+        default=False,
+        help_text="Zahlung erhalten"
+    )
+    payment_method = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="Zahlungsmethode"
+    )
+    payment_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Zahlungsdatum"
+    )
+    
+    # Ausgabestatus
+    STATUS_CHOICES = [
+        ('pending', 'Ausstehend'),
+        ('completed', 'Abgeschlossen'),
+        ('canceled', 'Storniert'),
+        ('returned', 'Zurückgegeben')
+    ]
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='pending',
+        help_text="Status der Ausgabe"
+    )
+    
+    # Empfangsbestätigung
+    is_confirmed = models.BooleanField(
+        default=False,
+        help_text="Empfang wurde bestätigt"
+    )
+    confirmation_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Datum der Empfangsbestätigung"
+    )
+    recipient_signature = models.FileField(
+        upload_to='signatures/',
+        null=True,
+        blank=True,
+        help_text="Unterschrift des Empfängers"
+    )
+    
+    # Rückverfolgbarkeit
+    tracking_number = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="Tracking-Nummer oder Referenz"
+    )
+    
+    # Dokumente
+    distribution_document = models.FileField(
+        upload_to='distribution_docs/',
+        null=True,
+        blank=True,
+        help_text="Ausgabedokument oder Beleg"
+    )
+    
+    class Meta:
+        verbose_name = "Produktausgabe"
+        verbose_name_plural = "Produktausgaben"
+        ordering = ['-distribution_date', 'genetic_name']
+    
+    def __str__(self):
+        return f"{self.genetic_name} ({self.batch_number})"
+    
+    def save(self, *args, **kwargs):
+        # Automatische Batch-Nummer generieren, wenn nicht vorhanden
+        if not self.batch_number:
+            today = timezone.now().strftime('%Y%m%d')
+            last_batch = ProductDistribution.objects.filter(
+                batch_number__startswith=f"DIST_{today}"
+            ).order_by('batch_number').last()
+            
+            if last_batch:
+                last_num = int(last_batch.batch_number.split('_')[-1])
+                new_num = last_num + 1
+            else:
+                new_num = 1
+                
+            self.batch_number = f"DIST_{today}_{new_num:03d}"
+        
+        # Bei erster Erstellung
+        is_new = self._state.adding
+        
+        if is_new:
+            # Automatische Übernahme von Verpackungs-Daten
+            if not self.genetic_name and self.packaging_source:
+                self.genetic_name = self.packaging_source.genetic_name
+                
+            # Restmenge ist initial gleich Ausgabemenge
+            self.remaining_quantity = self.quantity
+            
+            # Automatische Berechnung des Gesamtpreises, wenn ein Preis pro Einheit angegeben ist
+            if self.price_per_unit is not None and not self.total_price:
+                self.total_price = self.price_per_unit * self.quantity
+            
+            # Verpackungsquelle als übergeführt markieren - verbesserte Überführungslogik
+            if self.packaging_source and not self.packaging_source.is_destroyed:
+                # Wenn das gesamte verpackte Material ausgegeben wird
+                if self.quantity >= self.packaging_source.remaining_weight:
+                    # Vollständige Überführung
+                    self.packaging_source.mark_as_fully_transferred(self.responsible_member)
+                else:
+                    # Teilweise Überführung - Restgewicht reduzieren
+                    self.packaging_source.remaining_weight = (
+                        float(self.packaging_source.remaining_weight) - float(self.quantity)
+                    )
+                    self.packaging_source.mark_as_partially_transferred(self.responsible_member)
+                    self.packaging_source.save()
+                    
+        # Bei Status-Änderung auf 'completed', Empfangsbestätigung automatisch setzen
+        if not is_new and self.status == 'completed' and not self.is_confirmed:
+            self.is_confirmed = True
+            self.confirmation_date = timezone.now().date()
+        
+        super().save(*args, **kwargs)
