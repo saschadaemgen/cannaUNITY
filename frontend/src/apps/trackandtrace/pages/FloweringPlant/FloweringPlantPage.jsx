@@ -11,10 +11,10 @@ import {
   DialogActions,
   TextField,
   Grid,
-  MenuItem,
   FormControl,
   InputLabel,
   Select,
+  MenuItem,
   ToggleButtonGroup,
   ToggleButton 
 } from '@mui/material';
@@ -37,6 +37,9 @@ const FloweringPlantPage = () => {
   const [destroyingMember, setDestroyingMember] = useState('');
   const [openPhaseDialog, setOpenPhaseDialog] = useState(false);
   const [selectedPhase, setSelectedPhase] = useState('');
+  
+  // Neuen State für Ernte-Dialog hinzufügen
+  const [openHarvestDialog, setOpenHarvestDialog] = useState(false);
 
   // Tabellenspalten definieren
   const columns = [
@@ -230,6 +233,40 @@ const FloweringPlantPage = () => {
     }
   };
 
+  // Ernte-Dialog-Handling
+  const handleOpenHarvestDialog = (plant) => {
+    setCurrentPlant(plant);
+    setOpenHarvestDialog(true);
+  };
+
+  const handleCloseHarvestDialog = () => {
+    setOpenHarvestDialog(false);
+    setCurrentPlant(null);
+  };
+
+  // Ernte-Funktion
+  const handleHarvest = async (harvestData) => {
+    try {
+      // Ernte anlegen
+      await api.post('/trackandtrace/harvests/', {
+        ...harvestData,
+        flowering_plant_source: currentPlant.uuid,
+        genetic_name: currentPlant.genetic_name
+      });
+      
+      // Daten neu laden
+      fetchData();
+      handleCloseHarvestDialog();
+    } catch (err) {
+      console.error('Fehler beim Anlegen der Ernte:', err);
+      if (err.response && err.response.data) {
+        alert(`Fehler beim Anlegen der Ernte: ${JSON.stringify(err.response.data)}`);
+      } else {
+        alert('Ein unbekannter Fehler ist aufgetreten');
+      }
+    }
+  };
+
   // Delete-Handling
   const handleDelete = async (plant) => {
     // Hier sollte es eigentlich einen Bestätigungsdialog geben
@@ -292,6 +329,7 @@ const FloweringPlantPage = () => {
               {...props} 
               onMarkAsDestroyed={handleOpenDestroyDialog}
               onUpdatePhase={handleOpenPhaseDialog}
+              onHarvest={handleOpenHarvestDialog}  // Ernte-Funktion übergeben
               status={status}
             />
           )}
@@ -403,6 +441,124 @@ const FloweringPlantPage = () => {
             disabled={!selectedPhase}
           >
             Aktualisieren
+          </Button>
+        </DialogActions>
+      </Dialog>
+      
+      {/* Ernte-Dialog */}
+      <Dialog
+        open={openHarvestDialog}
+        onClose={handleCloseHarvestDialog}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>Ernte erfassen für {currentPlant ? currentPlant.genetic_name : ''}</DialogTitle>
+        <DialogContent>
+          {currentPlant && (
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Erntedatum (YYYY-MM-DD)"
+                  name="harvest_date"
+                  defaultValue={new Date().toISOString().split('T')[0]}
+                  InputProps={{
+                    readOnly: false,
+                  }}
+                  margin="normal"
+                />
+              </Grid>
+              
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Anzahl Pflanzen"
+                  name="plant_count"
+                  type="number"
+                  defaultValue={currentPlant.remaining_plants}
+                  InputProps={{
+                    inputProps: { min: 1, max: currentPlant.remaining_plants },
+                  }}
+                  margin="normal"
+                />
+              </Grid>
+              
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Frischgewicht (g)"
+                  name="fresh_weight"
+                  type="number"
+                  InputProps={{
+                    inputProps: { min: 0, step: 0.01 },
+                  }}
+                  margin="normal"
+                  required
+                />
+              </Grid>
+              
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Erntemethode"
+                  name="harvest_method"
+                  margin="normal"
+                />
+              </Grid>
+              
+              <Grid item xs={12}>
+                <FormControl fullWidth margin="normal">
+                  <InputLabel>Verantwortlicher</InputLabel>
+                  <Select
+                    name="responsible_member"
+                    defaultValue=""
+                    label="Verantwortlicher"
+                    required
+                  >
+                    {Array.isArray(members) && members.length > 0 ? 
+                      members.map((member) => (
+                        <MenuItem key={member.id} value={member.id}>
+                          {`${member.first_name} ${member.last_name}`}
+                        </MenuItem>
+                      )) : 
+                      <MenuItem disabled>Keine Mitglieder verfügbar</MenuItem>
+                    }
+                  </Select>
+                </FormControl>
+              </Grid>
+              
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Bemerkungen"
+                  name="notes"
+                  multiline
+                  rows={2}
+                  margin="normal"
+                />
+              </Grid>
+            </Grid>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseHarvestDialog}>Abbrechen</Button>
+          <Button 
+            onClick={() => {
+              // Daten aus dem Formular sammeln und an handleHarvest übergeben
+              const harvestData = {
+                harvest_date: document.querySelector('input[name="harvest_date"]').value,
+                plant_count: document.querySelector('input[name="plant_count"]').value,
+                fresh_weight: document.querySelector('input[name="fresh_weight"]').value,
+                harvest_method: document.querySelector('input[name="harvest_method"]').value,
+                responsible_member: document.querySelector('select[name="responsible_member"]').value,
+                notes: document.querySelector('textarea[name="notes"]').value,
+              };
+              handleHarvest(harvestData);
+            }}
+            color="success"
+            variant="contained"
+          >
+            Ernte erfassen
           </Button>
         </DialogActions>
       </Dialog>

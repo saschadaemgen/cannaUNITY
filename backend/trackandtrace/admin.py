@@ -1,6 +1,6 @@
 # trackandtrace/admin.py
 from django.contrib import admin
-from .models import SeedPurchase, MotherPlant, Cutting, FloweringPlant
+from .models import SeedPurchase, MotherPlant, Cutting, FloweringPlant, Harvest, Drying
 
 @admin.register(SeedPurchase)
 class SeedPurchaseAdmin(admin.ModelAdmin):
@@ -104,6 +104,78 @@ class FloweringPlantAdmin(admin.ModelAdmin):
             'fields': ('planting_date', 'plant_count', 'remaining_plants', 
                       'growth_phase', 'growth_medium', 'fertilizer', 'light_cycle',
                       'expected_harvest_date', 'image')
+        }),
+        ('Prozessdaten', {
+            'fields': ('responsible_member', 'room', 'temperature', 'humidity', 'notes')
+        }),
+        ('Systemdaten', {
+            'fields': ('uuid', 'batch_number', 'created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+        ('Überführung', {
+            'fields': ('is_transferred', 'transfer_date', 'transferring_member'),
+            'classes': ('collapse',)
+        }),
+        ('Vernichtung', {
+            'fields': ('is_destroyed', 'destruction_reason', 'destruction_date', 'destroying_member'),
+            'classes': ('collapse',)
+        }),
+    )
+
+
+@admin.register(Harvest)
+class HarvestAdmin(admin.ModelAdmin):
+    list_display = ('batch_number', 'genetic_name', 'harvest_date', 
+                   'plant_count', 'fresh_weight', 'remaining_fresh_weight',
+                   'is_destroyed', 'is_transferred')
+    list_filter = ('is_destroyed', 'is_transferred', 'harvest_date')
+    search_fields = ('genetic_name', 'batch_number')
+    readonly_fields = ('uuid', 'batch_number', 'created_at', 'updated_at', 
+                      'remaining_fresh_weight', 'is_transferred', 'transfer_date')
+    fieldsets = (
+        ('Stammdaten', {
+            'fields': ('genetic_name', 'flowering_plant_source')
+        }),
+        ('Erntedaten', {
+            'fields': ('harvest_date', 'plant_count', 'fresh_weight', 'remaining_fresh_weight',
+                      'flower_weight', 'leaf_weight', 'stem_weight',
+                      'harvest_method', 'expected_drying_date', 'image')
+        }),
+        ('Prozessdaten', {
+            'fields': ('responsible_member', 'room', 'temperature', 'humidity', 'notes')
+        }),
+        ('Systemdaten', {
+            'fields': ('uuid', 'batch_number', 'created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+        ('Überführung', {
+            'fields': ('is_transferred', 'transfer_date', 'transferring_member'),
+            'classes': ('collapse',)
+        }),
+        ('Vernichtung', {
+            'fields': ('is_destroyed', 'destruction_reason', 'destruction_date', 'destroying_member'),
+            'classes': ('collapse',)
+        }),
+    )
+
+
+@admin.register(Drying)
+class DryingAdmin(admin.ModelAdmin):
+    list_display = ('batch_number', 'genetic_name', 'drying_start_date', 'drying_end_date',
+                   'fresh_weight', 'dried_weight', 'remaining_dried_weight',
+                   'is_destroyed', 'is_transferred')
+    list_filter = ('is_destroyed', 'is_transferred', 'drying_start_date', 'drying_end_date')
+    search_fields = ('genetic_name', 'batch_number')
+    readonly_fields = ('uuid', 'batch_number', 'created_at', 'updated_at', 
+                      'remaining_dried_weight', 'is_transferred', 'transfer_date')
+    fieldsets = (
+        ('Stammdaten', {
+            'fields': ('genetic_name', 'harvest_source')
+        }),
+        ('Trocknungsdaten', {
+            'fields': ('drying_start_date', 'drying_end_date', 'fresh_weight', 
+                      'dried_weight', 'remaining_dried_weight',
+                      'drying_method', 'target_humidity', 'target_temperature', 'image')
         }),
         ('Prozessdaten', {
             'fields': ('responsible_member', 'room', 'temperature', 'humidity', 'notes')

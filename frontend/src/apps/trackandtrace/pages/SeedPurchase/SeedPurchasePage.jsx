@@ -14,7 +14,9 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
-  Select 
+  Select,
+  ToggleButtonGroup,
+  ToggleButton 
 } from '@mui/material';
 import { Add } from '@mui/icons-material';
 import api from '../../../../utils/api';
@@ -27,7 +29,7 @@ const SeedPurchasePage = () => {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [showDestroyed, setShowDestroyed] = useState(false);
+  const [status, setStatus] = useState('active'); // 'active', 'destroyed', 'transferred'
   const [openForm, setOpenForm] = useState(false);
   const [currentSeed, setCurrentSeed] = useState(null);
   const [openDestroyDialog, setOpenDestroyDialog] = useState(false);
@@ -68,8 +70,18 @@ const SeedPurchasePage = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      console.log(`Fetching seeds with destroyed=${showDestroyed}`);
-      const response = await api.get(`/trackandtrace/seeds/?destroyed=${showDestroyed}`);
+      // API-Parameter je nach Status
+      let queryParams = '';
+      if (status === 'destroyed') {
+        queryParams = '?destroyed=true';
+      } else if (status === 'transferred') {
+        queryParams = '?transferred=true';
+      } else {
+        queryParams = ''; // Aktive (weder vernichtet noch übergeführt)
+      }
+      
+      console.log(`Fetching seeds with status=${status}, query=${queryParams}`);
+      const response = await api.get(`/trackandtrace/seeds/${queryParams}`);
       console.log('API Response:', response.data);
       
       // Prüfen, ob response.data ein Array ist oder eine paginierte Struktur hat
@@ -109,7 +121,7 @@ const SeedPurchasePage = () => {
 
   useEffect(() => {
     fetchData();
-  }, [showDestroyed]);
+  }, [status]); // Status statt showDestroyed als Abhängigkeit
 
   // Formular-Handling
   const handleOpenForm = (seed = null) => {
@@ -191,20 +203,31 @@ const SeedPurchasePage = () => {
         </Typography>
         
         <Box display="flex" justifyContent="flex-end" mb={2}>
-          <Button 
-            variant="outlined" 
-            color={showDestroyed ? "primary" : "secondary"}
-            onClick={() => setShowDestroyed(!showDestroyed)}
+          {/* Status-Buttons als ToggleButtonGroup */}
+          <ToggleButtonGroup
+            value={status}
+            exclusive
+            onChange={(e, newStatus) => newStatus && setStatus(newStatus)}
+            aria-label="Status-Filter"
             sx={{ mr: 2 }}
           >
-            {showDestroyed ? "Aktive anzeigen" : "Vernichtete anzeigen"}
-          </Button>
+            <ToggleButton value="active" color="primary">
+              Aktiv
+            </ToggleButton>
+            <ToggleButton value="destroyed" color="error">
+              Vernichtet
+            </ToggleButton>
+            <ToggleButton value="transferred" color="success">
+              Überführt
+            </ToggleButton>
+          </ToggleButtonGroup>
           
           <Button 
             variant="contained" 
             color="primary" 
             startIcon={<Add />}
             onClick={() => handleOpenForm()}
+            disabled={status !== 'active'} // Nur bei aktivem Filter neue Einträge zulassen
           >
             Neuer Samen-Einkauf
           </Button>
@@ -217,6 +240,7 @@ const SeedPurchasePage = () => {
             <SeedPurchaseDetails 
               {...props} 
               onMarkAsDestroyed={handleOpenDestroyDialog}
+              status={status} // Status als Prop übergeben
             />
           )}
           onEdit={handleOpenForm}

@@ -517,3 +517,248 @@ class FloweringPlant(BaseTrackingModel):
                     self.cutting_source.save()
         
         super().save(*args, **kwargs)
+
+
+class Harvest(BaseTrackingModel):
+    """Modell für die Ernte der Blühpflanzen"""
+    batch_number = models.CharField(
+        max_length=50, 
+        unique=True,
+        help_text="Automatisch generierte Chargennummer (HARVEST_YYYYMMDD_NNN)"
+    )
+    flowering_plant_source = models.ForeignKey(
+        FloweringPlant,
+        on_delete=models.PROTECT,
+        related_name="harvests",
+        help_text="Ursprung der Ernte (Blühpflanze)"
+    )
+    harvest_date = models.DateField(help_text="Datum der Ernte")
+    genetic_name = models.CharField(
+        max_length=255, 
+        help_text="Genetische Bezeichnung (übernommen von Blühpflanze)"
+    )
+    plant_count = models.IntegerField(
+        help_text="Anzahl der geernteten Pflanzen"
+    )
+    fresh_weight = models.DecimalField(
+        max_digits=8, 
+        decimal_places=2,
+        help_text="Frischgewicht der Ernte in Gramm"
+    )
+    remaining_fresh_weight = models.DecimalField(
+        max_digits=8, 
+        decimal_places=2,
+        help_text="Verbleibendes Frischgewicht in Gramm"
+    )
+    flower_weight = models.DecimalField(
+        max_digits=8, 
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Gewicht der Blüten in Gramm"
+    )
+    leaf_weight = models.DecimalField(
+        max_digits=8, 
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Gewicht der Blätter in Gramm"
+    )
+    stem_weight = models.DecimalField(
+        max_digits=8, 
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Gewicht der Stängel in Gramm"
+    )
+    harvest_method = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="Verwendete Erntemethode"
+    )
+    expected_drying_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Erwartetes Datum der Fertigtrocknung"
+    )
+    image = models.ImageField(
+        upload_to='harvests/', 
+        null=True, 
+        blank=True,
+        help_text="Bild der Ernte"
+    )
+    
+    class Meta:
+        verbose_name = "Ernte"
+        verbose_name_plural = "Ernten"
+        ordering = ['-harvest_date', 'genetic_name']
+    
+    def __str__(self):
+        return f"{self.genetic_name} ({self.batch_number})"
+    
+    def save(self, *args, **kwargs):
+        # Automatische Batch-Nummer generieren, wenn nicht vorhanden
+        if not self.batch_number:
+            today = timezone.now().strftime('%Y%m%d')
+            last_batch = Harvest.objects.filter(
+                batch_number__startswith=f"HARVEST_{today}"
+            ).order_by('batch_number').last()
+            
+            if last_batch:
+                last_num = int(last_batch.batch_number.split('_')[-1])
+                new_num = last_num + 1
+            else:
+                new_num = 1
+                
+            self.batch_number = f"HARVEST_{today}_{new_num:03d}"
+        
+        # Bei erster Erstellung
+        is_new = self._state.adding
+        
+        if is_new:
+            # Verbleibendes Frischgewicht ist initial gleich Frischgewicht
+            self.remaining_fresh_weight = self.fresh_weight
+            
+            # Automatische Genetik-Übernahme von Quelle
+            if not self.genetic_name and self.flowering_plant_source:
+                self.genetic_name = self.flowering_plant_source.genetic_name
+            
+            # Blühpflanzquelle als übergeführt markieren
+            if self.flowering_plant_source and not self.flowering_plant_source.is_destroyed and not self.flowering_plant_source.is_transferred:
+                # Überprüfen, ob genügend Pflanzen verfügbar sind
+                if self.flowering_plant_source.remaining_plants < self.plant_count:
+                    raise ValueError(
+                        f"Nicht genügend Pflanzen verfügbar. Vorhanden: {self.flowering_plant_source.remaining_plants}, Benötigt: {self.plant_count}"
+                    )
+                
+                # Pflanzenanzahl reduzieren
+                self.flowering_plant_source.remaining_plants -= self.plant_count
+                
+                # Wenn keine Pflanzen mehr übrig, als übergeführt markieren
+                if self.flowering_plant_source.remaining_plants == 0:
+                    self.flowering_plant_source.mark_as_transferred(self.responsible_member)
+                else:
+                    self.flowering_plant_source.save()
+        
+        super().save(*args, **kwargs)
+
+
+class Drying(BaseTrackingModel):
+    """Modell für den Trocknungsprozess nach der Ernte"""
+    batch_number = models.CharField(
+        max_length=50, 
+        unique=True,
+        help_text="Automatisch generierte Chargennummer (DRY_YYYYMMDD_NNN)"
+    )
+    harvest_source = models.ForeignKey(
+        Harvest,
+        on_delete=models.PROTECT,
+        related_name="dryings",
+        help_text="Ursprung der Trocknung (Ernte)"
+    )
+    drying_start_date = models.DateField(help_text="Datum des Trocknungsbeginns")
+    drying_end_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Datum des Trocknungsendes"
+    )
+    genetic_name = models.CharField(
+        max_length=255, 
+        help_text="Genetische Bezeichnung (übernommen von Ernte)"
+    )
+    fresh_weight = models.DecimalField(
+        max_digits=8, 
+        decimal_places=2,
+        help_text="Frischgewicht in Gramm (übernommen von der Ernte)"
+    )
+    dried_weight = models.DecimalField(
+        max_digits=8, 
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Trockengewicht in Gramm nach Abschluss der Trocknung"
+    )
+    remaining_dried_weight = models.DecimalField(
+        max_digits=8, 
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Verbleibendes Trockengewicht in Gramm"
+    )
+    drying_method = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="Verwendete Trocknungsmethode"
+    )
+    target_humidity = models.DecimalField(
+        max_digits=5, 
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Zielfeuchtigkeitsgehalt in %"
+    )
+    target_temperature = models.DecimalField(
+        max_digits=5, 
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Zieltemperatur während der Trocknung in °C"
+    )
+    image = models.ImageField(
+        upload_to='dryings/', 
+        null=True, 
+        blank=True,
+        help_text="Bild der Trocknung"
+    )
+    
+    class Meta:
+        verbose_name = "Trocknung"
+        verbose_name_plural = "Trocknungen"
+        ordering = ['-drying_start_date', 'genetic_name']
+    
+    def __str__(self):
+        return f"{self.genetic_name} ({self.batch_number})"
+    
+    def save(self, *args, **kwargs):
+        # Automatische Batch-Nummer generieren, wenn nicht vorhanden
+        if not self.batch_number:
+            today = timezone.now().strftime('%Y%m%d')
+            last_batch = Drying.objects.filter(
+                batch_number__startswith=f"DRY_{today}"
+            ).order_by('batch_number').last()
+            
+            if last_batch:
+                last_num = int(last_batch.batch_number.split('_')[-1])
+                new_num = last_num + 1
+            else:
+                new_num = 1
+                
+            self.batch_number = f"DRY_{today}_{new_num:03d}"
+        
+        # Bei erster Erstellung
+        is_new = self._state.adding
+        
+        if is_new:
+            # Automatische Übernahme von Ernte-Daten
+            if not self.genetic_name and self.harvest_source:
+                self.genetic_name = self.harvest_source.genetic_name
+                
+            if not self.fresh_weight and self.harvest_source:
+                self.fresh_weight = self.harvest_source.remaining_fresh_weight
+            
+            # Erntequelle als übergeführt markieren
+            # WICHTIG: Hier implementieren wir die verbesserte Überführungslogik
+            if self.harvest_source and not self.harvest_source.is_destroyed and not self.harvest_source.is_transferred:
+                # Hier die Änderung: Wir markieren die Ernte-Quelle als übergeführt,
+                # unabhängig davon, ob noch Material übrig ist
+                
+                # Option 1: Vollständig übergeführt, wenn alles verwendet wird
+                if self.fresh_weight >= self.harvest_source.remaining_fresh_weight:
+                    # Wir überführen alles, also markieren wir als übergeführt
+                    self.harvest_source.mark_as_transferred(self.responsible_member)
+                else:
+                    # Option 2: Teilweise Überführung - reduzieren des verbleibenden Gewichts
+                    self.harvest_source.remaining_fresh_weight -= self.fresh_weight
+                    self.harvest_source.save()
+        
+        super().save(*args, **kwargs)

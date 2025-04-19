@@ -14,7 +14,9 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
-  Select 
+  Select,
+  ToggleButtonGroup,
+  ToggleButton 
 } from '@mui/material';
 import { Add } from '@mui/icons-material';
 import api from '../../../../utils/api';
@@ -26,7 +28,7 @@ const MotherPlantPage = () => {
   const [motherPlants, setMotherPlants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [showDestroyed, setShowDestroyed] = useState(false);
+  const [status, setStatus] = useState('active'); // 'active', 'destroyed', 'transferred'
   const [openForm, setOpenForm] = useState(false);
   const [currentPlant, setCurrentPlant] = useState(null);
   const [openDestroyDialog, setOpenDestroyDialog] = useState(false);
@@ -69,11 +71,21 @@ const MotherPlantPage = () => {
   ];
 
   // Daten laden
-  const fetchMotherPlants = async () => {
+  const fetchData = async () => {
     setLoading(true);
     try {
-      console.log(`Fetching mother plants with destroyed=${showDestroyed}`);
-      const response = await api.get(`/trackandtrace/motherplants/?destroyed=${showDestroyed}`);
+      // API-Parameter je nach Status
+      let queryParams = '';
+      if (status === 'destroyed') {
+        queryParams = '?destroyed=true';
+      } else if (status === 'transferred') {
+        queryParams = '?transferred=true';
+      } else {
+        queryParams = ''; // Aktive (weder vernichtet noch übergeführt)
+      }
+      
+      console.log(`Fetching mother plants with status=${status}, query=${queryParams}`);
+      const response = await api.get(`/trackandtrace/motherplants/${queryParams}`);
       console.log('API Response:', response.data);
       
       // Prüfen, ob response.data ein Array ist oder eine paginierte Struktur hat
@@ -96,8 +108,8 @@ const MotherPlantPage = () => {
   };
 
   useEffect(() => {
-    fetchMotherPlants();
-  }, [showDestroyed]);
+    fetchData();
+  }, [status]); // Status statt showDestroyed als Abhängigkeit
 
   // Formular-Handling
   const handleOpenForm = (plant = null) => {
@@ -119,7 +131,7 @@ const MotherPlantPage = () => {
         // Create
         await api.post('/trackandtrace/motherplants/', formData);
       }
-      fetchMotherPlants();
+      fetchData();
       handleCloseForm();
     } catch (err) {
       console.error('Fehler beim Speichern:', err);
@@ -151,7 +163,7 @@ const MotherPlantPage = () => {
       await api.post(`/trackandtrace/motherplants/${currentPlant.uuid}/destroy_item/`, {
         reason: destroyReason
       });
-      fetchMotherPlants();
+      fetchData();
       handleCloseDestroyDialog();
     } catch (err) {
       console.error('Fehler beim Markieren als vernichtet:', err);
@@ -178,7 +190,7 @@ const MotherPlantPage = () => {
       await api.post(`/trackandtrace/motherplants/${currentPlant.uuid}/update_growth_phase/`, {
         growth_phase: selectedPhase
       });
-      fetchMotherPlants();
+      fetchData();
       handleClosePhaseDialog();
     } catch (err) {
       console.error('Fehler beim Aktualisieren der Wachstumsphase:', err);
@@ -191,7 +203,7 @@ const MotherPlantPage = () => {
     if (window.confirm(`Sind Sie sicher, dass Sie ${plant.genetic_name} löschen möchten?`)) {
       try {
         await api.delete(`/trackandtrace/motherplants/${plant.uuid}/`);
-        fetchMotherPlants();
+        fetchData();
       } catch (err) {
         console.error('Fehler beim Löschen:', err);
       }
@@ -209,20 +221,31 @@ const MotherPlantPage = () => {
         </Typography>
         
         <Box display="flex" justifyContent="flex-end" mb={2}>
-          <Button 
-            variant="outlined" 
-            color={showDestroyed ? "primary" : "secondary"}
-            onClick={() => setShowDestroyed(!showDestroyed)}
+          {/* Status-Buttons als ToggleButtonGroup */}
+          <ToggleButtonGroup
+            value={status}
+            exclusive
+            onChange={(e, newStatus) => newStatus && setStatus(newStatus)}
+            aria-label="Status-Filter"
             sx={{ mr: 2 }}
           >
-            {showDestroyed ? "Aktive anzeigen" : "Vernichtete anzeigen"}
-          </Button>
+            <ToggleButton value="active" color="primary">
+              Aktiv
+            </ToggleButton>
+            <ToggleButton value="destroyed" color="error">
+              Vernichtet
+            </ToggleButton>
+            <ToggleButton value="transferred" color="success">
+              Überführt
+            </ToggleButton>
+          </ToggleButtonGroup>
           
           <Button 
             variant="contained" 
             color="primary" 
             startIcon={<Add />}
             onClick={() => handleOpenForm()}
+            disabled={status !== 'active'} // Nur bei aktivem Filter neue Einträge zulassen
           >
             Neue Mutterpflanze
           </Button>
@@ -236,6 +259,7 @@ const MotherPlantPage = () => {
               {...props} 
               onMarkAsDestroyed={handleOpenDestroyDialog}
               onUpdatePhase={handleOpenPhaseDialog}
+              status={status} // Status als Prop übergeben
             />
           )}
           onEdit={handleOpenForm}

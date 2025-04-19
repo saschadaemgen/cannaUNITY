@@ -48,7 +48,8 @@ export default function Topbar() {
         { label: 'Samen-Verwaltung', path: '/trace/samen' },
         { label: 'Mutterpflanzen', path: '/trace/mutterpflanzen' },
         { label: 'Stecklinge', path: '/trace/stecklinge' },
-        { label: 'Blühpflanzen', path: '/trace/bluehpflanzen' }
+        { label: 'Blühpflanzen', path: '/trace/bluehpflanzen' },
+        { label: 'Ernte', path: '/trace/ernte' }
 
       ],
     },

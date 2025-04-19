@@ -63,7 +63,7 @@ const FloweringPlantForm = ({ initialData, onSave, onCancel }) => {
         }
         
         // Aktive Samen mit verfügbaren Restmengen laden
-        const seedsResponse = await api.get('/trackandtrace/seeds/?destroyed=false&transferred=false');
+        const seedsResponse = await api.get('/trackandtrace/seeds/');  // Ohne Parameter werden aktive angezeigt
         if (seedsResponse.data && Array.isArray(seedsResponse.data)) {
           setSeeds(seedsResponse.data.filter(seed => seed.remaining_seeds > 0));
         } else if (seedsResponse.data && seedsResponse.data.results && Array.isArray(seedsResponse.data.results)) {
@@ -73,14 +73,23 @@ const FloweringPlantForm = ({ initialData, onSave, onCancel }) => {
           setSeeds([]);
         }
         
-        // Aktive Stecklinge mit verfügbaren Restmengen laden
-        const cuttingsResponse = await api.get('/trackandtrace/cuttings/?destroyed=false&transferred=false');
-        if (cuttingsResponse.data && Array.isArray(cuttingsResponse.data)) {
-          setCuttings(cuttingsResponse.data.filter(cutting => cutting.remaining_cuttings > 0));
-        } else if (cuttingsResponse.data && cuttingsResponse.data.results && Array.isArray(cuttingsResponse.data.results)) {
-          setCuttings(cuttingsResponse.data.results.filter(cutting => cutting.remaining_cuttings > 0));
-        } else {
-          console.error('Unerwartetes Datenformat für Stecklinge:', cuttingsResponse.data);
+        try {
+          console.log("Stecklinge laden...");
+          // Einfach nur aktive Stecklinge ohne Parameter laden
+          const cuttingsResponse = await api.get('/trackandtrace/cuttings/');
+          console.log('Cuttings API response:', cuttingsResponse.data);
+          
+          if (cuttingsResponse.data && Array.isArray(cuttingsResponse.data)) {
+            setCuttings(cuttingsResponse.data.filter(cutting => cutting.remaining_cuttings > 0));
+          } else if (cuttingsResponse.data && cuttingsResponse.data.results && Array.isArray(cuttingsResponse.data.results)) {
+            setCuttings(cuttingsResponse.data.results.filter(cutting => cutting.remaining_cuttings > 0));
+          } else {
+            console.error('Unerwartetes Datenformat für Stecklinge:', cuttingsResponse.data);
+            setCuttings([]);
+          }
+        } catch (cuttingsErr) {
+          console.error('Fehler beim Laden der Stecklinge:', cuttingsErr);
+          console.error('Fehlerdetails:', cuttingsErr.response ? cuttingsErr.response.data : 'Keine Antwortdaten');
           setCuttings([]);
         }
         

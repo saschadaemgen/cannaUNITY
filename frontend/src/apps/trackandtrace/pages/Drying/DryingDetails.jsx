@@ -1,4 +1,4 @@
-// frontend/src/apps/trackandtrace/pages/FloweringPlant/FloweringPlantDetails.jsx
+// frontend/src/apps/trackandtrace/pages/Drying/DryingDetails.jsx
 import React from 'react';
 import { 
   Grid, 
@@ -7,12 +7,12 @@ import {
   Button, 
   Paper,
   Box,
-  Chip,
-  Link
+  Link,
+  Chip
 } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 
-const FloweringPlantDetails = ({ data, onMarkAsDestroyed, onUpdatePhase, onHarvest, status }) => {
+const DryingDetails = ({ data, onMarkAsDestroyed, onCompleteDrying, status }) => {
   // Helfer-Funktion für Datumsformatierung
   const formatDate = (dateString) => {
     if (!dateString) return 'Nicht angegeben';
@@ -29,17 +29,29 @@ const FloweringPlantDetails = ({ data, onMarkAsDestroyed, onUpdatePhase, onHarve
     }
   };
 
-  // Helfer-Funktion für Wachstumsphasen-Farben
-  const getGrowthPhaseColor = (phase) => {
-    switch(phase) {
-      case 'vegetative': return 'info';
-      case 'pre_flower': return 'warning';
-      case 'flowering': return 'success';
-      case 'late_flower': return 'success';
-      case 'harvest_ready': return 'error';
-      default: return 'default';
-    }
+  // Helfer-Funktion für Gewichtsformatierung
+  const formatWeight = (weight) => {
+    if (!weight && weight !== 0) return 'Nicht angegeben';
+    return Number(weight).toLocaleString('de-DE') + ' g';
   };
+
+  // Berechnung des Gewichtsverlusts (wenn beide Gewichte vorhanden)
+  const calculateWeightLoss = () => {
+    if (data.fresh_weight && data.dried_weight) {
+      const freshWeight = parseFloat(data.fresh_weight);
+      const driedWeight = parseFloat(data.dried_weight);
+      const loss = freshWeight - driedWeight;
+      const lossPercentage = (loss / freshWeight) * 100;
+      
+      return {
+        loss: formatWeight(loss),
+        percentage: lossPercentage.toFixed(2) + '%'
+      };
+    }
+    return null;
+  };
+
+  const weightLoss = calculateWeightLoss();
 
   return (
     <Paper sx={{ p: 2 }}>
@@ -53,58 +65,42 @@ const FloweringPlantDetails = ({ data, onMarkAsDestroyed, onUpdatePhase, onHarve
               <Typography variant="body2" color="textSecondary">Genetik:</Typography>
               <Typography variant="body1">{data.genetic_name}</Typography>
             </Grid>
+            
             <Grid item xs={12}>
-              <Typography variant="body2" color="textSecondary">Wachstumsphase:</Typography>
-              <Box display="flex" alignItems="center">
-                <Chip 
-                  label={data.growth_phase_display || 'Unbekannt'} 
-                  color={getGrowthPhaseColor(data.growth_phase)}
-                  size="small"
-                  sx={{ mr: 1 }}
-                />
-                {status === 'active' && (
-                  <Button 
-                    variant="outlined" 
-                    size="small"
-                    onClick={() => onUpdatePhase(data)}
+              <Typography variant="body2" color="textSecondary">Herkunft aus Ernte:</Typography>
+              <Typography variant="body1">
+                {data.harvest_source_details ? (
+                  <Link 
+                    component={RouterLink} 
+                    to={`/trace/ernte`} 
+                    state={{ highlightUuid: data.harvest_source }}
                   >
-                    Ändern
-                  </Button>
+                    {data.harvest_source_details.genetic_name} ({data.harvest_source_details.batch_number})
+                  </Link>
+                ) : (
+                  'Keine Herkunftsdaten verfügbar'
                 )}
-              </Box>
+              </Typography>
             </Grid>
             
-            {/* Herkunft - entweder aus Samen oder aus Stecklingen */}
+            {/* Trocknungsstatus */}
             <Grid item xs={12}>
-              {data.seed_source_details ? (
-                <>
-                  <Typography variant="body2" color="textSecondary">Herkunft aus Sameneinkauf:</Typography>
-                  <Typography variant="body1">
-                    <Link 
-                      component={RouterLink} 
-                      to={`/trace/samen`} 
-                      state={{ highlightUuid: data.seed_source }}
-                    >
-                      {data.seed_source_details.strain_name} ({data.seed_source_details.batch_number})
-                    </Link>
-                  </Typography>
-                </>
-              ) : data.cutting_source_details ? (
-                <>
-                  <Typography variant="body2" color="textSecondary">Herkunft aus Steckling:</Typography>
-                  <Typography variant="body1">
-                    <Link 
-                      component={RouterLink} 
-                      to={`/trace/stecklinge`} 
-                      state={{ highlightUuid: data.cutting_source }}
-                    >
-                      {data.cutting_source_details.genetic_name} ({data.cutting_source_details.batch_number})
-                    </Link>
-                  </Typography>
-                </>
-              ) : (
-                <Typography variant="body1">Keine Herkunftsdaten verfügbar</Typography>
-              )}
+              <Typography variant="body2" color="textSecondary">Status:</Typography>
+              <Box sx={{ mt: 0.5 }}>
+                {data.drying_end_date ? (
+                  <Chip 
+                    label="Trocknung abgeschlossen" 
+                    color="success" 
+                    size="small" 
+                  />
+                ) : (
+                  <Chip 
+                    label="In Trocknung" 
+                    color="warning" 
+                    size="small" 
+                  />
+                )}
+              </Box>
             </Grid>
             
             {/* UUID anzeigen */}
@@ -118,37 +114,56 @@ const FloweringPlantDetails = ({ data, onMarkAsDestroyed, onUpdatePhase, onHarve
         </Grid>
         
         <Grid item xs={12} md={6}>
-          <Typography variant="subtitle2">Pflanzendaten</Typography>
+          <Typography variant="subtitle2">Trocknungsdaten</Typography>
           <Divider sx={{ mb: 2 }} />
           
           <Grid container spacing={2}>
             <Grid item xs={6}>
-              <Typography variant="body2" color="textSecondary">Pflanzungsdatum:</Typography>
-              <Typography variant="body1">{formatDate(data.planting_date)}</Typography>
+              <Typography variant="body2" color="textSecondary">Trocknungsbeginn:</Typography>
+              <Typography variant="body1">{formatDate(data.drying_start_date)}</Typography>
             </Grid>
             <Grid item xs={6}>
-              <Typography variant="body2" color="textSecondary">Erwartetes Erntedatum:</Typography>
-              <Typography variant="body1">{formatDate(data.expected_harvest_date)}</Typography>
+              <Typography variant="body2" color="textSecondary">Trocknungsende:</Typography>
+              <Typography variant="body1">{formatDate(data.drying_end_date) || 'Noch aktiv'}</Typography>
             </Grid>
             <Grid item xs={6}>
-              <Typography variant="body2" color="textSecondary">Wachstumsmedium:</Typography>
-              <Typography variant="body1">{data.growth_medium || 'Nicht angegeben'}</Typography>
+              <Typography variant="body2" color="textSecondary">Frischgewicht:</Typography>
+              <Typography variant="body1">{formatWeight(data.fresh_weight)}</Typography>
             </Grid>
             <Grid item xs={6}>
-              <Typography variant="body2" color="textSecondary">Dünger:</Typography>
-              <Typography variant="body1">{data.fertilizer || 'Nicht angegeben'}</Typography>
+              <Typography variant="body2" color="textSecondary">Trockengewicht:</Typography>
+              <Typography variant="body1">{formatWeight(data.dried_weight) || 'Noch nicht ermittelt'}</Typography>
+            </Grid>
+            
+            {/* Gewichtsverlust anzeigen, wenn Trockengewicht erfasst wurde */}
+            {weightLoss && (
+              <>
+                <Grid item xs={6}>
+                  <Typography variant="body2" color="textSecondary">Gewichtsverlust:</Typography>
+                  <Typography variant="body1">{weightLoss.loss}</Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="body2" color="textSecondary">Feuchtigkeitsverlust:</Typography>
+                  <Typography variant="body1">{weightLoss.percentage}</Typography>
+                </Grid>
+              </>
+            )}
+            
+            <Grid item xs={6}>
+              <Typography variant="body2" color="textSecondary">Verbleibendes Trockengewicht:</Typography>
+              <Typography variant="body1">{formatWeight(data.remaining_dried_weight) || 'Noch nicht erfasst'}</Typography>
             </Grid>
             <Grid item xs={6}>
-              <Typography variant="body2" color="textSecondary">Lichtzyklus:</Typography>
-              <Typography variant="body1">{data.light_cycle || 'Nicht angegeben'}</Typography>
+              <Typography variant="body2" color="textSecondary">Trocknungsmethode:</Typography>
+              <Typography variant="body1">{data.drying_method || 'Nicht angegeben'}</Typography>
             </Grid>
             <Grid item xs={6}>
-              <Typography variant="body2" color="textSecondary">Pflanzen gesamt:</Typography>
-              <Typography variant="body1">{data.plant_count}</Typography>
+              <Typography variant="body2" color="textSecondary">Ziel-Luftfeuchtigkeit:</Typography>
+              <Typography variant="body1">{data.target_humidity ? `${data.target_humidity}%` : 'Nicht angegeben'}</Typography>
             </Grid>
             <Grid item xs={6}>
-              <Typography variant="body2" color="textSecondary">Pflanzen übrig:</Typography>
-              <Typography variant="body1">{data.remaining_plants}</Typography>
+              <Typography variant="body2" color="textSecondary">Ziel-Temperatur:</Typography>
+              <Typography variant="body1">{data.target_temperature ? `${data.target_temperature}°C` : 'Nicht angegeben'}</Typography>
             </Grid>
           </Grid>
         </Grid>
@@ -252,33 +267,21 @@ const FloweringPlantDetails = ({ data, onMarkAsDestroyed, onUpdatePhase, onHarve
           </Typography>
         </Grid>
         
-        {/* Erntebutton bei erntebereiten Pflanzen anzeigen */}
-        {status === 'active' && data.growth_phase === 'harvest_ready' && (
+        {/* Nur bei aktiven Einträgen Buttons anzeigen */}
+        {status === 'active' && (
           <Grid item xs={12}>
-            <Box display="flex" justifyContent="flex-end" mt={2}>
-              <Button 
-                variant="contained" 
-                color="success"
-                onClick={() => onHarvest(data)}
-                sx={{ mr: 2 }}
-              >
-                Ernten
-              </Button>
-              <Button 
-                variant="outlined" 
-                color="error"
-                onClick={() => onMarkAsDestroyed(data)}
-              >
-                Als vernichtet markieren
-              </Button>
-            </Box>
-          </Grid>
-        )}
-        
-        {/* Nur bei aktiven Einträgen Vernichtungs-Button anzeigen, außer bei erntereifen Pflanzen (wird oben angezeigt) */}
-        {status === 'active' && data.growth_phase !== 'harvest_ready' && (
-          <Grid item xs={12}>
-            <Box display="flex" justifyContent="flex-end" mt={2}>
+            <Box display="flex" justifyContent="flex-end" mt={2} gap={2}>
+              {/* Trocknungsabschluss-Button nur anzeigen, wenn noch kein Trockengewicht erfasst wurde */}
+              {!data.dried_weight && (
+                <Button 
+                  variant="contained" 
+                  color="primary"
+                  onClick={() => onCompleteDrying(data)}
+                >
+                  Trocknung abschließen
+                </Button>
+              )}
+              
               <Button 
                 variant="outlined" 
                 color="error"
@@ -294,4 +297,4 @@ const FloweringPlantDetails = ({ data, onMarkAsDestroyed, onUpdatePhase, onHarve
   );
 };
 
-export default FloweringPlantDetails;
+export default DryingDetails;

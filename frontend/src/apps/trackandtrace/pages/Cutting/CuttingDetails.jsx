@@ -12,7 +12,7 @@ import {
 } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 
-const CuttingDetails = ({ data, onMarkAsDestroyed, onUpdatePhase }) => {
+const CuttingDetails = ({ data, onMarkAsDestroyed, onUpdatePhase, status }) => {
   // Helfer-Funktion für Datumsformatierung
   const formatDate = (dateString) => {
     if (!dateString) return 'Nicht angegeben';
@@ -60,7 +60,7 @@ const CuttingDetails = ({ data, onMarkAsDestroyed, onUpdatePhase }) => {
                   size="small"
                   sx={{ mr: 1 }}
                 />
-                {!data.is_destroyed && (
+                {status === 'active' && (
                   <Button 
                     variant="outlined" 
                     size="small"
@@ -183,6 +183,30 @@ const CuttingDetails = ({ data, onMarkAsDestroyed, onUpdatePhase }) => {
           </Grid>
         )}
         
+        {data.is_transferred && (
+          <Grid item xs={12}>
+            <Typography variant="subtitle2" color="success">Überführungsdaten</Typography>
+            <Divider sx={{ mb: 2 }} />
+            
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={6}>
+                <Typography variant="body2" color="textSecondary">Überführungsdatum:</Typography>
+                <Typography variant="body1">
+                  {formatDate(data.transfer_date)}
+                </Typography>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <Typography variant="body2" color="textSecondary">Übergeführt durch:</Typography>
+                <Typography variant="body1">
+                  {data.transferring_member_details ? 
+                    `${data.transferring_member_details.first_name} ${data.transferring_member_details.last_name}` : 
+                    'Nicht angegeben'}
+                </Typography>
+              </Grid>
+            </Grid>
+          </Grid>
+        )}
+        
         <Grid item xs={12}>
           <Typography variant="subtitle2">Bemerkungen</Typography>
           <Divider sx={{ mb: 2 }} />
@@ -191,7 +215,7 @@ const CuttingDetails = ({ data, onMarkAsDestroyed, onUpdatePhase }) => {
           </Typography>
         </Grid>
         
-        {!data.is_destroyed && (
+        {status === 'active' && (
           <Grid item xs={12}>
             <Box display="flex" justifyContent="flex-end" mt={2}>
               <Button 

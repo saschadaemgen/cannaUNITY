@@ -9,6 +9,8 @@ router.register(r'seeds', api_views.SeedPurchaseViewSet)
 router.register(r'motherplants', api_views.MotherPlantViewSet)
 router.register(r'cuttings', api_views.CuttingViewSet)
 router.register(r'floweringplants', api_views.FloweringPlantViewSet)
+router.register(r'harvests', api_views.HarvestViewSet)
+router.register(r'dryings', api_views.DryingViewSet)
 
 urlpatterns = [
     # Standard API Router
