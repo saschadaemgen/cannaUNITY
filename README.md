@@ -1,7 +1,7 @@
-# 🌿 cannaUNITY v0.6.17 (Pre-Alpha)
+# 🌿 cannaUNITY v0.6.18 (Pre-Alpha)
 
 > **Modulare Open-Source-Software für Cannabis Social Clubs und Anbauvereinigungen gemäß dem Konsumcannabisgesetz § (KCanG)**  
-> Mitgliederverwaltung · Aufgabenplanung · Zutrittskontrolle · Track & Trace · Raumautomation · Sicherheitssysteme
+> Mitgliederverwaltung · Aufgabenplanung · Zutrittskontrolle · Track & Trace · Buchhaltung · WaWi · Raumautomation · Sicherheitssysteme · Zutrittskontrolle
 
 ![GitHub Repo stars](https://img.shields.io/github/stars/saschadaemgen/cannaUNITY?style=social)
 ![GitHub license](https://img.shields.io/github/license/saschadaemgen/cannaUNITY)
@@ -70,6 +70,7 @@ Unterstützte Funktionen & Module:
 7. Filterfunktionen – nach Jahr, Monat, Buchungstyp, Stornostatus und Zweck
 8. Schnittstellenvorbereitung – DATEV, CSV, PDF-Export geplant
 9. Zukunftssicher – Unterstützung für Jahresabschluss, EÜR/Umschaltung, Saldenübernahme
+10. Warenwirtschaftssystem mit Anbindung an Track and Trace + Buchhaltung
 
 Jede Buchung wird revisionssicher gespeichert, über das Journal vollständig einsehbar gemacht und kann in Echtzeit ausgewertet werden.
 Die Umsetzung folgt den Grundsätzen ordnungsgemäßer Buchführung (GoB) und bildet die Basis für steuerlich relevante Auswertungen.
@@ -81,7 +82,7 @@ Die Umsetzung folgt den Grundsätzen ordnungsgemäßer Buchführung (GoB) und bi
 - **Siemens LOGO8!** vollständig integrierbar
 - **Siemens SIMATIC** kompatibel
 - **Loxone Mini Server** mit Raumanzeige, Klima- und Lichtsteuerung
-- Weitere industrielle Schnittstellen folgen (MQTT, Modbus etc.)
+- Weitere industrielle Schnittstellen folgen (MQTT, KNX, Modbus etc.)
 
 ---
 
