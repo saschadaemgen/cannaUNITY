@@ -15,7 +15,8 @@ import {
   IconButton,
   Tooltip,
   FormControl,
-  FormHelperText
+  FormHelperText,
+  Paper
 } from '@mui/material';
 import { Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import api from '../../../utils/api';
@@ -327,144 +328,207 @@ const SeedManufacturerDropdown = ({
           {isEditMode ? `Hersteller "${newManufacturer.name}" bearbeiten` : 'Neuen Hersteller anlegen'}
         </DialogTitle>
         <DialogContent>
-          <Grid container spacing={2} sx={{ pt: 2 }}>
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Name *"
-                name="name"
-                value={newManufacturer.name}
-                onChange={handleManufacturerChange}
-                required
-                error={formError && !newManufacturer.name}
-                autoFocus
-              />
-            </Grid>
-            
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Land"
-                name="country"
-                value={newManufacturer.country}
-                onChange={handleManufacturerChange}
-              />
-            </Grid>
-            
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Anschrift"
-                name="address"
-                value={newManufacturer.address}
-                onChange={handleManufacturerChange}
-                multiline
-                rows={2}
-                placeholder="Straße, Hausnummer, PLZ, Ort"
-              />
-            </Grid>
-            
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Website"
-                name="website"
-                value={newManufacturer.website}
-                onChange={handleManufacturerChange}
-                placeholder="https://"
-              />
-            </Grid>
-            
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Lieferzeit (Tage)"
-                name="delivery_time"
-                type="number"
-                value={newManufacturer.delivery_time}
-                onChange={handleManufacturerChange}
-                inputProps={{ min: 0 }}
-              />
-            </Grid>
-            
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Ansprechpartner"
-                name="contact_person"
-                value={newManufacturer.contact_person}
-                onChange={handleManufacturerChange}
-              />
-            </Grid>
-            
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="E-Mail des Ansprechpartners"
-                name="contact_email"
-                value={newManufacturer.contact_email}
-                onChange={handleManufacturerChange}
-                placeholder="kontakt@beispiel.de"
-              />
-            </Grid>
-            
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Allgemeine E-Mail"
-                name="email"
-                type="email"
-                value={newManufacturer.email}
-                onChange={handleManufacturerChange}
-                placeholder="info@beispiel.de"
-              />
-            </Grid>
-            
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Telefonnummer"
-                name="phone"
-                value={newManufacturer.phone}
-                onChange={handleManufacturerChange}
-              />
-            </Grid>
-            
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Bestellhistorie"
-                name="order_history"
-                value={newManufacturer.order_history}
-                onChange={handleManufacturerChange}
-                multiline
-                rows={2}
-              />
-            </Grid>
-            
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Notizen"
-                name="notes"
-                value={newManufacturer.notes}
-                onChange={handleManufacturerChange}
-                multiline
-                rows={2}
-              />
-            </Grid>
-          </Grid>
-          
-          {formError && (
-            <FormControl error sx={{ mt: 2, width: '100%' }}>
-              <FormHelperText>{formError}</FormHelperText>
-            </FormControl>
-          )}
+          <Box sx={{ pt: 2 }}>
+            {/* Allgemeine Informationen */}
+            <Paper sx={{ 
+              p: 3, 
+              mb: 3, 
+              borderRadius: 2,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+            }}>
+              <Typography 
+                variant="h6" 
+                sx={{ 
+                  mb: 2, 
+                  color: 'primary.main', 
+                  fontWeight: 500,
+                  borderBottom: '1px solid',
+                  borderColor: 'divider',
+                  pb: 1
+                }}
+              >
+                Allgemeine Informationen
+              </Typography>
+              <Grid container spacing={3}>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    required
+                    label="Name des Herstellers"
+                    name="name"
+                    value={newManufacturer.name}
+                    onChange={handleManufacturerChange}
+                    error={formError && !newManufacturer.name}
+                    helperText={formError && !newManufacturer.name ? formError : ''}
+                    autoFocus
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="Land"
+                    name="country"
+                    value={newManufacturer.country}
+                    onChange={handleManufacturerChange}
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Anschrift"
+                    name="address"
+                    value={newManufacturer.address}
+                    onChange={handleManufacturerChange}
+                    multiline
+                    rows={2}
+                    placeholder="Straße, Hausnummer, PLZ, Ort"
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="Website"
+                    name="website"
+                    value={newManufacturer.website}
+                    onChange={handleManufacturerChange}
+                    placeholder="https://"
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="Lieferzeit (Tage)"
+                    name="delivery_time"
+                    type="number"
+                    value={newManufacturer.delivery_time}
+                    onChange={handleManufacturerChange}
+                    inputProps={{ min: 0 }}
+                  />
+                </Grid>
+              </Grid>
+            </Paper>
+
+            {/* Kontaktinformationen */}
+            <Paper sx={{ 
+              p: 3, 
+              mb: 3, 
+              borderRadius: 2,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+            }}>
+              <Typography 
+                variant="h6" 
+                sx={{ 
+                  mb: 2, 
+                  color: 'primary.main', 
+                  fontWeight: 500,
+                  borderBottom: '1px solid',
+                  borderColor: 'divider',
+                  pb: 1
+                }}
+              >
+                Kontaktinformationen
+              </Typography>
+              <Grid container spacing={3}>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="Ansprechpartner"
+                    name="contact_person"
+                    value={newManufacturer.contact_person}
+                    onChange={handleManufacturerChange}
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="Telefonnummer"
+                    name="phone"
+                    value={newManufacturer.phone}
+                    onChange={handleManufacturerChange}
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="Info E-Mail"
+                    name="email"
+                    value={newManufacturer.email}
+                    onChange={handleManufacturerChange}
+                    placeholder="info@beispiel.de"
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="E-Mail des Ansprechpartners"
+                    name="contact_email"
+                    value={newManufacturer.contact_email}
+                    onChange={handleManufacturerChange}
+                    placeholder="kontakt@beispiel.de"
+                  />
+                </Grid>
+              </Grid>
+            </Paper>
+
+            {/* Zusätzliche Informationen */}
+            <Paper sx={{ 
+              p: 3, 
+              mb: 3, 
+              borderRadius: 2,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+            }}>
+              <Typography 
+                variant="h6" 
+                sx={{ 
+                  mb: 2, 
+                  color: 'primary.main', 
+                  fontWeight: 500,
+                  borderBottom: '1px solid',
+                  borderColor: 'divider',
+                  pb: 1
+                }}
+              >
+                Zusätzliche Informationen
+              </Typography>
+              <Grid container spacing={3}>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Bestellhistorie"
+                    name="order_history"
+                    value={newManufacturer.order_history}
+                    onChange={handleManufacturerChange}
+                    multiline
+                    rows={4}
+                    placeholder="Informationen zu bisherigen Bestellungen"
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Notizen"
+                    name="notes"
+                    value={newManufacturer.notes}
+                    onChange={handleManufacturerChange}
+                    multiline
+                    rows={4}
+                    placeholder="Zusätzliche Informationen zum Hersteller"
+                  />
+                </Grid>
+              </Grid>
+            </Paper>
+
+            {formError && (
+              <Box sx={{ mt: 2, color: 'error.main' }}>
+                {formError}
+              </Box>
+            )}
+          </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseDialog}>ABBRECHEN</Button>
           <Button 
-            onClick={handleSaveManufacturer}
+            onClick={handleSaveManufacturer} 
             variant="contained" 
             color="primary"
             disabled={!newManufacturer.name.trim()}
