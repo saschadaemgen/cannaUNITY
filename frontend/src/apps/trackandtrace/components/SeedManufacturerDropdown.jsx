@@ -20,6 +20,7 @@ import {
 } from '@mui/material';
 import { Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import api from '../../../utils/api';
+import { fullWidthDialogStyle } from '../utils/DialogStyles';
 
 const SeedManufacturerDropdown = ({ 
   value, 
@@ -322,8 +323,14 @@ const SeedManufacturerDropdown = ({
         disabled={disabled}
       />
 
-      {/* Dialog zum Erstellen oder Bearbeiten eines Herstellers */}
-      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth>
+      {/* Dialog zum Erstellen oder Bearbeiten eines Herstellers - mit zentralisiertem Dialog-Style */}
+      <Dialog 
+        open={openDialog} 
+        onClose={handleCloseDialog} 
+        maxWidth="xl" 
+        fullWidth
+        sx={fullWidthDialogStyle}
+      >
         <DialogTitle>
           {isEditMode ? `Hersteller "${newManufacturer.name}" bearbeiten` : 'Neuen Hersteller anlegen'}
         </DialogTitle>

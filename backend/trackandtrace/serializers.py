@@ -1,8 +1,48 @@
 # trackandtrace/serializers.py
 from rest_framework import serializers
-from .models import SeedPurchase, MotherPlant, Cutting, FloweringPlant, Harvest, Drying, Processing, LabTesting, Packaging, ProductDistribution, Manufacturer, Strain
+from .models import SeedPurchase, MotherPlant, Cutting, FloweringPlant, Harvest, Drying, Processing, LabTesting, Packaging, ProductDistribution, Manufacturer, Strain, IndividualCutting, IndividualFloweringPlant
 from members.models import Member
 from rooms.models import Room
+from members.serializers import MemberSerializer
+from rooms.serializers import RoomSerializer 
+
+class IndividualFloweringPlantSerializer(serializers.ModelSerializer):
+    destroying_member_details = MemberSerializer(source='destroying_member', read_only=True)
+    responsible_member_details = MemberSerializer(source='responsible_member', read_only=True)
+    room_details = RoomSerializer(source='room', read_only=True)
+    
+    class Meta:
+        model = IndividualFloweringPlant
+        fields = [
+            'uuid', 'batch_number', 'parent', 
+            'is_destroyed', 'destruction_reason', 'destruction_date',
+            'destroying_member', 'destroying_member_details',
+            'responsible_member', 'responsible_member_details',
+            'room', 'room_details',
+            'created_at', 'updated_at',
+            'genetic_name', 'planting_date', 'growth_phase', 'notes', 'is_active'
+        ]
+        read_only_fields = ['uuid', 'batch_number', 'created_at', 'updated_at']
+
+
+class IndividualCuttingSerializer(serializers.ModelSerializer):
+    destroying_member_details = MemberSerializer(source='destroying_member', read_only=True)
+    responsible_member_details = MemberSerializer(source='responsible_member', read_only=True)
+    room_details = RoomSerializer(source='room', read_only=True)
+    
+    class Meta:
+        model = IndividualCutting
+        fields = [
+            'uuid', 'batch_number', 'parent', 
+            'is_destroyed', 'destruction_reason', 'destruction_date',
+            'destroying_member', 'destroying_member_details',
+            'responsible_member', 'responsible_member_details',
+            'room', 'room_details',
+            'created_at', 'updated_at',
+            'genetic_name', 'cutting_date', 'growth_phase', 'growth_medium', 
+            'rooting_agent', 'light_cycle', 'notes', 'is_active'
+        ]
+        read_only_fields = ['uuid', 'batch_number', 'created_at', 'updated_at']
 
 class ManufacturerSerializer(serializers.ModelSerializer):
     """Serializer für das Manufacturer-Modell mit allen Feldern"""
@@ -126,6 +166,9 @@ class CuttingSerializer(serializers.ModelSerializer):
     growth_phase_display = serializers.CharField(source='get_growth_phase_display', read_only=True)
     room_details = RoomSerializer(source='room', read_only=True)
     
+    # Individuelle Stecklinge hinzufügen
+    individuals = IndividualCuttingSerializer(source='individual_cuttings', many=True, read_only=True)
+    
     class Meta:
         model = Cutting
         fields = [
@@ -137,13 +180,14 @@ class CuttingSerializer(serializers.ModelSerializer):
             'destroying_member_details', 'temperature', 
             'humidity', 'created_at', 'updated_at',
             'responsible_member', 'responsible_member_details',
-            'room', 'room_details'
+            'room', 'room_details',
+            'individuals'  # Neue Feld hinzufügen
         ]
         read_only_fields = [
             'uuid', 'batch_number', 'created_at', 'updated_at', 
             'remaining_cuttings', 'growth_phase_display'
         ]
-
+        
 
 class FloweringPlantSerializer(serializers.ModelSerializer):
     seed_source_details = SeedPurchaseSerializer(source='seed_source', read_only=True)
@@ -153,6 +197,9 @@ class FloweringPlantSerializer(serializers.ModelSerializer):
     transferring_member_details = MemberSerializer(source='transferring_member', read_only=True)
     growth_phase_display = serializers.CharField(source='get_growth_phase_display', read_only=True)
     room_details = RoomSerializer(source='room', read_only=True)
+    
+    # Individuelle Pflanzen hinzufügen
+    individuals = IndividualFloweringPlantSerializer(source='individual_plants', many=True, read_only=True)
     
     class Meta:
         model = FloweringPlant
@@ -170,7 +217,8 @@ class FloweringPlantSerializer(serializers.ModelSerializer):
             'transferring_member', 'transferring_member_details',
             'temperature', 'humidity', 'created_at', 'updated_at',
             'responsible_member', 'responsible_member_details',
-            'room', 'room_details'
+            'room', 'room_details',
+            'individuals'  # Neue Feld hinzufügen
         ]
         read_only_fields = [
             'uuid', 'batch_number', 'created_at', 'updated_at', 

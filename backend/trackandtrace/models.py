@@ -138,7 +138,9 @@ class BaseTrackingModel(models.Model):
     responsible_member = models.ForeignKey(
         Member, 
         on_delete=models.PROTECT,
-        related_name="%(class)s_responsibilities"
+        related_name="%(class)s_responsibilities",
+        null=True,  # Für Migrationszwecke
+        blank=True  # Für Migrationszwecke
     )
     notes = models.TextField(blank=True)
     
@@ -273,6 +275,18 @@ class SeedPurchase(BaseTrackingModel):
         blank=True,
         help_text="Cannabis-Sorte"
     )
+    TRANSFER_TYPE_CHOICES = [
+        ('not_transferred', 'Nicht übergeführt'),
+        ('mother_plant', 'Als Mutterpflanze übergeführt'),
+        ('flowering_plant', 'Als Blühpflanze übergeführt'),
+        ('mixed', 'Gemischt übergeführt')
+    ]
+    transfer_type = models.CharField(
+        max_length=30,
+        choices=TRANSFER_TYPE_CHOICES,
+        default='not_transferred',
+        help_text="Art der Überführung"
+    )
     genetics = models.CharField(max_length=255, help_text="Genetische Abstammung")
     strain_name = models.CharField(max_length=255, help_text="Name der Cannabis-Sorte")
     sativa_percentage = models.IntegerField(help_text="Sativa-Anteil in Prozent")
@@ -319,6 +333,7 @@ class SeedPurchase(BaseTrackingModel):
         verbose_name = "Samen-Einkauf"
         verbose_name_plural = "Samen-Einkäufe"
         ordering = ['-purchase_date', 'strain_name']
+        
     
     def __str__(self):
         return f"{self.strain_name} ({self.batch_number})"
@@ -473,6 +488,83 @@ class MotherPlant(BaseTrackingModel):
             
         super().save(*args, **kwargs)
 
+
+# Wichtig: Zuerst die individuellen Modelle definieren, bevor sie referenziert werden
+class IndividualCutting(BaseTrackingModel):
+    """Modell für individuelle Stecklinge, die aus einem Batch stammen"""
+    parent = models.ForeignKey(
+        'Cutting',  # String-Referenz, da Cutting erst später definiert wird
+        on_delete=models.CASCADE,
+        related_name="individual_cuttings",
+        help_text="Eltern-Batch dieses individuellen Stecklings"
+    )
+    batch_number = models.CharField(
+        max_length=100, 
+        unique=True,
+        help_text="Individuelle Stecklingsnummer (CUT_YYYYMMDD_NNN_INDIV_NNN)"
+    )
+    genetic_name = models.CharField(
+        max_length=255, 
+        null=True,
+        blank=True,
+        help_text="Genetische Bezeichnung (übernommen vom Eltern-Batch)"
+    )
+    cutting_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Datum des Schneidens (übernommen vom Eltern-Batch)"
+    )
+    growth_phase = models.CharField(
+        max_length=50,
+        choices=[
+            ('cutting', 'Frischer Schnitt'),
+            ('rooting', 'Bewurzelung'),
+            ('vegetative', 'Vegetative Phase'),
+            ('transferred', 'Überführt'),
+            ('destroyed', 'Vernichtet'),
+        ],
+        default='cutting',
+        help_text="Aktuelle Wachstumsphase"
+    )
+    growth_medium = models.CharField(
+        max_length=255, 
+        blank=True,
+        help_text="Wachstumsmedium (z.B. Erde, Kokos, Wasser)"
+    )
+    rooting_agent = models.CharField(
+        max_length=255, 
+        blank=True,
+        help_text="Verwendetes Bewurzelungsmittel"
+    )
+    light_cycle = models.CharField(
+        max_length=50, 
+        blank=True,
+        help_text="Lichtzyklus (z.B. 18/6, 24/0)"
+    )
+    notes = models.TextField(
+        blank=True,
+        help_text="Individuelle Notizen zu diesem Steckling"
+    )
+    image = models.ImageField(
+        upload_to='individual_cuttings/', 
+        null=True, 
+        blank=True,
+        help_text="Bild des individuellen Stecklings"
+    )
+    is_active = models.BooleanField(
+        default=True,
+        help_text="Gibt an, ob der Steckling noch aktiv ist oder bereits überführt/vernichtet wurde"
+    )
+    
+    class Meta:
+        verbose_name = "Individueller Steckling"
+        verbose_name_plural = "Individuelle Stecklinge"
+        ordering = ['parent', 'batch_number']
+    
+    def __str__(self):
+        return f"{self.genetic_name or 'Unbenannt'} ({self.batch_number})"
+
+
 class Cutting(BaseTrackingModel):
     """Modell für Stecklinge, die von Mutterpflanzen geschnitten werden"""
     batch_number = models.CharField(
@@ -539,31 +631,114 @@ class Cutting(BaseTrackingModel):
         return f"{self.genetic_name} ({self.batch_number})"
     
     def save(self, *args, **kwargs):
-        # Automatische Batch-Nummer generieren, wenn nicht vorhanden
-        if not self.batch_number:
-            today = timezone.now().strftime('%Y%m%d')
-            last_batch = Cutting.objects.filter(
-                batch_number__startswith=f"CUT_{today}"
-            ).order_by('batch_number').last()
-            
-            if last_batch:
-                last_num = int(last_batch.batch_number.split('_')[-1])
-                new_num = last_num + 1
-            else:
-                new_num = 1
-                
-            self.batch_number = f"CUT_{today}_{new_num:03d}"
+        # Prüfen ob es eine Neuanlage ist
+        is_new = self._state.adding
         
         # Bei erster Erstellung
-        if self._state.adding:
+        if is_new:
             # Genetik von der Mutterpflanze übernehmen, wenn nicht gesetzt
             if not self.genetic_name and self.mother_plant_source:
                 self.genetic_name = self.mother_plant_source.genetic_name
                 
             # Remaining-Cuttings ist initial gleich Cutting-Count
             self.remaining_cuttings = self.cutting_count
+
+            # Batch-Nummer generieren, wenn nicht vorhanden
+            if not self.batch_number:
+                today = timezone.now().strftime('%Y%m%d')
+                last_batch = Cutting.objects.filter(
+                    batch_number__startswith=f"CUT_{today}"
+                ).order_by('batch_number').last()
+                
+                if last_batch:
+                    last_num = int(last_batch.batch_number.split('_')[-1])
+                    new_num = last_num + 1
+                else:
+                    new_num = 1
+                    
+                self.batch_number = f"CUT_{today}_{new_num:03d}"
         
+        # Das übergeordnete Objekt speichern
         super().save(*args, **kwargs)
+        
+        # Nach dem Speichern individuelle Einträge erstellen, falls neu
+        if is_new and self.cutting_count > 0:
+            # Schleife, um für jeden Steckling einen individuellen Eintrag zu erstellen
+            for i in range(self.cutting_count):
+                IndividualCutting.objects.create(
+                    parent=self,
+                    batch_number=f"{self.batch_number}_INDIV_{i+1:03d}",
+                    genetic_name=self.genetic_name,
+                    cutting_date=self.cutting_date,
+                    growth_phase=self.growth_phase,
+                    growth_medium=self.growth_medium,
+                    rooting_agent=self.rooting_agent,
+                    light_cycle=self.light_cycle,
+                    responsible_member=self.responsible_member  # Vermutlich aus BaseTrackingModel
+                )
+
+
+# Modell für individuelle Blühpflanzen muss vor dem FloweringPlant-Modell definiert werden
+class IndividualFloweringPlant(BaseTrackingModel):
+    """Modell für individuelle Blühpflanzen, die aus einem Batch stammen"""
+    parent = models.ForeignKey(
+        'FloweringPlant',  # String-Referenz, da FloweringPlant erst später definiert wird
+        on_delete=models.CASCADE,
+        related_name="individual_plants",
+        help_text="Eltern-Batch dieser individuellen Pflanze"
+    )
+    batch_number = models.CharField(
+        max_length=100, 
+        unique=True,
+        help_text="Individuelle Pflanzennummer (FLOWER_YYYYMMDD_NNN_PLANT_NNN)"
+    )
+    genetic_name = models.CharField(
+        max_length=255, 
+        null=True,
+        blank=True,
+        help_text="Genetische Bezeichnung (übernommen von Eltern-Batch)"
+    )
+    planting_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Datum der Aussaat/Einpflanzung (übernommen von Eltern-Batch)"
+    )
+    growth_phase = models.CharField(
+        max_length=50,
+        choices=[
+            ('vegetative', 'Vegetative Phase'),
+            ('pre_flower', 'Vorblüte'),
+            ('flowering', 'Blütephase'),
+            ('late_flower', 'Spätblüte'),
+            ('harvest_ready', 'Erntereif'),
+            ('harvested', 'Geerntet'),
+            ('destroyed', 'Vernichtet'),
+        ],
+        default='vegetative',
+        help_text="Aktuelle Wachstumsphase"
+    )
+    notes = models.TextField(
+        blank=True,
+        help_text="Individuelle Notizen zu dieser Pflanze"
+    )
+    image = models.ImageField(
+        upload_to='individual_plants/', 
+        null=True, 
+        blank=True,
+        help_text="Bild der individuellen Pflanze"
+    )
+    is_active = models.BooleanField(
+        default=True,
+        help_text="Gibt an, ob die Pflanze noch aktiv ist oder bereits geerntet/vernichtet wurde"
+    )
+    
+    class Meta:
+        verbose_name = "Individuelle Pflanze"
+        verbose_name_plural = "Individuelle Pflanzen"
+        ordering = ['parent', 'batch_number']
+    
+    def __str__(self):
+        return f"{self.genetic_name or 'Unbenannt'} ({self.batch_number})"
 
 
 class FloweringPlant(BaseTrackingModel):
@@ -583,7 +758,7 @@ class FloweringPlant(BaseTrackingModel):
         help_text="Ursprung der Blühpflanze (Sameneinkauf), wenn direkt aus Samen"
     )
     cutting_source = models.ForeignKey(
-        Cutting,
+        'Cutting',  # String-Referenz, da Cutting davor definiert ist, aber zur Sicherheit
         on_delete=models.PROTECT,
         related_name="flowering_plants",
         null=True,
@@ -650,6 +825,9 @@ class FloweringPlant(BaseTrackingModel):
         return f"{self.genetic_name} ({self.batch_number})"
     
     def save(self, *args, **kwargs):
+        # Prüfen ob es eine Neuanlage ist
+        is_new = self._state.adding
+        
         # Automatische Batch-Nummer generieren, wenn nicht vorhanden
         if not self.batch_number:
             today = timezone.now().strftime('%Y%m%d')
@@ -666,8 +844,6 @@ class FloweringPlant(BaseTrackingModel):
             self.batch_number = f"FLOWER_{today}_{new_num:03d}"
         
         # Bei erster Erstellung
-        is_new = self._state.adding
-        
         if is_new:
             # Remaining-Plants ist initial gleich Plant-Count
             self.remaining_plants = self.plant_count
@@ -714,7 +890,22 @@ class FloweringPlant(BaseTrackingModel):
                 else:
                     self.cutting_source.save()
         
+        # Das übergeordnete Objekt speichern
         super().save(*args, **kwargs)
+        
+        # Nach dem Speichern individuelle Einträge erstellen, falls neu
+        if is_new and self.plant_count > 0:
+            # Schleife, um für jede Pflanze einen individuellen Eintrag zu erstellen
+            for i in range(self.plant_count):
+                # Nur die notwendige Eltern-Referenz und die Batch-Nummer übergeben
+                IndividualFloweringPlant.objects.create(
+                    parent=self,
+                    batch_number=f"{self.batch_number}_PLANT_{i+1:03d}",
+                    genetic_name=self.genetic_name,
+                    planting_date=self.planting_date,
+                    growth_phase=self.growth_phase,
+                    responsible_member=self.responsible_member
+                )
 
 
 class Harvest(BaseTrackingModel):
@@ -1140,203 +1331,7 @@ class Processing(BaseTrackingModel):
         
         super().save(*args, **kwargs)
 
-# LabTesting Modell für models.py
-class LabTesting(BaseTrackingModel):
-    """Modell für die Laborkontrolle nach der Verarbeitung"""
-    batch_number = models.CharField(
-        max_length=50, 
-        unique=True,
-        help_text="Automatisch generierte Chargennummer (LAB_YYYYMMDD_NNN)"
-    )
-    processing_source = models.ForeignKey(
-        Processing,
-        on_delete=models.PROTECT,
-        related_name="lab_testings",
-        help_text="Ursprung der Laborkontrolle (Verarbeitung)"
-    )
-    sample_date = models.DateField(help_text="Datum der Probennahme")
-    test_date = models.DateField(help_text="Datum der Durchführung des Tests")
-    genetic_name = models.CharField(
-        max_length=255, 
-        help_text="Genetische Bezeichnung (übernommen von Verarbeitung)"
-    )
-    
-    # Status für die Laborkontrolle
-    STATUS_CHOICES = [
-        ('pending', 'Ausstehend'),
-        ('in_progress', 'In Bearbeitung'),
-        ('completed', 'Abgeschlossen'),
-        ('failed', 'Nicht bestanden')
-    ]
-    test_status = models.CharField(
-        max_length=20,
-        choices=STATUS_CHOICES,
-        default='pending',
-        help_text="Status der Laborkontrolle"
-    )
-    
-    # Gewichtsdaten
-    sample_weight = models.DecimalField(
-        max_digits=8, 
-        decimal_places=2,
-        help_text="Gewicht der Probe in Gramm"
-    )
-    remaining_weight = models.DecimalField(
-        max_digits=8, 
-        decimal_places=2,
-        help_text="Verbleibendes Gewicht in Gramm nach der Laborkontrolle"
-    )
-    
-    # Analyseergebnisse
-    thc_content = models.DecimalField(
-        max_digits=5, 
-        decimal_places=2,
-        null=True,
-        blank=True,
-        help_text="THC-Gehalt in %"
-    )
-    cbd_content = models.DecimalField(
-        max_digits=5, 
-        decimal_places=2,
-        null=True,
-        blank=True,
-        help_text="CBD-Gehalt in %"
-    )
-    moisture_content = models.DecimalField(
-        max_digits=5, 
-        decimal_places=2,
-        null=True,
-        blank=True,
-        help_text="Feuchtigkeitsgehalt in %"
-    )
-    
-    # Qualitätsprüfung
-    contaminants_check = models.BooleanField(
-        default=False,
-        help_text="Prüfung auf Verunreinigungen (bestanden=True)"
-    )
-    pesticides_check = models.BooleanField(
-        default=False,
-        help_text="Prüfung auf Pestizide (bestanden=True)"
-    )
-    microbes_check = models.BooleanField(
-        default=False,
-        help_text="Mikrobiologische Prüfung (bestanden=True)"
-    )
-    heavy_metals_check = models.BooleanField(
-        default=False,
-        help_text="Prüfung auf Schwermetalle (bestanden=True)"
-    )
-    
-    # Testdetails
-    lab_name = models.CharField(
-        max_length=255,
-        blank=True,
-        help_text="Name des Labors, das die Analyse durchgeführt hat"
-    )
-    test_method = models.CharField(
-        max_length=255,
-        blank=True,
-        help_text="Verwendete Prüfmethode"
-    )
-    notes_from_lab = models.TextField(
-        blank=True,
-        help_text="Notizen und Anmerkungen vom Labor"
-    )
-    
-    # Dokumente
-    lab_report = models.FileField(
-        upload_to='lab_reports/',
-        null=True,
-        blank=True,
-        help_text="Hochgeladener Laborbericht (PDF)"
-    )
-    
-    # Ergebnisbewertung
-    is_approved = models.BooleanField(
-        default=False,
-        help_text="Freigabe des Produkts nach Laborprüfung"
-    )
-    approval_date = models.DateField(
-        null=True,
-        blank=True,
-        help_text="Datum der Produktfreigabe"
-    )
-    
-    class Meta:
-        verbose_name = "Laborkontrolle"
-        verbose_name_plural = "Laborkontrollen"
-        ordering = ['-test_date', 'genetic_name']
-    
-    def __str__(self):
-        return f"{self.genetic_name} ({self.batch_number})"
-    
-    def save(self, *args, **kwargs):
-        # Automatische Batch-Nummer generieren, wenn nicht vorhanden
-        if not self.batch_number:
-            today = timezone.now().strftime('%Y%m%d')
-            last_batch = LabTesting.objects.filter(
-                batch_number__startswith=f"LAB_{today}"
-            ).order_by('batch_number').last()
-            
-            if last_batch:
-                last_num = int(last_batch.batch_number.split('_')[-1])
-                new_num = last_num + 1
-            else:
-                new_num = 1
-                
-            self.batch_number = f"LAB_{today}_{new_num:03d}"
-        
-        # Bei erster Erstellung
-        is_new = self._state.adding
-        
-        if is_new:
-            # Automatische Übernahme von Verarbeitungs-Daten
-            if not self.genetic_name and self.processing_source:
-                self.genetic_name = self.processing_source.genetic_name
-                
-            # Restgewicht ist initial gleich Probengewicht
-            self.remaining_weight = self.sample_weight
-            
-            # Verarbeitungsquelle als übergeführt markieren - verbesserte Überführungslogik
-            if self.processing_source and not self.processing_source.is_destroyed:
-                # Wenn das gesamte Produkt für die Laborkontrolle verwendet wird
-                if self.sample_weight >= self.processing_source.remaining_weight:
-                    # Vollständige Überführung
-                    self.processing_source.mark_as_fully_transferred(self.responsible_member)
-                else:
-                    # Teilweise Überführung - Restgewicht reduzieren
-                    self.processing_source.remaining_weight = (
-                        float(self.processing_source.remaining_weight) - float(self.sample_weight)
-                    )
-                    self.processing_source.mark_as_partially_transferred(self.responsible_member)
-                    self.processing_source.save()
-        
-        # Bei Änderung des Status auf 'completed' automatisch das heutige Datum als Testdatum setzen
-        if not is_new and self.test_status == 'completed' and not self.approval_date and self.is_approved:
-            self.approval_date = timezone.now().date()
-        
-        super().save(*args, **kwargs)
-        
-    def all_checks_passed(self):
-        """Prüft, ob alle Qualitätsprüfungen bestanden wurden"""
-        return (self.contaminants_check and 
-                self.pesticides_check and 
-                self.microbes_check and 
-                self.heavy_metals_check)
-    
-    def get_approval_status_display(self):
-        """Gibt einen lesbaren Status der Freigabe zurück"""
-        if self.test_status != 'completed':
-            return "Prüfung ausstehend"
-        
-        if not self.is_approved:
-            return "Nicht freigegeben"
-        
-        return f"Freigegeben am {self.approval_date}"
-    
-
-# Packaging Modell für models.py
+# Packaging Modell
 class Packaging(BaseTrackingModel):
     """Modell für die Verpackung nach der Laborkontrolle"""
     batch_number = models.CharField(
@@ -1345,7 +1340,7 @@ class Packaging(BaseTrackingModel):
         help_text="Automatisch generierte Chargennummer (PACK_YYYYMMDD_NNN)"
     )
     lab_testing_source = models.ForeignKey(
-        LabTesting,
+        'LabTesting',  # String-Referenz, da LabTesting erst später definiert wird
         on_delete=models.PROTECT,
         related_name="packagings",
         help_text="Ursprung der Verpackung (Laborkontrolle)"
@@ -1522,7 +1517,7 @@ class Packaging(BaseTrackingModel):
         super().save(*args, **kwargs)
 
 
-# ProductDistribution Modell für models.py
+# ProductDistribution Modell
 class ProductDistribution(BaseTrackingModel):
     """Modell für die Produktausgabe nach der Verpackung"""
     batch_number = models.CharField(
@@ -1718,3 +1713,199 @@ class ProductDistribution(BaseTrackingModel):
             self.confirmation_date = timezone.now().date()
         
         super().save(*args, **kwargs)
+
+
+# LabTesting Modell für models.py
+class LabTesting(BaseTrackingModel):
+    """Modell für die Laborkontrolle nach der Verarbeitung"""
+    batch_number = models.CharField(
+        max_length=50, 
+        unique=True,
+        help_text="Automatisch generierte Chargennummer (LAB_YYYYMMDD_NNN)"
+    )
+    processing_source = models.ForeignKey(
+        Processing,
+        on_delete=models.PROTECT,
+        related_name="lab_testings",
+        help_text="Ursprung der Laborkontrolle (Verarbeitung)"
+    )
+    sample_date = models.DateField(help_text="Datum der Probennahme")
+    test_date = models.DateField(help_text="Datum der Durchführung des Tests")
+    genetic_name = models.CharField(
+        max_length=255, 
+        help_text="Genetische Bezeichnung (übernommen von Verarbeitung)"
+    )
+    
+    # Status für die Laborkontrolle
+    STATUS_CHOICES = [
+        ('pending', 'Ausstehend'),
+        ('in_progress', 'In Bearbeitung'),
+        ('completed', 'Abgeschlossen'),
+        ('failed', 'Nicht bestanden')
+    ]
+    test_status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='pending',
+        help_text="Status der Laborkontrolle"
+    )
+    
+    # Gewichtsdaten
+    sample_weight = models.DecimalField(
+        max_digits=8, 
+        decimal_places=2,
+        help_text="Gewicht der Probe in Gramm"
+    )
+    remaining_weight = models.DecimalField(
+        max_digits=8, 
+        decimal_places=2,
+        help_text="Verbleibendes Gewicht in Gramm nach der Laborkontrolle"
+    )
+    
+    # Analyseergebnisse
+    thc_content = models.DecimalField(
+        max_digits=5, 
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="THC-Gehalt in %"
+    )
+    cbd_content = models.DecimalField(
+        max_digits=5, 
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="CBD-Gehalt in %"
+    )
+    moisture_content = models.DecimalField(
+        max_digits=5, 
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Feuchtigkeitsgehalt in %"
+    )
+    
+    # Qualitätsprüfung
+    contaminants_check = models.BooleanField(
+        default=False,
+        help_text="Prüfung auf Verunreinigungen (bestanden=True)"
+    )
+    pesticides_check = models.BooleanField(
+        default=False,
+        help_text="Prüfung auf Pestizide (bestanden=True)"
+    )
+    microbes_check = models.BooleanField(
+        default=False,
+        help_text="Mikrobiologische Prüfung (bestanden=True)"
+    )
+    heavy_metals_check = models.BooleanField(
+        default=False,
+        help_text="Prüfung auf Schwermetalle (bestanden=True)"
+    )
+    
+    # Testdetails
+    lab_name = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Name des Labors, das die Analyse durchgeführt hat"
+    )
+    test_method = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Verwendete Prüfmethode"
+    )
+    notes_from_lab = models.TextField(
+        blank=True,
+        help_text="Notizen und Anmerkungen vom Labor"
+    )
+    
+    # Dokumente
+    lab_report = models.FileField(
+        upload_to='lab_reports/',
+        null=True,
+        blank=True,
+        help_text="Hochgeladener Laborbericht (PDF)"
+    )
+    
+    # Ergebnisbewertung
+    is_approved = models.BooleanField(
+        default=False,
+        help_text="Freigabe des Produkts nach Laborprüfung"
+    )
+    approval_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Datum der Produktfreigabe"
+    )
+    
+    class Meta:
+        verbose_name = "Laborkontrolle"
+        verbose_name_plural = "Laborkontrollen"
+        ordering = ['-test_date', 'genetic_name']
+    
+    def __str__(self):
+        return f"{self.genetic_name} ({self.batch_number})"
+    
+    def save(self, *args, **kwargs):
+        # Automatische Batch-Nummer generieren, wenn nicht vorhanden
+        if not self.batch_number:
+            today = timezone.now().strftime('%Y%m%d')
+            last_batch = LabTesting.objects.filter(
+                batch_number__startswith=f"LAB_{today}"
+            ).order_by('batch_number').last()
+            
+            if last_batch:
+                last_num = int(last_batch.batch_number.split('_')[-1])
+                new_num = last_num + 1
+            else:
+                new_num = 1
+                
+            self.batch_number = f"LAB_{today}_{new_num:03d}"
+        
+        # Bei erster Erstellung
+        is_new = self._state.adding
+        
+        if is_new:
+            # Automatische Übernahme von Verarbeitungs-Daten
+            if not self.genetic_name and self.processing_source:
+                self.genetic_name = self.processing_source.genetic_name
+                
+            # Restgewicht ist initial gleich Probengewicht
+            self.remaining_weight = self.sample_weight
+            
+            # Verarbeitungsquelle als übergeführt markieren - verbesserte Überführungslogik
+            if self.processing_source and not self.processing_source.is_destroyed:
+                # Wenn das gesamte Produkt für die Laborkontrolle verwendet wird
+                if self.sample_weight >= self.processing_source.remaining_weight:
+                    # Vollständige Überführung
+                    self.processing_source.mark_as_fully_transferred(self.responsible_member)
+                else:
+                    # Teilweise Überführung - Restgewicht reduzieren
+                    self.processing_source.remaining_weight = (
+                        float(self.processing_source.remaining_weight) - float(self.sample_weight)
+                    )
+                    self.processing_source.mark_as_partially_transferred(self.responsible_member)
+                    self.processing_source.save()
+        
+        # Bei Änderung des Status auf 'completed' automatisch das heutige Datum als Testdatum setzen
+        if not is_new and self.test_status == 'completed' and not self.approval_date and self.is_approved:
+            self.approval_date = timezone.now().date()
+        
+        super().save(*args, **kwargs)
+        
+    def all_checks_passed(self):
+        """Prüft, ob alle Qualitätsprüfungen bestanden wurden"""
+        return (self.contaminants_check and 
+                self.pesticides_check and 
+                self.microbes_check and 
+                self.heavy_metals_check)
+    
+    def get_approval_status_display(self):
+        """Gibt einen lesbaren Status der Freigabe zurück"""
+        if self.test_status != 'completed':
+            return "Prüfung ausstehend"
+        
+        if not self.is_approved:
+            return "Nicht freigegeben"
+        
+        return f"Freigegeben am {self.approval_date}"

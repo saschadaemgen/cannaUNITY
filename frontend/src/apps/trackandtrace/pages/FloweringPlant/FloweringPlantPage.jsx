@@ -1,4 +1,3 @@
-// frontend/src/apps/trackandtrace/pages/FloweringPlant/FloweringPlantPage.jsx
 import React, { useState, useEffect } from 'react';
 import { 
   Container, 
@@ -38,9 +37,11 @@ const FloweringPlantPage = () => {
   const [destroyingMember, setDestroyingMember] = useState('');
   const [openPhaseDialog, setOpenPhaseDialog] = useState(false);
   const [selectedPhase, setSelectedPhase] = useState('');
-  
-  // Neuen State für Ernte-Dialog hinzufügen
   const [openHarvestDialog, setOpenHarvestDialog] = useState(false);
+  
+  // State für individuelle Vernichtung
+  const [openDestroyIndividualDialog, setOpenDestroyIndividualDialog] = useState(false);
+  const [currentIndividual, setCurrentIndividual] = useState(null);
 
   // Tabellenspalten definieren
   const columns = [
@@ -265,6 +266,34 @@ const FloweringPlantPage = () => {
     }
   };
 
+  // Handler für individuelle Vernichtung
+  const handleOpenIndividualDestroyDialog = (individual) => {
+    setCurrentIndividual(individual);
+    setOpenDestroyIndividualDialog(true);
+  };
+
+  const handleCloseIndividualDestroyDialog = () => {
+    setOpenDestroyIndividualDialog(false);
+    setCurrentIndividual(null);
+    setDestroyReason('');
+    setDestroyingMember('');
+  };
+
+  const handleDestroyIndividual = async () => {
+    if (!destroyReason || !destroyingMember) return;
+    
+    try {
+      await api.post(`/trackandtrace/individualfloweringplants/${currentIndividual.uuid}/destroy_individual/`, {
+        reason: destroyReason,
+        destroying_member: destroyingMember
+      });
+      fetchData();
+      handleCloseIndividualDestroyDialog();
+    } catch (err) {
+      console.error('Fehler beim Vernichten der individuellen Pflanze:', err);
+    }
+  };
+
   // Ernte-Dialog-Handling
   const handleOpenHarvestDialog = (plant) => {
     setCurrentPlant(plant);
@@ -363,7 +392,8 @@ const FloweringPlantPage = () => {
               {...props} 
               onMarkAsDestroyed={handleOpenDestroyDialog}
               onUpdatePhase={handleOpenPhaseDialog}
-              onHarvest={handleOpenHarvestDialog}  // Ernte-Funktion übergeben
+              onHarvest={handleOpenHarvestDialog}
+              onDestroyIndividual={handleOpenIndividualDestroyDialog}
               status={status}
             />
           )}
@@ -438,6 +468,57 @@ const FloweringPlantPage = () => {
             disabled={!destroyReason || !destroyingMember}
           >
             Als vernichtet markieren
+          </Button>
+        </DialogActions>
+      </Dialog>
+      
+      {/* Dialog für individuelle Vernichtung */}
+      <Dialog
+        open={openDestroyIndividualDialog}
+        onClose={handleCloseIndividualDestroyDialog}
+      >
+        <DialogTitle>Individuelle Pflanze vernichten</DialogTitle>
+        <DialogContent>
+          <Typography gutterBottom>
+            Bitte geben Sie einen Grund für die Vernichtung an:
+          </Typography>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Vernichtungsgrund"
+            fullWidth
+            variant="outlined"
+            value={destroyReason}
+            onChange={(e) => setDestroyReason(e.target.value)}
+          />
+          
+          {/* Mitgliedauswahl für Vernichtung */}
+          <FormControl fullWidth margin="normal">
+            <InputLabel>Verantwortliches Mitglied</InputLabel>
+            <Select
+              value={destroyingMember}
+              onChange={(e) => setDestroyingMember(e.target.value)}
+              label="Verantwortliches Mitglied"
+            >
+              {Array.isArray(members) && members.length > 0 ? 
+                members.map((member) => (
+                  <MenuItem key={member.id} value={member.id}>
+                    {`${member.first_name} ${member.last_name}`}
+                  </MenuItem>
+                )) : 
+                <MenuItem disabled>Keine Mitglieder verfügbar</MenuItem>
+              }
+            </Select>
+          </FormControl>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseIndividualDestroyDialog}>Abbrechen</Button>
+          <Button 
+            onClick={handleDestroyIndividual}
+            color="error"
+            disabled={!destroyReason || !destroyingMember}
+          >
+            Pflanze vernichten
           </Button>
         </DialogActions>
       </Dialog>

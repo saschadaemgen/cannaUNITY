@@ -120,7 +120,7 @@ const SeedPurchaseDetails = ({
           <Grid container spacing={2}>
             <Grid item xs={6}>
               <Typography variant="body2" color="textSecondary">Hersteller:</Typography>
-              <Typography variant="body1">{data.manufacturer || 'Nicht angegeben'}</Typography>
+              <Typography variant="body1">{data.manufacturer_details ? data.manufacturer_details.name : (data.manufacturer || 'Nicht angegeben')}</Typography>
             </Grid>
             <Grid item xs={6}>
               <Typography variant="body2" color="textSecondary">Kaufdatum:</Typography>
@@ -270,26 +270,22 @@ const SeedPurchaseDetails = ({
         {status === 'active' && (
           <Grid item xs={12}>
             <Box display="flex" justifyContent="flex-end" mt={2} gap={2}>
-              {/* Überführungsbutton sollte nur erscheinen, wenn besondere Umstände */}
-              {false && (
-                <>
-                  <Button 
-                    variant="outlined" 
-                    color="info"
-                    onClick={() => onMarkAsPartiallyTransferred && onMarkAsPartiallyTransferred(data)}
-                  >
-                    Als teilweise übergeführt markieren
-                  </Button>
-                  
-                  <Button 
-                    variant="outlined" 
-                    color="success"
-                    onClick={() => onMarkAsFullyTransferred && onMarkAsFullyTransferred(data)}
-                  >
-                    Als vollständig übergeführt markieren
-                  </Button>
-                </>
-              )}
+              {/* Zeige Überführungsbuttons bei aktiven Samen */}
+              <Button 
+                variant="outlined" 
+                color="info"
+                onClick={() => onMarkAsPartiallyTransferred && onMarkAsPartiallyTransferred(data)}
+              >
+                Als teilweise übergeführt markieren
+              </Button>
+                
+              <Button 
+                variant="outlined" 
+                color="success"
+                onClick={() => onMarkAsFullyTransferred && onMarkAsFullyTransferred(data)}
+              >
+                Als vollständig übergeführt markieren
+              </Button>
               
               <Button 
                 variant="outlined" 

@@ -16,6 +16,12 @@ import {
   Divider,
   Paper
 } from '@mui/material';
+// MUI Datepicker importieren
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import dayjs from 'dayjs';
+import 'dayjs/locale/de'; // Deutsche Lokalisierung importieren
 import api from '../../../../utils/api';
 
 // Styled Components für besseres Layout
@@ -55,7 +61,7 @@ const SeedPurchaseForm = ({ initialData, onSave, onCancel }) => {
     indica_percentage: 50,
     thc_value: '',
     cbd_value: '',
-    purchase_date: new Date().toISOString().split('T')[0],
+    purchase_date: dayjs().format('YYYY-MM-DD'),
     total_seeds: 0,
     notes: '',
     temperature: '',
@@ -154,6 +160,16 @@ const SeedPurchaseForm = ({ initialData, onSave, onCancel }) => {
       }));
     }
   };
+
+  // Handler für Datepicker-Änderungen
+  const handleDateChange = (date) => {
+    if (date) {
+      setFormData({
+        ...formData,
+        purchase_date: date.format('YYYY-MM-DD')
+      });
+    }
+  };
   
   const validateForm = () => {
     const newErrors = {};
@@ -166,11 +182,6 @@ const SeedPurchaseForm = ({ initialData, onSave, onCancel }) => {
       newErrors.total_seeds = 'Anzahl muss größer als 0 sein';
     }
     if (!formData.responsible_member) newErrors.responsible_member = 'Verantwortlicher ist erforderlich';
-    
-    // Validate date format (YYYY-MM-DD)
-    if (formData.purchase_date && !/^\d{4}-\d{2}-\d{2}$/.test(formData.purchase_date)) {
-      newErrors.purchase_date = 'Bitte Datum im Format YYYY-MM-DD eingeben';
-    }
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -206,7 +217,7 @@ const SeedPurchaseForm = ({ initialData, onSave, onCancel }) => {
                 sx={{ minWidth: 300 }}
               />
               <FormHelperText>
-                Eingeben um zu suchen oder neuen Hersteller anzulegen
+                Eingeben um zu suchen oder neuen Hersteller anlegen
               </FormHelperText>
             </Box>
           </Grid>
@@ -310,15 +321,21 @@ const SeedPurchaseForm = ({ initialData, onSave, onCancel }) => {
       <FormSection title="Einkaufsinformationen">
         <Grid container spacing={3}>
           <Grid item xs={12} md={6}>
-            <TextField
-              fullWidth
-              label="Kaufdatum (YYYY-MM-DD)"
-              name="purchase_date"
-              value={formData.purchase_date}
-              onChange={handleChange}
-              error={!!errors.purchase_date}
-              helperText={errors.purchase_date || "Format: YYYY-MM-DD"}
-            />
+            <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="de">
+              <DatePicker
+                label="Kaufdatum"
+                value={dayjs(formData.purchase_date)}
+                onChange={handleDateChange}
+                format="DD.MM.YYYY"
+                slotProps={{
+                  textField: {
+                    fullWidth: true,
+                    error: !!errors.purchase_date,
+                    helperText: errors.purchase_date,
+                  },
+                }}
+              />
+            </LocalizationProvider>
           </Grid>
           <Grid item xs={12} md={6}>
             <TextField

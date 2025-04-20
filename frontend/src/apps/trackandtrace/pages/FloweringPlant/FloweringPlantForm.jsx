@@ -19,6 +19,7 @@ import {
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import PlantCreationProgress from '../../components/PlantCreationProgress';
 import api from '../../../../utils/api';
 
 const FloweringPlantForm = ({ initialData, onSave, onCancel }) => {
@@ -27,6 +28,7 @@ const FloweringPlantForm = ({ initialData, onSave, onCancel }) => {
   const [cuttings, setCuttings] = useState([]);
   const [rooms, setRooms] = useState([]);
   const [sourceType, setSourceType] = useState('seed'); // 'seed' oder 'cutting'
+  const [isCreatingPlants, setIsCreatingPlants] = useState(false);
   const [formData, setFormData] = useState({
     genetic_name: '',
     seed_source: '',
@@ -221,7 +223,7 @@ const FloweringPlantForm = ({ initialData, onSave, onCancel }) => {
     return Object.keys(newErrors).length === 0;
   };
   
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (!validateForm()) return;
@@ -229,8 +231,26 @@ const FloweringPlantForm = ({ initialData, onSave, onCancel }) => {
     // Daten vorbereiten für API
     const submitData = { ...formData };
     
-    // Submit
-    onSave(submitData);
+    // Wenn es keine Bearbeitung ist und die Anzahl der Pflanzen groß ist (>= 20),
+    // den Ladeindikator anzeigen
+    if (!initialData && submitData.plant_count >= 20) {
+      setIsCreatingPlants(true);
+      try {
+        // Submit - mit kurzer Verzögerung, damit die Ladeanzeige sichtbar wird
+        await new Promise(resolve => setTimeout(resolve, 100));
+        await onSave(submitData);
+        // Kurze Verzögerung, bevor wir die Fortschrittsanzeige schließen
+        await new Promise(resolve => setTimeout(resolve, 500));
+        setIsCreatingPlants(false);
+      } catch (error) {
+        setIsCreatingPlants(false);
+        // Fehlerbehandlung wird vom übergeordneten onSave Handler durchgeführt
+        throw error;
+      }
+    } else {
+      // Normaler Submit ohne Ladeanzeige
+      onSave(submitData);
+    }
   };
   
   return (
@@ -522,6 +542,13 @@ const FloweringPlantForm = ({ initialData, onSave, onCancel }) => {
           </Box>
         </Grid>
       </Grid>
+      
+      {/* Ladeindikator für Pflanzen-Erstellung */}
+      <PlantCreationProgress 
+        open={isCreatingPlants} 
+        totalPlants={formData.plant_count || 1000} 
+        onComplete={() => setIsCreatingPlants(false)} 
+      />
     </form>
   );
 };

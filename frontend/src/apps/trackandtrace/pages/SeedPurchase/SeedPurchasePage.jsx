@@ -23,6 +23,7 @@ import api from '../../../../utils/api';
 import TableComponent from '../../components/TableComponent';
 import SeedPurchaseDetails from './SeedPurchaseDetails';
 import SeedPurchaseForm from './SeedPurchaseForm';
+import { fullWidthDialogStyle } from '../../utils/DialogStyles';
 
 const SeedPurchasePage = () => {
   // Bestehende State-Variablen beibehalten
@@ -31,7 +32,7 @@ const SeedPurchasePage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   // Anpassung für erweiterten Status
-  const [status, setStatus] = useState('active'); // 'active', 'transferred', 'destroyed'
+  const [status, setStatus] = useState('active'); // 'active', 'transferred_mother', 'transferred_flowering', 'destroyed'
   const [openForm, setOpenForm] = useState(false);
   const [currentSeedPurchase, setCurrentSeedPurchase] = useState(null);
   const [openDestroyDialog, setOpenDestroyDialog] = useState(false);
@@ -44,8 +45,6 @@ const SeedPurchasePage = () => {
 
   // Bestehende Tabellenspalten beibehalten und um Überführungsstatus erweitern
   const columns = [
-    // Bestehende Spalten beibehalten
-    // Beispiel:
     { id: 'batch_number', label: 'Charge', minWidth: 100 },
     { id: 'strain_name', label: 'Sortenname', minWidth: 150 },
     { id: 'genetics', label: 'Genetik', minWidth: 150 },
@@ -84,8 +83,10 @@ const SeedPurchasePage = () => {
     switch (status) {
       case 'destroyed':
         return '?destroyed=true';
-      case 'transferred':
-        return '?transfer_status=partially_transferred,fully_transferred';
+      case 'transferred_mother':
+        return '?transfer_type=mother_plant';
+      case 'transferred_flowering':
+        return '?transfer_type=flowering_plant';
       case 'active':
       default:
         return ''; // Aktive (weder vernichtet noch übergeführt)
@@ -269,9 +270,14 @@ const SeedPurchasePage = () => {
             <ToggleButton value="active" color="primary">
               Aktiv
             </ToggleButton>
-            <Tooltip title="An den nächsten Prozessschritt übergeführt (teilweise oder vollständig)">
-              <ToggleButton value="transferred" color="success">
-                Übergeführt
+            <Tooltip title="Als Mutterpflanze übergeführt">
+              <ToggleButton value="transferred_mother" color="info">
+                Mutterpflanzen
+              </ToggleButton>
+            </Tooltip>
+            <Tooltip title="Als Blühpflanze übergeführt">
+              <ToggleButton value="transferred_flowering" color="success">
+                Blühpflanzen
               </ToggleButton>
             </Tooltip>
             <ToggleButton value="destroyed" color="error">
@@ -307,12 +313,13 @@ const SeedPurchasePage = () => {
         />
       </Box>
       
-      {/* Formular-Dialog */}
+      {/* Formular-Dialog - Mit zentralisiertem Dialog-Style */}
       <Dialog 
         open={openForm} 
         onClose={handleCloseForm}
-        maxWidth="md"
+        maxWidth="xl" // Auf xl geändert für maximale Breite
         fullWidth
+        sx={fullWidthDialogStyle}
       >
         <DialogTitle>
           {currentSeedPurchase ? 'Samen-Einkauf bearbeiten' : 'Neuer Samen-Einkauf'}

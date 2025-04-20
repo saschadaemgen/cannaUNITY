@@ -7,8 +7,122 @@ from django.utils import timezone
 from members.models import Member
 from django_filters.rest_framework import DjangoFilterBackend
 
-from .models import SeedPurchase, MotherPlant, Cutting, FloweringPlant, Harvest, Drying, Processing, LabTesting, Packaging, ProductDistribution, Manufacturer, Strain
-from .serializers import SeedPurchaseSerializer, MotherPlantSerializer, CuttingSerializer, FloweringPlantSerializer, HarvestSerializer, DryingSerializer, ProcessingSerializer, LabTestingSerializer, PackagingSerializer, ProductDistributionSerializer, ManufacturerSerializer, StrainSerializer
+from .models import SeedPurchase, MotherPlant, Cutting, FloweringPlant, Harvest, Drying, Processing, LabTesting, Packaging, ProductDistribution, Manufacturer, Strain, IndividualFloweringPlant, IndividualCutting
+from .serializers import SeedPurchaseSerializer, MotherPlantSerializer, CuttingSerializer, FloweringPlantSerializer, HarvestSerializer, DryingSerializer, ProcessingSerializer, LabTestingSerializer, PackagingSerializer, ProductDistributionSerializer, ManufacturerSerializer, StrainSerializer, IndividualFloweringPlantSerializer, IndividualCuttingSerializer
+
+
+class IndividualFloweringPlantViewSet(viewsets.ModelViewSet):
+    """API-Endpunkte für individuelle Blühpflanzen"""
+    queryset = IndividualFloweringPlant.objects.all()
+    serializer_class = IndividualFloweringPlantSerializer
+    permission_classes = [IsAuthenticated]
+    
+    @action(detail=True, methods=['post'])
+    def destroy_individual(self, request, pk=None):
+        """Markiert eine individuelle Pflanze als vernichtet"""
+        individual = self.get_object()
+        reason = request.data.get('reason', '')
+        destroying_member_id = request.data.get('destroying_member', None)
+        
+        if not reason:
+            return Response(
+                {'error': 'Vernichtungsgrund muss angegeben werden'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        if not destroying_member_id:
+            return Response(
+                {'error': 'Verantwortliches Mitglied für die Vernichtung muss angegeben werden'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            destroying_member = Member.objects.get(id=destroying_member_id)
+        except Member.DoesNotExist:
+            return Response(
+                {'error': 'Das angegebene Mitglied existiert nicht'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        # Die individuelle Pflanze als vernichtet markieren
+        individual.is_destroyed = True
+        individual.destruction_reason = reason
+        individual.destruction_date = timezone.now()
+        individual.destroying_member = destroying_member
+        individual.save()
+        
+        # Parent-Objekt aktualisieren
+        parent = individual.parent
+        parent.remaining_plants -= 1
+        
+        # Wenn keine Pflanzen mehr übrig sind, den Parent als vernichtet markieren
+        if parent.remaining_plants <= 0:
+            parent.is_destroyed = True
+            parent.destruction_reason = "Alle individuellen Pflanzen vernichtet"
+            parent.destruction_date = timezone.now()
+            parent.destroying_member = destroying_member
+        
+        parent.save()
+        
+        serializer = self.get_serializer(individual)
+        return Response(serializer.data)
+
+
+class IndividualCuttingViewSet(viewsets.ModelViewSet):
+    """API-Endpunkte für individuelle Stecklinge"""
+    queryset = IndividualCutting.objects.all()
+    serializer_class = IndividualCuttingSerializer
+    permission_classes = [IsAuthenticated]
+    
+    @action(detail=True, methods=['post'])
+    def destroy_individual(self, request, pk=None):
+        """Markiert einen individuellen Steckling als vernichtet"""
+        individual = self.get_object()
+        reason = request.data.get('reason', '')
+        destroying_member_id = request.data.get('destroying_member', None)
+        
+        if not reason:
+            return Response(
+                {'error': 'Vernichtungsgrund muss angegeben werden'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        if not destroying_member_id:
+            return Response(
+                {'error': 'Verantwortliches Mitglied für die Vernichtung muss angegeben werden'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            destroying_member = Member.objects.get(id=destroying_member_id)
+        except Member.DoesNotExist:
+            return Response(
+                {'error': 'Das angegebene Mitglied existiert nicht'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        # Den individuellen Steckling als vernichtet markieren
+        individual.is_destroyed = True
+        individual.destruction_reason = reason
+        individual.destruction_date = timezone.now()
+        individual.destroying_member = destroying_member
+        individual.save()
+        
+        # Parent-Objekt aktualisieren
+        parent = individual.parent
+        parent.remaining_cuttings -= 1
+        
+        # Wenn keine Stecklinge mehr übrig sind, den Parent als vernichtet markieren
+        if parent.remaining_cuttings <= 0:
+            parent.is_destroyed = True
+            parent.destruction_reason = "Alle individuellen Stecklinge vernichtet"
+            parent.destruction_date = timezone.now()
+            parent.destroying_member = destroying_member
+        
+        parent.save()
+        
+        serializer = self.get_serializer(individual)
+        return Response(serializer.data)
 
 # Neue ViewSets einfügen (am besten vor dem SeedPurchaseViewSet)
 class ManufacturerViewSet(viewsets.ModelViewSet):
@@ -64,10 +178,11 @@ class SeedPurchaseViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
-        """Filtering für aktive/vernichtete/übergeführte Einträge"""
+        """Filtering für aktive/vernichtete/übergeführte Einträge mit erweitertem Transfer-Status"""
         queryset = SeedPurchase.objects.all()
         destroyed = self.request.query_params.get('destroyed', None)
         transfer_status = self.request.query_params.get('transfer_status', None)
+        transfer_type = self.request.query_params.get('transfer_type', None)
 
         # Filter für Hersteller
         manufacturer = self.request.query_params.get('manufacturer', None)
@@ -79,21 +194,28 @@ class SeedPurchaseViewSet(viewsets.ModelViewSet):
         if strain is not None:
             queryset = queryset.filter(strain_id=strain)
         
-        # Filter für Vernichtung anwenden
+        # Filter für Vernichtung anwenden - mit Priorität
         if destroyed is not None:
             is_destroyed = destroyed.lower() == 'true'
             queryset = queryset.filter(is_destroyed=is_destroyed)
+            # Wichtig: Wenn wir explizit vernichtete Items anfordern, ignorieren wir transfer_status/type
+            if is_destroyed:
+                return queryset
             
-        # Erweiterter Filter für Überführungsstatus
+        # Filter für Überführungsstatus
         if transfer_status is not None:
             if transfer_status == 'transferred':
                 # Für Abwärtskompatibilität: is_transferred=True entspricht dem alten Schema
-                queryset = queryset.filter(is_transferred=True)
+                queryset = queryset.filter(is_transferred=True, is_destroyed=False)
             elif transfer_status == 'not_transferred':
-                queryset = queryset.filter(is_transferred=False)
+                queryset = queryset.filter(is_transferred=False, is_destroyed=False)
+        
+        # Neuer Filter für Überführungstyp
+        if transfer_type is not None:
+            queryset = queryset.filter(transfer_type=transfer_type, is_destroyed=False)
         
         # Standardfilter: Wenn keine Parameter angegeben, zeige aktive (nicht vernichtet, nicht übergeführt)
-        if destroyed is None and transfer_status is None and manufacturer is None and strain is None:
+        if destroyed is None and transfer_status is None and transfer_type is None and manufacturer is None and strain is None:
             queryset = queryset.filter(is_destroyed=False, is_transferred=False)
             
         return queryset
@@ -130,6 +252,102 @@ class SeedPurchaseViewSet(viewsets.ModelViewSet):
         seed_purchase.destruction_date = timezone.now()
         seed_purchase.destroying_member = destroying_member
         seed_purchase.save()
+        
+        serializer = self.get_serializer(seed_purchase)
+        return Response(serializer.data)
+    
+    @action(detail=True, methods=['post'])
+    def mark_as_mother_plant(self, request, pk=None):
+        """Markiert einen Eintrag als zur Mutterpflanze übergeführt"""
+        seed_purchase = self.get_object()
+        transferring_member_id = request.data.get('transferring_member', None)
+        seed_count = int(request.data.get('seed_count', 0))
+        
+        if not transferring_member_id:
+            return Response(
+                {'error': 'Verantwortliches Mitglied für die Überführung muss angegeben werden'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            transferring_member = Member.objects.get(id=transferring_member_id)
+        except Member.DoesNotExist:
+            return Response(
+                {'error': 'Das angegebene Mitglied existiert nicht'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Überprüfen, ob genügend Samen verfügbar sind
+        if seed_count > seed_purchase.remaining_seeds:
+            return Response(
+                {'error': f'Nicht genügend Samen verfügbar. Vorhanden: {seed_purchase.remaining_seeds}, Angefordert: {seed_count}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Restliche Samen reduzieren
+        seed_purchase.remaining_seeds -= seed_count
+        
+        # Wenn keine Samen mehr übrig, als vollständig übergeführt markieren
+        if seed_purchase.remaining_seeds == 0:
+            seed_purchase.mark_as_fully_transferred(transferring_member, 'mother_plant')
+        else:
+            # Sonst als teilweise übergeführt markieren und Transfer-Typ setzen
+            seed_purchase.transfer_status = 'partially_transferred'
+            if seed_purchase.transfer_type == 'not_transferred':
+                seed_purchase.transfer_type = 'mother_plant'
+            elif seed_purchase.transfer_type != 'mother_plant':
+                seed_purchase.transfer_type = 'mixed'
+            seed_purchase.last_transfer_date = timezone.now()
+            seed_purchase.transferring_member = transferring_member
+            seed_purchase.save()
+        
+        serializer = self.get_serializer(seed_purchase)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'])
+    def mark_as_flowering_plant(self, request, pk=None):
+        """Markiert einen Eintrag als zur Blühpflanze übergeführt"""
+        seed_purchase = self.get_object()
+        transferring_member_id = request.data.get('transferring_member', None)
+        seed_count = int(request.data.get('seed_count', 0))
+        
+        if not transferring_member_id:
+            return Response(
+                {'error': 'Verantwortliches Mitglied für die Überführung muss angegeben werden'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            transferring_member = Member.objects.get(id=transferring_member_id)
+        except Member.DoesNotExist:
+            return Response(
+                {'error': 'Das angegebene Mitglied existiert nicht'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Überprüfen, ob genügend Samen verfügbar sind
+        if seed_count > seed_purchase.remaining_seeds:
+            return Response(
+                {'error': f'Nicht genügend Samen verfügbar. Vorhanden: {seed_purchase.remaining_seeds}, Angefordert: {seed_count}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Restliche Samen reduzieren
+        seed_purchase.remaining_seeds -= seed_count
+        
+        # Wenn keine Samen mehr übrig, als vollständig übergeführt markieren
+        if seed_purchase.remaining_seeds == 0:
+            seed_purchase.mark_as_fully_transferred(transferring_member, 'flowering_plant')
+        else:
+            # Sonst als teilweise übergeführt markieren und Transfer-Typ setzen
+            seed_purchase.transfer_status = 'partially_transferred'
+            if seed_purchase.transfer_type == 'not_transferred':
+                seed_purchase.transfer_type = 'flowering_plant'
+            elif seed_purchase.transfer_type != 'flowering_plant':
+                seed_purchase.transfer_type = 'mixed'
+            seed_purchase.last_transfer_date = timezone.now()
+            seed_purchase.transferring_member = transferring_member
+            seed_purchase.save()
         
         serializer = self.get_serializer(seed_purchase)
         return Response(serializer.data)
@@ -221,6 +439,70 @@ class CuttingViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(is_destroyed=False, is_transferred=False)
             
         return queryset
+    
+    @action(detail=True, methods=['post'])
+    def destroy_all_individuals(self, request, pk=None):
+        """Vernichtet alle verbleibenden Stecklinge eines Batches"""
+        cutting = self.get_object()
+        reason = request.data.get('reason', '')
+        destroying_member_id = request.data.get('destroying_member', None)
+        
+        if not reason:
+            return Response(
+                {'error': 'Vernichtungsgrund muss angegeben werden'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        if not destroying_member_id:
+            return Response(
+                {'error': 'Verantwortliches Mitglied für die Vernichtung muss angegeben werden'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            destroying_member = Member.objects.get(id=destroying_member_id)
+        except Member.DoesNotExist:
+            return Response(
+                {'error': 'Das angegebene Mitglied existiert nicht'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Prüfen, ob es noch aktive Stecklinge gibt
+        if cutting.remaining_cuttings <= 0:
+            return Response(
+                {'error': 'Es sind keine Stecklinge mehr übrig zum Vernichten'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Alle individuellen Stecklinge vernichten
+        active_individuals = IndividualCutting.objects.filter(
+            parent=cutting,
+            is_destroyed=False
+        )
+        
+        for individual in active_individuals:
+            individual.is_destroyed = True
+            individual.destruction_reason = reason
+            individual.destruction_date = timezone.now()
+            individual.destroying_member = destroying_member
+            individual.save()
+        
+        # Den Parent als Batch aktualisieren
+        destroyed_count = active_individuals.count()
+        cutting.remaining_cuttings = 0
+        
+        # Den Batch als vollständig vernichtet markieren
+        cutting.is_destroyed = True
+        cutting.destruction_reason = f"Alle {destroyed_count} Stecklinge vernichtet: {reason}"
+        cutting.destruction_date = timezone.now()
+        cutting.destroying_member = destroying_member
+        cutting.save()
+        
+        serializer = self.get_serializer(cutting)
+        return Response({
+            'message': f"{destroyed_count} Stecklinge wurden erfolgreich vernichtet",
+            'data': serializer.data
+        })
     
     @action(detail=True, methods=['post'])
     def destroy_item(self, request, pk=None):
@@ -345,13 +627,61 @@ class FloweringPlantViewSet(viewsets.ModelViewSet):
         
         serializer = self.get_serializer(flowering_plant)
         return Response(serializer.data)
+    
+    @action(detail=True, methods=['post'])
+    def destroy_individual(self, request, pk=None):
+        """Markiert eine einzelne Pflanze als vernichtet"""
+        flowering_plant = self.get_object()
+        reason = request.data.get('reason', '')
+        destroying_member_id = request.data.get('destroying_member', None)
+        
+        if not reason:
+            return Response(
+                {'error': 'Vernichtungsgrund muss angegeben werden'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        if not destroying_member_id:
+            return Response(
+                {'error': 'Verantwortliches Mitglied für die Vernichtung muss angegeben werden'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            destroying_member = Member.objects.get(id=destroying_member_id)
+        except Member.DoesNotExist:
+            return Response(
+                {'error': 'Das angegebene Mitglied existiert nicht'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Reduziere die Anzahl der verbleibenden Pflanzen um 1
+        if flowering_plant.remaining_plants <= 0:
+            return Response(
+                {'error': 'Keine Pflanzen mehr übrig zum Vernichten'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        flowering_plant.remaining_plants -= 1
+        
+        # Wenn es die letzte Pflanze war, markiere als vollständig vernichtet
+        if flowering_plant.remaining_plants == 0:
+            flowering_plant.is_destroyed = True
+            flowering_plant.destruction_reason = reason
+            flowering_plant.destruction_date = timezone.now()
+            flowering_plant.destroying_member = destroying_member
+        
+        flowering_plant.save()
+        
+        serializer = self.get_serializer(flowering_plant)
+        return Response(serializer.data)
         
     @action(detail=True, methods=['post'])
     def update_growth_phase(self, request, pk=None):
         """Aktualisiert die Wachstumsphase einer Blühpflanze"""
         flowering_plant = self.get_object()
         
-        # Prüfen ob die Pflanze aktiv ist (weder vernichtet noch überführt)
+        # Prüfen ob die Pflanze aktiv ist (weder vernichtet noch übergeführt)
         if flowering_plant.is_destroyed:
             return Response(
                 {'error': 'Vernichtete Pflanzen können nicht aktualisiert werden'},

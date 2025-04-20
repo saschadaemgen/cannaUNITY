@@ -17,6 +17,8 @@ router.register(r'packagings', api_views.PackagingViewSet)
 router.register(r'distributions', api_views.ProductDistributionViewSet)
 router.register(r'manufacturers', api_views.ManufacturerViewSet)
 router.register(r'strains', api_views.StrainViewSet)
+router.register(r'individualfloweringplants', api_views.IndividualFloweringPlantViewSet)
+router.register(r'individualcuttings', api_views.IndividualCuttingViewSet)
 
 urlpatterns = [
     # Standard API Router

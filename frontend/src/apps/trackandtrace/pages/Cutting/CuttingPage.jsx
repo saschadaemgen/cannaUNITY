@@ -1,4 +1,3 @@
-// frontend/src/apps/trackandtrace/pages/Cutting/CuttingPage.jsx
 import React, { useState, useEffect } from 'react';
 import { 
   Container, 
@@ -24,6 +23,7 @@ import api from '../../../../utils/api';
 import TableComponent from '../../components/TableComponent';
 import CuttingDetails from './CuttingDetails';
 import CuttingForm from './CuttingForm';
+import MassDestructionProgress from '../../components/MassDestructionProgress';
 
 const CuttingPage = () => {
   const [cuttings, setCuttings] = useState([]);
@@ -38,6 +38,16 @@ const CuttingPage = () => {
   const [destroyingMember, setDestroyingMember] = useState('');
   const [openPhaseDialog, setOpenPhaseDialog] = useState(false);
   const [selectedPhase, setSelectedPhase] = useState('');
+  
+  // Neuer State für individuelle Vernichtung
+  const [openDestroyIndividualDialog, setOpenDestroyIndividualDialog] = useState(false);
+  const [currentIndividual, setCurrentIndividual] = useState(null);
+  
+  // Neuer State für "Alle vernichten"
+  const [openDestroyAllDialog, setOpenDestroyAllDialog] = useState(false);
+  
+  // State für die Ladeanimation bei Massenvernichtung
+  const [isDestroyingAll, setIsDestroyingAll] = useState(false);
 
   // Tabellenspalten definieren
   const columns = [
@@ -113,6 +123,7 @@ const CuttingPage = () => {
 
   // Daten laden
   const fetchData = async () => {
+    console.log("Fetching data with status:", status);
     setLoading(true);
     try {
       // API-Parameter je nach Status
@@ -148,9 +159,10 @@ const CuttingPage = () => {
         setMembers([]);
       }
       
+      console.log("Data fetched successfully:", response.data);
       setError(null);
     } catch (err) {
-      console.error('Fehler beim Laden der Stecklings-Daten:', err);
+      console.error('Fehler beim Laden der Daten:', err);
       setError('Fehler beim Laden der Daten. Bitte versuchen Sie es später erneut.');
     } finally {
       setLoading(false);
@@ -219,6 +231,91 @@ const CuttingPage = () => {
       handleCloseDestroyDialog();
     } catch (err) {
       console.error('Fehler beim Markieren als vernichtet:', err);
+    }
+  };
+
+  // Handler für individuelle Vernichtung
+  const handleOpenDestroyIndividualDialog = (individual) => {
+    setCurrentIndividual(individual);
+    setOpenDestroyIndividualDialog(true);
+  };
+
+  const handleCloseDestroyIndividualDialog = () => {
+    setOpenDestroyIndividualDialog(false);
+    setCurrentIndividual(null);
+    setDestroyReason('');
+    setDestroyingMember('');
+  };
+
+  const handleDestroyIndividual = async () => {
+    if (!destroyReason || !destroyingMember) return;
+    
+    try {
+      await api.post(`/trackandtrace/individualcuttings/${currentIndividual.uuid}/destroy_individual/`, {
+        reason: destroyReason,
+        destroying_member: destroyingMember
+      });
+      fetchData();
+      handleCloseDestroyIndividualDialog();
+    } catch (err) {
+      console.error('Fehler beim Vernichten des einzelnen Stecklings:', err);
+    }
+  };
+  
+  // Handler für "Alle vernichten"
+  const handleOpenDestroyAllDialog = (cutting) => {
+    setCurrentCutting(cutting);
+    setOpenDestroyAllDialog(true);
+  };
+  
+  const handleCloseDestroyAllDialog = () => {
+    setOpenDestroyAllDialog(false);
+    setCurrentCutting(null);
+    setDestroyReason('');
+    setDestroyingMember('');
+  };
+  
+  // Verbesserte Callback-Funktion für das Beenden der Ladeanimation
+  const handleMassDestructionComplete = () => {
+    console.log("Massenvernichtung abgeschlossen, lade Daten neu...");
+    
+    // Animation deaktivieren
+    setIsDestroyingAll(false);
+    
+    // Explizit Daten neu laden
+    fetchData();
+    
+    // Optional: Feedback für den Benutzer
+    // toast oder andere Benachrichtigungsmethode verwenden, falls vorhanden
+    // Alternativ können Sie nach kurzer Verzögerung zur Listenseite navigieren
+  };
+  
+  // Verbesserte handleDestroyAllIndividuals-Funktion
+  const handleDestroyAllIndividuals = async () => {
+    if (!destroyReason || !destroyingMember) return;
+    
+    try {
+      // Dialog zuerst schließen
+      handleCloseDestroyAllDialog();
+      
+      // Dann Animation starten
+      setIsDestroyingAll(true);
+      
+      // API-Aufruf zum Vernichten der Stecklinge
+      await api.post(`/trackandtrace/cuttings/${currentCutting.uuid}/destroy_all_individuals/`, {
+        reason: destroyReason,
+        destroying_member: destroyingMember
+      });
+      
+      // Hier KEIN fetchData() aufrufen, das passiert später im onComplete
+      
+    } catch (err) {
+      console.error('Fehler beim Vernichten aller Stecklinge:', err);
+      alert('Es ist ein Fehler aufgetreten: ' + (err.response?.data?.error || err.message));
+      
+      // Animation beenden und Daten bei Fehler neu laden
+      setIsDestroyingAll(false);
+      fetchData();
     }
   };
 
@@ -313,7 +410,9 @@ const CuttingPage = () => {
               {...props} 
               onMarkAsDestroyed={handleOpenDestroyDialog}
               onUpdatePhase={handleOpenPhaseDialog}
-              status={status} // Status als Prop übergeben
+              onDestroyIndividual={handleOpenDestroyIndividualDialog}
+              onDestroyAllIndividuals={handleOpenDestroyAllDialog}
+              status={status}
             />
           )}
           onEdit={handleOpenForm}
@@ -391,6 +490,113 @@ const CuttingPage = () => {
         </DialogActions>
       </Dialog>
       
+      {/* Dialog für individuelle Vernichtung */}
+      <Dialog
+        open={openDestroyIndividualDialog}
+        onClose={handleCloseDestroyIndividualDialog}
+      >
+        <DialogTitle>Einzelnen Steckling vernichten</DialogTitle>
+        <DialogContent>
+          <Typography gutterBottom>
+            Bitte geben Sie einen Grund für die Vernichtung an:
+          </Typography>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Vernichtungsgrund"
+            fullWidth
+            variant="outlined"
+            value={destroyReason}
+            onChange={(e) => setDestroyReason(e.target.value)}
+          />
+          
+          {/* Mitgliedauswahl für Vernichtung */}
+          <FormControl fullWidth margin="normal">
+            <InputLabel>Verantwortliches Mitglied</InputLabel>
+            <Select
+              value={destroyingMember}
+              onChange={(e) => setDestroyingMember(e.target.value)}
+              label="Verantwortliches Mitglied"
+            >
+              {Array.isArray(members) && members.length > 0 ? 
+                members.map((member) => (
+                  <MenuItem key={member.id} value={member.id}>
+                    {`${member.first_name} ${member.last_name}`}
+                  </MenuItem>
+                )) : 
+                <MenuItem disabled>Keine Mitglieder verfügbar</MenuItem>
+              }
+            </Select>
+          </FormControl>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDestroyIndividualDialog}>Abbrechen</Button>
+          <Button 
+            onClick={handleDestroyIndividual}
+            color="error"
+            disabled={!destroyReason || !destroyingMember}
+          >
+            Steckling vernichten
+          </Button>
+        </DialogActions>
+      </Dialog>
+      
+      {/* Dialog für "Alle Stecklinge vernichten" */}
+      <Dialog
+        open={openDestroyAllDialog}
+        onClose={handleCloseDestroyAllDialog}
+      >
+        <DialogTitle>Alle Stecklinge vernichten</DialogTitle>
+        <DialogContent>
+          <Typography gutterBottom>
+            Sind Sie sicher, dass Sie alle verbleibenden Stecklinge ({currentCutting?.remaining_cuttings || 0}) 
+            von "{currentCutting?.genetic_name}" vernichten möchten?
+          </Typography>
+          <Typography gutterBottom color="error" fontWeight="bold">
+            Diese Aktion kann nicht rückgängig gemacht werden!
+          </Typography>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Vernichtungsgrund"
+            fullWidth
+            variant="outlined"
+            value={destroyReason}
+            onChange={(e) => setDestroyReason(e.target.value)}
+          />
+          
+          {/* Mitgliedauswahl für Vernichtung */}
+          <FormControl fullWidth margin="normal">
+            <InputLabel>Verantwortliches Mitglied</InputLabel>
+            <Select
+              value={destroyingMember}
+              onChange={(e) => setDestroyingMember(e.target.value)}
+              label="Verantwortliches Mitglied"
+            >
+              {Array.isArray(members) && members.length > 0 ? 
+                members.map((member) => (
+                  <MenuItem key={member.id} value={member.id}>
+                    {`${member.first_name} ${member.last_name}`}
+                  </MenuItem>
+                )) : 
+                <MenuItem disabled>Keine Mitglieder verfügbar</MenuItem>
+              }
+            </Select>
+          </FormControl>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDestroyAllDialog}>Abbrechen</Button>
+          <Button 
+            onClick={handleDestroyAllIndividuals}
+            color="error"
+            variant="contained"
+            disabled={!destroyReason || !destroyingMember}
+          >
+            Alle Stecklinge vernichten
+          </Button>
+        </DialogActions>
+      </Dialog>
+      
       {/* Phase-Dialog */}
       <Dialog
         open={openPhaseDialog}
@@ -425,6 +631,14 @@ const CuttingPage = () => {
           </Button>
         </DialogActions>
       </Dialog>
+      
+      {/* Ladeanimation für Massenvernichtung */}
+      <MassDestructionProgress 
+        open={isDestroyingAll} 
+        totalItems={currentCutting?.remaining_cuttings || 0}
+        geneticName={currentCutting?.genetic_name || ""}
+        onComplete={handleMassDestructionComplete}
+      />
     </Container>
   );
 };

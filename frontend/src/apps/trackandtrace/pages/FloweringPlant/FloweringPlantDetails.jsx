@@ -1,5 +1,4 @@
-// frontend/src/apps/trackandtrace/pages/FloweringPlant/FloweringPlantDetails.jsx
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   Grid, 
   Typography, 
@@ -8,11 +7,32 @@ import {
   Paper,
   Box,
   Chip,
-  Link
+  Link,
+  TableContainer,
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
+  TablePagination
 } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 
-const FloweringPlantDetails = ({ data, onMarkAsDestroyed, onUpdatePhase, onHarvest, onMarkAsPartiallyTransferred, onMarkAsFullyTransferred, status }) => {
+const FloweringPlantDetails = ({ data, onMarkAsDestroyed, onUpdatePhase, onHarvest, onMarkAsPartiallyTransferred, onMarkAsFullyTransferred, onDestroyIndividual, status }) => {
+  // State für Paginierung
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(5);
+
+  // Handlers für Paginierung
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
   // Helfer-Funktion für Datumsformatierung
   const formatDate = (dateString) => {
     if (!dateString) return 'Nicht angegeben';
@@ -190,6 +210,77 @@ const FloweringPlantDetails = ({ data, onMarkAsDestroyed, onUpdatePhase, onHarve
             </Grid>
           </Grid>
         </Grid>
+        
+        {/* Individuelle Pflanzen anzeigen */}
+        {data.individuals && data.individuals.length > 0 && (
+          <Grid item xs={12}>
+            <Typography variant="subtitle2">Individuelle Pflanzen</Typography>
+            <Divider sx={{ mb: 2 }} />
+            
+            <TableContainer component={Paper} sx={{ mt: 2 }}>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Chargennummer</TableCell>
+                  <TableCell>UUID</TableCell>
+                  <TableCell>Verantwortlicher</TableCell>
+                  <TableCell>Raum</TableCell>
+                  <TableCell>Status</TableCell>
+                  <TableCell>Aktionen</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {data.individuals
+                  .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                  .map((individual) => (
+                    <TableRow key={individual.uuid}>
+                      <TableCell>{individual.batch_number}</TableCell>
+                      <TableCell>{individual.uuid}</TableCell> {/* Diese Zeile fehlt im originalen Code */}
+                      <TableCell>
+                        {individual.responsible_member_details ? 
+                          `${individual.responsible_member_details.first_name} ${individual.responsible_member_details.last_name}` : 
+                          'Unbekannt'}
+                      </TableCell>
+                      <TableCell>
+                        {individual.room_details ? individual.room_details.name : 'Kein Raum'}
+                      </TableCell>
+                      <TableCell>
+                        {individual.is_destroyed ? (
+                          <Chip label="Vernichtet" color="error" size="small" />
+                        ) : (
+                          <Chip label="Aktiv" color="success" size="small" />
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {!individual.is_destroyed && status === 'active' && (
+                          <Button 
+                            variant="outlined" 
+                            color="error"
+                            size="small"
+                            onClick={() => onDestroyIndividual && onDestroyIndividual(individual)}
+                          >
+                            Vernichten
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+              </TableBody>
+            </Table>
+            <TablePagination
+              rowsPerPageOptions={[5, 10, 25]}
+              component="div"
+              count={data.individuals.length}
+              rowsPerPage={rowsPerPage}
+              page={page}
+              onPageChange={handleChangePage}
+              onRowsPerPageChange={handleChangeRowsPerPage}
+              labelRowsPerPage="Einträge pro Seite:"
+              labelDisplayedRows={({ from, to, count }) => `${from}–${to} von ${count}`}
+            />
+          </TableContainer>
+          </Grid>
+        )}
         
         <Grid item xs={12}>
           <Typography variant="subtitle2">Prozessdaten</Typography>
