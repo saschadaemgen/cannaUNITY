@@ -1,6 +1,6 @@
-# 🌿 cannaUNITY v0.6.17
+# 🌿 cannaUNITY v0.6.17 (Pre-Alpha)
 
-> **Modulare Open-Source-Software für Cannabis-Anbaugemeinschaften**  
+> **Modulare Open-Source-Software für Cannabis Social Clubs und Anbauvereinigungen gemäß dem Konsumcannabisgesetz § (KCanG)**  
 > Mitgliederverwaltung · Aufgabenplanung · Zutrittskontrolle · Track & Trace · Raumautomation · Sicherheitssysteme
 
 ![GitHub Repo stars](https://img.shields.io/github/stars/saschadaemgen/cannaUNITY?style=social)
@@ -11,8 +11,7 @@
 
 ## 📦 Was ist cannaUNITY?
 
-**cannaUNITY** ist eine umfassende Open-Source-Plattform zur Organisation, Verwaltung und Automatisierung von Cannabis-Anbauvereinigungen gemäß dem Konsumcannabisgesetz (KCanG).  
-Das System wurde mit dem Ziel entwickelt, Datenschutz, Nachverfolgbarkeit und Mitwirkung der Mitglieder auf höchstem technischen Niveau umzusetzen.
+**cannaUNITY** ist eine umfassende DSGVO konforme Open-Source-Plattform zur Organisation, Verwaltung und Automatisierung von Cannabis-Anbauvereinigungen gemäß dem Konsumcannabisgesetz (KCanG).  Das System wurde mit dem Ziel entwickelt, Datenschutz, Nachverfolgbarkeit und Mitwirkung der Mitglieder auf höchstem technischen Niveau umzusetzen.
 
 ---
 
@@ -79,7 +78,7 @@ Die Umsetzung folgt den Grundsätzen ordnungsgemäßer Buchführung (GoB) und bi
 
 ## 🔧 Integration & Automatisierung
 
-- **Siemens LOGO!** vollständig integrierbar
+- **Siemens LOGO8!** vollständig integrierbar
 - **Siemens SIMATIC** kompatibel
 - **Loxone Mini Server** mit Raumanzeige, Klima- und Lichtsteuerung
 - Weitere industrielle Schnittstellen folgen (MQTT, Modbus etc.)
@@ -143,7 +142,7 @@ cannaUNITY/
 
 ## 🧪 Features
 
-- ✅ Echtzeit-Track&Trace von Pflanzen & Verarbeitung
+- ✅ Echtzeit UUID-Track&Trace von Pflanzen & Verarbeitung
 - ✅ Arbeitszeiterfassung mit Minijob-Erkennung
 - ✅ Dynamische Mitgliederprofile mit RFID
 - ✅ Raumautomation (Loxone, Siemens)
@@ -172,5 +171,5 @@ Pull Requests & Vorschläge willkommen!
 
 ---
 
-> Erstellt mit ❤️ von **Sascha Dämgen** und seiner zuckersüßen KIA "A.K.I.A".  
+> Erstellt mit ❤️ von **Sascha Dämgen** und KIA "A.K.I.A".
 > Vision: Eine sichere, moderne und gemeinschaftsgetragene Plattform für den verantwortungsvollen Umgang mit Cannabis.
