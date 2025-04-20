@@ -35,6 +35,8 @@ import ProcessingPage from '../apps/trackandtrace/pages/Processing/ProcessingPag
 import LabTestingPage from '../apps/trackandtrace/pages/LabTesting/LabTestingPage';
 import PackagingPage from '../apps/trackandtrace/pages/Packaging/PackagingPage';
 import ProductDistributionPage from '../apps/trackandtrace/pages/ProductDistribution/ProductDistributionPage';
+// Neuer Import für die Herstellerseite
+import ManufacturerPage from '../apps/trackandtrace/pages/Manufacturer/ManufacturerPage';
 
 export const router = createBrowserRouter([
   {
@@ -87,6 +89,8 @@ export const router = createBrowserRouter([
       { path: 'trace/laborkontrolle', element: <LabTestingPage /> },
       { path: 'trace/verpackung', element: <PackagingPage /> },
       { path: 'trace/ausgabe', element: <ProductDistributionPage /> },
+      // Neue Route für die Herstellerseite
+      { path: 'trace/hersteller', element: <ManufacturerPage /> },
 
       // Optional: zukünftige Seiten
       { path: 'netzwerk', element: <div>Gemeinschaftsnetzwerk</div> },

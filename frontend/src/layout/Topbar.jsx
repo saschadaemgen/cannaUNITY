@@ -28,6 +28,8 @@ import ScienceIcon from '@mui/icons-material/Science';
 import BiotechIcon from '@mui/icons-material/Biotech';
 import Inventory2Icon from '@mui/icons-material/Inventory2';
 import ShoppingBasketIcon from '@mui/icons-material/ShoppingBasket';
+import BusinessIcon from '@mui/icons-material/Business';
+import StorefrontIcon from '@mui/icons-material/Storefront';
 
 export default function Topbar() {
   const theme = useTheme();
@@ -59,6 +61,11 @@ export default function Topbar() {
     'GuV': { revenue: 185000, expenses: 112500, profit: 72500, period: '01.01.2025 – 30.04.2025' },
     'Bilanz': { equity: 180000 },
     'Jahresabschluss': { closingDate: '31.12.2024' }
+  };
+
+  const wawiData = {
+    'Samen-Verwaltung': { count: 25, pending: 3, status: 'Aktiv', lastUpdate: '19.04.2025' },
+    'Hersteller-Verwaltung': { count: 12, pending: 2, status: 'Aktiv', lastUpdate: '18.04.2025' }
   };
 
   useEffect(() => {
@@ -119,6 +126,12 @@ export default function Topbar() {
       ]
     },
     {
+      label: 'WaWi', icon: <StorefrontIcon />, children: [
+        { label: 'Samen-Verwaltung', path: '/trace/samen', icon: <GrassIcon /> },
+        { label: 'Hersteller-Verwaltung', path: '/trace/hersteller', icon: <BusinessIcon /> }
+      ]
+    },
+    {
       label: 'Buchhaltung', icon: <PaymentsIcon />, children: [
         { label: 'Dashboard', path: '/buchhaltung', icon: <PaymentsIcon /> },
         { label: 'Kontenübersicht', path: '/buchhaltung/konten', icon: <PaymentsIcon /> },
@@ -166,8 +179,10 @@ export default function Topbar() {
               {item.children.map(sub => {
                 const isFinance = item.label === 'Buchhaltung';
                 const isTrace = item.label === 'Track & Trace';
+                const isWawi = item.label === 'WaWi';
                 const tData = traceData[sub.label] || {};
                 const fData = financeData[sub.label] || {};
+                const wData = wawiData[sub.label] || {};
                 return (
                   <Grid item key={sub.label}>
                     <Paper
@@ -184,7 +199,7 @@ export default function Topbar() {
                           boxShadow: 6,
                           border: '2px solid #4caf50',
                           backgroundColor: '#f0fdf4',
-                          animation: sub.overdue ? 'glow 0.8s ease-in-out infinite alternate' : 'none'
+                          animation: tData.overdue ? 'glow 0.8s ease-in-out infinite alternate' : 'none'
                         }
                       }}
                       onClick={() => handleClickItem(sub.path, false)}
@@ -196,7 +211,13 @@ export default function Topbar() {
                       <Divider />
                       <Box sx={{ textAlign: 'center', py: 1 }}>
                         <Typography variant="body2" sx={{ fontWeight: 500, color: isTrace ? (tData.overdue ? '#d32f2f' : (tData.status === 'warning' ? '#ed6c02' : '#2e7d32')) : '#1976d2' }}>
-                          {isTrace ? tData.statusMsg : (isFinance ? 'Finanzmodul aktiv' : 'System bereit')}
+                          {isTrace 
+                            ? tData.statusMsg 
+                            : (isFinance 
+                              ? 'Finanzmodul aktiv' 
+                              : (isWawi 
+                                ? `Status: ${wData.status}` 
+                                : 'System bereit'))}
                         </Typography>
                       </Box>
                       <Divider />
@@ -217,6 +238,15 @@ export default function Topbar() {
                           <Typography variant="caption">Ausgaben: {fData.expenses?.toLocaleString('de-DE')} €</Typography><br />
                           <Typography variant="caption">Gewinn: {fData.profit?.toLocaleString('de-DE')} €</Typography>
                           <Box sx={{ mt: 1, textAlign: 'right' }}><Typography variant="caption">{fData.period}</Typography></Box>
+                        </Box>
+                      )}
+                      {isWawi && (
+                        <Box sx={{ mt: 1 }}>
+                          <Typography variant="caption">Anzahl: {wData.count}</Typography><br />
+                          <Typography variant="caption">Ausstehend: {wData.pending}</Typography><br />
+                          <Box sx={{ mt: 1, textAlign: 'right' }}>
+                            <Typography variant="caption">Letzte Aktualisierung: {wData.lastUpdate}</Typography>
+                          </Box>
                         </Box>
                       )}
                     </Paper>

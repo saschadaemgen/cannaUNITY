@@ -1,28 +1,87 @@
 # trackandtrace/serializers.py
 from rest_framework import serializers
-from .models import SeedPurchase, MotherPlant, Cutting, FloweringPlant, Harvest, Drying, Processing, LabTesting, Packaging, ProductDistribution
+from .models import SeedPurchase, MotherPlant, Cutting, FloweringPlant, Harvest, Drying, Processing, LabTesting, Packaging, ProductDistribution, Manufacturer, Strain
 from members.models import Member
 from rooms.models import Room
+
+class ManufacturerSerializer(serializers.ModelSerializer):
+    """Serializer für das Manufacturer-Modell mit allen Feldern"""
+    class Meta:
+        model = Manufacturer
+        fields = [
+            'id', 'name', 'website', 'country', 
+            'contact_person', 'email', 'phone', 'order_history',
+            # Neue Felder
+            'address', 'contact_email', 'delivery_time',
+            'notes', 'created_at', 'updated_at'
+        ]
+        
+
+class StrainSerializer(serializers.ModelSerializer):
+    manufacturer_details = ManufacturerSerializer(source='manufacturer', read_only=True)
+    
+    class Meta:
+        model = Strain
+        fields = [
+            'id', 'manufacturer', 'manufacturer_details',
+            'strain_name', 'strain_type', 'genetics', 
+            'sativa_percentage', 'indica_percentage',
+            'thc_value', 'cbd_value', 'flowering_time',
+            'height_indoor', 'height_outdoor',
+            'yield_indoor', 'yield_outdoor',
+            'effect', 'flavor', 'growing_tips',
+            'notes', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['created_at', 'updated_at']
+    
+    def validate(self, data):
+        """Validierung für Sativa/Indica-Prozentsätze"""
+        sativa = data.get('sativa_percentage', 0)
+        indica = data.get('indica_percentage', 0)
+        
+        if 'sativa_percentage' in data and 'indica_percentage' in data:
+            if sativa + indica != 100:
+                raise serializers.ValidationError(
+                    "Sativa- und Indica-Prozentsatz müssen zusammen 100% ergeben."
+                )
+        elif 'sativa_percentage' in data:
+            data['indica_percentage'] = 100 - sativa
+        elif 'indica_percentage' in data:
+            data['sativa_percentage'] = 100 - indica
+        
+        return data
+    
 
 class MemberSerializer(serializers.ModelSerializer):
     class Meta:
         model = Member
         fields = ['id', 'first_name', 'last_name']
 
+
 class RoomSerializer(serializers.ModelSerializer):
     class Meta:
         model = Room
         fields = ['id', 'name', 'description']
 
+
+# Anpassung des SeedPurchaseSerializer
 class SeedPurchaseSerializer(serializers.ModelSerializer):
     responsible_member_details = MemberSerializer(source='responsible_member', read_only=True)
     destroying_member_details = MemberSerializer(source='destroying_member', read_only=True)
     room_details = RoomSerializer(source='room', read_only=True)
     
+    # Diese Felder entfernen oder auskommentieren:
+    # manufacturer_details = ManufacturerSerializer(source='manufacturer', read_only=True)
+    # strain_details = StrainSerializer(source='strain', read_only=True)
+    
     class Meta:
         model = SeedPurchase
         fields = [
-            'uuid', 'batch_number', 'manufacturer', 'genetics', 
+            'uuid', 'batch_number', 
+            'manufacturer',  # behalte dies als string-feld
+            # 'manufacturer_details', 'manufacturer_name', # auskommentieren
+            # 'strain', 'strain_details', # auskommentieren
+            'genetics', 
             'strain_name', 'sativa_percentage', 'indica_percentage',
             'thc_value', 'cbd_value', 'purchase_date', 'total_seeds',
             'remaining_seeds', 'notes', 'is_destroyed', 
@@ -33,6 +92,7 @@ class SeedPurchaseSerializer(serializers.ModelSerializer):
             'room', 'room_details'
         ]
         read_only_fields = ['uuid', 'batch_number', 'created_at', 'updated_at', 'remaining_seeds']
+
 
 class MotherPlantSerializer(serializers.ModelSerializer):
     seed_source_details = SeedPurchaseSerializer(source='seed_source', read_only=True)

@@ -1,6 +1,7 @@
-// Korrigierte Version für SeedPurchaseForm.jsx
-
+// frontend/src/apps/trackandtrace/pages/SeedPurchase/SeedPurchaseForm.jsx
 import React, { useState, useEffect } from 'react';
+import SeedManufacturerDropdown from '../../components/SeedManufacturerDropdown';
+import SeedStrainDropdown from '../../components/SeedStrainDropdown';
 import { 
   Grid, 
   TextField, 
@@ -10,15 +11,44 @@ import {
   InputLabel,
   Select,
   FormHelperText,
-  Box
+  Box,
+  Typography,
+  Divider,
+  Paper
 } from '@mui/material';
 import api from '../../../../utils/api';
 
+// Styled Components für besseres Layout
+const FormSection = ({ title, children }) => (
+  <Paper sx={{ 
+    p: 3, 
+    mb: 3, 
+    borderRadius: 2,
+    boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+  }}>
+    <Typography 
+      variant="h6" 
+      sx={{ 
+        mb: 2, 
+        color: 'primary.main', 
+        fontWeight: 500,
+        borderBottom: '1px solid',
+        borderColor: 'divider',
+        pb: 1
+      }}
+    >
+      {title}
+    </Typography>
+    {children}
+  </Paper>
+);
+
 const SeedPurchaseForm = ({ initialData, onSave, onCancel }) => {
   const [members, setMembers] = useState([]);
-  const [rooms, setRooms] = useState([]); // Stelle sicher, dass rooms als leeres Array initialisiert wird
+  const [rooms, setRooms] = useState([]);
   const [formData, setFormData] = useState({
     manufacturer: '',
+    strain: '',  // Neues Feld für die Sorte als FK
     genetics: '',
     strain_name: '',
     sativa_percentage: 50,
@@ -31,7 +61,7 @@ const SeedPurchaseForm = ({ initialData, onSave, onCancel }) => {
     temperature: '',
     humidity: '',
     responsible_member: '',
-    room: '', // Raum-Feld hinzufügen
+    room: '',
   });
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
@@ -54,7 +84,6 @@ const SeedPurchaseForm = ({ initialData, onSave, onCancel }) => {
         // Lade Räume
         try {
           const roomsResponse = await api.get('/rooms/');
-          console.log('Rooms API response:', roomsResponse.data);
           
           if (Array.isArray(roomsResponse.data)) {
             setRooms(roomsResponse.data);
@@ -66,7 +95,7 @@ const SeedPurchaseForm = ({ initialData, onSave, onCancel }) => {
           }
         } catch (roomErr) {
           console.error('Fehler beim Laden der Räume:', roomErr);
-          setRooms([]); // Stelle sicher, dass rooms ein leeres Array ist bei Fehlern
+          setRooms([]);
         }
       } catch (err) {
         console.error('Fehler beim Laden der Mitglieder:', err);
@@ -86,6 +115,24 @@ const SeedPurchaseForm = ({ initialData, onSave, onCancel }) => {
   
   const handleChange = (e) => {
     const { name, value } = e.target;
+    
+    // Spezialfall für Strain-Änderung, um Daten zu übernehmen
+    if (name === 'strain' && e.target.strainData) {
+      // Stellt die Daten aus der Strain-Auswahl bereit
+      const strainData = e.target.strainData;
+      setFormData(prev => ({
+        ...prev,
+        strain: value,
+        strain_name: strainData.strain_name,
+        genetics: strainData.genetics || prev.genetics,
+        sativa_percentage: strainData.sativa_percentage,
+        indica_percentage: strainData.indica_percentage,
+        thc_value: strainData.thc_value || prev.thc_value,
+        cbd_value: strainData.cbd_value || prev.cbd_value
+      }));
+      return;
+    }
+    
     setFormData({
       ...formData,
       [name]: value
@@ -141,244 +188,265 @@ const SeedPurchaseForm = ({ initialData, onSave, onCancel }) => {
     onSave(submitData);
   };
   
-  // Debugging-Ausgabe
-  console.log('Verfügbare Räume:', rooms);
-  
   return (
     <form onSubmit={handleSubmit}>
-      <Grid container spacing={2}>
-        {/* Stammdaten */}
-        <Grid item xs={12} sm={6}>
-          <TextField
-            fullWidth
-            label="Hersteller"
-            name="manufacturer"
-            value={formData.manufacturer}
-            onChange={handleChange}
-            error={!!errors.manufacturer}
-            helperText={errors.manufacturer}
-            margin="normal"
-          />
+      <FormSection title="Hersteller & Sorte">
+        <Grid container spacing={3}>
+          <Grid item xs={12} md={6}>
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="subtitle2" gutterBottom>
+                Hersteller
+              </Typography>
+              <SeedManufacturerDropdown
+                value={formData.manufacturer}
+                onChange={handleChange}
+                error={!!errors.manufacturer}
+                helperText={errors.manufacturer}
+                disabled={loading}
+                sx={{ minWidth: 300 }}
+              />
+              <FormHelperText>
+                Eingeben um zu suchen oder neuen Hersteller anzulegen
+              </FormHelperText>
+            </Box>
+          </Grid>
+          
+          <Grid item xs={12} md={6}>
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="subtitle2" gutterBottom>
+                Cannabis-Sorte
+              </Typography>
+              <SeedStrainDropdown
+                value={formData.strain}
+                onChange={handleChange}
+                error={!!errors.strain_name}
+                helperText={errors.strain_name}
+                disabled={loading || !formData.manufacturer}
+                manufacturerId={formData.manufacturer}
+                onNewStrainCreated={() => {}}
+                sx={{ minWidth: 300 }}
+              />
+              <FormHelperText>
+                Wählen Sie eine vorhandene Sorte oder legen Sie eine neue an
+              </FormHelperText>
+            </Box>
+          </Grid>
         </Grid>
-        <Grid item xs={12} sm={6}>
-          <TextField
-            fullWidth
-            label="Sortenname"
-            name="strain_name"
-            value={formData.strain_name}
-            onChange={handleChange}
-            error={!!errors.strain_name}
-            helperText={errors.strain_name}
-            margin="normal"
-          />
-        </Grid>
-        <Grid item xs={12}>
-          <TextField
-            fullWidth
-            label="Genetik"
-            name="genetics"
-            value={formData.genetics}
-            onChange={handleChange}
-            error={!!errors.genetics}
-            helperText={errors.genetics}
-            margin="normal"
-          />
-        </Grid>
-        
-        {/* Prozentuale Anteile */}
-        <Grid item xs={12} sm={6}>
-          <TextField
-            fullWidth
-            label="Sativa-Anteil (%)"
-            name="sativa_percentage"
-            type="number"
-            inputProps={{ min: 0, max: 100 }}
-            value={formData.sativa_percentage}
-            onChange={handleChange}
-            margin="normal"
-          />
-        </Grid>
-        <Grid item xs={12} sm={6}>
-          <TextField
-            fullWidth
-            label="Indica-Anteil (%)"
-            name="indica_percentage"
-            type="number"
-            inputProps={{ min: 0, max: 100 }}
-            value={formData.indica_percentage}
-            onChange={handleChange}
-            margin="normal"
-          />
-        </Grid>
-        
-        {/* THC und CBD */}
-        <Grid item xs={12} sm={6}>
-          <TextField
-            fullWidth
-            label="THC-Wert (%)"
-            name="thc_value"
-            type="number"
-            inputProps={{ step: 0.01, min: 0, max: 100 }}
-            value={formData.thc_value}
-            onChange={handleChange}
-            margin="normal"
-          />
-        </Grid>
-        <Grid item xs={12} sm={6}>
-          <TextField
-            fullWidth
-            label="CBD-Wert (%)"
-            name="cbd_value"
-            type="number"
-            inputProps={{ step: 0.01, min: 0, max: 100 }}
-            value={formData.cbd_value}
-            onChange={handleChange}
-            margin="normal"
-          />
-        </Grid>
-        
-        {/* Einkaufsdaten */}
-        <Grid item xs={12} sm={6}>
-          <TextField
-            fullWidth
-            label="Kaufdatum (YYYY-MM-DD)"
-            name="purchase_date"
-            value={formData.purchase_date}
-            onChange={handleChange}
-            error={!!errors.purchase_date}
-            helperText={errors.purchase_date || "Format: YYYY-MM-DD"}
-            margin="normal"
-          />
-        </Grid>
-        <Grid item xs={12} sm={6}>
-          <TextField
-            fullWidth
-            label="Anzahl Samen"
-            name="total_seeds"
-            type="number"
-            inputProps={{ min: 1 }}
-            value={formData.total_seeds}
-            onChange={handleChange}
-            error={!!errors.total_seeds}
-            helperText={errors.total_seeds}
-            margin="normal"
-          />
-        </Grid>
-        
-        {/* Umgebungsdaten */}
-        <Grid item xs={12} sm={6}>
-          <TextField
-            fullWidth
-            label="Temperatur (°C)"
-            name="temperature"
-            type="number"
-            inputProps={{ step: 0.1 }}
-            value={formData.temperature}
-            onChange={handleChange}
-            margin="normal"
-          />
-        </Grid>
-        <Grid item xs={12} sm={6}>
-          <TextField
-            fullWidth
-            label="Luftfeuchtigkeit (%)"
-            name="humidity"
-            type="number"
-            inputProps={{ min: 0, max: 100 }}
-            value={formData.humidity}
-            onChange={handleChange}
-            margin="normal"
-          />
-        </Grid>
-        
-        {/* Verantwortlicher */}
-        <Grid item xs={12}>
-          <FormControl 
-            fullWidth 
-            margin="normal"
-            error={!!errors.responsible_member}
-          >
-            <InputLabel>Verantwortlicher</InputLabel>
-            <Select
-              name="responsible_member"
-              value={formData.responsible_member}
+      </FormSection>
+      
+      <FormSection title="Sortendetails">
+        <Grid container spacing={3}>
+          <Grid item xs={12} md={6}>
+            <TextField
+              fullWidth
+              label="Sortenname"
+              name="strain_name"
+              value={formData.strain_name}
               onChange={handleChange}
-              label="Verantwortlicher"
-            >
-              {Array.isArray(members) && members.length > 0 ? 
-                members.map((member) => (
-                  <MenuItem key={member.id} value={member.id}>
-                    {`${member.first_name} ${member.last_name}`}
-                  </MenuItem>
-                )) : 
-                <MenuItem disabled>Keine Mitglieder verfügbar</MenuItem>
-              }
-            </Select>
-            {errors.responsible_member && (
-              <FormHelperText>{errors.responsible_member}</FormHelperText>
-            )}
-          </FormControl>
-        </Grid>
-        
-        {/* Lagerraum - Hier war das Problem */}
-        <Grid item xs={12}>
-          <FormControl fullWidth margin="normal">
-            <InputLabel>Lagerraum</InputLabel>
-            <Select
-              name="room"
-              value={formData.room || ''}
+              error={!!errors.strain_name}
+              helperText={errors.strain_name}
+            />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <TextField
+              fullWidth
+              label="Genetik"
+              name="genetics"
+              value={formData.genetics}
               onChange={handleChange}
-              label="Lagerraum"
-            >
-              <MenuItem value="">Keinen Raum zuweisen</MenuItem>
-              {Array.isArray(rooms) && rooms.length > 0 ? 
-                rooms.map((room) => (
-                  <MenuItem key={room.id} value={room.id}>
-                    {room.name}
-                  </MenuItem>
-                )) : 
-                <MenuItem disabled>Keine Räume verfügbar</MenuItem>
-              }
-            </Select>
-            <FormHelperText>Raum, in dem die Samen gelagert werden (optional)</FormHelperText>
-          </FormControl>
+              error={!!errors.genetics}
+              helperText={errors.genetics}
+            />
+          </Grid>
+          
+          <Grid item xs={12} md={6}>
+            <TextField
+              fullWidth
+              label="Sativa-Anteil (%)"
+              name="sativa_percentage"
+              type="number"
+              inputProps={{ min: 0, max: 100 }}
+              value={formData.sativa_percentage}
+              onChange={handleChange}
+            />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <TextField
+              fullWidth
+              label="Indica-Anteil (%)"
+              name="indica_percentage"
+              type="number"
+              inputProps={{ min: 0, max: 100 }}
+              value={formData.indica_percentage}
+              onChange={handleChange}
+            />
+          </Grid>
+          
+          <Grid item xs={12} md={6}>
+            <TextField
+              fullWidth
+              label="THC-Wert (%)"
+              name="thc_value"
+              type="number"
+              inputProps={{ step: 0.01, min: 0, max: 100 }}
+              value={formData.thc_value}
+              onChange={handleChange}
+            />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <TextField
+              fullWidth
+              label="CBD-Wert (%)"
+              name="cbd_value"
+              type="number"
+              inputProps={{ step: 0.01, min: 0, max: 100 }}
+              value={formData.cbd_value}
+              onChange={handleChange}
+            />
+          </Grid>
         </Grid>
-        
-        {/* Bemerkungen */}
-        <Grid item xs={12}>
-          <TextField
-            fullWidth
-            label="Bemerkungen"
-            name="notes"
-            value={formData.notes}
-            onChange={handleChange}
-            multiline
-            rows={4}
-            margin="normal"
-          />
+      </FormSection>
+      
+      <FormSection title="Einkaufsinformationen">
+        <Grid container spacing={3}>
+          <Grid item xs={12} md={6}>
+            <TextField
+              fullWidth
+              label="Kaufdatum (YYYY-MM-DD)"
+              name="purchase_date"
+              value={formData.purchase_date}
+              onChange={handleChange}
+              error={!!errors.purchase_date}
+              helperText={errors.purchase_date || "Format: YYYY-MM-DD"}
+            />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <TextField
+              fullWidth
+              label="Anzahl Samen"
+              name="total_seeds"
+              type="number"
+              inputProps={{ min: 1 }}
+              value={formData.total_seeds}
+              onChange={handleChange}
+              error={!!errors.total_seeds}
+              helperText={errors.total_seeds}
+            />
+          </Grid>
         </Grid>
-        
-        {/* Buttons */}
-        <Grid item xs={12}>
-          <Box display="flex" justifyContent="flex-end" mt={2}>
-            <Button 
-              variant="outlined" 
-              onClick={onCancel}
-              sx={{ mr: 1 }}
-            >
-              Abbrechen
-            </Button>
-            <Button 
-              type="submit"
-              variant="contained" 
-              color="primary"
-              disabled={loading}
-            >
-              {initialData ? 'Aktualisieren' : 'Erstellen'}
-            </Button>
-          </Box>
+      </FormSection>
+      
+      <FormSection title="Umgebungsdaten">
+        <Grid container spacing={3}>
+          <Grid item xs={12} md={6}>
+            <TextField
+              fullWidth
+              label="Temperatur (°C)"
+              name="temperature"
+              type="number"
+              inputProps={{ step: 0.1 }}
+              value={formData.temperature}
+              onChange={handleChange}
+            />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <TextField
+              fullWidth
+              label="Luftfeuchtigkeit (%)"
+              name="humidity"
+              type="number"
+              inputProps={{ min: 0, max: 100 }}
+              value={formData.humidity}
+              onChange={handleChange}
+            />
+          </Grid>
         </Grid>
-      </Grid>
+      </FormSection>
+      
+      <FormSection title="Verantwortlichkeit & Lagerort">
+        <Grid container spacing={3}>
+          <Grid item xs={12} md={6}>
+            <FormControl 
+              fullWidth 
+              error={!!errors.responsible_member}
+            >
+              <InputLabel>Verantwortlicher</InputLabel>
+              <Select
+                name="responsible_member"
+                value={formData.responsible_member}
+                onChange={handleChange}
+                label="Verantwortlicher"
+              >
+                {Array.isArray(members) && members.length > 0 ? 
+                  members.map((member) => (
+                    <MenuItem key={member.id} value={member.id}>
+                      {`${member.first_name} ${member.last_name}`}
+                    </MenuItem>
+                  )) : 
+                  <MenuItem disabled>Keine Mitglieder verfügbar</MenuItem>
+                }
+              </Select>
+              {errors.responsible_member && (
+                <FormHelperText>{errors.responsible_member}</FormHelperText>
+              )}
+            </FormControl>
+          </Grid>
+          
+          <Grid item xs={12} md={6}>
+            <FormControl fullWidth>
+              <InputLabel>Lagerraum</InputLabel>
+              <Select
+                name="room"
+                value={formData.room || ''}
+                onChange={handleChange}
+                label="Lagerraum"
+              >
+                <MenuItem value="">Keinen Raum zuweisen</MenuItem>
+                {Array.isArray(rooms) && rooms.length > 0 ? 
+                  rooms.map((room) => (
+                    <MenuItem key={room.id} value={room.id}>
+                      {room.name}
+                    </MenuItem>
+                  )) : 
+                  <MenuItem disabled>Keine Räume verfügbar</MenuItem>
+                }
+              </Select>
+              <FormHelperText>Raum, in dem die Samen gelagert werden (optional)</FormHelperText>
+            </FormControl>
+          </Grid>
+          
+          <Grid item xs={12}>
+            <TextField
+              fullWidth
+              label="Bemerkungen"
+              name="notes"
+              value={formData.notes}
+              onChange={handleChange}
+              multiline
+              rows={4}
+            />
+          </Grid>
+        </Grid>
+      </FormSection>
+      
+      <Box display="flex" justifyContent="flex-end" mt={3} mb={2}>
+        <Button 
+          variant="outlined" 
+          onClick={onCancel}
+          sx={{ mr: 2 }}
+        >
+          Abbrechen
+        </Button>
+        <Button 
+          type="submit"
+          variant="contained" 
+          color="primary"
+          disabled={loading}
+          size="large"
+        >
+          {initialData ? 'Aktualisieren' : 'Erstellen'}
+        </Button>
+      </Box>
     </form>
   );
 };

@@ -5,6 +5,131 @@ from django.utils import timezone
 from members.models import Member
 from rooms.models import Room
 
+class Manufacturer(models.Model):
+    """Modell für Samenhersteller"""
+    name = models.CharField(max_length=255, unique=True, help_text="Name des Herstellers")
+    website = models.URLField(blank=True, help_text="Website des Herstellers")
+    country = models.CharField(max_length=100, blank=True, help_text="Herkunftsland des Herstellers")
+    
+    # Bestehende Felder
+    contact_person = models.CharField(max_length=255, blank=True, help_text="Ansprechpartner beim Hersteller")
+    email = models.EmailField(blank=True, help_text="Info-E-Mail-Adresse des Herstellers")
+    phone = models.CharField(max_length=50, blank=True, help_text="Telefonnummer des Herstellers")
+    order_history = models.TextField(blank=True, help_text="Bestellhistorie und Informationen")
+    
+    # Neue Felder
+    address = models.TextField(blank=True, help_text="Vollständige Anschrift des Herstellers")
+    contact_email = models.EmailField(blank=True, help_text="E-Mail-Adresse des Ansprechpartners")
+    delivery_time = models.PositiveIntegerField(null=True, blank=True, help_text="Übliche Lieferzeit in Tagen")
+    
+    notes = models.TextField(blank=True, help_text="Zusätzliche Informationen zum Hersteller")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Hersteller"
+        verbose_name_plural = "Hersteller"
+        ordering = ['name']
+    
+    def __str__(self):
+        return self.name
+    
+
+class Strain(models.Model):
+    # Sortentypen
+    STRAIN_TYPE_CHOICES = [
+        ('regular', 'Regulär'),
+        ('feminized', 'Feminisiert'),
+        ('auto', 'Autoflowering'),
+        ('f1', 'F1'),
+        ('f1_hybrid', 'F1 Hybrid'),
+        ('cbd', 'CBD-reich'),
+        ('ruderalis', 'Ruderalis')
+    ]
+    
+    manufacturer = models.ForeignKey(
+        Manufacturer,
+        on_delete=models.CASCADE,
+        related_name="strains",
+        help_text="Hersteller der Sorte"
+    )
+    strain_name = models.CharField(max_length=255, help_text="Name der Cannabis-Sorte")
+    strain_type = models.CharField(
+        max_length=20, 
+        choices=STRAIN_TYPE_CHOICES, 
+        default='feminized',
+        help_text="Typ der Cannabissorte"
+    )
+    genetics = models.CharField(max_length=255, blank=True, help_text="Genetische Abstammung")
+    sativa_percentage = models.IntegerField(default=50, help_text="Sativa-Anteil in Prozent")
+    indica_percentage = models.IntegerField(default=50, help_text="Indica-Anteil in Prozent")
+    thc_value = models.DecimalField(
+        max_digits=5, 
+        decimal_places=2, 
+        null=True, 
+        blank=True,
+        help_text="THC-Gehalt laut Hersteller in %"
+    )
+    cbd_value = models.DecimalField(
+        max_digits=5, 
+        decimal_places=2, 
+        default=1.0,  # Voreinstellung auf 1%
+        help_text="CBD-Gehalt laut Hersteller in %"
+    )
+    flowering_time = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Blütezeit in Tagen"
+    )
+    
+    # Neue Felder
+    height_indoor = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Wuchshöhe Indoor in cm"
+    )
+    height_outdoor = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Wuchshöhe Outdoor in cm"
+    )
+    yield_indoor = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Ertrag Indoor in g/m²"
+    )
+    yield_outdoor = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Ertrag Outdoor in g/Pflanze"
+    )
+    effect = models.TextField(
+        blank=True,
+        help_text="Wirkung der Sorte"
+    )
+    flavor = models.TextField(
+        blank=True,
+        help_text="Geschmack der Sorte"
+    )
+    growing_tips = models.TextField(
+        blank=True,
+        help_text="Hinweise zur Kultivierung"
+    )
+    
+    notes = models.TextField(blank=True, help_text="Zusätzliche Informationen zur Sorte")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Cannabis-Sorte"
+        verbose_name_plural = "Cannabis-Sorten"
+        ordering = ['manufacturer__name', 'strain_name']
+        unique_together = [['manufacturer', 'strain_name']]
+    
+    def __str__(self):
+        return f"{self.strain_name} ({self.manufacturer.name})"
+    
+
 class BaseTrackingModel(models.Model):
     """Basis-Modell für alle Track & Trace Einträge"""
     uuid = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -124,7 +249,30 @@ class SeedPurchase(BaseTrackingModel):
         unique=True,
         help_text="Automatisch generierte Chargennummer (SEED_YYYYMMDD_NNN)"
     )
-    manufacturer = models.CharField(max_length=255, help_text="Hersteller/Lieferant der Samen")
+    # Angepasst: Hersteller ist jetzt eine Referenz zum Manufacturer-Modell
+    manufacturer = models.ForeignKey(
+        Manufacturer,
+        on_delete=models.PROTECT,  # Verhindert Löschen des Herstellers wenn damit Samen verknüpft sind
+        related_name="seed_purchases",
+        null=True,  # Für Abwärtskompatibilität
+        help_text="Hersteller/Lieferant der Samen"
+    )
+    # Legacy-Feld für Abwärtskompatibilität
+    manufacturer_name = models.CharField(
+        max_length=255, 
+        blank=True,
+        help_text="Name des Herstellers (Legacy-Feld)"
+    )
+    
+    # Angepasst: Sorte ist jetzt eine Referenz zum Strain-Modell
+    strain = models.ForeignKey(
+        Strain,
+        on_delete=models.PROTECT,
+        related_name="seed_purchases",
+        null=True,  # Für Abwärtskompatibilität
+        blank=True,
+        help_text="Cannabis-Sorte"
+    )
     genetics = models.CharField(max_length=255, help_text="Genetische Abstammung")
     strain_name = models.CharField(max_length=255, help_text="Name der Cannabis-Sorte")
     sativa_percentage = models.IntegerField(help_text="Sativa-Anteil in Prozent")
@@ -190,10 +338,29 @@ class SeedPurchase(BaseTrackingModel):
                 new_num = 1
                 
             self.batch_number = f"SEED_{today}_{new_num:03d}"
-            
+        
         # Bei erster Erstellung remaining_seeds = total_seeds
         if self._state.adding:  # Besser als `if not self.pk`
             self.remaining_seeds = self.total_seeds
+            
+            # Legacy-Kompatibilität: Falls manufacturer ein ForeignKey ist, aber manufacturer_name leer
+            if self.manufacturer and not self.manufacturer_name:
+                self.manufacturer_name = self.manufacturer.name
+                
+            # Legacy-Kompatibilität: Falls strain ein ForeignKey ist, aber strain-bezogene Felder leer
+            if self.strain:
+                if not self.strain_name:
+                    self.strain_name = self.strain.strain_name
+                if not self.genetics:
+                    self.genetics = self.strain.genetics
+                if not self.sativa_percentage:
+                    self.sativa_percentage = self.strain.sativa_percentage
+                if not self.indica_percentage:
+                    self.indica_percentage = self.strain.indica_percentage
+                if not self.thc_value and self.strain.thc_value:
+                    self.thc_value = self.strain.thc_value
+                if not self.cbd_value and self.strain.cbd_value:
+                    self.cbd_value = self.strain.cbd_value
             
         super().save(*args, **kwargs)
 

@@ -1,13 +1,61 @@
 # trackandtrace/api_views.py
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status, filters  
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.utils import timezone
 from members.models import Member
+from django_filters.rest_framework import DjangoFilterBackend
 
-from .models import SeedPurchase, MotherPlant, Cutting, FloweringPlant, Harvest, Drying, Processing, LabTesting, Packaging, ProductDistribution
-from .serializers import SeedPurchaseSerializer, MotherPlantSerializer, CuttingSerializer, FloweringPlantSerializer, HarvestSerializer, DryingSerializer, ProcessingSerializer, LabTestingSerializer, PackagingSerializer, ProductDistributionSerializer
+from .models import SeedPurchase, MotherPlant, Cutting, FloweringPlant, Harvest, Drying, Processing, LabTesting, Packaging, ProductDistribution, Manufacturer, Strain
+from .serializers import SeedPurchaseSerializer, MotherPlantSerializer, CuttingSerializer, FloweringPlantSerializer, HarvestSerializer, DryingSerializer, ProcessingSerializer, LabTestingSerializer, PackagingSerializer, ProductDistributionSerializer, ManufacturerSerializer, StrainSerializer
+
+# Neue ViewSets einfügen (am besten vor dem SeedPurchaseViewSet)
+class ManufacturerViewSet(viewsets.ModelViewSet):
+    """API-Endpunkte für Samenhersteller"""
+    queryset = Manufacturer.objects.all()
+    serializer_class = ManufacturerSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [filters.SearchFilter, DjangoFilterBackend, filters.OrderingFilter]
+    search_fields = ['name', 'country', 'contact_person', 'email']
+    ordering_fields = ['name', 'country', 'created_at']
+    ordering = ['name']
+    
+    def get_queryset(self):
+        """Optionale Filterung der Hersteller"""
+        queryset = Manufacturer.objects.all()
+        name = self.request.query_params.get('name', None)
+        
+        if name:
+            queryset = queryset.filter(name__icontains=name)
+            
+        return queryset
+
+class StrainViewSet(viewsets.ModelViewSet):
+    """API-Endpunkte für Cannabis-Sorten/Genetiken"""
+    queryset = Strain.objects.all()
+    serializer_class = StrainSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [filters.SearchFilter, DjangoFilterBackend, filters.OrderingFilter]
+    search_fields = ['strain_name', 'genetics']
+    filterset_fields = ['manufacturer']
+    ordering_fields = ['strain_name', 'manufacturer__name', 'created_at']
+    ordering = ['manufacturer__name', 'strain_name']
+    
+    def get_queryset(self):
+        """Erweiterte Filterung der Sorten"""
+        queryset = Strain.objects.all()
+        manufacturer_id = self.request.query_params.get('manufacturer', None)
+        strain_name = self.request.query_params.get('strain_name', None)
+        
+        if manufacturer_id:
+            queryset = queryset.filter(manufacturer_id=manufacturer_id)
+            
+        if strain_name:
+            queryset = queryset.filter(strain_name__icontains=strain_name)
+            
+        return queryset
+
 
 class SeedPurchaseViewSet(viewsets.ModelViewSet):
     """API-Endpunkte für Samen-Einkäufe"""
@@ -20,6 +68,16 @@ class SeedPurchaseViewSet(viewsets.ModelViewSet):
         queryset = SeedPurchase.objects.all()
         destroyed = self.request.query_params.get('destroyed', None)
         transfer_status = self.request.query_params.get('transfer_status', None)
+
+        # Filter für Hersteller
+        manufacturer = self.request.query_params.get('manufacturer', None)
+        if manufacturer is not None:
+            queryset = queryset.filter(manufacturer_id=manufacturer)
+            
+        # Filter für Sorte
+        strain = self.request.query_params.get('strain', None)
+        if strain is not None:
+            queryset = queryset.filter(strain_id=strain)
         
         # Filter für Vernichtung anwenden
         if destroyed is not None:
@@ -35,7 +93,7 @@ class SeedPurchaseViewSet(viewsets.ModelViewSet):
                 queryset = queryset.filter(is_transferred=False)
         
         # Standardfilter: Wenn keine Parameter angegeben, zeige aktive (nicht vernichtet, nicht übergeführt)
-        if destroyed is None and transfer_status is None:
+        if destroyed is None and transfer_status is None and manufacturer is None and strain is None:
             queryset = queryset.filter(is_destroyed=False, is_transferred=False)
             
         return queryset
