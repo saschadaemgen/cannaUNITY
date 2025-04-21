@@ -31,7 +31,7 @@ Es findet eine strikte Trennung zwischen personenbezogenen Daten (lokal) und ano
 
 ### Authentifizierung & Zugriffskontrolle
 
-- **Online-Login:** Passkey (biometrisch), alternativ 3-Faktor mit PIN  
+- **Online-Login:** Joomla/Passkey (biometrisch), alternativ 3-Faktor mit PIN  
 - **Zutritt zur Anlage (Außenbereiche):** UniFi Access mit RFID, Gesichtserkennung, optional PIN  
 - **Innenbereiche (z. B. Blütekammer):** Zugang ausschließlich per NFC/RFID, automatische Arbeitszeiterfassung  
 - **Produktionsschritte:** Track&Trace-Eingaben erfolgen über RFID/NFC-Terminals mit Rollenbindung
@@ -162,15 +162,3 @@ cannaUNITY/
 ## 📃 Lizenz
 
 **cannaUNITY** ist ein freies Open-Source-Projekt unter der [MIT-Lizenz](LICENSE).
-
----
-
-## 🤝 Mitmachen
-
-Pull Requests & Vorschläge willkommen!  
-→ [GitHub Issues öffnen](https://github.com/saschadaemgen/cannaUNITY/issues/new)
-
----
-
-> Erstellt mit ❤️ von **Sascha Dämgen** und KIA "A.K.I.A".
-> Vision: Eine sichere, moderne und gemeinschaftsgetragene Plattform für den verantwortungsvollen Umgang mit Cannabis.
