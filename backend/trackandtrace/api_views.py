@@ -1,5 +1,6 @@
 # trackandtrace/api_views.py
 from rest_framework import viewsets, status, filters  
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -10,6 +11,11 @@ from django_filters.rest_framework import DjangoFilterBackend
 from .models import SeedPurchase, MotherPlant, Cutting, FloweringPlant, Harvest, Drying, Processing, LabTesting, Packaging, ProductDistribution, Manufacturer, Strain, IndividualFloweringPlant, IndividualCutting
 from .serializers import SeedPurchaseSerializer, MotherPlantSerializer, CuttingSerializer, FloweringPlantSerializer, HarvestSerializer, DryingSerializer, ProcessingSerializer, LabTestingSerializer, PackagingSerializer, ProductDistributionSerializer, ManufacturerSerializer, StrainSerializer, IndividualFloweringPlantSerializer, IndividualCuttingSerializer
 
+class IndividualCuttingPagination(PageNumberPagination):
+    """Paginierungsklasse für individuelle Stecklinge mit anpassbarer Seitengröße"""
+    page_size = 5
+    page_size_query_param = 'page_size'
+    max_page_size = 100
 
 class IndividualFloweringPlantViewSet(viewsets.ModelViewSet):
     """API-Endpunkte für individuelle Blühpflanzen"""
@@ -73,54 +79,42 @@ class IndividualCuttingViewSet(viewsets.ModelViewSet):
     queryset = IndividualCutting.objects.all()
     serializer_class = IndividualCuttingSerializer
     permission_classes = [IsAuthenticated]
-    
+    lookup_field = 'uuid'
+
     @action(detail=True, methods=['post'])
-    def destroy_individual(self, request, pk=None):
-        """Markiert einen individuellen Steckling als vernichtet"""
+    def destroy_individual(self, request, uuid=None):
         individual = self.get_object()
         reason = request.data.get('reason', '')
         destroying_member_id = request.data.get('destroying_member', None)
-        
+
         if not reason:
-            return Response(
-                {'error': 'Vernichtungsgrund muss angegeben werden'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-            
+            return Response({'error': 'Vernichtungsgrund muss angegeben werden'}, status=status.HTTP_400_BAD_REQUEST)
+
         if not destroying_member_id:
-            return Response(
-                {'error': 'Verantwortliches Mitglied für die Vernichtung muss angegeben werden'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
+            return Response({'error': 'Verantwortliches Mitglied für die Vernichtung muss angegeben werden'}, status=status.HTTP_400_BAD_REQUEST)
+
         try:
             destroying_member = Member.objects.get(id=destroying_member_id)
         except Member.DoesNotExist:
-            return Response(
-                {'error': 'Das angegebene Mitglied existiert nicht'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-            
-        # Den individuellen Steckling als vernichtet markieren
+            return Response({'error': 'Das angegebene Mitglied existiert nicht'}, status=status.HTTP_400_BAD_REQUEST)
+
         individual.is_destroyed = True
         individual.destruction_reason = reason
         individual.destruction_date = timezone.now()
         individual.destroying_member = destroying_member
         individual.save()
-        
-        # Parent-Objekt aktualisieren
+
         parent = individual.parent
         parent.remaining_cuttings -= 1
-        
-        # Wenn keine Stecklinge mehr übrig sind, den Parent als vernichtet markieren
+
         if parent.remaining_cuttings <= 0:
             parent.is_destroyed = True
             parent.destruction_reason = "Alle individuellen Stecklinge vernichtet"
             parent.destruction_date = timezone.now()
             parent.destroying_member = destroying_member
-        
+
         parent.save()
-        
+
         serializer = self.get_serializer(individual)
         return Response(serializer.data)
 
@@ -414,153 +408,145 @@ class CuttingViewSet(viewsets.ModelViewSet):
     queryset = Cutting.objects.all()
     serializer_class = CuttingSerializer
     permission_classes = [IsAuthenticated]
-    
+    lookup_field = 'uuid'
+
     def get_queryset(self):
         """Filtering für aktive/vernichtete/übergeführte Einträge"""
         queryset = Cutting.objects.all()
         destroyed = self.request.query_params.get('destroyed', None)
         transfer_status = self.request.query_params.get('transfer_status', None)
-        
-        # Filter für Vernichtung anwenden
+
         if destroyed is not None:
             is_destroyed = destroyed.lower() == 'true'
             queryset = queryset.filter(is_destroyed=is_destroyed)
-            
-        # Erweiterter Filter für Überführungsstatus
+            if is_destroyed:
+                return queryset
+
         if transfer_status is not None:
             if transfer_status == 'transferred':
-                # Für Abwärtskompatibilität: is_transferred=True entspricht dem alten Schema
-                queryset = queryset.filter(is_transferred=True)
+                queryset = queryset.filter(is_transferred=True, is_destroyed=False)
             elif transfer_status == 'not_transferred':
-                queryset = queryset.filter(is_transferred=False)
-        
-        # Standardfilter: Wenn keine Parameter angegeben, zeige aktive (nicht vernichtet, nicht übergeführt)
+                queryset = queryset.filter(is_transferred=False, is_destroyed=False)
+            elif ',' in transfer_status:
+                status_list = transfer_status.split(',')
+                queryset = queryset.filter(transfer_status__in=status_list, is_destroyed=False)
+
         if destroyed is None and transfer_status is None:
             queryset = queryset.filter(is_destroyed=False, is_transferred=False)
-            
+
         return queryset
-    
+
+    @action(detail=True, methods=['get'])
+    def paginated_individuals(self, request, uuid=None):
+        """Liefert paginierte individuelle Stecklinge für einen Cutting-Batch"""
+        cutting = self.get_object()
+        
+        # Basisabfrage aller individuellen Stecklinge für diesen Batch
+        individuals = cutting.individual_cuttings.all()
+        
+        # Parameter für Filterung (optional)
+        is_destroyed = request.query_params.get('is_destroyed', None)
+        
+        # Intelligentes Filtering basierend auf dem Status des Cutting-Batch
+        if cutting.is_destroyed and is_destroyed is None:
+            # Bei vernichteten Batches automatisch nur vernichtete individuelle Stecklinge anzeigen
+            individuals = individuals.filter(is_destroyed=True)
+        elif is_destroyed is not None:
+            # Wenn ein Filter explizit angegeben wurde, diesen anwenden
+            is_destroyed_bool = is_destroyed.lower() == 'true'
+            individuals = individuals.filter(is_destroyed=is_destroyed_bool)
+        
+        # Paginierung anwenden
+        paginator = IndividualCuttingPagination()
+        page = paginator.paginate_queryset(individuals, request)
+        
+        # Serialisieren und zurückgeben
+        serializer = IndividualCuttingSerializer(page, many=True)
+        
+        return paginator.get_paginated_response(serializer.data)
+
     @action(detail=True, methods=['post'])
-    def destroy_all_individuals(self, request, pk=None):
-        """Vernichtet alle verbleibenden Stecklinge eines Batches"""
+    def destroy_all_individuals(self, request, uuid=None):
         cutting = self.get_object()
         reason = request.data.get('reason', '')
         destroying_member_id = request.data.get('destroying_member', None)
-        
+
         if not reason:
-            return Response(
-                {'error': 'Vernichtungsgrund muss angegeben werden'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-            
+            return Response({'error': 'Vernichtungsgrund muss angegeben werden'}, status=status.HTTP_400_BAD_REQUEST)
+
         if not destroying_member_id:
-            return Response(
-                {'error': 'Verantwortliches Mitglied für die Vernichtung muss angegeben werden'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
+            return Response({'error': 'Verantwortliches Mitglied für die Vernichtung muss angegeben werden'}, status=status.HTTP_400_BAD_REQUEST)
+
         try:
             destroying_member = Member.objects.get(id=destroying_member_id)
         except Member.DoesNotExist:
-            return Response(
-                {'error': 'Das angegebene Mitglied existiert nicht'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        # Prüfen, ob es noch aktive Stecklinge gibt
+            return Response({'error': 'Das angegebene Mitglied existiert nicht'}, status=status.HTTP_400_BAD_REQUEST)
+
         if cutting.remaining_cuttings <= 0:
-            return Response(
-                {'error': 'Es sind keine Stecklinge mehr übrig zum Vernichten'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        # Alle individuellen Stecklinge vernichten
-        active_individuals = IndividualCutting.objects.filter(
-            parent=cutting,
-            is_destroyed=False
-        )
-        
+            return Response({'error': 'Es sind keine Stecklinge mehr übrig zum Vernichten'}, status=status.HTTP_400_BAD_REQUEST)
+
+        active_individuals = IndividualCutting.objects.filter(parent=cutting, is_destroyed=False)
         for individual in active_individuals:
             individual.is_destroyed = True
             individual.destruction_reason = reason
             individual.destruction_date = timezone.now()
             individual.destroying_member = destroying_member
             individual.save()
-        
-        # Den Parent als Batch aktualisieren
+
         destroyed_count = active_individuals.count()
         cutting.remaining_cuttings = 0
-        
-        # Den Batch als vollständig vernichtet markieren
         cutting.is_destroyed = True
         cutting.destruction_reason = f"Alle {destroyed_count} Stecklinge vernichtet: {reason}"
         cutting.destruction_date = timezone.now()
         cutting.destroying_member = destroying_member
         cutting.save()
-        
+
         serializer = self.get_serializer(cutting)
         return Response({
             'message': f"{destroyed_count} Stecklinge wurden erfolgreich vernichtet",
             'data': serializer.data
         })
-    
+
     @action(detail=True, methods=['post'])
-    def destroy_item(self, request, pk=None):
-        """Markiert einen Eintrag als vernichtet"""
+    def destroy_item(self, request, uuid=None):
         cutting = self.get_object()
         reason = request.data.get('reason', '')
         destroying_member_id = request.data.get('destroying_member', None)
-        
+
         if not reason:
-            return Response(
-                {'error': 'Vernichtungsgrund muss angegeben werden'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-            
+            return Response({'error': 'Vernichtungsgrund muss angegeben werden'}, status=status.HTTP_400_BAD_REQUEST)
+
         if not destroying_member_id:
-            return Response(
-                {'error': 'Verantwortliches Mitglied für die Vernichtung muss angegeben werden'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
+            return Response({'error': 'Verantwortliches Mitglied für die Vernichtung muss angegeben werden'}, status=status.HTTP_400_BAD_REQUEST)
+
         try:
             destroying_member = Member.objects.get(id=destroying_member_id)
         except Member.DoesNotExist:
-            return Response(
-                {'error': 'Das angegebene Mitglied existiert nicht'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-            
+            return Response({'error': 'Das angegebene Mitglied existiert nicht'}, status=status.HTTP_400_BAD_REQUEST)
+
         cutting.is_destroyed = True
         cutting.destruction_reason = reason
         cutting.destruction_date = timezone.now()
         cutting.destroying_member = destroying_member
         cutting.save()
-        
+
         serializer = self.get_serializer(cutting)
         return Response(serializer.data)
-        
+
     @action(detail=True, methods=['post'])
-    def update_growth_phase(self, request, pk=None):
-        """Aktualisiert die Wachstumsphase eines Stecklings"""
+    def update_growth_phase(self, request, uuid=None):
         cutting = self.get_object()
         growth_phase = request.data.get('growth_phase', '')
-        
+
         if not growth_phase:
-            return Response(
-                {'error': 'Wachstumsphase muss angegeben werden'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-            
+            return Response({'error': 'Wachstumsphase muss angegeben werden'}, status=status.HTTP_400_BAD_REQUEST)
+
         if growth_phase not in [choice[0] for choice in Cutting._meta.get_field('growth_phase').choices]:
-            return Response(
-                {'error': 'Ungültige Wachstumsphase'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-            
+            return Response({'error': 'Ungültige Wachstumsphase'}, status=status.HTTP_400_BAD_REQUEST)
+
         cutting.growth_phase = growth_phase
         cutting.save()
-        
+
         serializer = self.get_serializer(cutting)
         return Response(serializer.data)
     

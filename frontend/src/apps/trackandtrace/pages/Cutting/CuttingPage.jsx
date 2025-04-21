@@ -82,10 +82,15 @@ const CuttingPage = () => {
       minWidth: 120 
     },
     {
-      id: 'transfer_status',
-      label: 'Überführungsstatus',
+      id: 'status',
+      label: 'Status',
       minWidth: 180,
       format: (value, row) => {
+        // Wenn vernichtet, zeige nur "Vernichtet" an
+        if (row.is_destroyed) {
+          return 'Vernichtet';
+        }
+        
         // Bei Stecklingen
         if (row.cutting_count !== undefined && row.remaining_cuttings !== undefined) {
           const used = row.cutting_count - row.remaining_cuttings;
@@ -114,10 +119,11 @@ const CuttingPage = () => {
       case 'destroyed':
         return '?destroyed=true';
       case 'transferred':
-        return '?transfer_status=partially_transferred,fully_transferred';
+        // Wichtig: Nur nicht-vernichtete Stecklinge anzeigen, die übergeführt wurden
+        return '?transfer_status=partially_transferred,fully_transferred&destroyed=false';
       case 'active':
       default:
-        return ''; // Aktive (weder vernichtet noch übergeführt)
+        return '?destroyed=false&transfer_status=not_transferred'; // Aktive (weder vernichtet noch übergeführt)
     }
   };
 

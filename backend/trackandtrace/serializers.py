@@ -166,8 +166,8 @@ class CuttingSerializer(serializers.ModelSerializer):
     growth_phase_display = serializers.CharField(source='get_growth_phase_display', read_only=True)
     room_details = RoomSerializer(source='room', read_only=True)
     
-    # Individuelle Stecklinge hinzufügen
-    individuals = IndividualCuttingSerializer(source='individual_cuttings', many=True, read_only=True)
+    # Statt alle individuellen Stecklinge zu laden, nur die Anzahl zurückgeben
+    individuals_count = serializers.SerializerMethodField()
     
     class Meta:
         model = Cutting
@@ -181,13 +181,17 @@ class CuttingSerializer(serializers.ModelSerializer):
             'humidity', 'created_at', 'updated_at',
             'responsible_member', 'responsible_member_details',
             'room', 'room_details',
-            'individuals'  # Neue Feld hinzufügen
+            'individuals_count'  # Ersetzt 'individuals'
         ]
         read_only_fields = [
             'uuid', 'batch_number', 'created_at', 'updated_at', 
             'remaining_cuttings', 'growth_phase_display'
         ]
-        
+    
+    def get_individuals_count(self, obj):
+        """Gibt die Anzahl der individuellen Stecklinge zurück statt der vollständigen Daten"""
+        return obj.individual_cuttings.count()
+    
 
 class FloweringPlantSerializer(serializers.ModelSerializer):
     seed_source_details = SeedPurchaseSerializer(source='seed_source', read_only=True)

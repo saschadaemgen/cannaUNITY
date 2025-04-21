@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Grid, 
   Typography, 
@@ -14,9 +14,11 @@ import {
   TableBody,
   TableRow,
   TableCell,
-  TablePagination
+  TablePagination,
+  CircularProgress
 } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
+import api from '../../../../utils/api';
 
 const CuttingDetails = ({ 
   data, 
@@ -26,22 +28,71 @@ const CuttingDetails = ({
   onMarkAsFullyTransferred, 
   onMarkIndividualAsDestroyed, 
   onDestroyIndividual, 
-  onDestroyAllIndividuals, // <-- Neuer Prop hinzugefügt
+  onDestroyAllIndividuals,
   status 
 }) => {
   // State für Paginierung
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
+  
+  // Neue States für serverseitige Paginierung
+  const [individualCuttings, setIndividualCuttings] = useState([]);
+  const [totalIndividuals, setTotalIndividuals] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   // Handlers für Paginierung
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
+    fetchIndividuals(newPage, rowsPerPage);
   };
 
   const handleChangeRowsPerPage = (event) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
+    const newRowsPerPage = parseInt(event.target.value, 10);
+    setRowsPerPage(newRowsPerPage);
     setPage(0);
+    fetchIndividuals(0, newRowsPerPage);
   };
+
+  // Funktion zum Laden der Individuen vom Server mit Paginierung
+  const fetchIndividuals = async (page, pageSize) => {
+    if (!data || !data.uuid) return;
+    
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await api.get(`/trackandtrace/cuttings/${data.uuid}/paginated_individuals/`, {
+        params: {
+          page: page + 1, // API verwendet 1-basierte Paginierung
+          page_size: pageSize
+        }
+      });
+      
+      if (response.data && response.data.results) {
+        setIndividualCuttings(response.data.results);
+        setTotalIndividuals(response.data.count);
+      } else {
+        setError('Unerwartetes Datenformat');
+        setIndividualCuttings([]);
+        setTotalIndividuals(0);
+      }
+    } catch (err) {
+      console.error('Fehler beim Laden der individuellen Stecklinge:', err);
+      setError('Fehler beim Laden der Daten');
+      setIndividualCuttings([]);
+      setTotalIndividuals(0);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Initial und bei Änderung der Data-Prop laden
+  useEffect(() => {
+    if (data && data.uuid) {
+      fetchIndividuals(page, rowsPerPage);
+    }
+  }, [data]);
 
   // Helfer-Funktion für Datumsformatierung
   const formatDate = (dateString) => {
@@ -69,8 +120,14 @@ const CuttingDetails = ({
     }
   };
 
-  // Überführungsstatus als Chip anzeigen
-  const getTransferStatusChip = () => {
+  // Status-Anzeige verbessert mit klarer Unterscheidung zwischen vernichtet und überführt
+  const getStatusChip = () => {
+    // Vernichtungsstatus hat Priorität
+    if (data.is_destroyed) {
+      return <Chip color="error" label="Vernichtet" size="small" />;
+    }
+    
+    // Überführungsstatus berechnen wenn nicht vernichtet
     let color = 'default';
     let label = 'Unbekannt';
     let percentage = null;
@@ -134,9 +191,13 @@ const CuttingDetails = ({
               </Box>
             </Grid>
             <Grid item xs={12}>
-              <Typography variant="body2" color="textSecondary">Überführungsstatus:</Typography>
+              <Typography variant="body2" color="textSecondary">Status:</Typography>
               <Box display="flex" alignItems="center">
-                {getTransferStatusChip()}
+                {data.is_destroyed ? (
+                  <Chip color="error" label="Vernichtet" size="small" />
+                ) : (
+                  getStatusChip()
+                )}
               </Box>
             </Grid>
             <Grid item xs={12}>
@@ -218,73 +279,83 @@ const CuttingDetails = ({
           </Grid>
         </Grid>
         
-        {/* Individuelle Stecklinge anzeigen */}
-        {data.individuals && data.individuals.length > 0 && (
+        {/* Individuelle Stecklinge anzeigen - mit serverseitiger Paginierung */}
+        {data.uuid && (
           <Grid item xs={12}>
             <Typography variant="subtitle2">Individuelle Stecklinge</Typography>
             <Divider sx={{ mb: 2 }} />
             
             <TableContainer component={Paper} sx={{ mt: 2 }}>
-              <Table size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Chargennummer</TableCell>
-                    <TableCell>UUID</TableCell>
-                    <TableCell>Verantwortlicher</TableCell>
-                    <TableCell>Raum</TableCell>
-                    <TableCell>Status</TableCell>
-                    <TableCell>Aktionen</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {data.individuals
-                    .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                    .map((individual) => (
-                      <TableRow key={individual.uuid}>
-                        <TableCell>{individual.batch_number}</TableCell>
-                        <TableCell>{individual.uuid}</TableCell>
-                        <TableCell>
-                          {individual.responsible_member_details ? 
-                            `${individual.responsible_member_details.first_name} ${individual.responsible_member_details.last_name}` : 
-                            'Unbekannt'}
-                        </TableCell>
-                        <TableCell>
-                          {individual.room_details ? individual.room_details.name : 'Kein Raum'}
-                        </TableCell>
-                        <TableCell>
-                          {individual.is_destroyed ? (
-                            <Chip label="Vernichtet" color="error" size="small" />
-                          ) : (
-                            <Chip label="Aktiv" color="success" size="small" />
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {!individual.is_destroyed && status === 'active' && (
-                            <Button 
-                              variant="outlined" 
-                              color="error"
-                              size="small"
-                              onClick={() => onDestroyIndividual && onDestroyIndividual(individual)}
-                            >
-                              Vernichten
-                            </Button>
-                          )}
-                        </TableCell>
+              {loading ? (
+                <Box display="flex" justifyContent="center" p={3}>
+                  <CircularProgress />
+                </Box>
+              ) : error ? (
+                <Box p={2}>
+                  <Typography color="error">{error}</Typography>
+                </Box>
+              ) : (
+                <>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Chargennummer</TableCell>
+                        <TableCell>UUID</TableCell>
+                        <TableCell>Verantwortlicher</TableCell>
+                        <TableCell>Raum</TableCell>
+                        <TableCell>Status</TableCell>
+                        <TableCell>Aktionen</TableCell>
                       </TableRow>
-                    ))}
-                </TableBody>
-              </Table>
-              <TablePagination
-                rowsPerPageOptions={[5, 10, 25]}
-                component="div"
-                count={data.individuals.length}
-                rowsPerPage={rowsPerPage}
-                page={page}
-                onPageChange={handleChangePage}
-                onRowsPerPageChange={handleChangeRowsPerPage}
-                labelRowsPerPage="Einträge pro Seite:"
-                labelDisplayedRows={({ from, to, count }) => `${from}–${to} von ${count}`}
-              />
+                    </TableHead>
+                    <TableBody>
+                      {individualCuttings.map((individual) => (
+                        <TableRow key={individual.uuid}>
+                          <TableCell>{individual.batch_number}</TableCell>
+                          <TableCell>{individual.uuid}</TableCell>
+                          <TableCell>
+                            {individual.responsible_member_details ? 
+                              `${individual.responsible_member_details.first_name} ${individual.responsible_member_details.last_name}` : 
+                              'Unbekannt'}
+                          </TableCell>
+                          <TableCell>
+                            {individual.room_details ? individual.room_details.name : 'Kein Raum'}
+                          </TableCell>
+                          <TableCell>
+                            {individual.is_destroyed ? (
+                              <Chip label="Vernichtet" color="error" size="small" />
+                            ) : (
+                              <Chip label="Aktiv" color="success" size="small" />
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {!individual.is_destroyed && status === 'active' && (
+                              <Button 
+                                variant="outlined" 
+                                color="error"
+                                size="small"
+                                onClick={() => onDestroyIndividual && onDestroyIndividual(individual)}
+                              >
+                                Vernichten
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                  <TablePagination
+                    rowsPerPageOptions={[5, 10, 25, 50]}
+                    component="div"
+                    count={totalIndividuals}
+                    rowsPerPage={rowsPerPage}
+                    page={page}
+                    onPageChange={handleChangePage}
+                    onRowsPerPageChange={handleChangeRowsPerPage}
+                    labelRowsPerPage="Einträge pro Seite:"
+                    labelDisplayedRows={({ from, to, count }) => `${from}–${to} von ${count}`}
+                  />
+                </>
+              )}
             </TableContainer>
           </Grid>
         )}
@@ -354,7 +425,7 @@ const CuttingDetails = ({
           </Grid>
         )}
         
-        {data.is_transferred && (
+        {data.is_transferred && !data.is_destroyed && (
           <Grid item xs={12}>
             <Typography variant="subtitle2" color="success">Überführungsdaten</Typography>
             <Divider sx={{ mb: 2 }} />
