@@ -27,16 +27,7 @@ import MemberEdit from '../apps/members/pages/MemberEdit'
 import MemberDelete from '../apps/members/pages/MemberDelete'
 import SeedPurchasePage from '../apps/trackandtrace/pages/SeedPurchase/SeedPurchasePage';
 import MotherPlantPage from '../apps/trackandtrace/pages/MotherPlant/MotherPlantPage';
-import CuttingPage from '../apps/trackandtrace/pages/Cutting/CuttingPage';
 import FloweringPlantPage from '../apps/trackandtrace/pages/FloweringPlant/FloweringPlantPage';
-import HarvestPage from '../apps/trackandtrace/pages/Harvest/HarvestPage';
-import DryingPage from '../apps/trackandtrace/pages/Drying/DryingPage';
-import ProcessingPage from '../apps/trackandtrace/pages/Processing/ProcessingPage';
-import LabTestingPage from '../apps/trackandtrace/pages/LabTesting/LabTestingPage';
-import PackagingPage from '../apps/trackandtrace/pages/Packaging/PackagingPage';
-import ProductDistributionPage from '../apps/trackandtrace/pages/ProductDistribution/ProductDistributionPage';
-// Neuer Import für die Herstellerseite
-import ManufacturerPage from '../apps/trackandtrace/pages/Manufacturer/ManufacturerPage';
 
 export const router = createBrowserRouter([
   {
@@ -81,16 +72,7 @@ export const router = createBrowserRouter([
       { path: 'trace', element: <div>Track & Trace</div> },
       { path: 'trace/samen', element: <SeedPurchasePage /> },
       { path: 'trace/mutterpflanzen', element: <MotherPlantPage /> },
-      { path: 'trace/stecklinge', element: <CuttingPage /> },
       { path: 'trace/bluehpflanzen', element: <FloweringPlantPage /> },
-      { path: 'trace/ernte', element: <HarvestPage /> },
-      { path: 'trace/trocknung', element: <DryingPage /> },
-      { path: 'trace/verarbeitung', element: <ProcessingPage /> },
-      { path: 'trace/laborkontrolle', element: <LabTestingPage /> },
-      { path: 'trace/verpackung', element: <PackagingPage /> },
-      { path: 'trace/ausgabe', element: <ProductDistributionPage /> },
-      // Neue Route für die Herstellerseite
-      { path: 'trace/hersteller', element: <ManufacturerPage /> },
 
       // Optional: zukünftige Seiten
       { path: 'netzwerk', element: <div>Gemeinschaftsnetzwerk</div> },

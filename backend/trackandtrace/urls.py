@@ -1,6 +1,6 @@
-# trackandtrace/urls.py
 from django.urls import path, include
+from . import api_urls  # <- wichtig: kein zirkulärer Import!
 
 urlpatterns = [
-    path('', include('trackandtrace.api_urls')),
+    path('', include(api_urls)),
 ]

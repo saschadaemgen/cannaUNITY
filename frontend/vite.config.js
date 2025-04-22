@@ -20,6 +20,11 @@ export default defineConfig({
       },
     },
   },
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'), // 🎯 Der elegante Alias
+    },
+  },
   build: {
     outDir: path.resolve(__dirname, '../backend/static/frontend'),
     emptyOutDir: true,

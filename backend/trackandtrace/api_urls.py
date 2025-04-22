@@ -1,26 +1,13 @@
-# trackandtrace/api_urls.py
+# backend/trackandtrace/api_urls.py
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from . import api_views
+from .api_views import SeedPurchaseViewSet, MotherPlantBatchViewSet, FloweringPlantBatchViewSet
 
-# REST API Router
 router = DefaultRouter()
-router.register(r'seeds', api_views.SeedPurchaseViewSet)
-router.register(r'motherplants', api_views.MotherPlantViewSet)
-router.register(r'cuttings', api_views.CuttingViewSet)
-router.register(r'floweringplants', api_views.FloweringPlantViewSet)
-router.register(r'harvests', api_views.HarvestViewSet)
-router.register(r'dryings', api_views.DryingViewSet)
-router.register(r'processings', api_views.ProcessingViewSet)
-router.register(r'labtestings', api_views.LabTestingViewSet)
-router.register(r'packagings', api_views.PackagingViewSet)
-router.register(r'distributions', api_views.ProductDistributionViewSet)
-router.register(r'manufacturers', api_views.ManufacturerViewSet)
-router.register(r'strains', api_views.StrainViewSet)
-router.register(r'individualfloweringplants', api_views.IndividualFloweringPlantViewSet)
-router.register(r'individualcuttings', api_views.IndividualCuttingViewSet)
+router.register(r'seeds', SeedPurchaseViewSet, basename='seeds')
+router.register(r'motherbatches', MotherPlantBatchViewSet, basename='motherbatches')
+router.register(r'floweringbatches', FloweringPlantBatchViewSet, basename='floweringbatches')
 
 urlpatterns = [
-    # Standard API Router
     path('', include(router.urls)),
 ]
