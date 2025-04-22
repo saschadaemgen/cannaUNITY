@@ -358,10 +358,9 @@ export default function SeedPurchasePage() {
   const getColumns = () => {
     // Basis-Spalten, die in allen Tabs angezeigt werden
     const baseColumns = [
-      { field: 'batch_number', headerName: 'Batch-Nummer', flex: 1.5 },
+      { field: 'batch_number', headerName: 'Charge-Nummer', flex: 1.5 },
       { field: 'id', headerName: 'UUID', flex: 1.5 },
       { field: 'strain_name', headerName: 'Sortenname', flex: 1 },
-      { field: 'quantity', headerName: 'Batch', flex: 0.7 },
     ];
     
     // Zusätzliche Spalten je nach Tab
@@ -369,7 +368,10 @@ export default function SeedPurchasePage() {
     
     if (tabValue === 0) {
       additionalColumns = [
-        { field: 'remaining_quantity', headerName: 'Verfügbar', flex: 0.7 },
+        { field: 'quantity', headerName: 'Gesamtmenge', flex: 1 },
+        { field: 'remaining_quantity', headerName: 'Verfügbar', flex: 0.7, 
+          align: 'center', headerAlign: 'center'
+        },
         { field: 'created_at', headerName: 'Erstellt am', flex: 1 },
         {
           field: 'actions',
@@ -418,7 +420,10 @@ export default function SeedPurchasePage() {
       ];
     } else if (tabValue === 1) {
       additionalColumns = [
-        { field: 'mother_plant_count', headerName: 'Mutterpflanzen', flex: 0.7 },
+        { field: 'quantity', headerName: 'Gesamtmenge', flex: 1 },
+        { field: 'mother_plant_count', headerName: 'Mutterpflanzen', flex: 0.7,
+          align: 'center', headerAlign: 'center'
+        },
         { field: 'created_at', headerName: 'Erstellt am', flex: 1 },
         {
           field: 'actions',
@@ -453,7 +458,10 @@ export default function SeedPurchasePage() {
       ];
     } else if (tabValue === 2) {
       additionalColumns = [
-        { field: 'flowering_plant_count', headerName: 'Blühpflanzen', flex: 0.7 },
+        { field: 'quantity', headerName: 'Gesamtmenge', flex: 1 },
+        { field: 'flowering_plant_count', headerName: 'Blühpflanzen', flex: 0.7,
+          align: 'center', headerAlign: 'center'
+        },
         { field: 'created_at', headerName: 'Erstellt am', flex: 1 },
         {
           field: 'actions',
@@ -486,9 +494,70 @@ export default function SeedPurchasePage() {
           )
         }
       ];
-    } else if (tabValue === 3) {
+    } // Relevanter Teil der getColumns-Funktion für den "Vernichtet" Tab
+    else if (tabValue === 3) {
       // Für vernichtete Samen - keine Aktionsspalte
       additionalColumns = [
+        { 
+          field: 'original_quantity', 
+          headerName: 'Gesamtmenge', 
+          flex: 1,
+          align: 'center',
+          headerAlign: 'center',
+          renderCell: (params) => {
+            // Versuchen, die Originalcharge-Menge zu finden (falls durch teilweise Vernichtung erstellt)
+            // Wenn der Samen eine Referenz zu einem Originalsamen hat und sich von diesem unterscheidet
+            if (params.row.original_seed && params.row.original_seed.id !== params.row.id) {
+              return (
+                <Box 
+                  display="flex" 
+                  alignItems="center" 
+                  justifyContent="center" 
+                  width="100%"
+                  height="100%"
+                >
+                  <Typography variant="body2">
+                    {params.row.original_seed.quantity || 100} {/* Fallback auf 100, wenn keine Menge angegeben */}
+                  </Typography>
+                </Box>
+              );
+            }
+            // Ansonsten die eigene Menge anzeigen (wenn der Samen vollständig vernichtet wurde)
+            return (
+              <Box 
+                display="flex" 
+                alignItems="center" 
+                justifyContent="center" 
+                width="100%"
+                height="100%"
+              >
+                <Typography variant="body2">
+                  {params.row.quantity || 0}
+                </Typography>
+              </Box>
+            );
+          }
+        },
+        { 
+          field: 'vernichtet', 
+          headerName: 'Vernichtet', 
+          flex: 0.7,
+          align: 'center',
+          headerAlign: 'center',
+          renderCell: (params) => (
+            <Box 
+              display="flex" 
+              alignItems="center" 
+              justifyContent="center" 
+              width="100%"
+              height="100%"
+            >
+              <Typography variant="body2">
+                {params.row.quantity - (params.row.remaining_quantity || 0)}
+              </Typography>
+            </Box>
+          )
+        },
         { field: 'destroy_reason', headerName: 'Vernichtungsgrund', flex: 1 },
         { field: 'destroyed_at', headerName: 'Vernichtet am', flex: 0.7 },
         { field: 'created_at', headerName: 'Erstellt am', flex: 1 }

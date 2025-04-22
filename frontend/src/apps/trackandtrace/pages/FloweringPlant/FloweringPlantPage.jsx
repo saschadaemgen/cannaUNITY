@@ -67,7 +67,7 @@ export default function FloweringPlantPage() {
         setDestroyedPlantsCount(res.data.counts.destroyed_count || 0);
       }
     } catch (error) {
-      console.error('Fehler beim Laden der Blühpflanzen-Batches:', error)
+      console.error('Fehler beim Laden der Blühpflanzen-Chargen:', error)
     } finally {
       setLoading(false)
     }
@@ -363,7 +363,7 @@ export default function FloweringPlantPage() {
                         {batch.seed_strain}
                       </Typography>
                       <Chip 
-                        label={batch.batch_number || "Keine Batch-Nr."} 
+                        label={batch.batch_number || "Keine Charge-Nr."} 
                         size="small" 
                         color="primary" 
                         variant="outlined"
@@ -372,7 +372,7 @@ export default function FloweringPlantPage() {
                     </Box>
                     <Box display="flex" alignItems="center">
                       <Typography variant="body2" color="text.secondary">
-                        Ursprungssamen-Batch: {batch.seed_batch_number || "Unbekannt"}
+                        Ursprungssamen-Charge: {batch.seed_batch_number || "Unbekannt"}
                       </Typography>
                       <Typography variant="body2" color="text.secondary" sx={{ ml: 3 }}>
                         {batch.quantity} Blühpflanzen
@@ -392,7 +392,7 @@ export default function FloweringPlantPage() {
                   <strong>Notizen:</strong> {batch.notes || 'Keine Notizen'}
                 </Typography>
                 <Typography variant="body2" gutterBottom>
-                  <strong>Batch-UUID:</strong> {batch.id}
+                  <strong>Charge-UUID:</strong> {batch.id}
                 </Typography>
                 
                 {batchPlants[batch.id] ? (
@@ -443,7 +443,7 @@ export default function FloweringPlantPage() {
                                 />
                               </TableCell>
                             )}
-                            <TableCell><strong>Batch-Nummer</strong></TableCell>
+                            <TableCell><strong>Charge-Nummer</strong></TableCell>
                             <TableCell><strong>UUID</strong></TableCell>
                             <TableCell><strong>Erstellt am</strong></TableCell>
                             <TableCell><strong>Notizen</strong></TableCell>
