@@ -78,58 +78,6 @@ class SeedPurchaseViewSet(viewsets.ModelViewSet):
         })
         return response
     
-    def perform_destroy(self, instance):
-        # Prüfen, ob der Samen bereits vernichtet wurde
-        if instance.is_destroyed:
-            # Die vernichtete Menge bestimmen
-            vernichtete_menge = instance.quantity
-            
-            # Wenn es eine Referenz zum Originalsamen gibt
-            if instance.original_seed and instance.original_seed.id != instance.id:
-                original_seed = instance.original_seed
-                
-                # Vernichtete Menge zum Originalsamen zurückrechnen
-                original_seed.remaining_quantity += vernichtete_menge
-                original_seed.save()
-            # Wenn keine Referenz existiert (Abwärtskompatibilität) oder selbstreferenzierend
-            elif instance.original_seed and instance.original_seed.id == instance.id:
-                # Suchen nach einem aktiven Samen mit demselben Sortennamen
-                active_seeds = SeedPurchase.objects.filter(
-                    strain_name=instance.strain_name,
-                    is_destroyed=False
-                ).exclude(id=instance.id).order_by('-created_at')
-                
-                if active_seeds.exists():
-                    active_seed = active_seeds.first()
-                    # Menge zurückrechnen
-                    active_seed.remaining_quantity += vernichtete_menge
-                    active_seed.save()
-                else:
-                    # Wenn kein aktiver Samen existiert, den gelöschten Samen wiederherstellen
-                    instance.is_destroyed = False
-                    instance.destroy_reason = None
-                    instance.destroyed_at = None
-                    instance.original_seed = None
-                    instance.save()
-                    # Nach dem Speichern nicht löschen, daher frühzeitig zurückkehren
-                    return
-            # Fallback, wenn keine Originalreferenz vorhanden ist
-            else:
-                # Suchen nach einem aktiven Samen mit demselben Sortennamen
-                active_seeds = SeedPurchase.objects.filter(
-                    strain_name=instance.strain_name,
-                    is_destroyed=False
-                ).order_by('-created_at')
-                
-                if active_seeds.exists():
-                    active_seed = active_seeds.first()
-                    # Menge zurückrechnen
-                    active_seed.remaining_quantity += vernichtete_menge
-                    active_seed.save()
-        
-        # Standardmäßiges Löschen des Eintrags
-        instance.delete()
-    
     @action(detail=True, methods=['post'])
     def convert_to_mother(self, request, pk=None):
         seed = self.get_object()
@@ -200,7 +148,6 @@ class SeedPurchaseViewSet(viewsets.ModelViewSet):
             "batch": FloweringPlantBatchSerializer(batch).data
         })
     
-
     @action(detail=True, methods=['post'])
     def destroy_seed(self, request, pk=None):
         seed = self.get_object()
@@ -285,58 +232,38 @@ class SeedPurchaseViewSet(viewsets.ModelViewSet):
     
     @action(detail=False, methods=['get'])
     def counts(self, request):
-        # Debug-Ausgaben aktivieren
-        debug = True
-        
-        # Hole alle Samen
-        all_seeds = SeedPurchase.objects.all()
-        
         # Aktive Samen
-        active_seeds = all_seeds.filter(is_destroyed=False)
+        active_seeds = SeedPurchase.objects.filter(is_destroyed=False)
         active_seed_count = active_seeds.filter(remaining_quantity__gt=0).count()
-        total_active_quantity = sum(seed.remaining_quantity for seed in active_seeds)
+        total_active_quantity = active_seeds.aggregate(total=models.Sum('remaining_quantity'))['total'] or 0
         
-        # Vernichtete Samen zählen
-        destroyed_seeds = all_seeds.filter(is_destroyed=True)
+        # Vernichtete Samen
+        destroyed_seeds = SeedPurchase.objects.filter(is_destroyed=True)
         destroyed_count = destroyed_seeds.count()
         
-        # KRITISCHER FIX: Wir addieren nicht einfach alle quantity-Werte!
-        # Stattdessen zählen wir die Gesamtmenge der ursprünglichen Samen
-        # und ziehen die verbleibende Menge ab
-        
-        # Alle einzigartigen Sorten identifizieren
-        seed_strains = set(seed.strain_name for seed in all_seeds)
-        
+        # Korrigierte Berechnung der tatsächlich vernichteten Samenmenge
         total_destroyed_quantity = 0
+        for seed in destroyed_seeds:
+            if seed.original_seed and seed.original_seed.id != seed.id:
+                # Bei teilweiser Vernichtung: Direkt die Menge verwenden
+                total_destroyed_quantity += seed.quantity
+            else:
+                # Bei vollständiger Vernichtung: Nur die wirklich vernichteten Samen zählen
+                # Berechne, wie viele Samen zu Pflanzen konvertiert wurden
+                converted_to_plants = 0
+                for mother_batch in seed.mother_batches.all():
+                    converted_to_plants += mother_batch.quantity
+                for flowering_batch in seed.flowering_batches.all():
+                    converted_to_plants += flowering_batch.quantity
+                    
+                # Nur die tatsächlich vernichteten Samen zählen
+                actually_destroyed = seed.quantity - converted_to_plants
+                total_destroyed_quantity += actually_destroyed
         
-        # Für jede Sorte einzeln berechnen
-        for strain in seed_strains:
-            # Alle Samen dieser Sorte
-            strain_seeds = [seed for seed in all_seeds if seed.strain_name == strain]
-            
-            # Originale Samenmenge (höchster quantity-Wert unter allen Samen dieser Sorte)
-            max_quantity = max(seed.quantity for seed in strain_seeds)
-            
-            # Verbleibende Menge (Summe der remaining_quantity der aktiven Samen dieser Sorte)
-            remaining = sum(seed.remaining_quantity for seed in strain_seeds if not seed.is_destroyed)
-            
-            # Vernichtete Menge für diese Sorte
-            destroyed = max_quantity - remaining
-            
-            # Zu Gesamtsumme hinzufügen
-            total_destroyed_quantity += destroyed
-            
-            if debug:
-                print(f"Sorte: {strain}, Max Quantity: {max_quantity}, Remaining: {remaining}, Destroyed: {destroyed}")
-        
-        if debug:
-            print(f"Gesamte vernichtete Menge: {total_destroyed_quantity}")
-        
-        # Batches zählen
+        # Batches und Pflanzen zählen
         mother_batch_count = MotherPlantBatch.objects.count()
         flowering_batch_count = FloweringPlantBatch.objects.count()
         
-        # Alle Pflanzen zählen
         mother_plant_count = MotherPlant.objects.filter(is_destroyed=False).count()
         flowering_plant_count = FloweringPlant.objects.filter(is_destroyed=False).count()
         
@@ -394,15 +321,6 @@ class MotherPlantBatchViewSet(viewsets.ModelViewSet):
             'destroyed_count': 0
         })
         return response
-    
-    def perform_destroy(self, instance):
-        # Vor dem Löschen die Anzahl der Samen zurückrechnen
-        seed_purchase = instance.seed_purchase
-        seed_purchase.remaining_quantity += instance.quantity
-        seed_purchase.save()
-        
-        # Dann das Batch und die zugehörigen Pflanzen löschen
-        instance.delete()
     
     @action(detail=True, methods=['get'])
     def plants(self, request, pk=None):
@@ -502,15 +420,6 @@ class FloweringPlantBatchViewSet(viewsets.ModelViewSet):
             'destroyed_count': 0
         })
         return response
-    
-    def perform_destroy(self, instance):
-        # Vor dem Löschen die Anzahl der Samen zurückrechnen
-        seed_purchase = instance.seed_purchase
-        seed_purchase.remaining_quantity += instance.quantity
-        seed_purchase.save()
-        
-        # Dann das Batch und die zugehörigen Pflanzen löschen
-        instance.delete()
     
     @action(detail=True, methods=['get'])
     def plants(self, request, pk=None):

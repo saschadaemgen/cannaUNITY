@@ -12,7 +12,7 @@ class SeedPurchaseSerializer(serializers.ModelSerializer):
     class Meta:
         model = SeedPurchase
         fields = [
-            'id', 'strain_name', 'quantity', 'remaining_quantity', 
+            'id', 'batch_number', 'strain_name', 'quantity', 'remaining_quantity', 
             'mother_plant_count', 'flowering_plant_count', 
             'created_at', 'updated_at', 'is_destroyed', 'destroy_reason', 'destroyed_at',
             'original_seed', 'original_seed_info'
@@ -29,6 +29,7 @@ class SeedPurchaseSerializer(serializers.ModelSerializer):
         if obj.original_seed and obj.original_seed.id != obj.id:
             return {
                 'id': str(obj.original_seed.id),
+                'batch_number': obj.original_seed.batch_number,
                 'strain_name': obj.original_seed.strain_name,
                 'is_destroyed': obj.original_seed.is_destroyed
             }
@@ -52,15 +53,18 @@ class SeedPurchaseSerializer(serializers.ModelSerializer):
         return representation
 
 class MotherPlantSerializer(serializers.ModelSerializer):
+    batch_number = serializers.CharField(source='batch.batch_number', read_only=True)
+    
     class Meta:
         model = MotherPlant
         fields = [
-            'id', 'notes', 'created_at', 'updated_at', 
+            'id', 'batch_number', 'notes', 'created_at', 'updated_at', 
             'is_destroyed', 'destroy_reason', 'destroyed_at'
         ]
 
 class MotherPlantBatchSerializer(serializers.ModelSerializer):
     seed_strain = serializers.CharField(source='seed_purchase.strain_name', read_only=True)
+    seed_batch_number = serializers.CharField(source='seed_purchase.batch_number', read_only=True)
     plants = MotherPlantSerializer(many=True, read_only=True)
     active_plants_count = serializers.SerializerMethodField()
     destroyed_plants_count = serializers.SerializerMethodField()
@@ -68,7 +72,7 @@ class MotherPlantBatchSerializer(serializers.ModelSerializer):
     class Meta:
         model = MotherPlantBatch
         fields = [
-            'id', 'seed_purchase', 'seed_strain', 'quantity', 
+            'id', 'batch_number', 'seed_purchase', 'seed_strain', 'seed_batch_number', 'quantity', 
             'notes', 'plants', 'created_at', 'updated_at',
             'active_plants_count', 'destroyed_plants_count'
         ]
@@ -80,15 +84,18 @@ class MotherPlantBatchSerializer(serializers.ModelSerializer):
         return obj.plants.filter(is_destroyed=True).count()
 
 class FloweringPlantSerializer(serializers.ModelSerializer):
+    batch_number = serializers.CharField(source='batch.batch_number', read_only=True)
+    
     class Meta:
         model = FloweringPlant
         fields = [
-            'id', 'notes', 'created_at', 'updated_at', 
+            'id', 'batch_number', 'notes', 'created_at', 'updated_at', 
             'is_destroyed', 'destroy_reason', 'destroyed_at'
         ]
 
 class FloweringPlantBatchSerializer(serializers.ModelSerializer):
     seed_strain = serializers.CharField(source='seed_purchase.strain_name', read_only=True)
+    seed_batch_number = serializers.CharField(source='seed_purchase.batch_number', read_only=True)
     plants = FloweringPlantSerializer(many=True, read_only=True)
     active_plants_count = serializers.SerializerMethodField()
     destroyed_plants_count = serializers.SerializerMethodField()
@@ -96,7 +103,7 @@ class FloweringPlantBatchSerializer(serializers.ModelSerializer):
     class Meta:
         model = FloweringPlantBatch
         fields = [
-            'id', 'seed_purchase', 'seed_strain', 'quantity', 
+            'id', 'batch_number', 'seed_purchase', 'seed_strain', 'seed_batch_number', 'quantity', 
             'notes', 'plants', 'created_at', 'updated_at',
             'active_plants_count', 'destroyed_plants_count'
         ]

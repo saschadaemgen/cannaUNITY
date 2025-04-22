@@ -6,10 +6,10 @@ import {
   Table, TableBody, TableCell, TableHead, TableRow, Paper,
   Pagination, CircularProgress, Button, Dialog, DialogTitle,
   DialogContent, DialogActions, TextField, Tabs, Tab, Checkbox,
-  FormControlLabel, Grid, InputAdornment, FormControl, InputLabel, Select, MenuItem
+  FormControlLabel, Grid, InputAdornment, FormControl, InputLabel, Select, MenuItem,
+  Chip
 } from '@mui/material'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
-import DeleteIcon from '@mui/icons-material/Delete'
 import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment'
 import FilterAltIcon from '@mui/icons-material/FilterAlt'
 import ClearIcon from '@mui/icons-material/Clear'
@@ -88,18 +88,6 @@ export default function MotherPlantPage() {
     loadMotherBatches()
     loadCounts() // Alle Zähler beim ersten Laden holen
   }, [])
-
-  const handleDelete = async (id) => {
-    if (window.confirm('Möchtest du diesen Mutterpflanzen-Batch wirklich löschen?')) {
-      try {
-        await api.delete(`/trackandtrace/motherbatches/${id}/`)
-        loadMotherBatches(currentPage)
-        loadCounts() // Zähler aktualisieren
-      } catch (error) {
-        console.error('Fehler beim Löschen:', error)
-      }
-    }
-  }
 
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue)
@@ -343,26 +331,72 @@ export default function MotherPlantPage() {
               key={batch.id} 
               expanded={expandedBatchId === batch.id}
               onChange={() => handleAccordionChange(batch.id)}
-              sx={{ mb: 2, width: '100%' }}
+              sx={{ 
+                mb: 2, 
+                width: '100%',
+                border: '1px solid #e0e0e0',
+                borderRadius: '8px',
+                '&:before': {
+                  display: 'none',
+                },
+                '&.Mui-expanded': {
+                  margin: '0 0 16px 0',
+                  boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
+                }
+              }}
             >
-              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                <Box display="flex" justifyContent="space-between" width="100%">
-                  <Typography>
-                    <strong>{batch.seed_strain}</strong> - {batch.quantity} Mutterpflanzen
-                    {tabValue === 0 && batch.destroyed_plants_count > 0 && (
-                      <span> ({batch.active_plants_count} aktiv, {batch.destroyed_plants_count} vernichtet)</span>
-                    )}
+              <AccordionSummary 
+                expandIcon={<ExpandMoreIcon />}
+                sx={{
+                  backgroundColor: '#f5f5f5',
+                  borderRadius: '8px 8px 0 0',
+                  '&.Mui-expanded': {
+                    minHeight: '48px',
+                    borderBottom: '1px solid #e0e0e0'
+                  }
+                }}
+              >
+                <Box display="flex" width="100%" alignItems="center" justifyContent="space-between">
+                  <Box display="flex" flexDirection="column">
+                    <Box display="flex" alignItems="center" mb={0.5}>
+                      <Typography variant="subtitle1" component="div" fontWeight="bold">
+                        {batch.seed_strain}
+                      </Typography>
+                      <Chip 
+                        label={batch.batch_number || "Keine Batch-Nr."} 
+                        size="small" 
+                        color="primary" 
+                        variant="outlined"
+                        sx={{ ml: 2 }}
+                      />
+                    </Box>
+                    <Box display="flex" alignItems="center">
+                      <Typography variant="body2" color="text.secondary">
+                        Ursprungssamen-Batch: {batch.seed_batch_number || "Unbekannt"}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ ml: 3 }}>
+                        {batch.quantity} Mutterpflanzen
+                        {tabValue === 0 && batch.destroyed_plants_count > 0 && (
+                          <span> ({batch.active_plants_count} aktiv, {batch.destroyed_plants_count} vernichtet)</span>
+                        )}
+                      </Typography>
+                    </Box>
+                  </Box>
+                  <Typography variant="body2" color="text.secondary">
+                    Erstellt am: {new Date(batch.created_at).toLocaleDateString('de-DE')}
                   </Typography>
-                  <Typography>Erstellt am: {new Date(batch.created_at).toLocaleDateString()}</Typography>
                 </Box>
               </AccordionSummary>
-              <AccordionDetails sx={{ width: '100%' }}>
+              <AccordionDetails sx={{ p: 3, width: '100%' }}>
                 <Typography variant="body2" gutterBottom>
-                  Notizen: {batch.notes || 'Keine Notizen'}
+                  <strong>Notizen:</strong> {batch.notes || 'Keine Notizen'}
+                </Typography>
+                <Typography variant="body2" gutterBottom>
+                  <strong>Batch-UUID:</strong> {batch.id}
                 </Typography>
                 
                 {batchPlants[batch.id] ? (
-                  <Box sx={{ width: '100%' }}>
+                  <Box sx={{ width: '100%', mt: 2 }}>
                     <Box display="flex" justifyContent="space-between" alignItems="center" mb={1} width="100%">
                       <FormControlLabel
                         control={
@@ -381,16 +415,24 @@ export default function MotherPlantPage() {
                           variant="contained" 
                           color="error"
                           onClick={() => handleOpenDestroyDialog(batch)}
+                          startIcon={<LocalFireDepartmentIcon />}
                         >
                           {selectedPlants[batch.id].length} Pflanzen vernichten
                         </Button>
                       )}
                     </Box>
                     
-                    <Paper sx={{ mt: 2, width: '100%', overflowX: 'auto' }}>
+                    <Paper 
+                      sx={{ 
+                        mt: 2, 
+                        width: '100%', 
+                        overflowX: 'auto',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                      }}
+                    >
                       <Table size="small" sx={{ minWidth: '100%' }}>
                         <TableHead>
-                          <TableRow>
+                          <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
                             {tabValue === 0 && (
                               <TableCell padding="checkbox">
                                 <Checkbox
@@ -401,23 +443,31 @@ export default function MotherPlantPage() {
                                 />
                               </TableCell>
                             )}
-                            <TableCell>UUID</TableCell>
-                            <TableCell>Erstellt am</TableCell>
-                            <TableCell>Notizen</TableCell>
+                            <TableCell><strong>Batch-Nummer</strong></TableCell>
+                            <TableCell><strong>UUID</strong></TableCell>
+                            <TableCell><strong>Erstellt am</strong></TableCell>
+                            <TableCell><strong>Notizen</strong></TableCell>
                             {tabValue === 1 && (
                               <>
-                                <TableCell>Vernichtungsgrund</TableCell>
-                                <TableCell>Vernichtet am</TableCell>
+                                <TableCell><strong>Vernichtungsgrund</strong></TableCell>
+                                <TableCell><strong>Vernichtet am</strong></TableCell>
                               </>
                             )}
                             {tabValue === 0 && (
-                              <TableCell align="right">Aktionen</TableCell>
+                              <TableCell align="right"><strong>Aktionen</strong></TableCell>
                             )}
                           </TableRow>
                         </TableHead>
                         <TableBody>
                           {batchPlants[batch.id].map((plant) => (
-                            <TableRow key={plant.id}>
+                            <TableRow 
+                              key={plant.id}
+                              sx={{ 
+                                '&:nth-of-type(odd)': { backgroundColor: '#fafafa' },
+                                '&:last-child td, &:last-child th': { border: 0 },
+                                '&:hover': { backgroundColor: '#f0f0f0' }
+                              }}
+                            >
                               {tabValue === 0 && (
                                 <TableCell padding="checkbox">
                                   <Checkbox
@@ -426,13 +476,16 @@ export default function MotherPlantPage() {
                                   />
                                 </TableCell>
                               )}
+                              <TableCell>{plant.batch_number || batch.batch_number}</TableCell>
                               <TableCell>{plant.id}</TableCell>
-                              <TableCell>{new Date(plant.created_at).toLocaleString()}</TableCell>
+                              <TableCell>{new Date(plant.created_at).toLocaleString('de-DE')}</TableCell>
                               <TableCell>{plant.notes || '-'}</TableCell>
                               {tabValue === 1 && (
                                 <>
                                   <TableCell>{plant.destroy_reason || '-'}</TableCell>
-                                  <TableCell>{plant.destroyed_at ? new Date(plant.destroyed_at).toLocaleString() : '-'}</TableCell>
+                                  <TableCell>
+                                    {plant.destroyed_at ? new Date(plant.destroyed_at).toLocaleString('de-DE') : '-'}
+                                  </TableCell>
                                 </>
                               )}
                               {tabValue === 0 && (
@@ -447,6 +500,7 @@ export default function MotherPlantPage() {
                                       })
                                       handleOpenDestroyDialog(batch)
                                     }}
+                                    title="Pflanze vernichten"
                                   >
                                     <LocalFireDepartmentIcon fontSize="small" />
                                   </IconButton>
@@ -476,18 +530,6 @@ export default function MotherPlantPage() {
                     <CircularProgress size={24} />
                   </Box>
                 )}
-                
-                <Box display="flex" justifyContent="flex-end" mt={2} width="100%">
-                  <IconButton 
-                    color="secondary" 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDelete(batch.id);
-                    }}
-                  >
-                    <DeleteIcon />
-                  </IconButton>
-                </Box>
               </AccordionDetails>
             </Accordion>
           ))}
