@@ -29,6 +29,7 @@ export default function FloweringPlantPage() {
   const [destroyReason, setDestroyReason] = useState('')
   const [selectedBatch, setSelectedBatch] = useState(null)
   const [selectedPlants, setSelectedPlants] = useState({})
+  const [loadingOptions, setLoadingOptions] = useState(false)
   
   // Filter-Zustandsvariablen
   const [yearFilter, setYearFilter] = useState('')
@@ -39,6 +40,10 @@ export default function FloweringPlantPage() {
   // Zähler für Tabs
   const [activePlantsCount, setActivePlantsCount] = useState(0)
   const [destroyedPlantsCount, setDestroyedPlantsCount] = useState(0)
+  
+  // Mitglieder für Vernichtungen
+  const [members, setMembers] = useState([])
+  const [destroyedByMemberId, setDestroyedByMemberId] = useState('')
 
   const loadFloweringBatches = async (page = 1) => {
     setLoading(true)
@@ -52,6 +57,7 @@ export default function FloweringPlantPage() {
       if (dayFilter) url += `&day=${dayFilter}`;
       
       const res = await api.get(url);
+      console.log('Geladene Blühpflanzen-Batches:', res.data);
       
       setFloweringBatches(res.data.results || [])
       
@@ -83,10 +89,34 @@ export default function FloweringPlantPage() {
       console.error('Fehler beim Laden der Zähler:', error);
     }
   };
+  
+  // Funktion zum Laden von Mitgliedern
+  const loadMembers = async () => {
+    setLoadingOptions(true);
+    try {
+      // Korrekter API-Pfad ohne führenden Slash, da baseURL bereits auf '/api' gesetzt ist
+      const response = await api.get('members/')
+      console.log('Mitglieder für Vernichtungsdialog geladen:', response.data)
+      
+      // Sicherstellen, dass die Mitglieder ein display_name Feld haben
+      const formattedMembers = (response.data.results || []).map(member => ({
+        ...member,
+        display_name: member.display_name || `${member.first_name} ${member.last_name}`
+      }))
+      console.log('Formatierte Mitglieder:', formattedMembers)
+      setMembers(formattedMembers)
+    } catch (error) {
+      console.error('Fehler beim Laden der Mitglieder:', error)
+      console.error('Details:', error.response?.data || error.message)
+    } finally {
+      setLoadingOptions(false)
+    }
+  };
 
   useEffect(() => {
     loadFloweringBatches()
     loadCounts() // Alle Zähler beim ersten Laden holen
+    loadMembers() // Mitglieder laden
   }, [])
 
   const handleTabChange = (event, newValue) => {
@@ -111,10 +141,24 @@ export default function FloweringPlantPage() {
       const destroyed = tabValue === 1; // Tab 1 ist für vernichtete Pflanzen
       const res = await api.get(`/trackandtrace/floweringbatches/${batchId}/plants/?page=${page}&destroyed=${destroyed}`)
       
+      console.log('Geladene Pflanzen für Batch:', res.data);
+      
       // Speichern der Pflanzen für diesen Batch
+      // Stelle sicher, dass alle Felder korrekt formatiert sind
+      const formattedPlants = (res.data.results || []).map(plant => ({
+        ...plant,
+        notes: plant.notes || '-', // Stelle sicher, dass notes immer einen definierten Wert hat
+        destroy_reason: plant.destroy_reason || '-',
+        destroyed_by: plant.destroyed_by ? {
+          ...plant.destroyed_by,
+          display_name: plant.destroyed_by.display_name || 
+                        `${plant.destroyed_by.first_name || ''} ${plant.destroyed_by.last_name || ''}`.trim() || '-'
+        } : null
+      }));
+      
       setBatchPlants(prev => ({
         ...prev,
-        [batchId]: res.data.results || []
+        [batchId]: formattedPlants
       }))
       
       // Speichern der aktuellen Seite für diesen Batch
@@ -149,38 +193,42 @@ export default function FloweringPlantPage() {
     loadPlantsForBatch(batchId, page)
   }
 
+  // Aktualisierte handleOpenDestroyDialog Funktion
   const handleOpenDestroyDialog = (batch) => {
-    setSelectedBatch(batch)
-    setDestroyReason('')
-    setOpenDestroyDialog(true)
-  }
+    setSelectedBatch(batch);
+    setDestroyReason('');
+    setDestroyedByMemberId('');
+    setOpenDestroyDialog(true);
+  };
 
+  // Aktualisierte handleDestroy Funktion
   const handleDestroy = async () => {
     try {
       if (selectedBatch && selectedPlants[selectedBatch.id]?.length > 0) {
         await api.post(`/trackandtrace/floweringbatches/${selectedBatch.id}/destroy_plants/`, {
           plant_ids: selectedPlants[selectedBatch.id],
-          reason: destroyReason
-        })
+          reason: destroyReason,
+          destroyed_by_id: destroyedByMemberId
+        });
 
-        setOpenDestroyDialog(false)
-        setSelectedBatch(null)
+        setOpenDestroyDialog(false);
+        setSelectedBatch(null);
         
         // Ausgewählte Pflanzen zurücksetzen
         setSelectedPlants(prev => ({
           ...prev,
           [selectedBatch.id]: []
-        }))
+        }));
         
         // Pflanzen neu laden
-        loadPlantsForBatch(selectedBatch.id, plantsCurrentPage[selectedBatch.id] || 1)
-        loadCounts() // Zähler aktualisieren
+        loadPlantsForBatch(selectedBatch.id, plantsCurrentPage[selectedBatch.id] || 1);
+        loadCounts(); // Zähler aktualisieren
       }
     } catch (error) {
-      console.error('Fehler bei der Vernichtung:', error)
-      alert(error.response?.data?.error || 'Ein Fehler ist aufgetreten')
+      console.error('Fehler bei der Vernichtung:', error);
+      alert(error.response?.data?.error || 'Ein Fehler ist aufgetreten');
     }
-  }
+  };
 
   const togglePlantSelection = (batchId, plantId) => {
     setSelectedPlants(prev => {
@@ -370,21 +418,61 @@ export default function FloweringPlantPage() {
                         sx={{ ml: 2 }}
                       />
                     </Box>
+                    
+                    {/* Hier fügen wir die Charge-Kennzeichnung und die Einzelpflanzen-Nummern-Range hinzu */}
+                    <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', mb: 0.5 }}>
+                      Chargen-ID: {batch.batch_number?.startsWith('charge:') 
+                        ? batch.batch_number 
+                        : `charge:${batch.batch_number}`}
+                    </Typography>
+                    
+                    <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem', mb: 0.5 }}>
+                      Enthält Pflanzen-IDs: {batch.batch_number?.replace('charge:', '')}:0001 
+                      bis {batch.batch_number?.replace('charge:', '')}:{batch.quantity.toString().padStart(4, '0')}
+                    </Typography>
+                    
                     <Box display="flex" alignItems="center">
                       <Typography variant="body2" color="text.secondary">
                         Ursprungssamen-Charge: {batch.seed_batch_number || "Unbekannt"}
                       </Typography>
-                      <Typography variant="body2" color="text.secondary" sx={{ ml: 3 }}>
-                        {batch.quantity} Blühpflanzen
-                        {tabValue === 0 && batch.destroyed_plants_count > 0 && (
-                          <span> ({batch.active_plants_count} aktiv, {batch.destroyed_plants_count} vernichtet)</span>
+                      <Typography variant="body2" color="text.secondary" sx={{ ml: 3, fontWeight: 'medium' }}>
+                        Gesamtanzahl: {batch.quantity} Blühpflanzen
+                        {tabValue === 0 && (
+                          <span>
+                            {batch.active_plants_count < batch.quantity && (
+                              <>
+                                <span> ({batch.active_plants_count} aktiv</span>
+                                {batch.destroyed_plants_count > 0 && (
+                                  <span>, {batch.destroyed_plants_count} vernichtet</span>
+                                )}
+                                <span>)</span>
+                              </>
+                            )}
+                          </span>
                         )}
                       </Typography>
                     </Box>
+                    <Box display="flex" alignItems="center" mt={0.5}>
+                      <Typography variant="body2" color="text.secondary">
+                        Mitglied: {batch.member ? 
+                          (batch.member.display_name || `${batch.member.first_name} ${batch.member.last_name}`) 
+                          : "Keines"}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ ml: 3 }}>
+                        Raum: {batch.room ? batch.room.name : "Keiner"}
+                      </Typography>
+                    </Box>
                   </Box>
-                  <Typography variant="body2" color="text.secondary">
-                    Erstellt am: {new Date(batch.created_at).toLocaleDateString('de-DE')}
-                  </Typography>
+                  <Box display="flex" flexDirection="column" alignItems="flex-end">
+                    <Typography variant="body2" color="text.secondary">
+                      Erstellt am: {new Date(batch.created_at).toLocaleDateString('de-DE')}
+                    </Typography>
+                    {batch.destroyed_plants_count > 0 && (
+                      <Typography variant="body2" color="error" sx={{ fontWeight: 'medium', mt: 0.5 }}>
+                        {batch.destroyed_plants_count} Pflanzen vernichtet
+                      </Typography>
+                    )}
+                  </Box>
                 </Box>
               </AccordionSummary>
               <AccordionDetails sx={{ p: 3, width: '100%' }}>
@@ -451,6 +539,7 @@ export default function FloweringPlantPage() {
                               <>
                                 <TableCell><strong>Vernichtungsgrund</strong></TableCell>
                                 <TableCell><strong>Vernichtet am</strong></TableCell>
+                                <TableCell><strong>Vernichtet durch</strong></TableCell>
                               </>
                             )}
                             {tabValue === 0 && (
@@ -459,7 +548,7 @@ export default function FloweringPlantPage() {
                           </TableRow>
                         </TableHead>
                         <TableBody>
-                          {batchPlants[batch.id].map((plant) => (
+                          {batchPlants[batch.id]?.map((plant) => (
                             <TableRow 
                               key={plant.id}
                               sx={{ 
@@ -476,15 +565,30 @@ export default function FloweringPlantPage() {
                                   />
                                 </TableCell>
                               )}
-                              <TableCell>{plant.batch_number || batch.batch_number}</TableCell>
-                              <TableCell>{plant.id}</TableCell>
-                              <TableCell>{new Date(plant.created_at).toLocaleString('de-DE')}</TableCell>
-                              <TableCell>{plant.notes || '-'}</TableCell>
+                              <TableCell>
+                                {plant.batch_number}
+                              </TableCell>
+                              <TableCell>
+                                {plant.id}
+                              </TableCell>
+                              <TableCell>
+                                {new Date(plant.created_at).toLocaleString('de-DE')}
+                              </TableCell>
+                              <TableCell>
+                                {plant.notes || '-'}
+                              </TableCell>
                               {tabValue === 1 && (
                                 <>
-                                  <TableCell>{plant.destroy_reason || '-'}</TableCell>
+                                  <TableCell>
+                                    {plant.destroy_reason || '-'}
+                                  </TableCell>
                                   <TableCell>
                                     {plant.destroyed_at ? new Date(plant.destroyed_at).toLocaleString('de-DE') : '-'}
+                                  </TableCell>
+                                  <TableCell>
+                                    {plant.destroyed_by ? 
+                                      (plant.destroyed_by.display_name || `${plant.destroyed_by.first_name || ''} ${plant.destroyed_by.last_name || ''}`.trim() || '-') 
+                                      : '-'}
                                   </TableCell>
                                 </>
                               )}
@@ -554,7 +658,7 @@ export default function FloweringPlantPage() {
         </Box>
       )}
 
-      {/* Dialog zur Vernichtung */}
+      {/* Dialog zur Vernichtung mit Mitgliederauswahl und verbesserten Stilen */}
       <Dialog open={openDestroyDialog} onClose={() => setOpenDestroyDialog(false)}>
         <DialogTitle>
           {selectedPlants[selectedBatch?.id]?.length > 1 
@@ -562,7 +666,55 @@ export default function FloweringPlantPage() {
             : 'Blühpflanze vernichten'}
         </DialogTitle>
         <DialogContent>
-          <Typography variant="body2" gutterBottom>
+          {/* Mitgliederauswahl für die Vernichtung mit verbesserten Stilen */}
+          <FormControl 
+            fullWidth 
+            margin="normal"
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                color: 'black',
+                backgroundColor: 'white'
+              },
+              '& .MuiSelect-select': {
+                color: 'black',
+                display: 'flex',
+                alignItems: 'center'
+              },
+              '& .MuiMenuItem-root': {
+                color: 'black',
+                padding: '8px 16px',
+                display: 'flex',
+                alignItems: 'center'
+              }
+            }}
+          >
+            <InputLabel>Vernichtet durch</InputLabel>
+            <Select
+              value={destroyedByMemberId}
+              onChange={(e) => setDestroyedByMemberId(e.target.value)}
+              label="Vernichtet durch"
+              required
+            >
+              <MenuItem value="">
+                <em>Bitte Mitglied auswählen</em>
+              </MenuItem>
+              {members.map(member => (
+                <MenuItem 
+                  key={member.id} 
+                  value={member.id}
+                  sx={{ 
+                    height: '36px',
+                    display: 'flex',
+                    alignItems: 'center'
+                  }}
+                >
+                  {member.display_name || `${member.first_name} ${member.last_name}`}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          
+          <Typography variant="body2" gutterBottom sx={{ mt: 2 }}>
             Bitte gib einen Grund für die Vernichtung an:
           </Typography>
           <TextField
@@ -582,7 +734,7 @@ export default function FloweringPlantPage() {
             onClick={handleDestroy} 
             variant="contained" 
             color="error"
-            disabled={!destroyReason}
+            disabled={!destroyReason || !destroyedByMemberId}
           >
             Vernichten
           </Button>

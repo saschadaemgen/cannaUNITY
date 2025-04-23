@@ -1,6 +1,8 @@
 import uuid
 from django.db import models
 from django.utils import timezone
+from members.models import Member
+from rooms.models import Room
 
 class SeedPurchase(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -8,6 +10,16 @@ class SeedPurchase(models.Model):
     strain_name = models.CharField(max_length=100)
     quantity = models.PositiveIntegerField()
     remaining_quantity = models.PositiveIntegerField()
+    
+    # Mitglieder- und Raumzuordnung für Samen-Einkauf
+    member = models.ForeignKey(Member, on_delete=models.SET_NULL, null=True, blank=True, 
+                              related_name='seed_purchases')
+    room = models.ForeignKey(Room, on_delete=models.SET_NULL, null=True, blank=True,
+                            related_name='seed_purchases')
+    
+    # Mitgliederzuordnung für Vernichtung
+    destroyed_by = models.ForeignKey(Member, on_delete=models.SET_NULL, null=True, blank=True,
+                                    related_name='destroyed_seeds')
     
     is_destroyed = models.BooleanField(default=False)
     destroy_reason = models.TextField(blank=True, null=True)
@@ -31,7 +43,7 @@ class SeedPurchase(models.Model):
             ).count() + 1
             
             # Generiere Batch-Nummer
-            self.batch_number = f"seed:{today.strftime('%d:%m:%Y')}:{count:04d}"
+            self.batch_number = f"charge:seed:{today.strftime('%d:%m:%Y')}:{count:04d}"
         
         super().save(*args, **kwargs)
 
@@ -42,6 +54,12 @@ class MotherPlantBatch(models.Model):
     seed_purchase = models.ForeignKey(SeedPurchase, related_name='mother_batches', on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField()
     notes = models.TextField(blank=True, null=True)
+    
+    # Mitglieder- und Raumzuordnung für Mutterpflanzen-Erstellung
+    member = models.ForeignKey(Member, on_delete=models.SET_NULL, null=True, blank=True,
+                              related_name='mother_plant_batches')
+    room = models.ForeignKey(Room, on_delete=models.SET_NULL, null=True, blank=True,
+                            related_name='mother_plant_batches')
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -65,7 +83,12 @@ class MotherPlantBatch(models.Model):
 class MotherPlant(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     batch = models.ForeignKey(MotherPlantBatch, related_name='plants', on_delete=models.CASCADE)
+    batch_number = models.CharField(max_length=50, unique=True, blank=True, null=True)
     notes = models.TextField(blank=True, null=True)
+    
+    # Mitgliederzuordnung für Vernichtung
+    destroyed_by = models.ForeignKey(Member, on_delete=models.SET_NULL, null=True, blank=True,
+                                    related_name='destroyed_mother_plants')
     
     is_destroyed = models.BooleanField(default=False)
     destroy_reason = models.TextField(blank=True, null=True)
@@ -73,6 +96,22 @@ class MotherPlant(models.Model):
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
+    def save(self, *args, **kwargs):
+        # Generiere Batch-Nummer falls nicht vorhanden
+        if not self.batch_number:
+            today = timezone.now()
+            # Zähle Mutterpflanzen, die heute erstellt wurden
+            count = MotherPlant.objects.filter(
+                created_at__year=today.year,
+                created_at__month=today.month,
+                created_at__day=today.day
+            ).count() + 1
+            
+            # Generiere Batch-Nummer
+            self.batch_number = f"mother-plant:{today.strftime('%d:%m:%Y')}:{count:04d}"
+        
+        super().save(*args, **kwargs)
 
 class FloweringPlantBatch(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -81,6 +120,12 @@ class FloweringPlantBatch(models.Model):
     seed_purchase = models.ForeignKey(SeedPurchase, related_name='flowering_batches', on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField()
     notes = models.TextField(blank=True, null=True)
+    
+    # Mitglieder- und Raumzuordnung für Blühpflanzen-Erstellung
+    member = models.ForeignKey(Member, on_delete=models.SET_NULL, null=True, blank=True,
+                              related_name='flowering_plant_batches')
+    room = models.ForeignKey(Room, on_delete=models.SET_NULL, null=True, blank=True,
+                            related_name='flowering_plant_batches')
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -104,7 +149,12 @@ class FloweringPlantBatch(models.Model):
 class FloweringPlant(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     batch = models.ForeignKey(FloweringPlantBatch, related_name='plants', on_delete=models.CASCADE)
+    batch_number = models.CharField(max_length=50, unique=True, blank=True, null=True)
     notes = models.TextField(blank=True, null=True)
+    
+    # Mitgliederzuordnung für Vernichtung
+    destroyed_by = models.ForeignKey(Member, on_delete=models.SET_NULL, null=True, blank=True,
+                                    related_name='destroyed_flowering_plants')
     
     is_destroyed = models.BooleanField(default=False)
     destroy_reason = models.TextField(blank=True, null=True)
@@ -112,3 +162,19 @@ class FloweringPlant(models.Model):
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
+    def save(self, *args, **kwargs):
+        # Generiere Batch-Nummer falls nicht vorhanden
+        if not self.batch_number:
+            today = timezone.now()
+            # Zähle Blühpflanzen, die heute erstellt wurden
+            count = FloweringPlant.objects.filter(
+                created_at__year=today.year,
+                created_at__month=today.month,
+                created_at__day=today.day
+            ).count() + 1
+            
+            # Generiere Batch-Nummer
+            self.batch_number = f"blooming-plant:{today.strftime('%d:%m:%Y')}:{count:04d}"
+        
+        super().save(*args, **kwargs)

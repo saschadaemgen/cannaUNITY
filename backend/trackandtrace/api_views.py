@@ -21,6 +21,7 @@ class StandardResultsSetPagination(pagination.PageNumberPagination):
     page_size_query_param = 'page_size'
     max_page_size = 100
 
+# backend/trackandtrace/api_views.py
 class SeedPurchaseViewSet(viewsets.ModelViewSet):
     queryset = SeedPurchase.objects.all().order_by('-created_at')
     serializer_class = SeedPurchaseSerializer
@@ -83,6 +84,8 @@ class SeedPurchaseViewSet(viewsets.ModelViewSet):
         seed = self.get_object()
         quantity = int(request.data.get('quantity', 1))
         notes = request.data.get('notes', '')
+        member_id = request.data.get('member_id', None)
+        room_id = request.data.get('room_id', None)
         
         if quantity > seed.remaining_quantity:
             return Response(
@@ -91,14 +94,23 @@ class SeedPurchaseViewSet(viewsets.ModelViewSet):
             )
             
         # Erstelle einen Batch für die Mutterpflanzen
-        batch = MotherPlantBatch.objects.create(
-            seed_purchase=seed,
-            quantity=quantity,
-            notes=notes
-        )
+        batch_kwargs = {
+            'seed_purchase': seed,
+            'quantity': quantity,
+            'notes': notes
+        }
         
-        # Erstelle für jede Mutterpflanze einen eigenen Eintrag im Batch
+        # Hinzufügen von optionalen Feldern
+        if member_id:
+            batch_kwargs['member_id'] = member_id
+        if room_id:
+            batch_kwargs['room_id'] = room_id
+            
+        batch = MotherPlantBatch.objects.create(**batch_kwargs)
+        
+        # Erstelle für jede Mutterpflanze einen eigenen Eintrag im Batch mit eindeutiger Chargenummer
         for _ in range(quantity):
+            # Die batch_number wird automatisch in der save-Methode generiert
             MotherPlant.objects.create(
                 batch=batch,
                 notes=notes
@@ -118,6 +130,8 @@ class SeedPurchaseViewSet(viewsets.ModelViewSet):
         seed = self.get_object()
         quantity = int(request.data.get('quantity', 1))
         notes = request.data.get('notes', '')
+        member_id = request.data.get('member_id', None)
+        room_id = request.data.get('room_id', None)
         
         if quantity > seed.remaining_quantity:
             return Response(
@@ -126,14 +140,23 @@ class SeedPurchaseViewSet(viewsets.ModelViewSet):
             )
             
         # Erstelle einen Batch für die Blühpflanzen
-        batch = FloweringPlantBatch.objects.create(
-            seed_purchase=seed,
-            quantity=quantity,
-            notes=notes
-        )
+        batch_kwargs = {
+            'seed_purchase': seed,
+            'quantity': quantity,
+            'notes': notes
+        }
         
-        # Erstelle für jede Blühpflanze einen eigenen Eintrag im Batch
+        # Hinzufügen von optionalen Feldern
+        if member_id:
+            batch_kwargs['member_id'] = member_id
+        if room_id:
+            batch_kwargs['room_id'] = room_id
+            
+        batch = FloweringPlantBatch.objects.create(**batch_kwargs)
+        
+        # Erstelle für jede Blühpflanze einen eigenen Eintrag im Batch mit eindeutiger Chargenummer
         for _ in range(quantity):
+            # Die batch_number wird automatisch in der save-Methode generiert
             FloweringPlant.objects.create(
                 batch=batch,
                 notes=notes
@@ -153,6 +176,7 @@ class SeedPurchaseViewSet(viewsets.ModelViewSet):
         seed = self.get_object()
         reason = request.data.get('reason', '')
         quantity = int(request.data.get('quantity', seed.remaining_quantity))
+        destroyed_by_id = request.data.get('destroyed_by_id', None)
         
         if not reason:
             return Response(
@@ -178,20 +202,29 @@ class SeedPurchaseViewSet(viewsets.ModelViewSet):
             seed.destroy_reason = reason
             seed.destroyed_at = timezone.now()
             seed.original_seed = seed  # Selbstreferenz für den Fall, dass wir später zurückrechnen müssen
+            
+            if destroyed_by_id:
+                seed.destroyed_by_id = destroyed_by_id
+                
             seed.save()
             
             message = f"Alle {quantity} Samen wurden vernichtet"
         else:
             # Wenn nur ein Teil vernichtet wird, erstelle einen neuen vernichteten Seed-Eintrag
-            destroyed_seed = SeedPurchase.objects.create(
-                strain_name=seed.strain_name,
-                quantity=quantity,
-                remaining_quantity=0,
-                is_destroyed=True,
-                destroy_reason=reason,
-                destroyed_at=timezone.now(),
-                original_seed=seed  # Referenz zum Originalsamen speichern
-            )
+            destroyed_seed_kwargs = {
+                'strain_name': seed.strain_name,
+                'quantity': quantity,
+                'remaining_quantity': 0,
+                'is_destroyed': True,
+                'destroy_reason': reason,
+                'destroyed_at': timezone.now(),
+                'original_seed': seed  # Referenz zum Originalsamen speichern
+            }
+            
+            if destroyed_by_id:
+                destroyed_seed_kwargs['destroyed_by_id'] = destroyed_by_id
+                
+            destroyed_seed = SeedPurchase.objects.create(**destroyed_seed_kwargs)
             
             # Reduziere die Menge der verfügbaren Samen
             seed.remaining_quantity -= quantity
@@ -207,6 +240,7 @@ class SeedPurchaseViewSet(viewsets.ModelViewSet):
     def bulk_destroy(self, request):
         ids = request.data.get('ids', [])
         reason = request.data.get('reason', '')
+        destroyed_by_id = request.data.get('destroyed_by_id', None)
         
         if not ids:
             return Response(
@@ -220,11 +254,16 @@ class SeedPurchaseViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        SeedPurchase.objects.filter(id__in=ids).update(
-            is_destroyed=True,
-            destroy_reason=reason,
-            destroyed_at=timezone.now()
-        )
+        update_fields = {
+            'is_destroyed': True,
+            'destroy_reason': reason,
+            'destroyed_at': timezone.now()
+        }
+        
+        if destroyed_by_id:
+            update_fields['destroyed_by_id'] = destroyed_by_id
+            
+        SeedPurchase.objects.filter(id__in=ids).update(**update_fields)
         
         return Response({
             "message": f"{len(ids)} Samen wurden als vernichtet markiert"

@@ -26,7 +26,7 @@ export default function SeedPurchasePage() {
   const [convertNotes, setConvertNotes] = useState('')
   const [openDestroyDialog, setOpenDestroyDialog] = useState(false)
   const [destroyReason, setDestroyReason] = useState('')
-  const [selectedRows, setSelectedRows] = useState([]) // Stellen sicher, dass dies ein Array ist
+  const [selectedRows, setSelectedRows] = useState([]) 
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [pageSize, setPageSize] = useState(5)
@@ -48,13 +48,24 @@ export default function SeedPurchasePage() {
   const [motherPlantCount, setMotherPlantCount] = useState(0)
   const [floweringBatchCount, setFloweringBatchCount] = useState(0)
   const [floweringPlantCount, setFloweringPlantCount] = useState(0)
-  // Neue State-Variablen für Gesamtzahlen
   const [totalActiveQuantity, setTotalActiveQuantity] = useState(0)
   const [totalDestroyedQuantity, setTotalDestroyedQuantity] = useState(0)
   
   // Zustand für Blühpflanzen-Seeds und Mutterpflanzen-Seeds
   const [floweringSeeds, setFloweringSeeds] = useState([])
   const [motherSeeds, setMotherSeeds] = useState([])
+
+  // Zustand für Mitglieder und Räume
+  const [members, setMembers] = useState([])
+  const [rooms, setRooms] = useState([])
+  const [loadingOptions, setLoadingOptions] = useState(false)
+
+  // State für die Mitglieder- und Raumauswahl bei Konvertierung
+  const [selectedMemberId, setSelectedMemberId] = useState('')
+  const [selectedRoomId, setSelectedRoomId] = useState('')
+
+  // State für die Mitgliederauswahl bei Vernichtung
+  const [destroyedByMemberId, setDestroyedByMemberId] = useState('')
 
   const loadSeeds = async (page = 1) => {
     setLoading(true)
@@ -74,10 +85,7 @@ export default function SeedPurchasePage() {
       if (monthFilter) url += `&month=${monthFilter}`;
       if (dayFilter) url += `&day=${dayFilter}`;
       
-      console.log('API-Anfrage:', url);
       const res = await api.get(url);
-      console.log('API-Antwort:', res.data);
-      
       setSeeds(res.data.results || []);
       
       // Gesamtzahl der Einträge setzen für korrekte Paginierung
@@ -88,9 +96,6 @@ export default function SeedPurchasePage() {
       const pages = Math.ceil(total / pageSize);
       setTotalPages(pages);
       setCurrentPage(page);
-      
-      // WICHTIG: Hier werden KEINE Zähler mehr gesetzt,
-      // um Konflikte mit loadCounts() zu vermeiden!
     } catch (error) {
       console.error('Fehler beim Laden der Samen:', error)
     } finally {
@@ -104,12 +109,8 @@ export default function SeedPurchasePage() {
     
     setLoading(true);
     try {
-      // Wichtig: Hier 'destroyed=false' weglassen, um alle Seeds zu laden, 
-      // unabhängig vom Vernichtungsstatus
       const url = `/trackandtrace/seeds/`;
       const res = await api.get(url);
-      
-      console.log('Mutterpflanzen API-Antwort:', res.data);
       
       // Filtern nach Seeds mit Mutterpflanzen (unabhängig vom Vernichtungsstatus)
       const seedsWithMothers = (res.data.results || []).filter(
@@ -118,9 +119,6 @@ export default function SeedPurchasePage() {
       
       setMotherSeeds(seedsWithMothers);
       setTotalCount(seedsWithMothers.length);
-      
-      // WICHTIG: Hier werden KEINE Zähler mehr gesetzt,
-      // um Konflikte mit loadCounts() zu vermeiden!
     } catch (error) {
       console.error('Fehler beim Laden der Mutterpflanzen-Seeds:', error);
     } finally {
@@ -134,12 +132,8 @@ export default function SeedPurchasePage() {
     
     setLoading(true);
     try {
-      // Wichtig: Hier 'destroyed=false' weglassen, um alle Seeds zu laden, 
-      // unabhängig vom Vernichtungsstatus
       const url = `/trackandtrace/seeds/`;
       const res = await api.get(url);
-      
-      console.log('Blühpflanzen API-Antwort:', res.data);
       
       // Filtern nach Seeds mit Blühpflanzen (unabhängig vom Vernichtungsstatus)
       const seedsWithFlowering = (res.data.results || []).filter(
@@ -148,9 +142,6 @@ export default function SeedPurchasePage() {
       
       setFloweringSeeds(seedsWithFlowering);
       setTotalCount(seedsWithFlowering.length);
-      
-      // WICHTIG: Hier werden KEINE Zähler mehr gesetzt,
-      // um Konflikte mit loadCounts() zu vermeiden!
     } catch (error) {
       console.error('Fehler beim Laden der Blühpflanzen-Seeds:', error);
     } finally {
@@ -158,11 +149,36 @@ export default function SeedPurchasePage() {
     }
   };
   
+  // Funktion zum Laden von Mitgliedern und Räumen
+  const loadMembersAndRooms = async () => {
+    setLoadingOptions(true)
+    try {
+      // Mitglieder laden - mit korrigiertem API-Pfad
+      const membersRes = await api.get('members/')
+      console.log('Mitglieder für Konvertierungsdialog geladen:', membersRes.data)
+      
+      // Formatierte Mitglieder mit display_name
+      const formattedMembers = membersRes.data.results.map(member => ({
+        ...member,
+        display_name: `${member.first_name} ${member.last_name}`
+      }))
+      setMembers(formattedMembers)
+      
+      // Räume laden - mit korrigiertem API-Pfad
+      const roomsRes = await api.get('rooms/')
+      console.log('Räume für Konvertierungsdialog geladen:', roomsRes.data)
+      setRooms(roomsRes.data.results || [])
+    } catch (error) {
+      console.error('Fehler beim Laden der Mitglieder und Räume:', error)
+    } finally {
+      setLoadingOptions(false)
+    }
+  }
+  
   // Separat die Zähler laden (für ALLE Tabs)
   const loadCounts = async () => {
     try {
       const res = await api.get('/trackandtrace/seeds/counts/');
-      console.log('Zähler-API-Antwort:', res.data);
       
       // NUR diese Funktion setzt alle Zähler für die Tab-Beschriftungen
       setActiveSeedCount(res.data.active_seed_count || 0);
@@ -182,7 +198,6 @@ export default function SeedPurchasePage() {
 
   // Aktualisieren der Seite nach einer Aktion
   const refreshData = () => {
-    // 1. Aktualisiere den aktiven Tab
     if (tabValue === 0 || tabValue === 3) {
       loadSeeds(currentPage);
     } else if (tabValue === 1) {
@@ -191,7 +206,6 @@ export default function SeedPurchasePage() {
       loadFloweringSeeds();
     }
     
-    // 2. Immer separat die Zähler aktualisieren
     loadCounts();
   };
 
@@ -199,21 +213,22 @@ export default function SeedPurchasePage() {
     // Zurücksetzen der Seite bei Tab-Wechsel
     setCurrentPage(1);
     
-    // 1. Je nach Tab unterschiedliche Ladestrategien für Tabellendaten
+    // Je nach Tab unterschiedliche Ladestrategien für Tabellendaten
     if (tabValue === 0 || tabValue === 3) {
-      // Normale Seeds laden (aktiv oder vernichtet)
       loadSeeds(1);
     } else if (tabValue === 1) {
-      // Mutterpflanzen-Seeds separat laden
       loadMotherSeeds();
     } else if (tabValue === 2) {
-      // Blühpflanzen-Seeds separat laden
       loadFloweringSeeds();
     }
     
-    // 2. Immer separat die Zähler laden (unabhängig vom Tab)
     loadCounts();
   }, [tabValue, pageSize]);
+  
+  // Mitglieder und Räume beim ersten Laden abrufen
+  useEffect(() => {
+    loadMembersAndRooms();
+  }, []);
   
   const handlePageChange = (params) => {
     const newPage = params.page + 1; // MUI DataGrid ist 0-indexiert
@@ -223,8 +238,6 @@ export default function SeedPurchasePage() {
     if (tabValue === 0 || tabValue === 3) {
       loadSeeds(newPage);
     }
-    // Bei den Tab 1 und 2 machen wir keine Server-Paginierung, 
-    // sondern filtern auf dem Client
   };
   
   const handlePageSizeChange = (params) => {
@@ -235,13 +248,11 @@ export default function SeedPurchasePage() {
     if (tabValue === 0 || tabValue === 3) {
       loadSeeds(1);
     }
-    // Bei Tab 1 und 2 keine Server-Anfrage, da wir bereits alle Daten haben
   };
 
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue)
     setSelectedRows([]) // Zurücksetzen der ausgewählten Zeilen beim Tab-Wechsel
-    // loadSeeds wird im useEffect bei Änderung von tabValue aufgerufen
   }
 
   const handleOpenConvertDialog = (seed, type) => {
@@ -249,6 +260,8 @@ export default function SeedPurchasePage() {
     setConvertType(type)
     setConvertQuantity(1)
     setConvertNotes('')
+    setSelectedMemberId('')
+    setSelectedRoomId('')
     setOpenConvertDialog(true)
   }
 
@@ -262,11 +275,13 @@ export default function SeedPurchasePage() {
 
       await api.post(endpoint, {
         quantity: convertQuantity,
-        notes: convertNotes
+        notes: convertNotes,
+        member_id: selectedMemberId || null,
+        room_id: selectedRoomId || null
       })
 
       setOpenConvertDialog(false)
-      refreshData(); // Verwende refreshData
+      refreshData()
     } catch (error) {
       console.error('Fehler bei der Konvertierung:', error)
       alert(error.response?.data?.error || 'Ein Fehler ist aufgetreten')
@@ -277,6 +292,7 @@ export default function SeedPurchasePage() {
     setSelectedSeed(seed)
     setDestroyReason('')
     setDestroyQuantity(1)
+    setDestroyedByMemberId('')
     setOpenDestroyDialog(true)
   }
 
@@ -286,20 +302,22 @@ export default function SeedPurchasePage() {
         // Mehrere ausgewählte Samen vernichten
         await api.post('/trackandtrace/seeds/bulk_destroy/', {
           ids: selectedRows,
-          reason: destroyReason
+          reason: destroyReason,
+          destroyed_by_id: destroyedByMemberId || null
         })
       } else if (selectedSeed) {
         // Einzelnen Samen vernichten (teilweise oder komplett)
         await api.post(`/trackandtrace/seeds/${selectedSeed.id}/destroy_seed/`, {
           reason: destroyReason,
-          quantity: destroyQuantity // Menge hinzufügen
+          quantity: destroyQuantity,
+          destroyed_by_id: destroyedByMemberId || null
         })
       }
 
       setOpenDestroyDialog(false)
       setSelectedSeed(null)
       setSelectedRows([])
-      refreshData(); // Verwende refreshData
+      refreshData()
     } catch (error) {
       console.error('Fehler bei der Vernichtung:', error)
       alert(error.response?.data?.error || 'Ein Fehler ist aufgetreten')
@@ -315,7 +333,6 @@ export default function SeedPurchasePage() {
       loadFloweringSeeds();
     }
     
-    // Unabhängig vom Tab immer die Zähler aktualisieren
     loadCounts();
   }
   
@@ -333,7 +350,6 @@ export default function SeedPurchasePage() {
       loadFloweringSeeds();
     }
     
-    // Unabhängig vom Tab immer die Zähler aktualisieren
     loadCounts();
   }
 
@@ -368,9 +384,29 @@ export default function SeedPurchasePage() {
     
     if (tabValue === 0) {
       additionalColumns = [
-        { field: 'quantity', headerName: 'Gesamtmenge', flex: 1 },
+        { field: 'quantity', headerName: 'Menge', flex: 1 },
         { field: 'remaining_quantity', headerName: 'Verfügbar', flex: 0.7, 
           align: 'center', headerAlign: 'center'
+        },
+        { 
+          field: 'member',
+          headerName: 'Verantwortlich',
+          flex: 1,
+          renderCell: (params) => (
+            <Typography variant="body2">
+              {params.row.member ? params.row.member.display_name : '-'}
+            </Typography>
+          )
+        },
+        { 
+          field: 'room',
+          headerName: 'Zugeordneter Raum',
+          flex: 1,
+          renderCell: (params) => (
+            <Typography variant="body2">
+              {params.row.room ? params.row.room.name : '-'}
+            </Typography>
+          )
         },
         { field: 'created_at', headerName: 'Erstellt am', flex: 1 },
         {
@@ -420,9 +456,29 @@ export default function SeedPurchasePage() {
       ];
     } else if (tabValue === 1) {
       additionalColumns = [
-        { field: 'quantity', headerName: 'Gesamtmenge', flex: 1 },
+        { field: 'quantity', headerName: 'Menge', flex: 1 },
         { field: 'mother_plant_count', headerName: 'Mutterpflanzen', flex: 0.7,
           align: 'center', headerAlign: 'center'
+        },
+        { 
+          field: 'member',
+          headerName: 'Zugeordnetes Mitglied',
+          flex: 1,
+          renderCell: (params) => (
+            <Typography variant="body2">
+              {params.row.member ? params.row.member.display_name : '-'}
+            </Typography>
+          )
+        },
+        { 
+          field: 'room',
+          headerName: 'Zugeordneter Raum',
+          flex: 1,
+          renderCell: (params) => (
+            <Typography variant="body2">
+              {params.row.room ? params.row.room.name : '-'}
+            </Typography>
+          )
         },
         { field: 'created_at', headerName: 'Erstellt am', flex: 1 },
         {
@@ -458,9 +514,29 @@ export default function SeedPurchasePage() {
       ];
     } else if (tabValue === 2) {
       additionalColumns = [
-        { field: 'quantity', headerName: 'Gesamtmenge', flex: 1 },
+        { field: 'quantity', headerName: 'Menge', flex: 1 },
         { field: 'flowering_plant_count', headerName: 'Blühpflanzen', flex: 0.7,
           align: 'center', headerAlign: 'center'
+        },
+        { 
+          field: 'member',
+          headerName: 'Zugeordnetes Mitglied',
+          flex: 1,
+          renderCell: (params) => (
+            <Typography variant="body2">
+              {params.row.member ? params.row.member.display_name : '-'}
+            </Typography>
+          )
+        },
+        { 
+          field: 'room',
+          headerName: 'Zugeordneter Raum',
+          flex: 1,
+          renderCell: (params) => (
+            <Typography variant="body2">
+              {params.row.room ? params.row.room.name : '-'}
+            </Typography>
+          )
         },
         { field: 'created_at', headerName: 'Erstellt am', flex: 1 },
         {
@@ -494,30 +570,28 @@ export default function SeedPurchasePage() {
           )
         }
       ];
-    } // Relevanter Teil der getColumns-Funktion für den "Vernichtet" Tab
-    else if (tabValue === 3) {
+    } else if (tabValue === 3) {
       // Für vernichtete Samen - keine Aktionsspalte
       additionalColumns = [
         { 
           field: 'original_quantity', 
-          headerName: 'Gesamtmenge', 
+          headerName: 'Menge', 
           flex: 1,
           align: 'center',
           headerAlign: 'center',
           renderCell: (params) => {
             // Versuchen, die Originalcharge-Menge zu finden (falls durch teilweise Vernichtung erstellt)
-            // Wenn der Samen eine Referenz zu einem Originalsamen hat und sich von diesem unterscheidet
             if (params.row.original_seed && params.row.original_seed.id !== params.row.id) {
               return (
                 <Box 
                   display="flex" 
                   alignItems="center" 
-                  justifyContent="center" 
+                  justifyContent="center"
                   width="100%"
                   height="100%"
                 >
                   <Typography variant="body2">
-                    {params.row.original_seed.quantity || 100} {/* Fallback auf 100, wenn keine Menge angegeben */}
+                    {params.row.original_seed.quantity || 100}
                   </Typography>
                 </Box>
               );
@@ -558,10 +632,19 @@ export default function SeedPurchasePage() {
             </Box>
           )
         },
+        { 
+          field: 'destroyed_by',
+          headerName: 'Vernichtet durch',
+          flex: 1,
+          renderCell: (params) => (
+            <Typography variant="body2">
+              {params.row.destroyed_by ? params.row.destroyed_by.display_name : '-'}
+            </Typography>
+          )
+        },
         { field: 'destroy_reason', headerName: 'Vernichtungsgrund', flex: 1 },
         { field: 'destroyed_at', headerName: 'Vernichtet am', flex: 0.7 },
         { field: 'created_at', headerName: 'Erstellt am', flex: 1 }
-        // Keine Aktionsspalte für vernichtete Samen
       ];
     }
     
@@ -683,7 +766,7 @@ export default function SeedPurchasePage() {
       <Box sx={{ width: '100%', height: 'calc(100vh - 250px)', minHeight: 400 }}>
         <DataGrid 
           rows={displayedSeeds} 
-          columns={getColumns()} // Hier wird die neue Methode verwendet
+          columns={getColumns()}
           getRowId={(row) => row.id} 
           pagination
           paginationMode={tabValue === 1 || tabValue === 2 ? "client" : "server"}
@@ -694,9 +777,8 @@ export default function SeedPurchasePage() {
           onPageSizeChange={handlePageSizeChange}
           pageSizeOptions={[5, 10, 25]}
           loading={loading}
-          checkboxSelection={false} // Keine Checkboxen mehr anzeigen
+          checkboxSelection={false}
           onSelectionModelChange={(newSelectionModel) => {
-            // Zurückgesetzt, da wir keine Checkboxen mehr verwenden
             setSelectedRows([]);
           }}
           sx={{ 
@@ -720,13 +802,13 @@ export default function SeedPurchasePage() {
         onSuccess={() => {
           setOpenForm(false)
           setSelectedSeed(null)
-          refreshData(); // Verwende refreshData
+          refreshData()
         }}
         initialData={selectedSeed || {}}
       />
 
-      {/* Dialog zur Konvertierung */}
-      <Dialog open={openConvertDialog} onClose={() => setOpenConvertDialog(false)}>
+      {/* Dialog zur Konvertierung mit verbesserten Stilen */}
+      <Dialog open={openConvertDialog} onClose={() => setOpenConvertDialog(false)} maxWidth="sm" fullWidth>
         <DialogTitle>
           {convertType === 'mother' ? 'Zu Mutterpflanze konvertieren' : 'Zu Blühpflanze konvertieren'}
         </DialogTitle>
@@ -738,15 +820,110 @@ export default function SeedPurchasePage() {
             label="Anzahl"
             type="number"
             fullWidth
-            margin="dense"
+            margin="normal"
             value={convertQuantity}
             onChange={(e) => setConvertQuantity(parseInt(e.target.value) || 1)}
             inputProps={{ min: 1, max: selectedSeed?.remaining_quantity || 1 }}
           />
+          
+          {/* Mitgliederauswahl mit verbesserten Stilen */}
+          <FormControl 
+            fullWidth 
+            margin="normal"
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                color: 'black',
+                backgroundColor: 'white'
+              },
+              '& .MuiSelect-select': {
+                color: 'black',
+                display: 'flex',
+                alignItems: 'center'
+              },
+              '& .MuiMenuItem-root': {
+                color: 'black',
+                padding: '8px 16px',
+                display: 'flex',
+                alignItems: 'center'
+              }
+            }}
+          >
+            <InputLabel>Mitglied</InputLabel>
+            <Select
+              value={selectedMemberId}
+              onChange={(e) => setSelectedMemberId(e.target.value)}
+              label="Mitglied"
+            >
+              <MenuItem value="">
+                <em>Kein Mitglied zugeordnet</em>
+              </MenuItem>
+              {members.map(member => (
+                <MenuItem 
+                  key={member.id} 
+                  value={member.id}
+                  sx={{ 
+                    height: '36px',
+                    display: 'flex',
+                    alignItems: 'center'
+                  }}
+                >
+                  {member.display_name || `${member.first_name} ${member.last_name}`}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          
+          {/* Raumauswahl mit verbesserten Stilen */}
+          <FormControl 
+            fullWidth 
+            margin="normal"
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                color: 'black',
+                backgroundColor: 'white'
+              },
+              '& .MuiSelect-select': {
+                color: 'black',
+                display: 'flex',
+                alignItems: 'center'
+              },
+              '& .MuiMenuItem-root': {
+                color: 'black',
+                padding: '8px 16px',
+                display: 'flex',
+                alignItems: 'center'
+              }
+            }}
+          >
+            <InputLabel>Raum</InputLabel>
+            <Select
+              value={selectedRoomId}
+              onChange={(e) => setSelectedRoomId(e.target.value)}
+              label="Raum"
+            >
+              <MenuItem value="">
+                <em>Kein Raum zugeordnet</em>
+              </MenuItem>
+              {rooms.map(room => (
+                <MenuItem 
+                  key={room.id} 
+                  value={room.id}
+                  sx={{ 
+                    height: '36px',
+                    display: 'flex',
+                    alignItems: 'center'
+                  }}
+                >
+                  {room.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          
           <TextField
             label="Notizen"
             fullWidth
-            margin="dense"
+            margin="normal"
             multiline
             rows={3}
             value={convertNotes}
@@ -759,8 +936,8 @@ export default function SeedPurchasePage() {
         </DialogActions>
       </Dialog>
 
-      {/* Dialog zur Vernichtung */}
-      <Dialog open={openDestroyDialog} onClose={() => setOpenDestroyDialog(false)}>
+      {/* Dialog zur Vernichtung mit verbesserten Stilen */}
+      <Dialog open={openDestroyDialog} onClose={() => setOpenDestroyDialog(false)} maxWidth="sm" fullWidth>
         <DialogTitle>
           {selectedRows.length > 0 
             ? `${selectedRows.length} ausgewählte Samen vernichten` 
@@ -776,20 +953,69 @@ export default function SeedPurchasePage() {
                 label="Anzahl zu vernichtender Samen"
                 type="number"
                 fullWidth
-                margin="dense"
+                margin="normal"
                 value={destroyQuantity}
                 onChange={(e) => setDestroyQuantity(parseInt(e.target.value) || 1)}
                 inputProps={{ min: 1, max: selectedSeed?.remaining_quantity || 1 }}
               />
             </>
           )}
+          
+          {/* Mitgliederauswahl für die Vernichtung mit verbesserten Stilen */}
+          <FormControl 
+            fullWidth 
+            margin="normal"
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                color: 'black',
+                backgroundColor: 'white'
+              },
+              '& .MuiSelect-select': {
+                color: 'black',
+                display: 'flex',
+                alignItems: 'center'
+              },
+              '& .MuiMenuItem-root': {
+                color: 'black',
+                padding: '8px 16px',
+                display: 'flex',
+                alignItems: 'center'
+              }
+            }}
+          >
+            <InputLabel>Vernichtet durch</InputLabel>
+            <Select
+              value={destroyedByMemberId}
+              onChange={(e) => setDestroyedByMemberId(e.target.value)}
+              label="Vernichtet durch"
+              required
+            >
+              <MenuItem value="">
+                <em>Bitte Mitglied auswählen</em>
+              </MenuItem>
+              {members.map(member => (
+                <MenuItem 
+                  key={member.id} 
+                  value={member.id}
+                  sx={{ 
+                    height: '36px',
+                    display: 'flex',
+                    alignItems: 'center'
+                  }}
+                >
+                  {member.display_name || `${member.first_name} ${member.last_name}`}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          
           <Typography variant="body2" gutterBottom>
             Bitte gib einen Grund für die Vernichtung an:
           </Typography>
           <TextField
             label="Vernichtungsgrund"
             fullWidth
-            margin="dense"
+            margin="normal"
             multiline
             rows={3}
             value={destroyReason}
@@ -803,7 +1029,7 @@ export default function SeedPurchasePage() {
             onClick={handleDestroy} 
             variant="contained" 
             color="error"
-            disabled={!destroyReason}
+            disabled={!destroyReason || !destroyedByMemberId}
           >
             Vernichten
           </Button>
