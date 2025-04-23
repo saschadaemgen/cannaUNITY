@@ -1,4 +1,3 @@
-# backend/trackandtrace/api_views.py
 from rest_framework import viewsets, status, pagination
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -15,13 +14,11 @@ from .serializers import (
     FloweringPlantSerializer
 )
 
-# Pagination-Klasse definieren
 class StandardResultsSetPagination(pagination.PageNumberPagination):
     page_size = 5
     page_size_query_param = 'page_size'
     max_page_size = 100
 
-# backend/trackandtrace/api_views.py
 class SeedPurchaseViewSet(viewsets.ModelViewSet):
     queryset = SeedPurchase.objects.all().order_by('-created_at')
     serializer_class = SeedPurchaseSerializer
