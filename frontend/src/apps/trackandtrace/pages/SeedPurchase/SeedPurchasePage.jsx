@@ -56,9 +56,9 @@ export default function SeedPurchasePage() {
   const [totalActiveQuantity, setTotalActiveQuantity] = useState(0)
   const [totalDestroyedQuantity, setTotalDestroyedQuantity] = useState(0)
   
-  // Zustand für Blühpflanzen-Seeds und Mutterpflanzen-Seeds
-  const [floweringSeeds, setFloweringSeeds] = useState([])
-  const [motherSeeds, setMotherSeeds] = useState([])
+  // Zustand für Blühpflanzen-Batches und Mutterpflanzen-Batches
+  const [floweringBatches, setFloweringBatches] = useState([])
+  const [motherBatches, setMotherBatches] = useState([])
 
   // Zustand für Mitglieder und Räume
   const [members, setMembers] = useState([])
@@ -112,55 +112,63 @@ export default function SeedPurchasePage() {
     }
   }
   
-  // Separate Funktion zum Laden der Mutterpflanzen-Seeds
-  const loadMotherSeeds = async () => {
+  // Separate Funktion zum Laden der Mutterpflanzen-Batches
+  const loadMotherBatches = async (page = 1) => {
     if (tabValue !== 1) return;
     
     setLoading(true);
     try {
-      const url = `/trackandtrace/seeds/`;
+      // API-Aufruf für Mutterpflanzen-Batches statt Seeds
+      let url = `/trackandtrace/motherbatches/?page=${page}&page_size=${pageSize}`;
+
+      // Zeitfilter hinzufügen, wenn vorhanden
+      if (yearFilter) url += `&year=${yearFilter}`;
+      if (monthFilter) url += `&month=${monthFilter}`;
+      if (dayFilter) url += `&day=${dayFilter}`;
+      
       const res = await api.get(url);
+      console.log('Geladene Mutterpflanzen-Batches:', res.data);
       
-      // Filtern nach Seeds mit Mutterpflanzen (unabhängig vom Vernichtungsstatus)
-      const seedsWithMothers = (res.data.results || []).filter(
-        seed => seed.mother_plant_count > 0
-      );
+      setMotherBatches(res.data.results || []);
+      setTotalCount(res.data.count || 0);
       
-      setMotherSeeds(seedsWithMothers);
-      setTotalCount(seedsWithMothers.length);
-      
-      // Berechne die Gesamtanzahl der Seiten basierend auf der Gesamtanzahl der Einträge
-      const pages = Math.ceil(seedsWithMothers.length / pageSize);
+      // Gesamtzahl der Seiten berechnen
+      const pages = Math.ceil((res.data.count || 0) / pageSize);
       setTotalPages(pages);
+      setCurrentPage(page);
     } catch (error) {
-      console.error('Fehler beim Laden der Mutterpflanzen-Seeds:', error);
+      console.error('Fehler beim Laden der Mutterpflanzen-Batches:', error);
     } finally {
       setLoading(false);
     }
   };
   
-  // Separate Funktion zum Laden der Blühpflanzen-Seeds
-  const loadFloweringSeeds = async () => {
+  // Separate Funktion zum Laden der Blühpflanzen-Batches
+  const loadFloweringBatches = async (page = 1) => {
     if (tabValue !== 2) return;
     
     setLoading(true);
     try {
-      const url = `/trackandtrace/seeds/`;
+      // API-Aufruf für Blühpflanzen-Batches statt Seeds
+      let url = `/trackandtrace/floweringbatches/?page=${page}&page_size=${pageSize}`;
+
+      // Zeitfilter hinzufügen, wenn vorhanden
+      if (yearFilter) url += `&year=${yearFilter}`;
+      if (monthFilter) url += `&month=${monthFilter}`;
+      if (dayFilter) url += `&day=${dayFilter}`;
+      
       const res = await api.get(url);
+      console.log('Geladene Blühpflanzen-Batches:', res.data);
       
-      // Filtern nach Seeds mit Blühpflanzen (unabhängig vom Vernichtungsstatus)
-      const seedsWithFlowering = (res.data.results || []).filter(
-        seed => seed.flowering_plant_count > 0
-      );
+      setFloweringBatches(res.data.results || []);
+      setTotalCount(res.data.count || 0);
       
-      setFloweringSeeds(seedsWithFlowering);
-      setTotalCount(seedsWithFlowering.length);
-      
-      // Berechne die Gesamtanzahl der Seiten basierend auf der Gesamtanzahl der Einträge
-      const pages = Math.ceil(seedsWithFlowering.length / pageSize);
+      // Gesamtzahl der Seiten berechnen
+      const pages = Math.ceil((res.data.count || 0) / pageSize);
       setTotalPages(pages);
+      setCurrentPage(page);
     } catch (error) {
-      console.error('Fehler beim Laden der Blühpflanzen-Seeds:', error);
+      console.error('Fehler beim Laden der Blühpflanzen-Batches:', error);
     } finally {
       setLoading(false);
     }
@@ -218,9 +226,9 @@ export default function SeedPurchasePage() {
     if (tabValue === 0 || tabValue === 3) {
       loadSeeds(currentPage);
     } else if (tabValue === 1) {
-      loadMotherSeeds();
+      loadMotherBatches(currentPage);
     } else if (tabValue === 2) {
-      loadFloweringSeeds();
+      loadFloweringBatches(currentPage);
     }
     
     loadCounts();
@@ -234,9 +242,9 @@ export default function SeedPurchasePage() {
     if (tabValue === 0 || tabValue === 3) {
       loadSeeds(1);
     } else if (tabValue === 1) {
-      loadMotherSeeds();
+      loadMotherBatches(1);
     } else if (tabValue === 2) {
-      loadFloweringSeeds();
+      loadFloweringBatches(1);
     }
     
     loadCounts();
@@ -256,6 +264,10 @@ export default function SeedPurchasePage() {
     // Je nach Tab die richtige Lademethode aufrufen
     if (tabValue === 0 || tabValue === 3) {
       loadSeeds(page);
+    } else if (tabValue === 1) {
+      loadMotherBatches(page);
+    } else if (tabValue === 2) {
+      loadFloweringBatches(page);
     }
   };
 
@@ -357,9 +369,9 @@ export default function SeedPurchasePage() {
     if (tabValue === 0 || tabValue === 3) {
       loadSeeds(1);
     } else if (tabValue === 1) {
-      loadMotherSeeds();
+      loadMotherBatches(1);
     } else if (tabValue === 2) {
-      loadFloweringSeeds();
+      loadFloweringBatches(1);
     }
     
     loadCounts();
@@ -374,25 +386,25 @@ export default function SeedPurchasePage() {
     if (tabValue === 0 || tabValue === 3) {
       loadSeeds(1);
     } else if (tabValue === 1) {
-      loadMotherSeeds();
+      loadMotherBatches(1);
     } else if (tabValue === 2) {
-      loadFloweringSeeds();
+      loadFloweringBatches(1);
     }
     
     loadCounts();
   }
 
-  // Funktion, die die anzuzeigenden Seeds basierend auf dem Tab zurückgibt
-  const getDisplayedSeeds = () => {
+  // Funktion, die die anzuzeigenden Daten basierend auf dem Tab zurückgibt
+  const getDisplayedData = () => {
     if (tabValue === 0) {
       // Tab 0: Aktive Samen - nur Samen mit verbleibender Menge > 0
       return seeds.filter(seed => seed.remaining_quantity > 0);
     } else if (tabValue === 1) {
-      // Tab 1: Zu Mutterpflanzen - verwende die separat geladenen Mutterpflanzen-Seeds
-      return motherSeeds;
+      // Tab 1: Zu Mutterpflanzen - verwende die separat geladenen Mutterpflanzen-Batches
+      return motherBatches;
     } else if (tabValue === 2) {
-      // Tab 2: Zu Blühpflanzen - verwende die separat geladenen Blühpflanzen-Seeds
-      return floweringSeeds;
+      // Tab 2: Zu Blühpflanzen - verwende die separat geladenen Blühpflanzen-Batches
+      return floweringBatches;
     } else {
       // Tab 3: Vernichtet - keine weitere Filterung nötig
       return seeds;
@@ -400,7 +412,7 @@ export default function SeedPurchasePage() {
   };
   
   // Die Daten, die in der aktuellen Tabelle angezeigt werden sollen
-  const displayedSeeds = getDisplayedSeeds();
+  const displayedData = getDisplayedData();
 
   return (
     <Container maxWidth="xl" sx={{ width: '100%' }}>
@@ -524,7 +536,7 @@ export default function SeedPurchasePage() {
             }}
           />
           <Tab 
-            label={`MUTTERPFLANZEN (${motherBatchCount}/${motherPlantCount})`}
+            label={`KONVERTIERT ZU MUTTERPFLANZEN (${motherBatchCount}/${motherPlantCount})`}
             sx={{ 
               color: tabValue === 1 ? 'success.main' : 'text.primary',
               '&.Mui-selected': {
@@ -535,7 +547,7 @@ export default function SeedPurchasePage() {
             }}
           />
           <Tab 
-            label={`BLÜHPFLANZEN (${floweringBatchCount}/${floweringPlantCount})`}
+            label={`KONVERTIERT ZU BLÜHPFLANZEN (${floweringBatchCount}/${floweringPlantCount})`}
             sx={{ 
               color: tabValue === 2 ? 'success.main' : 'text.primary',
               '&.Mui-selected': {
@@ -565,74 +577,298 @@ export default function SeedPurchasePage() {
         </Box>
       ) : (
         <Box sx={{ width: '100%' }}>
-          {/* Tabellenkopf */}
+          {/* Tabellenkopf mit symmetrischer Ausrichtung und Aktionen-Spalte */}
           <Paper elevation={1} sx={{ mb: 2, borderRadius: '4px', overflow: 'hidden' }}>
             <Table>
               <TableHead>
                 <TableRow sx={{ bgcolor: 'rgba(0, 0, 0, 0.04)' }}>
-                  <TableCell sx={{ width: '3%', padding: '8px' }}></TableCell>
-                  <TableCell sx={{ width: '18%', fontWeight: 'bold', padding: '8px 16px', textAlign: 'left', whiteSpace: 'nowrap' }}>Sortenname</TableCell>
-                  <TableCell sx={{ width: '22%', fontWeight: 'bold', padding: '8px 16px', textAlign: 'left', whiteSpace: 'nowrap' }}>Charge-Nummer</TableCell>
+                  {/* Ausklapp-Icon-Spalte */}
+                  <TableCell 
+                    sx={{ 
+                      width: '40px', 
+                      padding: '12px 0', 
+                      textAlign: 'center',
+                      verticalAlign: 'middle'
+                    }}
+                  ></TableCell>
+                  
+                  {/* Sortenname-Spalte */}
+                  <TableCell 
+                    sx={{ 
+                      width: '15%', 
+                      fontWeight: 'bold', 
+                      padding: '12px 16px', 
+                      textAlign: 'left', 
+                      whiteSpace: 'nowrap',
+                      verticalAlign: 'middle'
+                    }}
+                  >
+                    Sortenname
+                  </TableCell>
+                  
+                  {/* Charge-Nummer-Spalte */}
+                  <TableCell 
+                    sx={{ 
+                      width: '15%', 
+                      fontWeight: 'bold', 
+                      padding: '12px 16px', 
+                      textAlign: 'left', 
+                      whiteSpace: 'nowrap',
+                      verticalAlign: 'middle'
+                    }}
+                  >
+                    Charge-Nummer
+                  </TableCell>
                   
                   {tabValue === 0 && (
                     <>
-                      <TableCell sx={{ width: '12%', fontWeight: 'bold', padding: '8px 16px', textAlign: 'center', whiteSpace: 'nowrap' }}>Gesamt/Verfügbar</TableCell>
-                      <TableCell sx={{ width: '15%', fontWeight: 'bold', padding: '8px 16px', textAlign: 'left', whiteSpace: 'nowrap' }}>Zugeordnetes Mitglied</TableCell>
-                      <TableCell sx={{ width: '15%', fontWeight: 'bold', padding: '8px 16px', textAlign: 'left', whiteSpace: 'nowrap' }}>Zugeordneter Raum</TableCell>
-                      <TableCell sx={{ width: '15%', fontWeight: 'bold', padding: '8px 16px', textAlign: 'left', whiteSpace: 'nowrap' }}>Erstellt am</TableCell>
+                      <TableCell 
+                        sx={{ 
+                          width: '12%', 
+                          fontWeight: 'bold', 
+                          padding: '12px 16px', 
+                          textAlign: 'center', 
+                          whiteSpace: 'nowrap',
+                          verticalAlign: 'middle'
+                        }}
+                      >
+                        Gesamt/Verfügbar
+                      </TableCell>
+                      <TableCell 
+                        sx={{ 
+                          width: '15%', 
+                          fontWeight: 'bold', 
+                          padding: '12px 16px', 
+                          textAlign: 'left', 
+                          whiteSpace: 'nowrap',
+                          verticalAlign: 'middle'
+                        }}
+                      >
+                        Zugeordnetes Mitglied
+                      </TableCell>
+                      <TableCell 
+                        sx={{ 
+                          width: '15%', 
+                          fontWeight: 'bold', 
+                          padding: '12px 16px', 
+                          textAlign: 'left', 
+                          whiteSpace: 'nowrap',
+                          verticalAlign: 'middle'
+                        }}
+                      >
+                        Zugeordneter Raum
+                      </TableCell>
+                      <TableCell 
+                        sx={{ 
+                          width: '13%', 
+                          fontWeight: 'bold', 
+                          padding: '12px 16px', 
+                          textAlign: 'left', 
+                          whiteSpace: 'nowrap',
+                          verticalAlign: 'middle'
+                        }}
+                      >
+                        Erstellt am
+                      </TableCell>
                     </>
                   )}
                   
                   {tabValue === 1 && (
                     <>
-                      <TableCell sx={{ width: '12%', fontWeight: 'bold', padding: '8px 16px', textAlign: 'center', whiteSpace: 'nowrap' }}>Anzahl Mutterpflanzen</TableCell>
-                      <TableCell sx={{ width: '15%', fontWeight: 'bold', padding: '8px 16px', textAlign: 'left', whiteSpace: 'nowrap' }}>Zugeordnetes Mitglied</TableCell>
-                      <TableCell sx={{ width: '15%', fontWeight: 'bold', padding: '8px 16px', textAlign: 'left', whiteSpace: 'nowrap' }}>Zugeordneter Raum</TableCell>
-                      <TableCell sx={{ width: '15%', fontWeight: 'bold', padding: '8px 16px', textAlign: 'left', whiteSpace: 'nowrap' }}>Erstellt am</TableCell>
+                      <TableCell 
+                        sx={{ 
+                          width: '12%', 
+                          fontWeight: 'bold', 
+                          padding: '12px 16px', 
+                          textAlign: 'center', 
+                          whiteSpace: 'nowrap',
+                          verticalAlign: 'middle'
+                        }}
+                      >
+                        Anzahl Pflanzen
+                      </TableCell>
+                      <TableCell 
+                        sx={{ 
+                          width: '15%', 
+                          fontWeight: 'bold', 
+                          padding: '12px 16px', 
+                          textAlign: 'left', 
+                          whiteSpace: 'nowrap',
+                          verticalAlign: 'middle'
+                        }}
+                      >
+                        Zugeordnetes Mitglied
+                      </TableCell>
+                      <TableCell 
+                        sx={{ 
+                          width: '15%', 
+                          fontWeight: 'bold', 
+                          padding: '12px 16px', 
+                          textAlign: 'left', 
+                          whiteSpace: 'nowrap',
+                          verticalAlign: 'middle'
+                        }}
+                      >
+                        Zugeordneter Raum
+                      </TableCell>
+                      <TableCell 
+                        sx={{ 
+                          width: '13%', 
+                          fontWeight: 'bold', 
+                          padding: '12px 16px', 
+                          textAlign: 'left', 
+                          whiteSpace: 'nowrap',
+                          verticalAlign: 'middle'
+                        }}
+                      >
+                        Erstellt am
+                      </TableCell>
                     </>
                   )}
                   
                   {tabValue === 2 && (
                     <>
-                      <TableCell sx={{ width: '12%', fontWeight: 'bold', padding: '8px 16px', textAlign: 'center', whiteSpace: 'nowrap' }}>Anzahl Blühpflanzen</TableCell>
-                      <TableCell sx={{ width: '15%', fontWeight: 'bold', padding: '8px 16px', textAlign: 'left', whiteSpace: 'nowrap' }}>Zugeordnetes Mitglied</TableCell>
-                      <TableCell sx={{ width: '15%', fontWeight: 'bold', padding: '8px 16px', textAlign: 'left', whiteSpace: 'nowrap' }}>Zugeordneter Raum</TableCell>
-                      <TableCell sx={{ width: '15%', fontWeight: 'bold', padding: '8px 16px', textAlign: 'left', whiteSpace: 'nowrap' }}>Erstellt am</TableCell>
+                      <TableCell 
+                        sx={{ 
+                          width: '12%', 
+                          fontWeight: 'bold', 
+                          padding: '12px 16px', 
+                          textAlign: 'center', 
+                          whiteSpace: 'nowrap',
+                          verticalAlign: 'middle'
+                        }}
+                      >
+                        Anzahl Pflanzen
+                      </TableCell>
+                      <TableCell 
+                        sx={{ 
+                          width: '15%', 
+                          fontWeight: 'bold', 
+                          padding: '12px 16px', 
+                          textAlign: 'left', 
+                          whiteSpace: 'nowrap',
+                          verticalAlign: 'middle'
+                        }}
+                      >
+                        Zugeordnetes Mitglied
+                      </TableCell>
+                      <TableCell 
+                        sx={{ 
+                          width: '15%', 
+                          fontWeight: 'bold', 
+                          padding: '12px 16px', 
+                          textAlign: 'left', 
+                          whiteSpace: 'nowrap',
+                          verticalAlign: 'middle'
+                        }}
+                      >
+                        Zugeordneter Raum
+                      </TableCell>
+                      <TableCell 
+                        sx={{ 
+                          width: '13%', 
+                          fontWeight: 'bold', 
+                          padding: '12px 16px', 
+                          textAlign: 'left', 
+                          whiteSpace: 'nowrap',
+                          verticalAlign: 'middle'
+                        }}
+                      >
+                        Erstellt am
+                      </TableCell>
                     </>
                   )}
                   
                   {tabValue === 3 && (
                     <>
-                      <TableCell sx={{ width: '12%', fontWeight: 'bold', padding: '8px 16px', textAlign: 'center', whiteSpace: 'nowrap' }}>Vernichtete Menge</TableCell>
-                      <TableCell sx={{ width: '15%', fontWeight: 'bold', padding: '8px 16px', textAlign: 'left', whiteSpace: 'nowrap' }}>Vernichtet durch</TableCell>
-                      <TableCell sx={{ width: '15%', fontWeight: 'bold', padding: '8px 16px', textAlign: 'left', whiteSpace: 'nowrap' }}>Vernichtungsgrund</TableCell>
-                      <TableCell sx={{ width: '15%', fontWeight: 'bold', padding: '8px 16px', textAlign: 'left', whiteSpace: 'nowrap' }}>Vernichtet am</TableCell>
+                      <TableCell 
+                        sx={{ 
+                          width: '12%', 
+                          fontWeight: 'bold', 
+                          padding: '12px 16px', 
+                          textAlign: 'center', 
+                          whiteSpace: 'nowrap',
+                          verticalAlign: 'middle'
+                        }}
+                      >
+                        Vernichtete Menge
+                      </TableCell>
+                      <TableCell 
+                        sx={{ 
+                          width: '15%', 
+                          fontWeight: 'bold', 
+                          padding: '12px 16px', 
+                          textAlign: 'left', 
+                          whiteSpace: 'nowrap',
+                          verticalAlign: 'middle'
+                        }}
+                      >
+                        Vernichtet durch
+                      </TableCell>
+                      <TableCell 
+                        sx={{ 
+                          width: '15%', 
+                          fontWeight: 'bold', 
+                          padding: '12px 16px', 
+                          textAlign: 'left', 
+                          whiteSpace: 'nowrap',
+                          verticalAlign: 'middle'
+                        }}
+                      >
+                        Vernichtungsgrund
+                      </TableCell>
+                      <TableCell 
+                        sx={{ 
+                          width: '13%', 
+                          fontWeight: 'bold', 
+                          padding: '12px 16px', 
+                          textAlign: 'left', 
+                          whiteSpace: 'nowrap',
+                          verticalAlign: 'middle'
+                        }}
+                      >
+                        Vernichtet am
+                      </TableCell>
                     </>
                   )}
+                  
+                  {/* Aktionen-Spalte im Header */}
+                  <TableCell 
+                    sx={{ 
+                      width: '15%', 
+                      fontWeight: 'bold', 
+                      padding: '12px 16px', 
+                      textAlign: 'center', 
+                      whiteSpace: 'nowrap',
+                      verticalAlign: 'middle'
+                    }}
+                  >
+                    Aktionen
+                  </TableCell>
                 </TableRow>
               </TableHead>
             </Table>
           </Paper>
 
           {/* Tabellendaten mit Akkordeons */}
-          {displayedSeeds.length > 0 ? (
-            displayedSeeds.map((seed) => (
+          {displayedData && displayedData.length > 0 ? (
+            displayedData.map((item) => (
               <Paper 
-                key={seed.id} 
+                key={item.id} 
                 elevation={1} 
                 sx={{ 
                   mb: 1.5, 
                   overflow: 'hidden', 
                   borderRadius: '4px',
-                  border: expandedSeedId === seed.id ? '1px solid success.main' : 'none'
+                  border: expandedSeedId === item.id ? '1px solid rgba(76, 175, 80, 0.5)' : 'none'
                 }}
               >
-                {/* Akkordeon-Header als Tabellenzeile gestylt */}
+                {/* Akkordeon-Header als Tabellenzeile gestylt mit verbesserten Abständen */}
                 <Box
                   sx={{
                     display: 'flex',
                     cursor: 'pointer',
-                    backgroundColor: expandedSeedId === seed.id ? 'rgba(0, 0, 0, 0.04)' : 'white',
+                    backgroundColor: expandedSeedId === item.id ? 'rgba(0, 0, 0, 0.04)' : 'white',
                     '&:hover': {
                       backgroundColor: 'rgba(0, 0, 0, 0.04)'
                     },
@@ -640,36 +876,38 @@ export default function SeedPurchasePage() {
                     borderColor: 'success.main',
                   }}
                 >
+                  {/* Ausklapp-Icon-Spalte */}
                   <Box 
                     sx={{ 
                       display: 'flex', 
                       alignItems: 'center', 
                       justifyContent: 'center',
-                      width: '3%',
-                      padding: '8px 0'
+                      width: '40px',
+                      padding: '12px 0'
                     }}
-                    onClick={() => handleAccordionChange(seed.id)}
+                    onClick={() => handleAccordionChange(item.id)}
                   >
                     <IconButton size="small">
                       <ExpandMoreIcon 
                         sx={{ 
-                          transform: expandedSeedId === seed.id ? 'rotate(180deg)' : 'rotate(0deg)',
+                          transform: expandedSeedId === item.id ? 'rotate(180deg)' : 'rotate(0deg)',
                           transition: 'transform 0.3s'
                         }} 
                       />
                     </IconButton>
                   </Box>
                   
+                  {/* Sortenname-Spalte */}
                   <Box 
                     sx={{ 
                       display: 'flex',
                       alignItems: 'center',
-                      width: '18%', 
-                      padding: '8px 16px',
+                      width: '15%', 
+                      padding: '12px 16px',
                       overflow: 'hidden',
                       justifyContent: 'flex-start'
                     }}
-                    onClick={() => handleAccordionChange(seed.id)}
+                    onClick={() => handleAccordionChange(item.id)}
                   >
                     <ScienceIcon sx={{ color: 'success.main', fontSize: '1rem', mr: 1 }} />
                     <Typography 
@@ -682,92 +920,21 @@ export default function SeedPurchasePage() {
                         textOverflow: 'ellipsis'
                       }}
                     >
-                      {seed.strain_name}
+                      {tabValue === 0 || tabValue === 3 ? item.strain_name : item.seed_strain}
                     </Typography>
-                    
-                    {/* Aktionen direkt in der Hauptspalte für aktive Samen */}
-                    {tabValue === 0 && (
-                      <Box sx={{ display: 'flex', ml: 'auto' }}>
-                        <Tooltip title="Zu Mutterpflanze konvertieren">
-                          <IconButton 
-                            size="small" 
-                            onClick={(e) => handleOpenConvertDialog(seed, 'mother', e)}
-                            sx={{ ml: 1 }}
-                          >
-                            <SpaIcon fontSize="small" color="success" />
-                          </IconButton>
-                        </Tooltip>
-                        
-                        <Tooltip title="Zu Blühpflanze konvertieren">
-                          <IconButton 
-                            size="small" 
-                            onClick={(e) => handleOpenConvertDialog(seed, 'flower', e)}
-                            sx={{ ml: 0.5 }}
-                          >
-                            <LocalFloristIcon fontSize="small" color="success" />
-                          </IconButton>
-                        </Tooltip>
-                        
-                        <Tooltip title="Bearbeiten">
-                          <IconButton 
-                            size="small" 
-                            onClick={(e) => handleOpenEditForm(seed, e)}
-                            sx={{ ml: 0.5 }}
-                          >
-                            <EditIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                        
-                        <Tooltip title="Vernichten">
-                          <IconButton 
-                            size="small" 
-                            color="error"
-                            onClick={(e) => handleOpenDestroyDialog(seed, e)}
-                            sx={{ ml: 0.5 }}
-                          >
-                            <LocalFireDepartmentIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      </Box>
-                    )}
-                    
-                    {/* Aktionen für die anderen Tabs */}
-                    {(tabValue === 1 || tabValue === 2) && (
-                      <Box sx={{ display: 'flex', ml: 'auto' }}>
-                        <Tooltip title="Bearbeiten">
-                          <IconButton 
-                            size="small" 
-                            onClick={(e) => handleOpenEditForm(seed, e)}
-                            sx={{ ml: 0.5 }}
-                          >
-                            <EditIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                        
-                        <Tooltip title="Vernichten">
-                          <IconButton 
-                            size="small" 
-                            color="error"
-                            onClick={(e) => handleOpenDestroyDialog(seed, e)}
-                            sx={{ ml: 0.5 }}
-                          >
-                            <LocalFireDepartmentIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      </Box>
-                    )}
                   </Box>
                   
+                  {/* Charge-Nummer-Spalte */}
                   <Box 
                     sx={{ 
                       display: 'flex',
                       alignItems: 'center',
-                      width: '22%', 
-                      padding: '8px 16px',
+                      width: '15%', 
+                      padding: '12px 16px',
                       overflow: 'hidden',
                       justifyContent: 'flex-start'
                     }}
-                    onClick={() => handleAccordionChange(seed.id)}
+                    onClick={() => handleAccordionChange(item.id)}
                   >
                     <Typography 
                       variant="body2" 
@@ -780,7 +947,7 @@ export default function SeedPurchasePage() {
                         textOverflow: 'ellipsis'
                       }}
                     >
-                      {seed.batch_number || ''}
+                      {item.batch_number || ''}
                     </Typography>
                   </Box>
                   
@@ -791,10 +958,10 @@ export default function SeedPurchasePage() {
                           display: 'flex', 
                           alignItems: 'center',
                           width: '12%', 
-                          padding: '8px 16px',
+                          padding: '12px 16px',
                           justifyContent: 'center'
                         }}
-                        onClick={() => handleAccordionChange(seed.id)}
+                        onClick={() => handleAccordionChange(item.id)}
                       >
                         <Typography 
                           variant="body2" 
@@ -805,7 +972,7 @@ export default function SeedPurchasePage() {
                             textOverflow: 'ellipsis'
                           }}
                         >
-                          {seed.quantity}/{seed.remaining_quantity}
+                          {item.quantity}/{item.remaining_quantity}
                         </Typography>
                       </Box>
                       
@@ -814,10 +981,10 @@ export default function SeedPurchasePage() {
                           display: 'flex', 
                           alignItems: 'center',
                           width: '15%', 
-                          padding: '8px 16px',
+                          padding: '12px 16px',
                           justifyContent: 'flex-start'
                         }}
-                        onClick={() => handleAccordionChange(seed.id)}
+                        onClick={() => handleAccordionChange(item.id)}
                       >
                         <Typography 
                           variant="body2" 
@@ -827,8 +994,8 @@ export default function SeedPurchasePage() {
                             textOverflow: 'ellipsis'
                           }}
                         >
-                          {seed.member ? 
-                            (seed.member.display_name || `${seed.member.first_name} ${seed.member.last_name}`) 
+                          {item.member ? 
+                            (item.member.display_name || `${item.member.first_name} ${item.member.last_name}`) 
                             : "Nicht zugewiesen"}
                         </Typography>
                       </Box>
@@ -838,10 +1005,10 @@ export default function SeedPurchasePage() {
                           display: 'flex', 
                           alignItems: 'center',
                           width: '15%', 
-                          padding: '8px 16px',
+                          padding: '12px 16px',
                           justifyContent: 'flex-start'
                         }}
-                        onClick={() => handleAccordionChange(seed.id)}
+                        onClick={() => handleAccordionChange(item.id)}
                       >
                         <Typography 
                           variant="body2" 
@@ -851,7 +1018,7 @@ export default function SeedPurchasePage() {
                             textOverflow: 'ellipsis'
                           }}
                         >
-                          {seed.room ? seed.room.name : "Nicht zugewiesen"}
+                          {item.room ? item.room.name : "Nicht zugewiesen"}
                         </Typography>
                       </Box>
                       
@@ -859,11 +1026,11 @@ export default function SeedPurchasePage() {
                         sx={{ 
                           display: 'flex',
                           alignItems: 'center',
-                          width: '15%',
-                          padding: '8px 16px',
+                          width: '13%',
+                          padding: '12px 16px',
                           justifyContent: 'flex-start'
                         }}
-                        onClick={() => handleAccordionChange(seed.id)}
+                        onClick={() => handleAccordionChange(item.id)}
                       >
                         <Typography 
                           variant="body2"
@@ -873,7 +1040,7 @@ export default function SeedPurchasePage() {
                             textOverflow: 'ellipsis'
                           }}
                         >
-                          {new Date(seed.created_at).toLocaleDateString('de-DE')}
+                          {new Date(item.created_at).toLocaleDateString('de-DE')}
                         </Typography>
                       </Box>
                     </>
@@ -886,10 +1053,10 @@ export default function SeedPurchasePage() {
                           display: 'flex', 
                           alignItems: 'center',
                           width: '12%', 
-                          padding: '8px 16px',
+                          padding: '12px 16px',
                           justifyContent: 'center'
                         }}
-                        onClick={() => handleAccordionChange(seed.id)}
+                        onClick={() => handleAccordionChange(item.id)}
                       >
                         <Typography 
                           variant="body2" 
@@ -900,7 +1067,8 @@ export default function SeedPurchasePage() {
                             textOverflow: 'ellipsis'
                           }}
                         >
-                          {seed.mother_plant_count || 0}
+                          {/* Bei Mutterpflanzen-Batches die Anzahl der aktiven Pflanzen anzeigen */}
+                          {item.active_plants_count || 0}
                         </Typography>
                       </Box>
                       
@@ -909,10 +1077,10 @@ export default function SeedPurchasePage() {
                           display: 'flex', 
                           alignItems: 'center',
                           width: '15%', 
-                          padding: '8px 16px',
+                          padding: '12px 16px',
                           justifyContent: 'flex-start'
                         }}
-                        onClick={() => handleAccordionChange(seed.id)}
+                        onClick={() => handleAccordionChange(item.id)}
                       >
                         <Typography 
                           variant="body2" 
@@ -922,8 +1090,8 @@ export default function SeedPurchasePage() {
                             textOverflow: 'ellipsis'
                           }}
                         >
-                          {seed.member ? 
-                            (seed.member.display_name || `${seed.member.first_name} ${seed.member.last_name}`) 
+                          {item.member ? 
+                            (item.member.display_name || `${item.member.first_name} ${item.member.last_name}`) 
                             : "Nicht zugewiesen"}
                         </Typography>
                       </Box>
@@ -933,10 +1101,10 @@ export default function SeedPurchasePage() {
                           display: 'flex', 
                           alignItems: 'center',
                           width: '15%', 
-                          padding: '8px 16px',
+                          padding: '12px 16px',
                           justifyContent: 'flex-start'
                         }}
-                        onClick={() => handleAccordionChange(seed.id)}
+                        onClick={() => handleAccordionChange(item.id)}
                       >
                         <Typography 
                           variant="body2" 
@@ -946,7 +1114,7 @@ export default function SeedPurchasePage() {
                             textOverflow: 'ellipsis'
                           }}
                         >
-                          {seed.room ? seed.room.name : "Nicht zugewiesen"}
+                          {item.room ? item.room.name : "Nicht zugewiesen"}
                         </Typography>
                       </Box>
                       
@@ -954,11 +1122,11 @@ export default function SeedPurchasePage() {
                         sx={{ 
                           display: 'flex',
                           alignItems: 'center',
-                          width: '15%',
-                          padding: '8px 16px',
+                          width: '13%',
+                          padding: '12px 16px',
                           justifyContent: 'flex-start'
                         }}
-                        onClick={() => handleAccordionChange(seed.id)}
+                        onClick={() => handleAccordionChange(item.id)}
                       >
                         <Typography 
                           variant="body2"
@@ -968,7 +1136,7 @@ export default function SeedPurchasePage() {
                             textOverflow: 'ellipsis'
                           }}
                         >
-                          {new Date(seed.created_at).toLocaleDateString('de-DE')}
+                          {new Date(item.created_at).toLocaleDateString('de-DE')}
                         </Typography>
                       </Box>
                     </>
@@ -981,10 +1149,10 @@ export default function SeedPurchasePage() {
                           display: 'flex', 
                           alignItems: 'center',
                           width: '12%', 
-                          padding: '8px 16px',
+                          padding: '12px 16px',
                           justifyContent: 'center'
                         }}
-                        onClick={() => handleAccordionChange(seed.id)}
+                        onClick={() => handleAccordionChange(item.id)}
                       >
                         <Typography 
                           variant="body2" 
@@ -995,7 +1163,8 @@ export default function SeedPurchasePage() {
                             textOverflow: 'ellipsis'
                           }}
                         >
-                          {seed.flowering_plant_count || 0}
+                          {/* Bei Blühpflanzen-Batches die Anzahl der aktiven Pflanzen anzeigen */}
+                          {item.active_plants_count || 0}
                         </Typography>
                       </Box>
                       
@@ -1004,10 +1173,10 @@ export default function SeedPurchasePage() {
                           display: 'flex', 
                           alignItems: 'center',
                           width: '15%', 
-                          padding: '8px 16px',
+                          padding: '12px 16px',
                           justifyContent: 'flex-start'
                         }}
-                        onClick={() => handleAccordionChange(seed.id)}
+                        onClick={() => handleAccordionChange(item.id)}
                       >
                         <Typography 
                           variant="body2" 
@@ -1017,8 +1186,8 @@ export default function SeedPurchasePage() {
                             textOverflow: 'ellipsis'
                           }}
                         >
-                          {seed.member ? 
-                            (seed.member.display_name || `${seed.member.first_name} ${seed.member.last_name}`) 
+                          {item.member ? 
+                            (item.member.display_name || `${item.member.first_name} ${item.member.last_name}`) 
                             : "Nicht zugewiesen"}
                         </Typography>
                       </Box>
@@ -1028,10 +1197,10 @@ export default function SeedPurchasePage() {
                           display: 'flex', 
                           alignItems: 'center',
                           width: '15%', 
-                          padding: '8px 16px',
+                          padding: '12px 16px',
                           justifyContent: 'flex-start'
                         }}
-                        onClick={() => handleAccordionChange(seed.id)}
+                        onClick={() => handleAccordionChange(item.id)}
                       >
                         <Typography 
                           variant="body2" 
@@ -1041,7 +1210,7 @@ export default function SeedPurchasePage() {
                             textOverflow: 'ellipsis'
                           }}
                         >
-                          {seed.room ? seed.room.name : "Nicht zugewiesen"}
+                          {item.room ? item.room.name : "Nicht zugewiesen"}
                         </Typography>
                       </Box>
                       
@@ -1049,11 +1218,11 @@ export default function SeedPurchasePage() {
                         sx={{ 
                           display: 'flex',
                           alignItems: 'center',
-                          width: '15%',
-                          padding: '8px 16px',
+                          width: '13%',
+                          padding: '12px 16px',
                           justifyContent: 'flex-start'
                         }}
-                        onClick={() => handleAccordionChange(seed.id)}
+                        onClick={() => handleAccordionChange(item.id)}
                       >
                         <Typography 
                           variant="body2"
@@ -1063,7 +1232,7 @@ export default function SeedPurchasePage() {
                             textOverflow: 'ellipsis'
                           }}
                         >
-                          {new Date(seed.created_at).toLocaleDateString('de-DE')}
+                          {new Date(item.created_at).toLocaleDateString('de-DE')}
                         </Typography>
                       </Box>
                     </>
@@ -1076,10 +1245,10 @@ export default function SeedPurchasePage() {
                           display: 'flex', 
                           alignItems: 'center',
                           width: '12%', 
-                          padding: '8px 16px',
+                          padding: '12px 16px',
                           justifyContent: 'center'
                         }}
-                        onClick={() => handleAccordionChange(seed.id)}
+                        onClick={() => handleAccordionChange(item.id)}
                       >
                         <Typography 
                           variant="body2" 
@@ -1091,7 +1260,7 @@ export default function SeedPurchasePage() {
                             textOverflow: 'ellipsis'
                           }}
                         >
-                          {seed.quantity - (seed.remaining_quantity || 0)}
+                          {item.destroyed_quantity}
                         </Typography>
                       </Box>
                       
@@ -1100,10 +1269,10 @@ export default function SeedPurchasePage() {
                           display: 'flex', 
                           alignItems: 'center',
                           width: '15%', 
-                          padding: '8px 16px',
+                          padding: '12px 16px',
                           justifyContent: 'flex-start'
                         }}
-                        onClick={() => handleAccordionChange(seed.id)}
+                        onClick={() => handleAccordionChange(item.id)}
                       >
                         <Typography 
                           variant="body2" 
@@ -1113,8 +1282,8 @@ export default function SeedPurchasePage() {
                             textOverflow: 'ellipsis'
                           }}
                         >
-                          {seed.destroyed_by ? 
-                            (seed.destroyed_by.display_name || `${seed.destroyed_by.first_name} ${seed.destroyed_by.last_name}`) 
+                          {item.destroyed_by ? 
+                            (item.destroyed_by.display_name || `${item.destroyed_by.first_name} ${item.destroyed_by.last_name}`) 
                             : "-"}
                         </Typography>
                       </Box>
@@ -1124,10 +1293,10 @@ export default function SeedPurchasePage() {
                           display: 'flex', 
                           alignItems: 'center',
                           width: '15%', 
-                          padding: '8px 16px',
+                          padding: '12px 16px',
                           justifyContent: 'flex-start'
                         }}
-                        onClick={() => handleAccordionChange(seed.id)}
+                        onClick={() => handleAccordionChange(item.id)}
                       >
                         <Typography 
                           variant="body2" 
@@ -1137,7 +1306,7 @@ export default function SeedPurchasePage() {
                             textOverflow: 'ellipsis'
                           }}
                         >
-                          {seed.destroy_reason || "-"}
+                          {item.destroy_reason || "-"}
                         </Typography>
                       </Box>
                       
@@ -1145,11 +1314,11 @@ export default function SeedPurchasePage() {
                         sx={{ 
                           display: 'flex',
                           alignItems: 'center',
-                          width: '15%',
-                          padding: '8px 16px',
+                          width: '13%',
+                          padding: '12px 16px',
                           justifyContent: 'flex-start'
                         }}
-                        onClick={() => handleAccordionChange(seed.id)}
+                        onClick={() => handleAccordionChange(item.id)}
                       >
                         <Typography 
                           variant="body2"
@@ -1159,15 +1328,78 @@ export default function SeedPurchasePage() {
                             textOverflow: 'ellipsis'
                           }}
                         >
-                          {seed.destroyed_at ? new Date(seed.destroyed_at).toLocaleDateString('de-DE') : '-'}
+                          {item.destroyed_at ? new Date(item.destroyed_at).toLocaleDateString('de-DE') : '-'}
                         </Typography>
                       </Box>
                     </>
                   )}
+                  
+                  {/* Aktionen-Spalte */}
+                  <Box 
+                    sx={{ 
+                      display: 'flex', 
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '15%', 
+                      padding: '12px 16px',
+                    }}
+                    onClick={(e) => e.stopPropagation()} /* Verhindert, dass das Akkordeon sich öffnet, wenn man auf die Aktionen klickt */
+                  >
+                    {tabValue === 0 && (
+                      <>
+                        <Tooltip title="Zu Mutterpflanze konvertieren">
+                          <IconButton 
+                            size="small" 
+                            onClick={(e) => handleOpenConvertDialog(item, 'mother', e)}
+                            sx={{ mx: 0.5 }}
+                          >
+                            <SpaIcon fontSize="small" color="success" />
+                          </IconButton>
+                        </Tooltip>
+                        
+                        <Tooltip title="Zu Blühpflanze konvertieren">
+                          <IconButton 
+                            size="small" 
+                            onClick={(e) => handleOpenConvertDialog(item, 'flower', e)}
+                            sx={{ mx: 0.5 }}
+                          >
+                            <LocalFloristIcon fontSize="small" color="success" />
+                          </IconButton>
+                        </Tooltip>
+                      </>
+                    )}
+                    
+                    {/* Bearbeiten-Button für alle Tabs außer "Vernichtet" */}
+                    {tabValue !== 3 && (
+                      <Tooltip title="Bearbeiten">
+                        <IconButton 
+                          size="small" 
+                          onClick={(e) => handleOpenEditForm(item, e)}
+                          sx={{ mx: 0.5 }}
+                        >
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                    
+                    {/* Vernichten-Button für alle Tabs außer "Vernichtet" */}
+                    {tabValue !== 3 && (
+                      <Tooltip title="Vernichten">
+                        <IconButton 
+                          size="small" 
+                          color="error"
+                          onClick={(e) => handleOpenDestroyDialog(item, e)}
+                          sx={{ mx: 0.5 }}
+                        >
+                          <LocalFireDepartmentIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                  </Box>
                 </Box>
 
                 {/* Ausgeklappter Bereich */}
-                {expandedSeedId === seed.id && (
+                {expandedSeedId === item.id && (
                   <Box 
                     sx={{ 
                       width: '100%',
@@ -1196,7 +1428,8 @@ export default function SeedPurchasePage() {
                             borderBottom: '1px solid rgba(0, 0, 0, 0.12)'
                           }}>
                             <Typography variant="subtitle2" color="success.main">
-                              Samen-Details
+                              {tabValue === 0 || tabValue === 3 ? 'Samen-Details' : 
+                               tabValue === 1 ? 'Mutterpflanzen-Details' : 'Blühpflanzen-Details'}
                             </Typography>
                           </Box>
                           <Box sx={{ p: 2, flexGrow: 1 }}>
@@ -1205,7 +1438,7 @@ export default function SeedPurchasePage() {
                                 Chargen-ID:
                               </Typography>
                               <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.87)' }}>
-                                {seed.batch_number}
+                                {item.batch_number}
                               </Typography>
                             </Box>
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
@@ -1221,7 +1454,7 @@ export default function SeedPurchasePage() {
                                   wordBreak: 'break-all'
                                 }}
                               >
-                                {seed.id}
+                                {item.id}
                               </Typography>
                             </Box>
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
@@ -1229,7 +1462,7 @@ export default function SeedPurchasePage() {
                                 Erstellt am:
                               </Typography>
                               <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.87)' }}>
-                                {new Date(seed.created_at).toLocaleDateString('de-DE')}
+                                {new Date(item.created_at).toLocaleDateString('de-DE')}
                               </Typography>
                             </Box>
                             <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -1237,7 +1470,7 @@ export default function SeedPurchasePage() {
                                 Sortenname:
                               </Typography>
                               <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.87)' }}>
-                                {seed.strain_name || "Unbekannt"}
+                                {tabValue === 0 || tabValue === 3 ? item.strain_name : item.seed_strain || "Unbekannt"}
                               </Typography>
                             </Box>
                           </Box>
@@ -1266,43 +1499,84 @@ export default function SeedPurchasePage() {
                             </Typography>
                           </Box>
                           <Box sx={{ p: 2, flexGrow: 1 }}>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                              <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)' }}>
-                                Gesamtmenge:
-                              </Typography>
-                              <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.87)' }}>
-                                {seed.quantity || 0}
-                              </Typography>
-                            </Box>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                              <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)' }}>
-                                Verfügbare Menge:
-                              </Typography>
-                              <Typography 
-                                variant="body2" 
-                                sx={{ 
-                                  color: 'rgba(0, 0, 0, 0.87)'
-                                }}
-                              >
-                                {seed.remaining_quantity || 0}
-                              </Typography>
-                            </Box>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                              <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)' }}>
-                                Zu Mutterpflanzen:
-                              </Typography>
-                              <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.87)' }}>
-                                {seed.mother_plant_count || 0}
-                              </Typography>
-                            </Box>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                              <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)' }}>
-                                Zu Blühpflanzen:
-                              </Typography>
-                              <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.87)' }}>
-                                {seed.flowering_plant_count || 0}
-                              </Typography>
-                            </Box>
+                            {tabValue === 0 || tabValue === 3 ? (
+                              // Informationen für Samen
+                              <>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                                  <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)' }}>
+                                    Gesamtmenge:
+                                  </Typography>
+                                  <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.87)' }}>
+                                    {item.quantity || 0}
+                                  </Typography>
+                                </Box>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                                  <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)' }}>
+                                    Verfügbare Menge:
+                                  </Typography>
+                                  <Typography 
+                                    variant="body2" 
+                                    sx={{ 
+                                      color: 'rgba(0, 0, 0, 0.87)'
+                                    }}
+                                  >
+                                    {item.remaining_quantity || 0}
+                                  </Typography>
+                                </Box>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                                  <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)' }}>
+                                    Zu Mutterpflanzen:
+                                  </Typography>
+                                  <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.87)' }}>
+                                    {item.mother_plant_count || 0}
+                                  </Typography>
+                                </Box>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                                  <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)' }}>
+                                    Zu Blühpflanzen:
+                                  </Typography>
+                                  <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.87)' }}>
+                                    {item.flowering_plant_count || 0}
+                                  </Typography>
+                                </Box>
+                              </>
+                            ) : (
+                              // Informationen für Batches (Mutterpflanzen oder Blühpflanzen)
+                              <>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                                  <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)' }}>
+                                    Anzahl Pflanzen:
+                                  </Typography>
+                                  <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.87)' }}>
+                                    {item.quantity || 0}
+                                  </Typography>
+                                </Box>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                                  <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)' }}>
+                                    Aktive Pflanzen:
+                                  </Typography>
+                                  <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.87)' }}>
+                                    {item.active_plants_count || 0}
+                                  </Typography>
+                                </Box>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                                  <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)' }}>
+                                    Vernichtete Pflanzen:
+                                  </Typography>
+                                  <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.87)' }}>
+                                    {item.destroyed_plants_count || 0}
+                                  </Typography>
+                                </Box>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                                  <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)' }}>
+                                    Samen-Charge:
+                                  </Typography>
+                                  <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.87)' }}>
+                                    {item.seed_batch_number || '-'}
+                                  </Typography>
+                                </Box>
+                              </>
+                            )}
                           </Box>
                         </Paper>
                       </Box>
@@ -1337,20 +1611,20 @@ export default function SeedPurchasePage() {
                                 border: '1px solid rgba(0, 0, 0, 0.12)',
                                 flexGrow: 1,
                                 display: 'flex',
-                                alignItems: seed.notes ? 'flex-start' : 'center',
-                                justifyContent: seed.notes ? 'flex-start' : 'center',
+                                alignItems: item.notes ? 'flex-start' : 'center',
+                                justifyContent: item.notes ? 'flex-start' : 'center',
                                 width: '100%'
                               }}
                             >
                               <Typography 
                                 variant="body2" 
                                 sx={{ 
-                                  fontStyle: seed.notes ? 'normal' : 'italic',
-                                  color: seed.notes ? 'rgba(0, 0, 0, 0.87)' : 'rgba(0, 0, 0, 0.6)',
+                                  fontStyle: item.notes ? 'normal' : 'italic',
+                                  color: item.notes ? 'rgba(0, 0, 0, 0.87)' : 'rgba(0, 0, 0, 0.6)',
                                   width: '100%'
                                 }}
                               >
-                                {seed.notes || 'Keine Notizen vorhanden'}
+                                {item.notes || 'Keine Notizen vorhanden'}
                               </Typography>
                             </Box>
                           </Box>
@@ -1359,7 +1633,7 @@ export default function SeedPurchasePage() {
                     </Box>
                     
                     {/* Aktionsbereich - nur für aktive Samen anzeigen */}
-                    {tabValue === 0 && seed.remaining_quantity > 0 && (
+                    {tabValue === 0 && item.remaining_quantity > 0 && (
                       <Box 
                         sx={{ 
                           mt: 3, 
@@ -1380,7 +1654,7 @@ export default function SeedPurchasePage() {
                               <Button 
                                 variant="outlined" 
                                 color="success"
-                                onClick={() => handleOpenConvertDialog(seed, 'mother')}
+                                onClick={() => handleOpenConvertDialog(item, 'mother')}
                                 startIcon={<SpaIcon />}
                                 sx={{ mr: 1 }}
                               >
@@ -1391,7 +1665,7 @@ export default function SeedPurchasePage() {
                               <Button 
                                 variant="outlined" 
                                 color="success"
-                                onClick={() => handleOpenConvertDialog(seed, 'flower')}
+                                onClick={() => handleOpenConvertDialog(item, 'flower')}
                                 startIcon={<LocalFloristIcon />}
                                 sx={{ mr: 1 }}
                               >
@@ -1402,7 +1676,7 @@ export default function SeedPurchasePage() {
                               <Button 
                                 variant="outlined" 
                                 color="primary"
-                                onClick={() => handleOpenEditForm(seed)}
+                                onClick={() => handleOpenEditForm(item)}
                                 startIcon={<EditIcon />}
                                 sx={{ mr: 1 }}
                               >
@@ -1413,7 +1687,7 @@ export default function SeedPurchasePage() {
                               <Button 
                                 variant="contained" 
                                 color="error"
-                                onClick={() => handleOpenDestroyDialog(seed)}
+                                onClick={() => handleOpenDestroyDialog(item)}
                                 startIcon={<LocalFireDepartmentIcon />}
                               >
                                 Vernichten

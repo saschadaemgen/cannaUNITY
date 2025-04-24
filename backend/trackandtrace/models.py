@@ -10,23 +10,20 @@ class SeedPurchase(models.Model):
     strain_name = models.CharField(max_length=100)
     quantity = models.PositiveIntegerField()
     remaining_quantity = models.PositiveIntegerField()
+    destroyed_quantity = models.PositiveIntegerField(default=0)
     
     # Mitglieder- und Raumzuordnung für Samen-Einkauf
-    member = models.ForeignKey(Member, on_delete=models.SET_NULL, null=True, blank=True, 
-                              related_name='seed_purchases')
-    room = models.ForeignKey(Room, on_delete=models.SET_NULL, null=True, blank=True,
-                            related_name='seed_purchases')
+    member = models.ForeignKey(Member, on_delete=models.SET_NULL, null=True, blank=True, related_name='seed_purchases')
+    room = models.ForeignKey(Room, on_delete=models.SET_NULL, null=True, blank=True, related_name='seed_purchases')
     
     # Mitgliederzuordnung für Vernichtung
-    destroyed_by = models.ForeignKey(Member, on_delete=models.SET_NULL, null=True, blank=True,
-                                    related_name='destroyed_seeds')
+    destroyed_by = models.ForeignKey(Member, on_delete=models.SET_NULL, null=True, blank=True, related_name='destroyed_seeds')
     
     is_destroyed = models.BooleanField(default=False)
     destroy_reason = models.TextField(blank=True, null=True)
     destroyed_at = models.DateTimeField(blank=True, null=True)
     
-    original_seed = models.ForeignKey('self', blank=True, null=True, on_delete=models.SET_NULL, 
-                                     related_name='derived_seeds')
+    original_seed = models.ForeignKey('self', blank=True, null=True, on_delete=models.SET_NULL, related_name='derived_seeds')
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

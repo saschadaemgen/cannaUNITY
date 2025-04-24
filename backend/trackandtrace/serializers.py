@@ -64,7 +64,8 @@ class SeedPurchaseSerializer(serializers.ModelSerializer):
             'id', 'batch_number', 'strain_name', 'quantity', 'remaining_quantity',
             'is_destroyed', 'destroy_reason', 'destroyed_at', 'created_at',
             'member', 'member_id', 'room', 'room_id', 'destroyed_by', 'destroyed_by_id',
-            'original_seed', 'mother_plant_count', 'flowering_plant_count'
+            'original_seed', 'mother_plant_count', 'flowering_plant_count', 
+            'destroyed_quantity'
         ]
     
     def get_mother_plant_count(self, obj):

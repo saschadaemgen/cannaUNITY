@@ -175,6 +175,7 @@ class SeedPurchaseViewSet(viewsets.ModelViewSet):
         quantity = int(request.data.get('quantity', seed.remaining_quantity))
         destroyed_by_id = request.data.get('destroyed_by_id', None)
         
+        # Validierungslogik bleibt unverändert
         if not reason:
             return Response(
                 {"error": "Ein Vernichtungsgrund ist erforderlich"}, 
@@ -194,11 +195,12 @@ class SeedPurchaseViewSet(viewsets.ModelViewSet):
             )
         
         if quantity == seed.remaining_quantity:
-            # Wenn alle verbleibenden Samen vernichtet werden, markiere den ganzen Seed als vernichtet
+            # Wenn alle verbleibenden Samen vernichtet werden
             seed.is_destroyed = True
             seed.destroy_reason = reason
             seed.destroyed_at = timezone.now()
-            seed.original_seed = seed  # Selbstreferenz für den Fall, dass wir später zurückrechnen müssen
+            seed.destroyed_quantity = quantity  # Setze die vernichtete Menge
+            seed.original_seed = seed  # Selbstreferenz bleibt erhalten
             
             if destroyed_by_id:
                 seed.destroyed_by_id = destroyed_by_id
@@ -207,15 +209,16 @@ class SeedPurchaseViewSet(viewsets.ModelViewSet):
             
             message = f"Alle {quantity} Samen wurden vernichtet"
         else:
-            # Wenn nur ein Teil vernichtet wird, erstelle einen neuen vernichteten Seed-Eintrag
+            # Wenn nur ein Teil vernichtet wird
             destroyed_seed_kwargs = {
                 'strain_name': seed.strain_name,
-                'quantity': quantity,
+                'quantity': quantity,  # Die quantity bleibt gleich
                 'remaining_quantity': 0,
+                'destroyed_quantity': quantity,  # Setze die vernichtete Menge explizit
                 'is_destroyed': True,
                 'destroy_reason': reason,
                 'destroyed_at': timezone.now(),
-                'original_seed': seed  # Referenz zum Originalsamen speichern
+                'original_seed': seed  # Referenz zum Originalsamen bleibt erhalten
             }
             
             if destroyed_by_id:
@@ -223,7 +226,7 @@ class SeedPurchaseViewSet(viewsets.ModelViewSet):
                 
             destroyed_seed = SeedPurchase.objects.create(**destroyed_seed_kwargs)
             
-            # Reduziere die Menge der verfügbaren Samen
+            # Aktualisiere das Original-Samen-Objekt
             seed.remaining_quantity -= quantity
             seed.save()
             
@@ -231,39 +234,6 @@ class SeedPurchaseViewSet(viewsets.ModelViewSet):
         
         return Response({
             "message": message
-        })
-    
-    @action(detail=False, methods=['post'])
-    def bulk_destroy(self, request):
-        ids = request.data.get('ids', [])
-        reason = request.data.get('reason', '')
-        destroyed_by_id = request.data.get('destroyed_by_id', None)
-        
-        if not ids:
-            return Response(
-                {"error": "Keine Samen-IDs angegeben"}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        if not reason:
-            return Response(
-                {"error": "Ein Vernichtungsgrund ist erforderlich"}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        update_fields = {
-            'is_destroyed': True,
-            'destroy_reason': reason,
-            'destroyed_at': timezone.now()
-        }
-        
-        if destroyed_by_id:
-            update_fields['destroyed_by_id'] = destroyed_by_id
-            
-        SeedPurchase.objects.filter(id__in=ids).update(**update_fields)
-        
-        return Response({
-            "message": f"{len(ids)} Samen wurden als vernichtet markiert"
         })
     
     @action(detail=False, methods=['get'])
