@@ -1,17 +1,15 @@
 version: 2
 updates:
-  # Für dein React/Vite-Frontend
   - package-ecosystem: "npm"
     directory: "/frontend"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 5
-    rebase-strategy: auto
+    groups:
+      all-npm-deps:
+        patterns:
+          - "*"
 
-  # Für dein Django-Backend (falls du requirements.txt verwendest)
   - package-ecosystem: "pip"
     directory: "/backend"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 5
-    rebase-strategy: auto
