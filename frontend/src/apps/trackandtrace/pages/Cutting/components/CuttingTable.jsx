@@ -149,7 +149,7 @@ const CuttingTable = ({
         </Box>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
           <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)' }}>
-            Ursprungs-Mutterpflanzen-Charge:
+            Mutterpflanzen-Charge:
           </Typography>
           <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.87)' }}>
             {batch.mother_batch_number || "Unbekannt"}

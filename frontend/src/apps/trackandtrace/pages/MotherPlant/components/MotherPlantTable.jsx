@@ -47,12 +47,13 @@ const MotherPlantTable = ({
   loadingCuttings,
   cuttingsCurrentPage,
   cuttingsTotalPages,
-  onCuttingsPageChange
+  onCuttingsPageChange,
+  loadCuttingsForBatch
 }) => {
   // Zustände für die vernichteten Pflanzen-Details
   const [destroyedPlantsDetails, setDestroyedPlantsDetails] = useState({});
   const [loadingDestroyedDetails, setLoadingDestroyedDetails] = useState({});
-
+  
   // Funktion zum Laden der vernichteten Pflanzen-Details
   const loadDestroyedPlantsDetails = async (batchId) => {
     // Nur laden, wenn noch nicht vorhanden
@@ -82,6 +83,24 @@ const MotherPlantTable = ({
       setLoadingDestroyedDetails(prev => ({ ...prev, [batchId]: false }));
     }
   };
+  
+  // Kombinierter useEffect für Stecklinge und vernichtete Pflanzen - außerhalb von renderBatchDetails!
+  useEffect(() => {
+    // Batch-ID aus dem expandierten Batch ermitteln
+    const currentBatch = data.find(batch => batch.id === expandedBatchId);
+    
+    if (!currentBatch) return;
+    
+    // Wenn wir im Stecklinge-Tab sind und ein Batch expandiert ist
+    if (tabValue === 1 && expandedBatchId) {
+      loadCuttingsForBatch(expandedBatchId, 1);
+    }
+    
+    // Vernichtete Pflanzen-Details laden, wenn vorhanden
+    if (currentBatch.destroyed_plants_count > 0 && !destroyedPlantsDetails[expandedBatchId]) {
+      loadDestroyedPlantsDetails(expandedBatchId);
+    }
+  }, [tabValue, expandedBatchId, data]);
 
   // Spalten für den Tabellenkopf definieren
   const getHeaderColumns = () => {
@@ -132,9 +151,9 @@ const MotherPlantTable = ({
       },
       {
         content: batch.batch_number ? 
-        // Hier die Änderung vornehmen: füge "charge:" hinzu, falls es nicht bereits vorhanden ist
-        `${batch.batch_number.startsWith('charge:') ? '' : 'charge:'}${batch.batch_number}`
-        : '',
+          // Hier die Änderung: füge "charge:" hinzu, falls nicht vorhanden
+          `${batch.batch_number.startsWith('charge:') ? '' : 'charge:'}${batch.batch_number}`
+          : '',
         width: '22%',
         fontFamily: 'monospace',
         fontSize: '0.85rem'
@@ -151,7 +170,8 @@ const MotherPlantTable = ({
           align: 'center'
         },
         {
-          content: `${batch.destroyed_plants_count} Pflanzen`,
+          // Nur die Zahl anzeigen, ohne "Pflanzen"
+          content: `${batch.destroyed_plants_count}`,
           width: '10%',
           color: batch.destroyed_plants_count > 0 ? 'error.main' : 'text.primary'
         },
@@ -180,7 +200,7 @@ const MotherPlantTable = ({
           align: 'center'
         },
         {
-          content: `${batch.destroyed_cuttings_count} Stecklinge`,
+          content: `${batch.destroyed_cuttings_count}`,
           width: '10%',
           color: batch.destroyed_cuttings_count > 0 ? 'error.main' : 'text.primary'
         },
@@ -221,12 +241,6 @@ const MotherPlantTable = ({
 
   // Detailansicht für einen Batch rendern
   const renderBatchDetails = (batch) => {
-    // useEffect zum Laden der vernichteten Pflanzen
-    useEffect(() => {
-      if (batch.destroyed_plants_count > 0 && !destroyedPlantsDetails[batch.id]) {
-        loadDestroyedPlantsDetails(batch.id);
-      }
-    }, [batch.id, batch.destroyed_plants_count]);
     // Details-Card-Inhalte anpassen
     const chargeDetails = (
       <Box>
@@ -478,6 +492,7 @@ const MotherPlantTable = ({
       // Nur für Tab 1 (Konvertiert zu Stecklingen)
       if (tabValue !== 1) return null;
 
+      // Entferne den useEffect von hier und verwende stattdessen den useEffect auf Hauptkomponentenebene
       const isLoading = loadingCuttings?.[batch.id] || false;
       const cuttings = batchCuttings?.[batch.id] || [];
       const currentPage = cuttingsCurrentPage?.[batch.id] || 1;
