@@ -131,7 +131,10 @@ const MotherPlantTable = ({
         iconColor: 'primary.main'
       },
       {
-        content: batch.batch_number || '',
+        content: batch.batch_number ? 
+        // Hier die Änderung vornehmen: füge "charge:" hinzu, falls es nicht bereits vorhanden ist
+        `${batch.batch_number.startsWith('charge:') ? '' : 'charge:'}${batch.batch_number}`
+        : '',
         width: '22%',
         fontFamily: 'monospace',
         fontSize: '0.85rem'
