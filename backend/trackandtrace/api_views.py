@@ -504,12 +504,24 @@ class FloweringPlantBatchViewSet(viewsets.ModelViewSet):
         month = self.request.query_params.get('month', None)
         day = self.request.query_params.get('day', None)
         
+        # Neue Filter für aktive/vernichtete Pflanzen
+        has_active = self.request.query_params.get('has_active', None)
+        has_destroyed = self.request.query_params.get('has_destroyed', None)
+        
         if year:
             queryset = queryset.filter(created_at__year=year)
         if month:
             queryset = queryset.filter(created_at__month=month)
         if day:
             queryset = queryset.filter(created_at__day=day)
+        
+        # Filter für Batches mit aktiven Pflanzen
+        if has_active == 'true':
+            queryset = queryset.filter(plants__is_destroyed=False).distinct()
+        
+        # Filter für Batches mit vernichteten Pflanzen
+        if has_destroyed == 'true':
+            queryset = queryset.filter(plants__is_destroyed=True).distinct()
             
         # Berechne Anzahl für aktive und vernichtete Pflanzen
         active_plants = 0
@@ -579,15 +591,52 @@ class FloweringPlantBatchViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def counts(self, request):
         """
-        Gibt die Gesamtzahl der aktiven und vernichteten Blühpflanzen zurück
+        Gibt die Anzahl der Batches und Pflanzen je nach Typ zurück.
         """
-        active_count = FloweringPlant.objects.filter(is_destroyed=False).count()
-        destroyed_count = FloweringPlant.objects.filter(is_destroyed=True).count()
+        count_type = self.request.query_params.get('type', None)
         
-        return Response({
-            "active_count": active_count,
-            "destroyed_count": destroyed_count
-        })
+        if count_type == 'active':
+            # Zählung für aktive Pflanzen
+            batches_count = FloweringPlantBatch.objects.filter(
+                plants__is_destroyed=False
+            ).distinct().count()
+            plants_count = FloweringPlant.objects.filter(is_destroyed=False).count()
+            
+            return Response({
+                "batches_count": batches_count,
+                "plants_count": plants_count
+            })
+            
+        elif count_type == 'destroyed':
+            # Zählung für vernichtete Pflanzen
+            batches_count = FloweringPlantBatch.objects.filter(
+                plants__is_destroyed=True
+            ).distinct().count()
+            plants_count = FloweringPlant.objects.filter(is_destroyed=True).count()
+            
+            return Response({
+                "batches_count": batches_count,
+                "plants_count": plants_count
+            })
+        
+        else:
+            # Wenn kein Typ angegeben ist, gib alle Zahlen zurück
+            active_batches = FloweringPlantBatch.objects.filter(
+                plants__is_destroyed=False
+            ).distinct().count()
+            active_plants = FloweringPlant.objects.filter(is_destroyed=False).count()
+            
+            destroyed_batches = FloweringPlantBatch.objects.filter(
+                plants__is_destroyed=True
+            ).distinct().count()
+            destroyed_plants = FloweringPlant.objects.filter(is_destroyed=True).count()
+            
+            return Response({
+                "active_batches_count": active_batches,
+                "active_plants_count": active_plants,
+                "destroyed_batches_count": destroyed_batches,
+                "destroyed_plants_count": destroyed_plants
+            })
 
 class CuttingBatchViewSet(viewsets.ModelViewSet):
     queryset = CuttingBatch.objects.all().order_by('-created_at')

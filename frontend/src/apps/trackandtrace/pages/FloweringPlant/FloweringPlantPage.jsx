@@ -39,7 +39,9 @@ export default function FloweringPlantPage() {
   const [showFilters, setShowFilters] = useState(false)
   
   // Zähler für Tabs
+  const [activeBatchesCount, setActiveBatchesCount] = useState(0)
   const [activePlantsCount, setActivePlantsCount] = useState(0)
+  const [destroyedBatchesCount, setDestroyedBatchesCount] = useState(0)
   const [destroyedPlantsCount, setDestroyedPlantsCount] = useState(0)
   
   // Mitglieder für Vernichtungen
@@ -56,6 +58,15 @@ export default function FloweringPlantPage() {
       if (yearFilter) url += `&year=${yearFilter}`;
       if (monthFilter) url += `&month=${monthFilter}`;
       if (dayFilter) url += `&day=${dayFilter}`;
+      
+      // Je nach aktivem Tab nach Pflanzen-Status filtern
+      if (tabValue === 0) {
+        // Tab 0: Nur Batches mit aktiven Pflanzen anzeigen
+        url += '&has_active=true';
+      } else if (tabValue === 1) {
+        // Tab 1: Nur Batches mit vernichteten Pflanzen anzeigen
+        url += '&has_destroyed=true';
+      }
       
       const res = await api.get(url);
       console.log('Geladene Blühpflanzen-Batches:', res.data);
@@ -80,12 +91,18 @@ export default function FloweringPlantPage() {
     }
   }
   
-  // Separat die Zähler laden (für Tabs, die nicht aktiv sind)
-  const loadCounts = async () => {
+  // Funktion zum Laden aller Zähler (für Tabs)
+  const loadAllCounts = async () => {
     try {
-      const res = await api.get('/trackandtrace/floweringbatches/counts/');
-      setActivePlantsCount(res.data.active_count || 0);
-      setDestroyedPlantsCount(res.data.destroyed_count || 0);
+      // Lade Zähler für aktive Pflanzen
+      const activeRes = await api.get('/trackandtrace/floweringbatches/counts/?type=active');
+      setActiveBatchesCount(activeRes.data.batches_count || 0);
+      setActivePlantsCount(activeRes.data.plants_count || 0);
+      
+      // Lade Zähler für vernichtete Pflanzen
+      const destroyedRes = await api.get('/trackandtrace/floweringbatches/counts/?type=destroyed');
+      setDestroyedBatchesCount(destroyedRes.data.batches_count || 0);
+      setDestroyedPlantsCount(destroyedRes.data.plants_count || 0);
     } catch (error) {
       console.error('Fehler beim Laden der Zähler:', error);
     }
@@ -116,16 +133,26 @@ export default function FloweringPlantPage() {
 
   useEffect(() => {
     loadFloweringBatches()
-    loadCounts() // Alle Zähler beim ersten Laden holen
+    loadAllCounts() // Alle Zähler beim ersten Laden holen
     loadMembers() // Mitglieder laden
   }, [])
 
+  // useEffect-Hook für Tab-Wechsel hinzufügen
+  useEffect(() => {
+    // Zurücksetzen der Seite bei Tab-Wechsel
+    setCurrentPage(1);
+    
+    // Je nach Tab die richtigen Daten laden
+    loadFloweringBatches(1);
+    
+    // Zurücksetzen des expandierten Batches beim Tab-Wechsel
+    setExpandedBatchId('');
+    setBatchPlants({});
+    setDestroyedBatchPlants({});
+  }, [tabValue]);
+
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue)
-    // Beim Tab-Wechsel alle geöffneten Akkordeons schließen
-    setExpandedBatchId('')
-    setBatchPlants({})
-    setDestroyedBatchPlants({})
   }
 
   const handleAccordionChange = async (batchId) => {
@@ -319,7 +346,7 @@ export default function FloweringPlantPage() {
           loadDestroyedPlantsForBatch(selectedBatch.id, destroyedPlantsCurrentPage[selectedBatch.id] || 1);
         }
         
-        loadCounts(); // Zähler aktualisieren
+        loadAllCounts(); // Zähler aktualisieren
         loadFloweringBatches(currentPage); // Batches neu laden für aktualisierte Zahlen
       }
     } catch (error) {
@@ -374,8 +401,8 @@ export default function FloweringPlantPage() {
 
   // Tabs definieren
   const tabs = [
-    { label: `AKTIVE PFLANZEN (${activePlantsCount})` },
-    { label: `VERNICHTETE PFLANZEN (${destroyedPlantsCount})` }
+    { label: `AKTIVE PFLANZEN (${activeBatchesCount}/${activePlantsCount})` },
+    { label: `VERNICHTETE PFLANZEN (${destroyedBatchesCount}/${destroyedPlantsCount})` }
   ];
 
   return (
