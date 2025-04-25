@@ -298,12 +298,24 @@ class MotherPlantBatchViewSet(viewsets.ModelViewSet):
         month = self.request.query_params.get('month', None)
         day = self.request.query_params.get('day', None)
         
+        # Neue Filter für aktive/vernichtete Pflanzen
+        has_active = self.request.query_params.get('has_active', None)
+        has_destroyed = self.request.query_params.get('has_destroyed', None)
+        
         if year:
             queryset = queryset.filter(created_at__year=year)
         if month:
             queryset = queryset.filter(created_at__month=month)
         if day:
             queryset = queryset.filter(created_at__day=day)
+        
+        # Filter für Batches mit aktiven Pflanzen
+        if has_active == 'true':
+            queryset = queryset.filter(plants__is_destroyed=False).distinct()
+        
+        # Filter für Batches mit vernichteten Pflanzen
+        if has_destroyed == 'true':
+            queryset = queryset.filter(plants__is_destroyed=True).distinct()
             
         # Berechne Anzahl für aktive und vernichtete Pflanzen
         active_plants = 0
@@ -373,27 +385,71 @@ class MotherPlantBatchViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def counts(self, request):
         """
-        Gibt die Gesamtzahl der aktiven und vernichteten Mutterpflanzen zurück,
-        sowie die Anzahl der daraus erstellten Stecklinge.
+        Gibt die Anzahl der Batches und Pflanzen je nach Typ zurück.
         """
-        active_count = MotherPlant.objects.filter(is_destroyed=False).count()
-        destroyed_count = MotherPlant.objects.filter(is_destroyed=True).count()
+        count_type = self.request.query_params.get('type', None)
         
-        # Zählen der Stecklinge-Batches, die von Mutterpflanzen stammen
-        cutting_batch_count = CuttingBatch.objects.filter(mother_batch__isnull=False).count()
+        if count_type == 'active':
+            # Zählung für aktive Pflanzen
+            batches_count = MotherPlantBatch.objects.filter(
+                plants__is_destroyed=False
+            ).distinct().count()
+            plants_count = MotherPlant.objects.filter(is_destroyed=False).count()
+            
+            return Response({
+                "batches_count": batches_count,
+                "plants_count": plants_count
+            })
+            
+        elif count_type == 'destroyed':
+            # Zählung für vernichtete Pflanzen
+            batches_count = MotherPlantBatch.objects.filter(
+                plants__is_destroyed=True
+            ).distinct().count()
+            plants_count = MotherPlant.objects.filter(is_destroyed=True).count()
+            
+            return Response({
+                "batches_count": batches_count,
+                "plants_count": plants_count
+            })
+            
+        elif count_type == 'cutting':
+            # Zählung für Stecklinge
+            batch_count = CuttingBatch.objects.filter(mother_batch__isnull=False).count()
+            cutting_count = 0
+            for batch in CuttingBatch.objects.filter(mother_batch__isnull=False):
+                cutting_count += batch.cuttings.filter(is_destroyed=False).count()
+                
+            return Response({
+                "batch_count": batch_count,
+                "cutting_count": cutting_count
+            })
         
-        # Zählen der tatsächlichen Stecklinge in diesen Batches
-        cutting_count = 0
-        cutting_batches = CuttingBatch.objects.filter(mother_batch__isnull=False)
-        for batch in cutting_batches:
-            cutting_count += batch.cuttings.filter(is_destroyed=False).count()
-        
-        return Response({
-            "active_count": active_count,
-            "destroyed_count": destroyed_count,
-            "cutting_batch_count": cutting_batch_count,
-            "cutting_count": cutting_count
-        })
+        else:
+            # Wenn kein Typ angegeben ist, gib alle Zahlen zurück
+            active_batches = MotherPlantBatch.objects.filter(
+                plants__is_destroyed=False
+            ).distinct().count()
+            active_plants = MotherPlant.objects.filter(is_destroyed=False).count()
+            
+            destroyed_batches = MotherPlantBatch.objects.filter(
+                plants__is_destroyed=True
+            ).distinct().count()
+            destroyed_plants = MotherPlant.objects.filter(is_destroyed=True).count()
+            
+            cutting_batches = CuttingBatch.objects.filter(mother_batch__isnull=False).count()
+            cutting_count = 0
+            for batch in CuttingBatch.objects.filter(mother_batch__isnull=False):
+                cutting_count += batch.cuttings.filter(is_destroyed=False).count()
+            
+            return Response({
+                "active_batches_count": active_batches,
+                "active_plants_count": active_plants,
+                "destroyed_batches_count": destroyed_batches,
+                "destroyed_plants_count": destroyed_plants,
+                "cutting_batch_count": cutting_batches,
+                "cutting_count": cutting_count
+            })
         
     @action(detail=True, methods=['post'])
     def create_cuttings(self, request, pk=None):

@@ -93,7 +93,7 @@ const MotherPlantTable = ({
     
     // Wenn wir im Stecklinge-Tab sind und ein Batch expandiert ist
     if (tabValue === 1 && expandedBatchId) {
-      loadCuttingsForBatch(expandedBatchId, 1);
+      loadCuttingsForBatch && loadCuttingsForBatch(expandedBatchId, 1);
     }
     
     // Vernichtete Pflanzen-Details laden, wenn vorhanden
@@ -599,9 +599,9 @@ const MotherPlantTable = ({
         {/* Stecklinge-Details nur im Stecklinge-Tab anzeigen */}
         {tabValue === 1 && renderCuttingsDetails()}
 
-        {/* Je nach Tab die entsprechende Pflanzen-Tabelle anzeigen */}
-        {tabValue === 0 ? (
-          // Tab 0: Aktive Pflanzen
+        {/* PROBLEM-BEREICH: Je nach Tab die entsprechende Pflanzen-Tabelle anzeigen */}
+        {/* Tab 0: Aktive Pflanzen */}
+        {tabValue === 0 && (
           <>
             {batchPlants[batch.id] ? (
               <Box sx={{ width: '100%', mt: 2, mb: 4 }}>
@@ -781,8 +781,10 @@ const MotherPlantTable = ({
               <LoadingIndicator size={24} />
             )}
           </>
-        ) : tabValue === 2 ? (
-          // Tab 2: Vernichtete Pflanzen (vorher Tab 1)
+        )}
+
+        {/* Tab 2: Vernichtete Pflanzen */}
+        {tabValue === 2 && (
           <>
             {destroyedBatchPlants[batch.id] ? (
               <Box sx={{ width: '100%', mt: 2 }}>
@@ -858,7 +860,7 @@ const MotherPlantTable = ({
               <LoadingIndicator size={24} />
             )}
           </>
-        ) : null}
+        )}
       </>
     );
   };

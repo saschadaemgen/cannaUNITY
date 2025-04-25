@@ -39,8 +39,10 @@ export default function MotherPlantPage() {
   const [dayFilter, setDayFilter] = useState('')
   const [showFilters, setShowFilters] = useState(false)
   
-  // Zähler für Tabs
+  // Zähler für Tabs - Aktualisiert für separate Batch- und Pflanzenzähler
+  const [activeBatchesCount, setActiveBatchesCount] = useState(0)
   const [activePlantsCount, setActivePlantsCount] = useState(0)
+  const [destroyedBatchesCount, setDestroyedBatchesCount] = useState(0)
   const [destroyedPlantsCount, setDestroyedPlantsCount] = useState(0)
   
   // Neu: State für Stecklings-Chargen hinzufügen
@@ -75,6 +77,15 @@ export default function MotherPlantPage() {
       if (yearFilter) url += `&year=${yearFilter}`;
       if (monthFilter) url += `&month=${monthFilter}`;
       if (dayFilter) url += `&day=${dayFilter}`;
+      
+      // Je nach aktivem Tab nach Pflanzen-Status filtern
+      if (tabValue === 0) {
+        // Tab 0: Nur Batches mit aktiven Pflanzen anzeigen
+        url += '&has_active=true';
+      } else if (tabValue === 2) {
+        // Tab 2: Nur Batches mit vernichteten Pflanzen anzeigen
+        url += '&has_destroyed=true';
+      }
       
       const res = await api.get(url);
       console.log('Geladene Mutterpflanzen-Batches:', res.data);
@@ -125,16 +136,23 @@ export default function MotherPlantPage() {
     }
   };
   
-  // Separat die Zähler laden (für Tabs, die nicht aktiv sind)
-  const loadCounts = async () => {
+  // Verbesserte Funktion zum Laden aller Zähler mit separaten API-Aufrufen
+  const loadAllCounts = async () => {
     try {
-      const res = await api.get('/trackandtrace/motherbatches/counts/');
-      setActivePlantsCount(res.data.active_count || 0);
-      setDestroyedPlantsCount(res.data.destroyed_count || 0);
+      // Lade Zähler für aktive Pflanzen
+      const activeRes = await api.get('/trackandtrace/motherbatches/counts/?type=active');
+      setActiveBatchesCount(activeRes.data.batches_count || 0);
+      setActivePlantsCount(activeRes.data.plants_count || 0);
       
-      // Neue Zähler für Stecklinge
-      setCuttingBatchCount(res.data.cutting_batch_count || 0);
-      setCuttingCount(res.data.cutting_count || 0);
+      // Lade Zähler für vernichtete Pflanzen
+      const destroyedRes = await api.get('/trackandtrace/motherbatches/counts/?type=destroyed');
+      setDestroyedBatchesCount(destroyedRes.data.batches_count || 0);
+      setDestroyedPlantsCount(destroyedRes.data.plants_count || 0);
+      
+      // Lade Zähler für Stecklinge
+      const cuttingRes = await api.get('/trackandtrace/motherbatches/counts/?type=cutting');
+      setCuttingBatchCount(cuttingRes.data.batch_count || 0);
+      setCuttingCount(cuttingRes.data.cutting_count || 0);
     } catch (error) {
       console.error('Fehler beim Laden der Zähler:', error);
     }
@@ -168,11 +186,11 @@ export default function MotherPlantPage() {
 
   useEffect(() => {
     loadMotherBatches()
-    loadCounts() // Alle Zähler beim ersten Laden holen
+    loadAllCounts() // Verbessert: Alle Zähler beim ersten Laden holen
     loadMembersAndRooms() // Mitglieder und Räume laden
   }, [])
 
-  // Aktualisierter useEffect für Tab-Wechsel mit neuer Tab-Reihenfolge
+  // Aktualisierter useEffect für Tab-Wechsel mit verbesserter Zähler-Logik
   useEffect(() => {
     // Zurücksetzen der Seite bei Tab-Wechsel
     setCurrentPage(1);
@@ -189,7 +207,8 @@ export default function MotherPlantPage() {
       loadMotherBatches(1);
     }
     
-    loadCounts();
+    // Verbessert: Lade alle Zähler unabhängig vom Tab
+    loadAllCounts();
     
     // Zurücksetzen des expandierten Batches beim Tab-Wechsel
     setExpandedBatchId('');
@@ -368,7 +387,7 @@ export default function MotherPlantPage() {
     loadDestroyedPlantsForBatch(batchId, page)
   }
 
-  // Aktualisierte refreshData Funktion mit neuer Tab-Logik
+  // Aktualisierte refreshData Funktion mit verbesserter Zähler-Logik
   const refreshData = () => {
     // Daten je nach aktivem Tab neu laden
     if (expandedBatchId) {
@@ -379,13 +398,15 @@ export default function MotherPlantPage() {
       }
     }
     
-    // Hauptdaten und Zähler aktualisieren
+    // Hauptdaten aktualisieren
     if (tabValue === 0 || tabValue === 2) {
       loadMotherBatches(currentPage); // Für Tab 0 (Aktive) und Tab 2 (Vernichtete)
     } else if (tabValue === 1) {
       loadCuttingBatches(currentPage); // Für Tab 1 (Stecklinge)
     }
-    loadCounts();
+    
+    // Verbessert: Lade alle Zähler unabhängig vom Tab
+    loadAllCounts();
   };
 
   // Aktualisierte getDisplayedData Funktion mit neuer Tab-Logik
@@ -534,11 +555,11 @@ export default function MotherPlantPage() {
   // Die Daten, die in der aktuellen Tabelle angezeigt werden sollen
   const displayedData = getDisplayedData();
 
-  // Aktualisierte Tabs-Definition mit neuer Reihenfolge
+  // Aktualisierte Tabs-Definition mit separaten Zählern für Batches und Pflanzen
   const tabs = [
-    { label: `AKTIVE PFLANZEN (${activePlantsCount})` },
+    { label: `AKTIVE PFLANZEN (${activeBatchesCount}/${activePlantsCount})` },
     { label: `KONVERTIERT ZU STECKLINGEN (${cuttingBatchCount}/${cuttingCount})` },
-    { label: `VERNICHTETE PFLANZEN (${destroyedPlantsCount})` }
+    { label: `VERNICHTETE PFLANZEN (${destroyedBatchesCount}/${destroyedPlantsCount})` }
   ];
 
   return (
