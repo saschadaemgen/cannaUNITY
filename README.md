@@ -1,7 +1,7 @@
 # 🌿 cannaUNITY v0.6.18 (Pre-Alpha)
 
 > **Modulare Open-Source-Software für Cannabis Social Clubs und Anbauvereinigungen gemäß dem Konsumcannabisgesetz § (KCanG)**  
-> Mitgliederverwaltung · Aufgabenplanung · Zutrittskontrolle · Track & Trace · Buchhaltung · WaWi · Raumautomation · Sicherheitssysteme · Zutrittskontrolle
+> Mitgliederverwaltung · Aufgabenplanung · Zutrittskontrolle · Track & Trace · Buchhaltung · WaWi · Raumautomation · Sicherheitssysteme
 
 ![GitHub Repo stars](https://img.shields.io/github/stars/saschadaemgen/cannaUNITY?style=social)
 ![GitHub license](https://img.shields.io/github/license/saschadaemgen/cannaUNITY)
