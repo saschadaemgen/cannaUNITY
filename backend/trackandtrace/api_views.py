@@ -652,6 +652,10 @@ class CuttingBatchViewSet(viewsets.ModelViewSet):
         month = self.request.query_params.get('month', None)
         day = self.request.query_params.get('day', None)
         
+        # Neue Filter für aktive/vernichtete Stecklinge
+        has_active = self.request.query_params.get('has_active', None)
+        has_destroyed = self.request.query_params.get('has_destroyed', None)
+        
         # Filtern nach Mutterpflanzen-Batch, falls Parameter vorhanden
         mother_batch_id = self.request.query_params.get('mother_batch_id', None)
         if mother_batch_id:
@@ -663,6 +667,14 @@ class CuttingBatchViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(created_at__month=month)
         if day:
             queryset = queryset.filter(created_at__day=day)
+        
+        # Filter für Batches mit aktiven Stecklingen
+        if has_active == 'true':
+            queryset = queryset.filter(cuttings__is_destroyed=False).distinct()
+        
+        # Filter für Batches mit vernichteten Stecklingen
+        if has_destroyed == 'true':
+            queryset = queryset.filter(cuttings__is_destroyed=True).distinct()
             
         # Berechne Anzahl für aktive und vernichtete Stecklinge
         active_cuttings = 0
@@ -750,8 +762,30 @@ class CuttingBatchViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def counts(self, request):
         """
-        Gibt die Gesamtzahl der aktiven und vernichteten Stecklinge zurück
+        Gibt die Anzahl der Batches und Stecklinge je nach Typ zurück.
         """
+        count_type = self.request.query_params.get('type', None)
+        
+        if count_type == 'all':
+            # Alle Zähler auf einmal zurückgeben
+            active_batches = CuttingBatch.objects.filter(
+                cuttings__is_destroyed=False
+            ).distinct().count()
+            active_count = Cutting.objects.filter(is_destroyed=False).count()
+            
+            destroyed_batches = CuttingBatch.objects.filter(
+                cuttings__is_destroyed=True
+            ).distinct().count()
+            destroyed_count = Cutting.objects.filter(is_destroyed=True).count()
+            
+            return Response({
+                "active_batches_count": active_batches,
+                "active_count": active_count,
+                "destroyed_batches_count": destroyed_batches,
+                "destroyed_count": destroyed_count
+            })
+        
+        # Standardverhalten: nur aktive/vernichtete Zähler zurückgeben
         active_count = Cutting.objects.filter(is_destroyed=False).count()
         destroyed_count = Cutting.objects.filter(is_destroyed=True).count()
         
@@ -759,7 +793,6 @@ class CuttingBatchViewSet(viewsets.ModelViewSet):
             "active_count": active_count,
             "destroyed_count": destroyed_count
         })
-    
 
 class MotherPlantViewSet(viewsets.ModelViewSet):
     """

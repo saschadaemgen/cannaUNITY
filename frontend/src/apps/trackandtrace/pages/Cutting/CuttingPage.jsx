@@ -39,7 +39,9 @@ export default function CuttingPage() {
   const [showFilters, setShowFilters] = useState(false)
   
   // Zähler für Tabs
+  const [activeBatchesCount, setActiveBatchesCount] = useState(0)
   const [activeCuttingsCount, setActiveCuttingsCount] = useState(0)
+  const [destroyedBatchesCount, setDestroyedBatchesCount] = useState(0)
   const [destroyedCuttingsCount, setDestroyedCuttingsCount] = useState(0)
   
   // Mitglieder für Vernichtungen
@@ -57,6 +59,13 @@ export default function CuttingPage() {
       if (monthFilter) url += `&month=${monthFilter}`;
       if (dayFilter) url += `&day=${dayFilter}`;
       
+      // Je nach Tab filtern
+      if (tabValue === 0) {
+        url += '&has_active=true';
+      } else if (tabValue === 1) {
+        url += '&has_destroyed=true';
+      }
+      
       const res = await api.get(url);
       console.log('Geladene Stecklinge-Batches:', res.data);
       
@@ -67,12 +76,6 @@ export default function CuttingPage() {
       const pages = Math.ceil(total / 5) // pageSize ist 5, wie im Backend definiert
       setTotalPages(pages)
       setCurrentPage(page)
-      
-      // Zähler aus der Antwort übernehmen
-      if (res.data.counts) {
-        setActiveCuttingsCount(res.data.counts.active_count || 0);
-        setDestroyedCuttingsCount(res.data.counts.destroyed_count || 0);
-      }
     } catch (error) {
       console.error('Fehler beim Laden der Stecklinge-Chargen:', error)
     } finally {
@@ -80,11 +83,16 @@ export default function CuttingPage() {
     }
   }
   
-  // Separat die Zähler laden (für Tabs, die nicht aktiv sind)
-  const loadCounts = async () => {
+  // Separate Funktion zum Laden aller Zähler (unabhängig vom Tab)
+  const loadAllCounts = async () => {
     try {
-      const res = await api.get('/trackandtrace/cuttingbatches/counts/');
+      // Direkte API-Anfrage für alle Zähler
+      const res = await api.get('/trackandtrace/cuttingbatches/counts/?type=all');
+      
+      // Setze die State-Variablen
+      setActiveBatchesCount(res.data.active_batches_count || 0);
       setActiveCuttingsCount(res.data.active_count || 0);
+      setDestroyedBatchesCount(res.data.destroyed_batches_count || 0);
       setDestroyedCuttingsCount(res.data.destroyed_count || 0);
     } catch (error) {
       console.error('Fehler beim Laden der Zähler:', error);
@@ -115,9 +123,36 @@ export default function CuttingPage() {
 
   useEffect(() => {
     loadCuttingBatches()
-    loadCounts() // Alle Zähler beim ersten Laden holen
     loadMembers() // Mitglieder laden
   }, [])
+  
+  // Separate useEffect für Zähler-Aktualisierung
+  useEffect(() => {
+    // Initiale Ladung der Zähler
+    loadAllCounts();
+    
+    // Setze Intervall für regelmäßige Aktualisierung
+    const counterInterval = setInterval(() => {
+      loadAllCounts();
+    }, 2000);
+    
+    // Aufräumen beim Unmount der Komponente
+    return () => clearInterval(counterInterval);
+  }, []);
+  
+  // useEffect für Tab-Wechsel
+  useEffect(() => {
+    // Zurücksetzen der Seite bei Tab-Wechsel
+    setCurrentPage(1);
+    
+    // Je nach Tab die richtigen Daten laden
+    loadCuttingBatches(1);
+    
+    // Zurücksetzen des expandierten Batches beim Tab-Wechsel
+    setExpandedBatchId('');
+    setBatchCuttings({});
+    setDestroyedBatchCuttings({});
+  }, [tabValue]);
 
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue)
@@ -318,7 +353,7 @@ export default function CuttingPage() {
           loadDestroyedCuttingsForBatch(selectedBatch.id, destroyedCuttingsCurrentPage[selectedBatch.id] || 1);
         }
         
-        loadCounts(); // Zähler aktualisieren
+        loadAllCounts(); // Zähler aktualisieren
         loadCuttingBatches(currentPage); // Batches neu laden für aktualisierte Zahlen
       }
     } catch (error) {
@@ -373,8 +408,8 @@ export default function CuttingPage() {
 
   // Tabs definieren
   const tabs = [
-    { label: `AKTIVE STECKLINGE (${activeCuttingsCount})` },
-    { label: `VERNICHTETE STECKLINGE (${destroyedCuttingsCount})` }
+    { label: `CHARGEN / AKTIVE STECKLINGE (${activeBatchesCount}/${activeCuttingsCount})` },
+    { label: `CHARGEN / VERNICHTETE STECKLINGE (${destroyedBatchesCount}/${destroyedCuttingsCount})` }
   ];
 
   return (

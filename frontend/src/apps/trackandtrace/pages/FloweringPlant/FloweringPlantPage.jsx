@@ -48,6 +48,39 @@ export default function FloweringPlantPage() {
   const [members, setMembers] = useState([])
   const [destroyedByMemberId, setDestroyedByMemberId] = useState('')
 
+  // Separate Funktion nur für die Zähler, die unabhängig von allem anderen arbeitet
+  const loadTabCounts = async () => {
+    try {
+      // Direkter API-Aufruf zur counts-Methode ohne Filter
+      const res = await api.get('/trackandtrace/floweringbatches/counts/');
+      
+      // Debug-Ausgabe
+      console.log("ZÄHLER API-ANTWORT:", res.data);
+      
+      // Speichere die Zähler in lokalen Variablen
+      const activeB = res.data.active_batches_count || 0;
+      const activeP = res.data.active_plants_count || 0;
+      const destroyedB = res.data.destroyed_batches_count || 0;
+      const destroyedP = res.data.destroyed_plants_count || 0;
+      
+      // Setze die State-Variablen
+      setActiveBatchesCount(activeB);
+      setActivePlantsCount(activeP);
+      setDestroyedBatchesCount(destroyedB);
+      setDestroyedPlantsCount(destroyedP);
+      
+      // Debug-Ausgabe nach dem Setzen
+      console.log("GESETZTE ZÄHLER:", {
+        activeBatches: activeB,
+        activePlants: activeP,
+        destroyedBatches: destroyedB,
+        destroyedPlants: destroyedP
+      });
+    } catch (error) {
+      console.error('Fehler beim Laden der Tab-Zähler:', error);
+    }
+  };
+
   const loadFloweringBatches = async (page = 1) => {
     setLoading(true)
     try {
@@ -78,12 +111,6 @@ export default function FloweringPlantPage() {
       const pages = Math.ceil(total / 5) // pageSize ist 5, wie im Backend definiert
       setTotalPages(pages)
       setCurrentPage(page)
-      
-      // Zähler aus der Antwort übernehmen
-      if (res.data.counts) {
-        setActivePlantsCount(res.data.counts.active_count || 0);
-        setDestroyedPlantsCount(res.data.counts.destroyed_count || 0);
-      }
     } catch (error) {
       console.error('Fehler beim Laden der Blühpflanzen-Chargen:', error)
     } finally {
@@ -133,9 +160,20 @@ export default function FloweringPlantPage() {
 
   useEffect(() => {
     loadFloweringBatches()
-    loadAllCounts() // Alle Zähler beim ersten Laden holen
+    loadTabCounts() // Initiale Ladung der Zähler
     loadMembers() // Mitglieder laden
   }, [])
+  
+  // Separate useEffect nur für Zähler
+  useEffect(() => {
+    // Setze Intervall für regelmäßige Aktualisierung (alle 2 Sekunden)
+    const counterInterval = setInterval(() => {
+      loadTabCounts();
+    }, 2000);
+    
+    // Aufräumen beim Unmount der Komponente
+    return () => clearInterval(counterInterval);
+  }, []); // Leeres Dependency-Array = wird nur einmal beim ersten Rendern ausgeführt
 
   // useEffect-Hook für Tab-Wechsel hinzufügen
   useEffect(() => {
@@ -346,7 +384,7 @@ export default function FloweringPlantPage() {
           loadDestroyedPlantsForBatch(selectedBatch.id, destroyedPlantsCurrentPage[selectedBatch.id] || 1);
         }
         
-        loadAllCounts(); // Zähler aktualisieren
+        // Zähler werden automatisch aktualisiert durch das Intervall
         loadFloweringBatches(currentPage); // Batches neu laden für aktualisierte Zahlen
       }
     } catch (error) {
@@ -399,12 +437,7 @@ export default function FloweringPlantPage() {
     loadFloweringBatches(1) // Zurück zur ersten Seite nach Filter-Reset
   }
 
-  // Tabs definieren
-  const tabs = [
-    { label: `AKTIVE PFLANZEN (${activeBatchesCount}/${activePlantsCount})` },
-    { label: `VERNICHTETE PFLANZEN (${destroyedBatchesCount}/${destroyedPlantsCount})` }
-  ];
-
+  // Tab-Definition direkt im Return-Statement
   return (
     <Container maxWidth="xl" sx={{ width: '100%' }}>
       <PageHeader 
@@ -428,7 +461,10 @@ export default function FloweringPlantPage() {
       <TabsHeader 
         tabValue={tabValue} 
         onTabChange={handleTabChange} 
-        tabs={tabs}
+        tabs={[
+          { label: `CHARGEN / AKTIVE PFLANZEN (${activeBatchesCount}/${activePlantsCount})` },
+          { label: `CHARGEN / VERNICHTETE PFLANZEN (${destroyedBatchesCount}/${destroyedPlantsCount})` }
+        ]}
         color="primary"
         ariaLabel="Blühpflanzen-Tabs"
       />

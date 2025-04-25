@@ -18,31 +18,40 @@ const TabsHeader = ({
   ariaLabel = 'tabs'
 }) => {
   return (
-    <Paper sx={{ mb: 2, width: '100%', overflow: 'hidden', borderRadius: 0 }}>
-      <Tabs 
-        value={tabValue} 
-        onChange={onTabChange} 
-        aria-label={ariaLabel}
-        sx={{
-          '& .MuiTabs-indicator': { height: '3px' }
+// Aktualisiere die Paper-Komponente, um 100% Breite zu verwenden
+<Paper sx={{ mb: 2, width: '100%', overflow: 'hidden', borderRadius: 0 }}>
+  <Tabs 
+    value={tabValue} 
+    onChange={onTabChange} 
+    aria-label={ariaLabel}
+    variant="fullWidth" // Wichtig: Tabs nehmen die volle Breite ein
+    sx={{
+      '& .MuiTabs-indicator': { height: '3px' },
+      '& .MuiTab-root': { 
+        minWidth: 0, // Erlaubt schmalere Tabs
+        padding: '12px 8px', // Reduzierte Polsterung
+        fontSize: { xs: '0.7rem', sm: '0.8rem', md: '0.85rem' } // Responsive Schriftgröße
+      }
+    }}
+  >
+    {tabs.map((tab, index) => (
+      <Tab 
+        key={index}
+        label={tab.label}
+        sx={{ 
+          color: tabValue === index ? `${color}.main` : 'text.primary',
+          '&.Mui-selected': {
+            color: `${color}.main`,
+            fontWeight: 700
+          },
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis'
         }}
-      >
-        {tabs.map((tab, index) => (
-          <Tab 
-            key={index}
-            label={tab.label}
-            sx={{ 
-              color: tabValue === index ? `${color}.main` : 'text.primary',
-              '&.Mui-selected': {
-                color: `${color}.main`,
-                fontWeight: 700
-              },
-              whiteSpace: 'nowrap'
-            }}
-          />
-        ))}
-      </Tabs>
-    </Paper>
+      />
+    ))}
+  </Tabs>
+</Paper>
   )
 }
 

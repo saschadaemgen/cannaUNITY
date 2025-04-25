@@ -557,9 +557,9 @@ export default function MotherPlantPage() {
 
   // Aktualisierte Tabs-Definition mit separaten Zählern für Batches und Pflanzen
   const tabs = [
-    { label: `AKTIVE PFLANZEN (${activeBatchesCount}/${activePlantsCount})` },
-    { label: `KONVERTIERT ZU STECKLINGEN (${cuttingBatchCount}/${cuttingCount})` },
-    { label: `VERNICHTETE PFLANZEN (${destroyedBatchesCount}/${destroyedPlantsCount})` }
+    { label: `CHARGEN / AKTIVE PFLANZEN (${activeBatchesCount}/${activePlantsCount})` },
+    { label: `CHARGEN / ZU STECKLINGE (${cuttingBatchCount}/${cuttingCount})` },
+    { label: `CHARGEN / VERNICHTETE PFLANZEN (${destroyedBatchesCount}/${destroyedPlantsCount})` }
   ];
 
   return (

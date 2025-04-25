@@ -414,10 +414,10 @@ export default function SeedPurchasePage() {
 
   // Tabs definieren
   const tabs = [
-    { label: `AKTIVE SAMEN (${activeSeedCount}/${totalActiveQuantity})` },
-    { label: `KONVERTIERT ZU MUTTERPFLANZEN (${motherBatchCount}/${motherPlantCount})` },
-    { label: `KONVERTIERT ZU BLÜHPFLANZEN (${floweringBatchCount}/${floweringPlantCount})` },
-    { label: `VERNICHTET (${destroyedCount}/${totalDestroyedQuantity})` }
+    { label: `CHARGEN / AKTIVE SAMEN (${activeSeedCount}/${totalActiveQuantity})` },
+    { label: `CHARGEN / ZU MUTTERPFLANZEN (${motherBatchCount}/${motherPlantCount})` },
+    { label: `CHARGEN / ZU BLÜHPFLANZEN (${floweringBatchCount}/${floweringPlantCount})` },
+    { label: `CHARGEN / VERNICHTET (${destroyedCount}/${totalDestroyedQuantity})` }
   ];
 
   return (
