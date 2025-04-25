@@ -1,12 +1,16 @@
 // frontend/src/apps/trackandtrace/pages/MotherPlant/components/MotherPlantTable.jsx
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { 
   Box, Typography, Button, IconButton, Tooltip, Checkbox, 
   Table, TableContainer, TableHead, TableRow, TableCell, TableBody,
-  Paper, FormControlLabel, Pagination
+  Paper, FormControlLabel, Pagination, CircularProgress
 } from '@mui/material'
 import ScienceIcon from '@mui/icons-material/Science'
 import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment'
+import ContentCutIcon from '@mui/icons-material/ContentCut'
+
+// API-Client importieren
+import api from '../../../../../utils/api'
 
 import TableHeader from '../../../components/common/TableHeader'
 import AccordionRow from '../../../components/common/AccordionRow'
@@ -23,6 +27,7 @@ const MotherPlantTable = ({
   expandedBatchId,
   onExpandBatch,
   onOpenDestroyDialog,
+  onOpenCreateCuttingDialog,
   currentPage,
   totalPages,
   onPageChange,
@@ -36,70 +41,163 @@ const MotherPlantTable = ({
   onDestroyedPlantsPageChange,
   selectedPlants,
   togglePlantSelection,
-  selectAllPlantsInBatch
+  selectAllPlantsInBatch,
+  // Neue Props für Stecklinge-Paginierung und -Daten
+  batchCuttings,
+  loadingCuttings,
+  cuttingsCurrentPage,
+  cuttingsTotalPages,
+  onCuttingsPageChange
 }) => {
+  // Zustände für die vernichteten Pflanzen-Details
+  const [destroyedPlantsDetails, setDestroyedPlantsDetails] = useState({});
+  const [loadingDestroyedDetails, setLoadingDestroyedDetails] = useState({});
+
+  // Funktion zum Laden der vernichteten Pflanzen-Details
+  const loadDestroyedPlantsDetails = async (batchId) => {
+    // Nur laden, wenn noch nicht vorhanden
+    if (destroyedPlantsDetails[batchId]) return;
+    
+    setLoadingDestroyedDetails(prev => ({ ...prev, [batchId]: true }));
+    
+    try {
+      // API-Aufruf für alle Pflanzen (auch vernichtete)
+      const res = await api.get(`/trackandtrace/motherbatches/${batchId}/plants/`);
+      
+      // Vernichtete Pflanzen filtern
+      const destroyedPlants = (res.data.results || []).filter(plant => plant.is_destroyed);
+      
+      // Speichern der vernichteten Pflanzen-Details
+      setDestroyedPlantsDetails(prev => ({
+        ...prev,
+        [batchId]: destroyedPlants
+      }));
+    } catch (error) {
+      console.error("Fehler beim Laden der vernichteten Pflanzen-Details:", error);
+      setDestroyedPlantsDetails(prev => ({
+        ...prev,
+        [batchId]: []
+      }));
+    } finally {
+      setLoadingDestroyedDetails(prev => ({ ...prev, [batchId]: false }));
+    }
+  };
+
   // Spalten für den Tabellenkopf definieren
   const getHeaderColumns = () => {
-    return [
+    const baseColumns = [
       { label: '', width: '3%', align: 'center' },
       { label: 'Genetik', width: '12%', align: 'left' },
       { label: 'Charge-Nummer(n)', width: '22%', align: 'left' },
-      { label: 'Aktiv/Gesamt', width: '8%', align: 'center' },
-      { label: 'Vernichtet', width: '10%', align: 'left' },
-      { label: 'Kultiviert von', width: '15%', align: 'left' },
-      { label: 'Raum', width: '15%', align: 'left' },
-      { label: 'Erstellt am', width: '15%', align: 'left' }
-    ]
-  }
+    ];
+
+    // Tab-spezifische Spalten je nach aktivem Tab
+    if (tabValue === 0 || tabValue === 2) {
+      // Tab 0: Aktive Pflanzen oder Tab 2: Vernichtete Pflanzen
+      return [
+        ...baseColumns,
+        { label: 'Aktiv/Gesamt', width: '8%', align: 'center' },
+        { label: 'Vernichtet', width: '10%', align: 'left' },
+        { label: 'Kultiviert von', width: '15%', align: 'left' },
+        { label: 'Raum', width: '15%', align: 'left' },
+        { label: 'Erstellt am', width: '15%', align: 'left' }
+      ];
+    } else {
+      // Tab 1: Stecklinge-Tab
+      return [
+        ...baseColumns,
+        { label: 'Aktiv/Gesamt', width: '8%', align: 'center' },
+        { label: 'Vernichtet', width: '10%', align: 'left' },
+        { label: 'Erstellt von', width: '15%', align: 'left' },
+        { label: 'Raum', width: '15%', align: 'left' },
+        { label: 'Erstellt am', width: '15%', align: 'left' }
+      ];
+    }
+  };
 
   // Funktion zum Erstellen der Spalten für eine Zeile
   const getRowColumns = (batch) => {
-    return [
+    // Basis-Spalten für alle Tabs
+    const baseColumns = [
       {
         content: '',
         width: '3%'
       },
       {
-        content: batch.seed_strain,
+        content: batch.seed_strain || batch.mother_strain,
         width: '12%',
         bold: true,
         icon: ScienceIcon,
         iconColor: 'primary.main'
       },
       {
-        content: batch.batch_number ? 
-          `mother-plant:${batch.batch_number.replace(/^(charge:|mother-plant:)/g, '')}:0001-${String(batch.quantity).padStart(4, '0')}`.replace(':0001:0001', ':0001')
-          : '',
+        content: batch.batch_number || '',
         width: '22%',
         fontFamily: 'monospace',
         fontSize: '0.85rem'
-      },
-      {
-        content: `${batch.active_plants_count}/${batch.quantity}`,
-        width: '8%',
-        align: 'center'
-      },
-      {
-        content: `${batch.destroyed_plants_count} Pflanzen`,
-        width: '10%',
-        color: batch.destroyed_plants_count > 0 ? 'error.main' : 'text.primary'
-      },
-      {
-        content: batch.member ? 
-          (batch.member.display_name || `${batch.member.first_name} ${batch.member.last_name}`) 
-          : "Nicht zugewiesen",
-        width: '15%'
-      },
-      {
-        content: batch.room ? batch.room.name : "Nicht zugewiesen",
-        width: '15%'
-      },
-      {
-        content: new Date(batch.created_at).toLocaleDateString('de-DE'),
-        width: '15%'
       }
-    ]
-  }
+    ];
+
+    if (tabValue === 0 || tabValue === 2) {
+      // Für Tabs 0: Aktive und 2: Vernichtete Pflanzen
+      return [
+        ...baseColumns,
+        {
+          content: `${batch.active_plants_count}/${batch.quantity}`,
+          width: '8%',
+          align: 'center'
+        },
+        {
+          content: `${batch.destroyed_plants_count} Pflanzen`,
+          width: '10%',
+          color: batch.destroyed_plants_count > 0 ? 'error.main' : 'text.primary'
+        },
+        {
+          content: batch.member ? 
+            (batch.member.display_name || `${batch.member.first_name} ${batch.member.last_name}`) 
+            : "Nicht zugewiesen",
+          width: '15%'
+        },
+        {
+          content: batch.room ? batch.room.name : "Nicht zugewiesen",
+          width: '15%'
+        },
+        {
+          content: new Date(batch.created_at).toLocaleDateString('de-DE'),
+          width: '15%'
+        }
+      ];
+    } else {
+      // Für Tab 1: Stecklinge
+      return [
+        ...baseColumns,
+        {
+          content: `${batch.active_cuttings_count}/${batch.quantity}`,
+          width: '8%',
+          align: 'center'
+        },
+        {
+          content: `${batch.destroyed_cuttings_count} Stecklinge`,
+          width: '10%',
+          color: batch.destroyed_cuttings_count > 0 ? 'error.main' : 'text.primary'
+        },
+        {
+          content: batch.member ? 
+            (batch.member.display_name || `${batch.member.first_name} ${batch.member.last_name}`) 
+            : "Nicht zugewiesen",
+          width: '15%'
+        },
+        {
+          content: batch.room ? batch.room.name : "Nicht zugewiesen",
+          width: '15%'
+        },
+        {
+          content: new Date(batch.created_at).toLocaleDateString('de-DE'),
+          width: '15%'
+        }
+      ];
+    }
+  };
 
   // Funktion für Activity-Stream-Nachrichten
   const getActivityMessage = (batch) => {
@@ -109,11 +207,24 @@ const MotherPlantTable = ({
     const roomName = batch.room ? batch.room.name : "unbekanntem Raum";
     const date = new Date(batch.created_at).toLocaleDateString('de-DE');
     
-    return `Charge ${batch.batch_number} mit Genetik ${batch.seed_strain} wurde von ${cultivator} am ${date} im Raum ${roomName} angelegt.`;
+    if (tabValue === 0 || tabValue === 2) {
+      // Mutterpflanzen Nachricht (Tab 0 und 2)
+      return `Charge ${batch.batch_number} mit Genetik ${batch.seed_strain} wurde von ${cultivator} am ${date} im Raum ${roomName} angelegt.`;
+    } else {
+      // Stecklinge Nachricht (Tab 1)
+      return `Charge ${batch.batch_number} mit ${batch.quantity} Stecklingen wurde von ${cultivator} am ${date} im Raum ${roomName} von Mutterpflanzen-Charge ${batch.mother_batch_number || "Unbekannt"} erstellt.`;
+    }
   };
 
   // Detailansicht für einen Batch rendern
   const renderBatchDetails = (batch) => {
+    // useEffect zum Laden der vernichteten Pflanzen
+    useEffect(() => {
+      if (batch.destroyed_plants_count > 0 && !destroyedPlantsDetails[batch.id]) {
+        loadDestroyedPlantsDetails(batch.id);
+      }
+    }, [batch.id, batch.destroyed_plants_count]);
+    // Details-Card-Inhalte anpassen
     const chargeDetails = (
       <Box>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
@@ -150,60 +261,172 @@ const MotherPlantTable = ({
             {new Date(batch.created_at).toLocaleDateString('de-DE')}
           </Typography>
         </Box>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-          <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)' }}>
-            Ursprungssamen:
-          </Typography>
-          <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.87)' }}>
-            {batch.seed_batch_number || "Unbekannt"}
-          </Typography>
-        </Box>
+        {tabValue === 0 || tabValue === 2 ? (
+          // Für Mutterpflanzen-Tab (0 und 2)
+          <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+            <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)' }}>
+              Ursprungssamen:
+            </Typography>
+            <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.87)' }}>
+              {batch.seed_batch_number || "Unbekannt"}
+            </Typography>
+          </Box>
+        ) : (
+          // Für Stecklinge-Tab (1)
+          <>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+              <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)' }}>
+                Ursprungs-Mutterpflanzen-Charge:
+              </Typography>
+              <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.87)' }}>
+                {batch.mother_batch_number || "Unbekannt"}
+              </Typography>
+            </Box>
+            {batch.mother_plant_number && (
+              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)' }}>
+                  Spezifische Mutterpflanze:
+                </Typography>
+                <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.87)' }}>
+                  {batch.mother_plant_number}
+                </Typography>
+              </Box>
+            )}
+          </>
+        )}
       </Box>
-    )
+    );
 
-    const plantIdsContent = (
-      <Box>
-        <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1, color: 'rgba(0, 0, 0, 0.87)' }}>
-          Aktive Pflanzen:
-        </Typography>
-        <Box
-          sx={{
-            backgroundColor: 'white',
-            p: 1.5,
-            borderRadius: '4px',
-            fontFamily: 'monospace',
-            fontSize: '0.85rem',
-            wordBreak: 'break-all',
-            mb: 2,
-            border: '1px solid rgba(0, 0, 0, 0.12)'
-          }}
-        >
-          {batch.active_plants_count > 0 
-            ? `mother-plant:${batch.batch_number.replace(/^(charge:|mother-plant:)/g, '')}:0001 bis mother-plant:${batch.batch_number.replace(/^(charge:|mother-plant:)/g, '')}:${String(batch.active_plants_count).padStart(4, '0')}`.replace(':0001:0001', ':0001')
-            : "Keine aktiven Pflanzen"}
+    // Infos für Pflanzen-IDs oder Stecklinge-Infos
+    const idsContent = tabValue === 0 || tabValue === 2
+      ? (
+        // Stark vereinfachte plantIdsContent für Mutterpflanzen-Tabs (0 und 2)
+        <Box>
+          <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1, color: 'rgba(0, 0, 0, 0.87)' }}>
+            Aktive Pflanzen
+          </Typography>
+          <Box
+            sx={{
+              backgroundColor: 'white',
+              p: 1.5,
+              borderRadius: '4px',
+              fontFamily: 'inherit',
+              fontSize: '0.85rem',
+              mb: 2,
+              border: '1px solid rgba(0, 0, 0, 0.12)'
+            }}
+          >
+            {batch.active_plants_count > 0 ? (
+              <Typography variant="body2" sx={{ fontStyle: 'italic', color: 'primary.main' }}>
+                {batch.active_plants_count} aktive Mutterpflanzen vorhanden
+              </Typography>
+            ) : (
+              <Typography variant="body2" sx={{ fontStyle: 'italic', color: 'text.secondary' }}>
+                Keine aktiven Pflanzen in dieser Charge vorhanden.
+              </Typography>
+            )}
+          </Box>
+          
+          <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1, color: 'rgba(0, 0, 0, 0.87)' }}>
+            Vernichtete Pflanzen
+          </Typography>
+          <Box
+            sx={{
+              backgroundColor: 'white',
+              p: 1.5,
+              borderRadius: '4px',
+              fontFamily: 'inherit',
+              fontSize: '0.85rem',
+              mb: 2,
+              border: '1px solid rgba(0, 0, 0, 0.12)'
+            }}
+          >
+            {batch.destroyed_plants_count > 0 ? (
+              loadingDestroyedDetails[batch.id] ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                  <CircularProgress size={20} color="error" />
+                </Box>
+              ) : (
+                <Typography variant="body2" sx={{ fontStyle: 'italic', color: 'error.main' }}>
+                  {batch.destroyed_plants_count} Mutterpflanzen wurden vernichtet.
+                </Typography>
+              )
+            ) : (
+              <Typography variant="body2" sx={{ fontStyle: 'italic', color: 'text.secondary' }}>
+                Keine vernichteten Pflanzen in dieser Charge.
+              </Typography>
+            )}
+          </Box>
+          
+          <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1, color: 'rgba(0, 0, 0, 0.87)' }}>
+            Konvertiert zu Stecklingen
+          </Typography>
+          <Box
+            sx={{
+              backgroundColor: 'white',
+              p: 1.5,
+              borderRadius: '4px',
+              fontFamily: 'inherit',
+              fontSize: '0.85rem',
+              border: '1px solid rgba(0, 0, 0, 0.12)'
+            }}
+          >
+            {batch.converted_to_cuttings_count > 0 || (tabValue === 1 && batch.quantity > 0) ? (
+              <Typography variant="body2" sx={{ fontStyle: 'italic', color: 'primary.main' }}>
+                {tabValue === 1 ? batch.quantity : (batch.converted_to_cuttings_count || 0)} Stecklinge wurden aus Pflanzen dieser Charge erstellt.
+              </Typography>
+            ) : (
+              <Typography variant="body2" sx={{ fontStyle: 'italic', color: 'text.secondary' }}>
+                Aus dieser Charge wurden noch keine Stecklinge erstellt.
+              </Typography>
+            )}
+          </Box>
         </Box>
-        
-        <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1, color: 'rgba(0, 0, 0, 0.87)' }}>
-          Vernichtete Pflanzen:
-        </Typography>
-        <Box
-          sx={{
-            backgroundColor: 'white',
-            p: 1.5,
-            borderRadius: '4px',
-            fontFamily: 'monospace',
-            fontSize: '0.85rem',
-            wordBreak: 'break-all',
-            border: '1px solid rgba(0, 0, 0, 0.12)',
-            color: batch.destroyed_plants_count > 0 ? 'error.main' : 'rgba(0, 0, 0, 0.38)'
-          }}
-        >
-          {batch.destroyed_plants_count > 0 
-            ? `${batch.destroyed_plants_count} Pflanzen vernichtet` 
-            : "Keine vernichteten Pflanzen"}
+      )
+      : (
+        // Stecklinge-Info für Stecklinge-Tab (1)
+        <Box>
+          <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1, color: 'rgba(0, 0, 0, 0.87)' }}>
+            Aktive Stecklinge:
+          </Typography>
+          <Box
+            sx={{
+              backgroundColor: 'white',
+              p: 1.5,
+              borderRadius: '4px',
+              fontFamily: 'monospace',
+              fontSize: '0.85rem',
+              wordBreak: 'break-all',
+              mb: 2,
+              border: '1px solid rgba(0, 0, 0, 0.12)'
+            }}
+          >
+            {batch.active_cuttings_count > 0 
+              ? `${batch.active_cuttings_count} aktive Stecklinge` 
+              : "Keine aktiven Stecklinge"}
+          </Box>
+          
+          <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1, color: 'rgba(0, 0, 0, 0.87)' }}>
+            Vernichtete Stecklinge:
+          </Typography>
+          <Box
+            sx={{
+              backgroundColor: 'white',
+              p: 1.5,
+              borderRadius: '4px',
+              fontFamily: 'monospace',
+              fontSize: '0.85rem',
+              wordBreak: 'break-all',
+              border: '1px solid rgba(0, 0, 0, 0.12)',
+              color: batch.destroyed_cuttings_count > 0 ? 'error.main' : 'rgba(0, 0, 0, 0.38)'
+            }}
+          >
+            {batch.destroyed_cuttings_count > 0 
+              ? `${batch.destroyed_cuttings_count} Stecklinge vernichtet` 
+              : "Keine vernichteten Stecklinge"}
+          </Box>
         </Box>
-      </Box>
-    )
+      );
 
     const notesContent = (
       <Box
@@ -230,22 +453,109 @@ const MotherPlantTable = ({
           {batch.notes || 'Keine Notizen für diese Charge vorhanden'}
         </Typography>
       </Box>
-    )
+    );
 
     const cards = [
       {
-        title: 'Charge-Details',
+        title: tabValue === 1 ? 'Stecklinge-Details' : 'Charge-Details',
         content: chargeDetails
       },
       {
-        title: 'Pflanzen-IDs',
-        content: plantIdsContent
+        title: tabValue === 1 ? 'Stecklinge-Info' : 'Pflanzen-IDs',
+        content: idsContent
       },
       {
         title: 'Notizen',
         content: notesContent
       }
-    ]
+    ];
+    
+    // Funktion zum Rendern der Stecklinge-Liste
+    const renderCuttingsDetails = () => {
+      // Nur für Tab 1 (Konvertiert zu Stecklingen)
+      if (tabValue !== 1) return null;
+
+      const isLoading = loadingCuttings?.[batch.id] || false;
+      const cuttings = batchCuttings?.[batch.id] || [];
+      const currentPage = cuttingsCurrentPage?.[batch.id] || 1;
+      const totalPages = cuttingsTotalPages?.[batch.id] || 1;
+
+      return (
+        <Box sx={{ width: '100%', mt: 3 }}>
+          <Typography variant="subtitle2" color="primary" gutterBottom>
+            Stecklinge in dieser Charge
+          </Typography>
+          
+          {isLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+              <LoadingIndicator size={24} />
+            </Box>
+          ) : (
+            <>
+              {cuttings.length > 0 ? (
+                <>
+                  <TableContainer component={Paper} elevation={1} sx={{ mb: 2 }}>
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow sx={{ backgroundColor: 'primary.main' }}>
+                          <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Steckling-ID</TableCell>
+                          <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>UUID</TableCell>
+                          <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Status</TableCell>
+                          <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Erstellt am</TableCell>
+                          <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Notizen</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {cuttings.map((cutting, i) => (
+                          <TableRow 
+                            key={cutting.id || i}
+                            sx={{ 
+                              backgroundColor: 'white',
+                              '&:nth-of-type(odd)': { backgroundColor: 'rgba(0, 0, 0, 0.02)' }
+                            }}
+                          >
+                            <TableCell>{cutting.batch_number}</TableCell>
+                            <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
+                              {cutting.id || '-'}
+                            </TableCell>
+                            <TableCell>
+                              {cutting.is_destroyed 
+                                ? <Typography color="error">Vernichtet</Typography> 
+                                : <Typography color="success.main">Aktiv</Typography>}
+                            </TableCell>
+                            <TableCell>
+                              {cutting.created_at ? new Date(cutting.created_at).toLocaleString('de-DE') : '-'}
+                            </TableCell>
+                            <TableCell>{cutting.notes || '-'}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                  
+                  {/* Paginierung für Stecklinge innerhalb eines Batches */}
+                  {totalPages > 1 && (
+                    <Box display="flex" justifyContent="center" mt={2} width="100%">
+                      <Pagination 
+                        count={totalPages}
+                        page={currentPage}
+                        onChange={(e, page) => onCuttingsPageChange(batch.id, e, page)}
+                        color="primary"
+                        size="small"
+                      />
+                    </Box>
+                  )}
+                </>
+              ) : (
+                <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 2 }}>
+                  Keine Stecklinge in dieser Charge vorhanden.
+                </Typography>
+              )}
+            </>
+          )}
+        </Box>
+      );
+    };
 
     return (
       <>
@@ -267,6 +577,9 @@ const MotherPlantTable = ({
         </Box>
         
         <DetailCards cards={cards} color="primary.main" />
+        
+        {/* Stecklinge-Details nur im Stecklinge-Tab anzeigen */}
+        {tabValue === 1 && renderCuttingsDetails()}
 
         {/* Je nach Tab die entsprechende Pflanzen-Tabelle anzeigen */}
         {tabValue === 0 ? (
@@ -292,6 +605,17 @@ const MotherPlantTable = ({
                         }
                         label="Alle auswählen"
                       />
+                      
+                      {/* Stecklinge erstellen Button für die ganze Charge */}
+                      <Button 
+                        variant="contained" 
+                        color="primary"
+                        onClick={() => onOpenCreateCuttingDialog(batch, null)}
+                        startIcon={<ContentCutIcon />}
+                        sx={{ ml: 2 }}
+                      >
+                        Stecklinge erstellen
+                      </Button>
                       
                       {selectedPlants[batch.id]?.length > 0 && (
                         <Button 
@@ -368,31 +692,48 @@ const MotherPlantTable = ({
                                   : "-"}
                               </TableCell>
                               <TableCell align="right">
-                                <IconButton 
-                                  size="small" 
-                                  sx={{ 
-                                    color: 'white',
-                                    backgroundColor: 'error.main',
-                                    '&:hover': {
-                                      backgroundColor: 'error.dark'
-                                    },
-                                    width: '28px',
-                                    height: '28px'
-                                  }}
-                                  onClick={() => {
-                                    // Einzelne Pflanze zur Vernichtung auswählen
-                                    const updatedSelectedPlants = {
-                                      ...selectedPlants,
-                                      [batch.id]: [plant.id]
-                                    };
-                                    // Nach dem Setzen des ausgewählten Pflanzen-Arrays den Dialog öffnen
-                                    togglePlantSelection(batch.id, plant.id);
-                                    onOpenDestroyDialog(batch);
-                                  }}
-                                >
-                                  <LocalFireDepartmentIcon fontSize="small" />
-                                </IconButton>
-                              </TableCell>
+                              {/* Button zum Erstellen von Stecklingen für eine spezifische Mutterpflanze */}
+                              <IconButton 
+                                size="small" 
+                                sx={{ 
+                                  color: 'white',
+                                  backgroundColor: 'primary.main',
+                                  '&:hover': {
+                                    backgroundColor: 'primary.dark'
+                                  },
+                                  width: '28px',
+                                  height: '28px',
+                                  mr: 1
+                                }}
+                                onClick={(e) => {
+                                  e.stopPropagation(); // Verhindert Akkordeon-Öffnen
+                                  onOpenCreateCuttingDialog(batch, plant); // Übergebe die spezifische Pflanze
+                                }}
+                              >
+                                <ContentCutIcon fontSize="small" />
+                              </IconButton>
+                              
+                              {/* Button zum Vernichten */}
+                              <IconButton 
+                                size="small" 
+                                sx={{ 
+                                  color: 'white',
+                                  backgroundColor: 'error.main',
+                                  '&:hover': {
+                                    backgroundColor: 'error.dark'
+                                  },
+                                  width: '28px',
+                                  height: '28px'
+                                }}
+                                onClick={(e) => {
+                                  e.stopPropagation(); // Verhindert Akkordeon-Öffnen
+                                  togglePlantSelection(batch.id, plant.id);
+                                  onOpenDestroyDialog(batch);
+                                }}
+                              >
+                                <LocalFireDepartmentIcon fontSize="small" />
+                              </IconButton>
+                            </TableCell>
                             </TableRow>
                           ))}
                         </TableBody>
@@ -422,8 +763,8 @@ const MotherPlantTable = ({
               <LoadingIndicator size={24} />
             )}
           </>
-        ) : (
-          // Tab 1: Vernichtete Pflanzen
+        ) : tabValue === 2 ? (
+          // Tab 2: Vernichtete Pflanzen (vorher Tab 1)
           <>
             {destroyedBatchPlants[batch.id] ? (
               <Box sx={{ width: '100%', mt: 2 }}>
@@ -499,10 +840,10 @@ const MotherPlantTable = ({
               <LoadingIndicator size={24} />
             )}
           </>
-        )}
+        ) : null}
       </>
-    )
-  }
+    );
+  };
 
   return (
     <Box sx={{ width: '100%' }}>
@@ -522,7 +863,7 @@ const MotherPlantTable = ({
         ))
       ) : (
         <Typography align="center" sx={{ mt: 4, width: '100%' }}>
-          Keine Mutterpflanzen vorhanden
+          {tabValue === 1 ? 'Keine Stecklinge vorhanden' : 'Keine Mutterpflanzen vorhanden'}
         </Typography>
       )}
 
@@ -531,11 +872,11 @@ const MotherPlantTable = ({
         totalPages={totalPages}
         onPageChange={onPageChange}
         hasData={data && data.length > 0}
-        emptyMessage="Keine Mutterpflanzen vorhanden"
+        emptyMessage={tabValue === 1 ? 'Keine Stecklinge vorhanden' : 'Keine Mutterpflanzen vorhanden'}
         color="primary"
       />
     </Box>
-  )
-}
+  );
+};
 
-export default MotherPlantTable
+export default MotherPlantTable;

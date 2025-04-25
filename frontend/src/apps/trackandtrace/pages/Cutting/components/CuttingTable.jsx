@@ -1,4 +1,4 @@
-// frontend/src/apps/trackandtrace/pages/FloweringPlant/components/FloweringPlantTable.jsx
+// frontend/src/apps/trackandtrace/pages/Cutting/components/CuttingTable.jsx
 import { useState } from 'react'
 import { 
   Box, Typography, Button, IconButton, Tooltip, Checkbox, 
@@ -15,9 +15,9 @@ import PaginationFooter from '../../../components/common/PaginationFooter'
 import LoadingIndicator from '../../../components/common/LoadingIndicator'
 
 /**
- * FloweringPlantTable Komponente für die Darstellung der Blühpflanzen-Tabelle
+ * CuttingTable Komponente für die Darstellung der Stecklinge-Tabelle
  */
-const FloweringPlantTable = ({
+const CuttingTable = ({
   tabValue,
   data,
   expandedBatchId,
@@ -26,29 +26,29 @@ const FloweringPlantTable = ({
   currentPage,
   totalPages,
   onPageChange,
-  batchPlants,
-  destroyedBatchPlants,
-  plantsCurrentPage,
-  plantsTotalPages,
-  destroyedPlantsCurrentPage,
-  destroyedPlantsTotalPages,
-  onPlantsPageChange,
-  onDestroyedPlantsPageChange,
-  selectedPlants,
-  togglePlantSelection,
-  selectAllPlantsInBatch
+  batchCuttings,
+  destroyedBatchCuttings,
+  cuttingsCurrentPage,
+  cuttingsTotalPages,
+  destroyedCuttingsCurrentPage,
+  destroyedCuttingsTotalPages,
+  onCuttingsPageChange,
+  onDestroyedCuttingsPageChange,
+  selectedCuttings,
+  toggleCuttingSelection,
+  selectAllCuttingsInBatch
 }) => {
   // Spalten für den Tabellenkopf definieren
   const getHeaderColumns = () => {
     return [
-      { label: 'Genetik', width: '15%', align: 'left' },
+      { label: '', width: '3%', align: 'center' },
+      { label: 'Genetik', width: '12%', align: 'left' },
       { label: 'Charge-Nummer(n)', width: '22%', align: 'left' },
-      { label: 'Aktiv/Gesamt', width: '10%', align: 'center' },
+      { label: 'Aktiv/Gesamt', width: '8%', align: 'center' },
       { label: 'Vernichtet', width: '10%', align: 'left' },
       { label: 'Kultiviert von', width: '15%', align: 'left' },
       { label: 'Raum', width: '15%', align: 'left' },
-      { label: 'Erstellt am', width: '10%', align: 'left' },
-      { label: '', width: '3%', align: 'center' }  // Platz für das Aufklapp-Symbol am Ende
+      { label: 'Erstellt am', width: '15%', align: 'left' }
     ]
   }
 
@@ -56,8 +56,12 @@ const FloweringPlantTable = ({
   const getRowColumns = (batch) => {
     return [
       {
-        content: batch.seed_strain,
-        width: '15%',
+        content: '',
+        width: '3%'
+      },
+      {
+        content: batch.mother_strain || batch.seed_strain || "Unbekannt",
+        width: '12%',
         bold: true,
         icon: ScienceIcon,
         iconColor: 'primary.main'
@@ -69,14 +73,14 @@ const FloweringPlantTable = ({
         fontSize: '0.85rem'
       },
       {
-        content: `${batch.active_plants_count}/${batch.quantity}`,
-        width: '10%',
+        content: `${batch.active_cuttings_count}/${batch.quantity}`,
+        width: '8%',
         align: 'center'
       },
       {
-        content: `${batch.destroyed_plants_count} Pflanzen`,
+        content: `${batch.destroyed_cuttings_count} Stecklinge`,
         width: '10%',
-        color: batch.destroyed_plants_count > 0 ? 'error.main' : 'text.primary'
+        color: batch.destroyed_cuttings_count > 0 ? 'error.main' : 'text.primary'
       },
       {
         content: batch.member ? 
@@ -90,11 +94,7 @@ const FloweringPlantTable = ({
       },
       {
         content: new Date(batch.created_at).toLocaleDateString('de-DE'),
-        width: '10%'
-      },
-      {
-        content: '',  // Leere Zelle für das Aufklapp-Symbol, das von AccordionRow hinzugefügt wird
-        width: '3%'
+        width: '15%'
       }
     ]
   }
@@ -106,8 +106,9 @@ const FloweringPlantTable = ({
       : "Unbekannt";
     const roomName = batch.room ? batch.room.name : "unbekanntem Raum";
     const date = new Date(batch.created_at).toLocaleDateString('de-DE');
+    const motherBatch = batch.mother_batch_number || "Unbekannt";
     
-    return `Charge ${batch.batch_number} mit Genetik ${batch.seed_strain} wurde von ${cultivator} am ${date} im Raum ${roomName} angelegt.`;
+    return `Charge ${batch.batch_number} mit ${batch.quantity} Stecklingen wurde von ${cultivator} am ${date} im Raum ${roomName} von Mutterpflanzen-Charge ${motherBatch} erstellt.`;
   };
 
   // Detailansicht für einen Batch rendern
@@ -119,9 +120,7 @@ const FloweringPlantTable = ({
             Chargen-ID:
           </Typography>
           <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.87)' }}>
-            {batch.batch_number?.startsWith('charge:') 
-              ? batch.batch_number 
-              : `charge:${batch.batch_number}`}
+            {batch.batch_number}
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
@@ -148,21 +147,30 @@ const FloweringPlantTable = ({
             {new Date(batch.created_at).toLocaleDateString('de-DE')}
           </Typography>
         </Box>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
           <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)' }}>
-            Ursprungssamen:
+            Ursprungs-Mutterpflanzen-Charge:
           </Typography>
           <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.87)' }}>
-            {batch.seed_batch_number || "Unbekannt"}
+            {batch.mother_batch_number || "Unbekannt"}
+          </Typography>
+        </Box>
+        {/* Neue Zeile für spezifische Mutterpflanze */}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+          <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)' }}>
+            Spezifische Mutterpflanze:
+          </Typography>
+          <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.87)' }}>
+            {batch.mother_plant_number || "Ganze Charge"}
           </Typography>
         </Box>
       </Box>
     )
 
-    const plantIdsContent = (
+    const cuttingsIdsContent = (
       <Box>
         <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1, color: 'rgba(0, 0, 0, 0.87)' }}>
-          Aktive Pflanzen:
+          Aktive Stecklinge:
         </Typography>
         <Box
           sx={{
@@ -176,46 +184,13 @@ const FloweringPlantTable = ({
             border: '1px solid rgba(0, 0, 0, 0.12)'
           }}
         >
-          {batch.active_plants_count > 0 
-            ? (() => {
-                // Wenn keine Pflanzen geladen sind, zeige einen Ladetext an
-                if (!batchPlants[batch.id] || batchPlants[batch.id].length === 0) {
-                  return "Pflanzen-IDs werden geladen...";
-                }
-    
-                // Nehme die erste verfügbare Pflanze im Batch als Referenz
-                const firstLoadedPlant = batchPlants[batch.id][0];
-                const firstPlantNumber = firstLoadedPlant.batch_number;
-                
-                // Extrahiere die Nummer vom Ende des Batch-Numbers (z.B. "0061" aus "blooming-plant:25:04:2025:0061")
-                const match = firstPlantNumber.match(/(\d+)$/);
-                if (!match) return firstPlantNumber;
-                
-                const firstVisibleNumber = parseInt(match[1], 10);
-                const prefix = firstPlantNumber.substring(0, firstPlantNumber.length - match[1].length);
-                
-                // Berechne die niedrigste und höchste ID im Batch basierend auf der Gesamtzahl der Pflanzen
-                // Zuerst berechnen wir, an welcher Position im Batch die erste sichtbare Pflanze ist
-                const pageSize = 5; // Wie im Backend definiert
-                const currentPage = plantsCurrentPage[batch.id] || 1;
-                const positionOfFirstVisible = (currentPage - 1) * pageSize; // 0-basierter Index
-                
-                // Berechne die niedrigste Nummer (wenn die erste Pflanze auf der ersten Seite ist, wäre das firstVisibleNumber)
-                const firstBatchNumber = firstVisibleNumber - positionOfFirstVisible;
-                
-                // Die höchste Nummer ist: erste Nummer + Gesamtzahl - 1
-                const lastBatchNumber = firstBatchNumber + batch.active_plants_count - 1;
-                
-                // Formatiere beide Nummern mit führenden Nullen (4-stellig)
-                const formatNumber = (num) => String(num).padStart(4, '0');
-                
-                return `${prefix}${formatNumber(firstBatchNumber)} bis ${prefix}${formatNumber(lastBatchNumber)}`;
-              })()
-            : "Keine aktiven Pflanzen"}
+          {batch.active_cuttings_count > 0 
+            ? `${batch.active_cuttings_count} aktive Stecklinge` 
+            : "Keine aktiven Stecklinge"}
         </Box>
         
         <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1, color: 'rgba(0, 0, 0, 0.87)' }}>
-          Vernichtete Pflanzen:
+          Vernichtete Stecklinge:
         </Typography>
         <Box
           sx={{
@@ -226,12 +201,12 @@ const FloweringPlantTable = ({
             fontSize: '0.85rem',
             wordBreak: 'break-all',
             border: '1px solid rgba(0, 0, 0, 0.12)',
-            color: batch.destroyed_plants_count > 0 ? 'error.main' : 'rgba(0, 0, 0, 0.38)'
+            color: batch.destroyed_cuttings_count > 0 ? 'error.main' : 'rgba(0, 0, 0, 0.38)'
           }}
         >
-          {batch.destroyed_plants_count > 0 
-            ? `${batch.destroyed_plants_count} Pflanzen vernichtet` 
-            : "Keine vernichteten Pflanzen"}
+          {batch.destroyed_cuttings_count > 0 
+            ? `${batch.destroyed_cuttings_count} Stecklinge vernichtet` 
+            : "Keine vernichteten Stecklinge"}
         </Box>
       </Box>
     )
@@ -269,8 +244,8 @@ const FloweringPlantTable = ({
         content: chargeDetails
       },
       {
-        title: 'Pflanzen-IDs',
-        content: plantIdsContent
+        title: 'Stecklinge-Info',
+        content: cuttingsIdsContent
       },
       {
         title: 'Notizen',
@@ -299,32 +274,32 @@ const FloweringPlantTable = ({
         
         <DetailCards cards={cards} color="primary.main" />
 
-        {/* Je nach Tab die entsprechende Pflanzen-Tabelle anzeigen */}
+        {/* Je nach Tab die entsprechende Stecklinge-Tabelle anzeigen */}
         {tabValue === 0 ? (
-          // Tab 0: Aktive Pflanzen
+          // Tab 0: Aktive Stecklinge
           <>
-            {batchPlants[batch.id] ? (
+            {batchCuttings[batch.id] ? (
               <Box sx={{ width: '100%', mt: 2, mb: 4 }}>
                 <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
                   <Typography variant="subtitle2" color="primary">
-                    Aktive Pflanzen
+                    Aktive Stecklinge
                   </Typography>
                   
-                  {batchPlants[batch.id]?.length > 0 && (
+                  {batchCuttings[batch.id]?.length > 0 && (
                     <Box display="flex" alignItems="center">
                       <FormControlLabel
                         control={
                           <Checkbox
-                            checked={(selectedPlants[batch.id]?.length || 0) === (batchPlants[batch.id]?.length || 0)}
-                            indeterminate={(selectedPlants[batch.id]?.length || 0) > 0 && 
-                                          (selectedPlants[batch.id]?.length || 0) < (batchPlants[batch.id]?.length || 0)}
-                            onChange={(e) => selectAllPlantsInBatch(batch.id, e.target.checked)}
+                            checked={(selectedCuttings[batch.id]?.length || 0) === (batchCuttings[batch.id]?.length || 0)}
+                            indeterminate={(selectedCuttings[batch.id]?.length || 0) > 0 && 
+                                          (selectedCuttings[batch.id]?.length || 0) < (batchCuttings[batch.id]?.length || 0)}
+                            onChange={(e) => selectAllCuttingsInBatch(batch.id, e.target.checked)}
                           />
                         }
                         label="Alle auswählen"
                       />
                       
-                      {selectedPlants[batch.id]?.length > 0 && (
+                      {selectedCuttings[batch.id]?.length > 0 && (
                         <Button 
                           variant="contained" 
                           color="error"
@@ -332,14 +307,14 @@ const FloweringPlantTable = ({
                           startIcon={<LocalFireDepartmentIcon />}
                           sx={{ ml: 2 }}
                         >
-                          {selectedPlants[batch.id].length} Pflanzen vernichten
+                          {selectedCuttings[batch.id].length} Stecklinge vernichten
                         </Button>
                       )}
                     </Box>
                   )}
                 </Box>
                 
-                {batchPlants[batch.id]?.length > 0 ? (
+                {batchCuttings[batch.id]?.length > 0 ? (
                   <>
                     <TableContainer component={Paper} elevation={1} sx={{ mb: 2 }}>
                       <Table size="small">
@@ -347,10 +322,10 @@ const FloweringPlantTable = ({
                           <TableRow sx={{ backgroundColor: 'primary.main' }}>
                             <TableCell padding="checkbox" sx={{ color: 'white' }}>
                               <Checkbox
-                                checked={(selectedPlants[batch.id]?.length || 0) === (batchPlants[batch.id]?.length || 0)}
-                                indeterminate={(selectedPlants[batch.id]?.length || 0) > 0 && 
-                                            (selectedPlants[batch.id]?.length || 0) < (batchPlants[batch.id]?.length || 0)}
-                                onChange={(e) => selectAllPlantsInBatch(batch.id, e.target.checked)}
+                                checked={(selectedCuttings[batch.id]?.length || 0) === (batchCuttings[batch.id]?.length || 0)}
+                                indeterminate={(selectedCuttings[batch.id]?.length || 0) > 0 && 
+                                            (selectedCuttings[batch.id]?.length || 0) < (batchCuttings[batch.id]?.length || 0)}
+                                onChange={(e) => selectAllCuttingsInBatch(batch.id, e.target.checked)}
                                 sx={{
                                   color: 'white',
                                   '&.Mui-checked': {
@@ -370,9 +345,9 @@ const FloweringPlantTable = ({
                           </TableRow>
                         </TableHead>
                         <TableBody>
-                          {batchPlants[batch.id]?.map((plant, i) => (
+                          {batchCuttings[batch.id]?.map((cutting, i) => (
                             <TableRow 
-                              key={plant.id}
+                              key={cutting.id}
                               sx={{ 
                                 backgroundColor: 'white',
                                 '&:nth-of-type(odd)': { backgroundColor: 'rgba(0, 0, 0, 0.02)' }
@@ -380,18 +355,18 @@ const FloweringPlantTable = ({
                             >
                               <TableCell padding="checkbox">
                                 <Checkbox
-                                  checked={selectedPlants[batch.id]?.includes(plant.id) || false}
-                                  onChange={() => togglePlantSelection(batch.id, plant.id)}
+                                  checked={selectedCuttings[batch.id]?.includes(cutting.id) || false}
+                                  onChange={() => toggleCuttingSelection(batch.id, cutting.id)}
                                 />
                               </TableCell>
                               <TableCell>
-                                {plant.batch_number || `Pflanze ${i+1} (Nummer nicht verfügbar)`}
+                                {cutting.batch_number || `Steckling ${i+1} (Nummer nicht verfügbar)`}
                               </TableCell>
                               <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
-                                {plant.id}
+                                {cutting.id}
                               </TableCell>
                               <TableCell>
-                                {new Date(plant.created_at).toLocaleString('de-DE')}
+                                {new Date(cutting.created_at).toLocaleString('de-DE')}
                               </TableCell>
                               <TableCell>
                                 {batch.member ? 
@@ -411,7 +386,7 @@ const FloweringPlantTable = ({
                                     height: '28px'
                                   }}
                                   onClick={() => {
-                                    togglePlantSelection(batch.id, plant.id);
+                                    toggleCuttingSelection(batch.id, cutting.id);
                                     onOpenDestroyDialog(batch);
                                   }}
                                 >
@@ -424,13 +399,13 @@ const FloweringPlantTable = ({
                       </Table>
                     </TableContainer>
                     
-                    {/* Pagination für die Pflanzen innerhalb eines Batches */}
-                    {plantsTotalPages[batch.id] > 1 && (
+                    {/* Pagination für die Stecklinge innerhalb eines Batches */}
+                    {cuttingsTotalPages[batch.id] > 1 && (
                       <Box display="flex" justifyContent="center" mt={2} width="100%">
                         <Pagination 
-                          count={plantsTotalPages[batch.id]} 
-                          page={plantsCurrentPage[batch.id] || 1} 
-                          onChange={(e, page) => onPlantsPageChange(batch.id, e, page)}
+                          count={cuttingsTotalPages[batch.id]} 
+                          page={cuttingsCurrentPage[batch.id] || 1} 
+                          onChange={(e, page) => onCuttingsPageChange(batch.id, e, page)}
                           color="primary"
                           size="small"
                         />
@@ -439,7 +414,7 @@ const FloweringPlantTable = ({
                   </>
                 ) : (
                   <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 2 }}>
-                    Keine aktiven Pflanzen in dieser Charge.
+                    Keine aktiven Stecklinge in dieser Charge.
                   </Typography>
                 )}
               </Box>
@@ -448,15 +423,15 @@ const FloweringPlantTable = ({
             )}
           </>
         ) : (
-          // Tab 1: Vernichtete Pflanzen
+          // Tab 1: Vernichtete Stecklinge
           <>
-            {destroyedBatchPlants[batch.id] ? (
+            {destroyedBatchCuttings[batch.id] ? (
               <Box sx={{ width: '100%', mt: 2 }}>
                 <Typography variant="subtitle2" color="error" gutterBottom>
-                  Vernichtete Pflanzen
+                  Vernichtete Stecklinge
                 </Typography>
                 
-                {destroyedBatchPlants[batch.id]?.length > 0 ? (
+                {destroyedBatchCuttings[batch.id]?.length > 0 ? (
                   <>
                     <TableContainer component={Paper} elevation={1} sx={{ mb: 2 }}>
                       <Table size="small">
@@ -470,30 +445,30 @@ const FloweringPlantTable = ({
                           </TableRow>
                         </TableHead>
                         <TableBody>
-                          {destroyedBatchPlants[batch.id]?.map((plant, i) => (
+                          {destroyedBatchCuttings[batch.id]?.map((cutting, i) => (
                             <TableRow 
-                              key={plant.id}
+                              key={cutting.id}
                               sx={{ 
                                 backgroundColor: 'white',
                                 '&:nth-of-type(odd)': { backgroundColor: 'rgba(0, 0, 0, 0.02)' }
                               }}
                             >
                               <TableCell>
-                                {plant.batch_number || `Pflanze ${i+1} (Nummer nicht verfügbar)`}
+                                {cutting.batch_number || `Steckling ${i+1} (Nummer nicht verfügbar)`}
                               </TableCell>
                               <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
-                                {plant.id}
+                                {cutting.id}
                               </TableCell>
                               <TableCell>
-                                {plant.destroyed_at ? new Date(plant.destroyed_at).toLocaleString('de-DE') : '-'}
+                                {cutting.destroyed_at ? new Date(cutting.destroyed_at).toLocaleString('de-DE') : '-'}
                               </TableCell>
                               <TableCell>
-                                {plant.destroyed_by ? 
-                                  (plant.destroyed_by.display_name || `${plant.destroyed_by.first_name || ''} ${plant.destroyed_by.last_name || ''}`.trim()) 
+                                {cutting.destroyed_by ? 
+                                  (cutting.destroyed_by.display_name || `${cutting.destroyed_by.first_name || ''} ${cutting.destroyed_by.last_name || ''}`.trim()) 
                                   : "-"}
                               </TableCell>
                               <TableCell>
-                                {plant.destroy_reason || '-'}
+                                {cutting.destroy_reason || '-'}
                               </TableCell>
                             </TableRow>
                           ))}
@@ -501,13 +476,13 @@ const FloweringPlantTable = ({
                       </Table>
                     </TableContainer>
                     
-                    {/* Pagination für die vernichteten Pflanzen */}
-                    {destroyedPlantsTotalPages[batch.id] > 1 && (
+                    {/* Pagination für die vernichteten Stecklinge */}
+                    {destroyedCuttingsTotalPages[batch.id] > 1 && (
                       <Box display="flex" justifyContent="center" mt={2} width="100%">
                         <Pagination 
-                          count={destroyedPlantsTotalPages[batch.id]} 
-                          page={destroyedPlantsCurrentPage[batch.id] || 1} 
-                          onChange={(e, page) => onDestroyedPlantsPageChange(batch.id, e, page)}
+                          count={destroyedCuttingsTotalPages[batch.id]} 
+                          page={destroyedCuttingsCurrentPage[batch.id] || 1} 
+                          onChange={(e, page) => onDestroyedCuttingsPageChange(batch.id, e, page)}
                           color="error"
                           size="small"
                         />
@@ -516,7 +491,7 @@ const FloweringPlantTable = ({
                   </>
                 ) : (
                   <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 2 }}>
-                    Keine vernichteten Pflanzen in dieser Charge.
+                    Keine vernichteten Stecklinge in dieser Charge.
                   </Typography>
                 )}
               </Box>
@@ -541,14 +516,13 @@ const FloweringPlantTable = ({
             onClick={() => onExpandBatch(batch.id)}
             columns={getRowColumns(batch)}
             borderColor="primary.main"
-            expandIconPosition="end"  // Diese Eigenschaft ist entscheidend, um das Icon am Ende zu platzieren
           >
             {renderBatchDetails(batch)}
           </AccordionRow>
         ))
       ) : (
         <Typography align="center" sx={{ mt: 4, width: '100%' }}>
-          Keine Blühpflanzen vorhanden
+          Keine Stecklinge vorhanden
         </Typography>
       )}
 
@@ -557,11 +531,11 @@ const FloweringPlantTable = ({
         totalPages={totalPages}
         onPageChange={onPageChange}
         hasData={data && data.length > 0}
-        emptyMessage="Keine Blühpflanzen vorhanden"
+        emptyMessage="Keine Stecklinge vorhanden"
         color="primary"
       />
     </Box>
   )
 }
 
-export default FloweringPlantTable
+export default CuttingTable

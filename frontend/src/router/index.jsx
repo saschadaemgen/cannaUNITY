@@ -28,6 +28,8 @@ import MemberDelete from '../apps/members/pages/MemberDelete'
 import SeedPurchasePage from '../apps/trackandtrace/pages/SeedPurchase/SeedPurchasePage';
 import MotherPlantPage from '../apps/trackandtrace/pages/MotherPlant/MotherPlantPage';
 import FloweringPlantPage from '../apps/trackandtrace/pages/FloweringPlant/FloweringPlantPage';
+import CuttingPage from '../apps/trackandtrace/pages/Cutting/CuttingPage';
+
 
 export const router = createBrowserRouter([
   {
@@ -74,8 +76,14 @@ export const router = createBrowserRouter([
       { path: 'trace/mutterpflanzen', element: <MotherPlantPage /> },
       { path: 'trace/bluehpflanzen', element: <FloweringPlantPage /> },
 
+      { path: 'trace/stecklinge', element: <CuttingPage /> },
+
+
       // Optional: zukünftige Seiten
       { path: 'netzwerk', element: <div>Gemeinschaftsnetzwerk</div> },
+
+      
+
     ],
   },
 

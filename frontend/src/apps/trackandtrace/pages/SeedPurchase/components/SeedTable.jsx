@@ -75,7 +75,7 @@ const SeedTable = ({
     return [
       ...baseColumns,
       ...tabSpecificColumns[tabValue],
-      { label: 'Aktionen', width: '15%', align: 'center' }
+      { label: 'Aktionen', width: '12%', align: 'center' },
     ]
   }
 
@@ -193,9 +193,10 @@ const SeedTable = ({
       ...baseColumns,
       ...tabSpecificColumns[tabValue],
       { 
-        content: '', // Aktionen werden separat gerendert
-        width: '15%' 
-      }
+        content: renderActions(item),
+        width: '12%',
+        align: 'center'
+      },
     ]
   }
 
@@ -543,7 +544,6 @@ const SeedTable = ({
             onClick={() => onExpandSeed(item.id)}
             columns={getRowColumns(item)}
             borderColor="success.main"
-            actionsContent={renderActions(item)}
           >
             {renderSeedDetails(item)}
           </AccordionRow>

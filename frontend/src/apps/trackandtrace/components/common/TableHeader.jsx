@@ -11,7 +11,7 @@ const TableHeader = ({ columns }) => {
     <Paper elevation={1} sx={{ mb: 2, borderRadius: '4px', overflow: 'hidden' }}>
       <Table>
         <TableHead>
-          <TableRow sx={{ bgcolor: 'rgba(0, 0, 0, 0.04)' }}>
+          <TableRow sx={{ height: '56px', bgcolor: 'rgba(0, 0, 0, 0.04)' }}>
             {columns.map((column, index) => (
               <TableCell 
                 key={index}
@@ -27,6 +27,7 @@ const TableHeader = ({ columns }) => {
                 {column.label}
               </TableCell>
             ))}
+
           </TableRow>
         </TableHead>
       </Table>

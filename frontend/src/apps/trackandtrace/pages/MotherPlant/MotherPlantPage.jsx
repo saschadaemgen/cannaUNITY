@@ -9,6 +9,7 @@ import FilterSection from '../../components/common/FilterSection'
 import TabsHeader from '../../components/common/TabsHeader'
 import LoadingIndicator from '../../components/common/LoadingIndicator'
 import DestroyDialog from '../../components/dialogs/DestroyDialog'
+import CreateCuttingDialog from '../../components/dialogs/CreateCuttingDialog'
 
 // Spezifische Komponenten
 import MotherPlantTable from './components/MotherPlantTable'
@@ -42,9 +43,27 @@ export default function MotherPlantPage() {
   const [activePlantsCount, setActivePlantsCount] = useState(0)
   const [destroyedPlantsCount, setDestroyedPlantsCount] = useState(0)
   
-  // Mitglieder für Vernichtungen
+  // Neu: State für Stecklings-Chargen hinzufügen
+  const [cuttingBatches, setCuttingBatches] = useState([])
+  // Zähler für Stecklinge
+  const [cuttingBatchCount, setCuttingBatchCount] = useState(0)
+  const [cuttingCount, setCuttingCount] = useState(0)
+  
+  // Mitglieder für Vernichtungen und Stecklinge
   const [members, setMembers] = useState([])
   const [destroyedByMemberId, setDestroyedByMemberId] = useState('')
+  
+  // Räume für Stecklinge
+  const [rooms, setRooms] = useState([])
+  
+  // State für die Stecklinge-Erstellung
+  const [openCreateCuttingDialog, setOpenCreateCuttingDialog] = useState(false)
+  const [cuttingQuantity, setCuttingQuantity] = useState(1)
+  const [cuttingNotes, setCuttingNotes] = useState('')
+  const [selectedMemberId, setSelectedMemberId] = useState('')
+  const [selectedRoomId, setSelectedRoomId] = useState('')
+  // Neu: State für ausgewählte Mutterpflanze
+  const [selectedMotherPlant, setSelectedMotherPlant] = useState(null)
 
   const loadMotherBatches = async (page = 1) => {
     setLoading(true)
@@ -80,35 +99,68 @@ export default function MotherPlantPage() {
     }
   }
   
+  // Funktion zum Laden der Stecklings-Chargen
+  const loadCuttingBatches = async (page = 1) => {
+    if (tabValue !== 1) return; // Nur für den Stecklinge-Tab laden (jetzt Tab 1)
+    
+    setLoading(true);
+    try {
+      // API-Aufruf für Stecklings-Batches
+      let url = `/trackandtrace/cuttingbatches/?page=${page}`;
+      // Zeitfilter hinzufügen, wenn vorhanden
+      if (yearFilter) url += `&year=${yearFilter}`;
+      if (monthFilter) url += `&month=${monthFilter}`;
+      if (dayFilter) url += `&day=${dayFilter}`;
+      
+      const res = await api.get(url);
+      console.log('Geladene Stecklings-Batches:', res.data);
+      
+      setCuttingBatches(res.data.results || []);
+      setTotalPages(Math.ceil((res.data.count || 0) / 5));
+      setCurrentPage(page);
+    } catch (error) {
+      console.error('Fehler beim Laden der Stecklings-Batches:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
   // Separat die Zähler laden (für Tabs, die nicht aktiv sind)
   const loadCounts = async () => {
     try {
       const res = await api.get('/trackandtrace/motherbatches/counts/');
       setActivePlantsCount(res.data.active_count || 0);
       setDestroyedPlantsCount(res.data.destroyed_count || 0);
+      
+      // Neue Zähler für Stecklinge
+      setCuttingBatchCount(res.data.cutting_batch_count || 0);
+      setCuttingCount(res.data.cutting_count || 0);
     } catch (error) {
       console.error('Fehler beim Laden der Zähler:', error);
     }
   };
   
-  // Funktion zum Laden von Mitgliedern
-  const loadMembers = async () => {
+  // Funktion zum Laden von Mitgliedern und Räumen
+  const loadMembersAndRooms = async () => {
     setLoadingOptions(true);
     try {
-      // Korrekter API-Pfad ohne führenden Slash, da baseURL bereits auf '/api' gesetzt ist
-      const response = await api.get('members/')
-      console.log('Mitglieder für Vernichtungsdialog geladen:', response.data)
+      // Mitglieder laden
+      const membersRes = await api.get('members/')
+      console.log('Mitglieder geladen:', membersRes.data)
       
-      // Sicherstellen, dass die Mitglieder ein display_name Feld haben
-      const formattedMembers = (response.data.results || []).map(member => ({
+      // Formatierte Mitglieder mit display_name
+      const formattedMembers = membersRes.data.results.map(member => ({
         ...member,
         display_name: member.display_name || `${member.first_name} ${member.last_name}`
       }))
-      console.log('Formatierte Mitglieder:', formattedMembers)
       setMembers(formattedMembers)
+      
+      // Räume laden
+      const roomsRes = await api.get('rooms/')
+      console.log('Räume geladen:', roomsRes.data)
+      setRooms(roomsRes.data.results || [])
     } catch (error) {
-      console.error('Fehler beim Laden der Mitglieder:', error)
-      console.error('Details:', error.response?.data || error.message)
+      console.error('Fehler beim Laden der Mitglieder und Räume:', error)
     } finally {
       setLoadingOptions(false)
     }
@@ -117,8 +169,31 @@ export default function MotherPlantPage() {
   useEffect(() => {
     loadMotherBatches()
     loadCounts() // Alle Zähler beim ersten Laden holen
-    loadMembers() // Mitglieder laden
+    loadMembersAndRooms() // Mitglieder und Räume laden
   }, [])
+
+  // Aktualisierter useEffect für Tab-Wechsel mit neuer Tab-Reihenfolge
+  useEffect(() => {
+    // Zurücksetzen der Seite bei Tab-Wechsel
+    setCurrentPage(1);
+    
+    // Je nach Tab unterschiedliche Ladestrategien
+    if (tabValue === 0) {
+      // Tab 0: Aktive Pflanzen
+      loadMotherBatches(1);
+    } else if (tabValue === 1) {
+      // Tab 1: Stecklinge (jetzt an Position 1)
+      loadCuttingBatches(1);
+    } else if (tabValue === 2) {
+      // Tab 2: Vernichtete Pflanzen (jetzt an Position 2)
+      loadMotherBatches(1);
+    }
+    
+    loadCounts();
+    
+    // Zurücksetzen des expandierten Batches beim Tab-Wechsel
+    setExpandedBatchId('');
+  }, [tabValue]);
 
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue)
@@ -138,8 +213,8 @@ export default function MotherPlantPage() {
       if (tabValue === 0) {
         // Im Tab "Aktive Pflanzen" nur aktive Pflanzen laden
         loadPlantsForBatch(batchId, 1)
-      } else {
-        // Im Tab "Vernichtete Pflanzen" nur vernichtete Pflanzen laden
+      } else if (tabValue === 2) {
+        // Im Tab "Vernichtete Pflanzen" (jetzt Tab 2) nur vernichtete Pflanzen laden
         loadDestroyedPlantsForBatch(batchId, 1)
       }
     }
@@ -273,9 +348,17 @@ export default function MotherPlantPage() {
     }
   }
 
+  // Angepasste handlePageChange Funktion mit aktualisierter Tab-Logik
   const handlePageChange = (event, page) => {
-    loadMotherBatches(page)
-  }
+    setCurrentPage(page);
+    
+    // Je nach Tab die richtige Lademethode aufrufen
+    if (tabValue === 0 || tabValue === 2) {
+      loadMotherBatches(page); // Für Tab 0 (Aktive) und Tab 2 (Vernichtete)
+    } else if (tabValue === 1) {
+      loadCuttingBatches(page); // Für Tab 1 (Stecklinge)
+    }
+  };
 
   const handlePlantsPageChange = (batchId, event, page) => {
     loadPlantsForBatch(batchId, page)
@@ -285,12 +368,86 @@ export default function MotherPlantPage() {
     loadDestroyedPlantsForBatch(batchId, page)
   }
 
+  // Aktualisierte refreshData Funktion mit neuer Tab-Logik
+  const refreshData = () => {
+    // Daten je nach aktivem Tab neu laden
+    if (expandedBatchId) {
+      if (tabValue === 0) {
+        loadPlantsForBatch(expandedBatchId, plantsCurrentPage[expandedBatchId] || 1);
+      } else if (tabValue === 2) {
+        loadDestroyedPlantsForBatch(expandedBatchId, destroyedPlantsCurrentPage[expandedBatchId] || 1);
+      }
+    }
+    
+    // Hauptdaten und Zähler aktualisieren
+    if (tabValue === 0 || tabValue === 2) {
+      loadMotherBatches(currentPage); // Für Tab 0 (Aktive) und Tab 2 (Vernichtete)
+    } else if (tabValue === 1) {
+      loadCuttingBatches(currentPage); // Für Tab 1 (Stecklinge)
+    }
+    loadCounts();
+  };
+
+  // Aktualisierte getDisplayedData Funktion mit neuer Tab-Logik
+  const getDisplayedData = () => {
+    if (tabValue === 0 || tabValue === 2) {
+      // Tab 0 und 2: Aktive/Vernichtete Pflanzen
+      return motherBatches;
+    } else if (tabValue === 1) {
+      // Tab 1: Konvertiert zu Stecklingen
+      return cuttingBatches;
+    }
+    return [];
+  };
+
   // Aktualisierte handleOpenDestroyDialog Funktion
   const handleOpenDestroyDialog = (batch) => {
     setSelectedBatch(batch);
     setDestroyReason('');
     setDestroyedByMemberId('');
     setOpenDestroyDialog(true);
+  };
+
+  // Funktion zum Öffnen des Stecklinge erstellen Dialogs für eine spezifische Mutterpflanze
+  const handleOpenCreateCuttingDialog = (batch, plant = null) => {
+    setSelectedBatch(batch);
+    setSelectedMotherPlant(plant); // Setze die ausgewählte Mutterpflanze
+    setCuttingQuantity(1);
+    setCuttingNotes('');
+    setSelectedMemberId('');
+    setSelectedRoomId('');
+    setOpenCreateCuttingDialog(true);
+  };
+
+  // Funktion zum Erstellen von Stecklingen
+  const handleCreateCuttings = async () => {
+    try {
+      if (!selectedBatch) return;
+
+      // Wenn eine spezifische Mutterpflanze ausgewählt wurde, verwende ihre ID
+      const plantId = selectedMotherPlant ? selectedMotherPlant.id : null;
+      
+      // API-Pfad anpassen, um die plant_id zu verwenden
+      const endpoint = selectedMotherPlant 
+        ? `/trackandtrace/motherplants/${plantId}/create_cuttings/` 
+        : `/trackandtrace/motherbatches/${selectedBatch.id}/create_cuttings/`;
+
+      console.log("Sende Anfrage an:", endpoint);
+
+      await api.post(endpoint, {
+        quantity: cuttingQuantity,
+        notes: cuttingNotes,
+        member_id: selectedMemberId || null,
+        room_id: selectedRoomId || null
+      });
+
+      setOpenCreateCuttingDialog(false);
+      refreshData();
+    } catch (error) {
+      console.error('Fehler beim Erstellen der Stecklinge:', error);
+      console.error('Details:', error.response?.data || error.message);
+      alert(error.response?.data?.error || 'Ein Fehler ist aufgetreten');
+    }
   };
 
   // Aktualisierte handleDestroy Funktion
@@ -312,15 +469,8 @@ export default function MotherPlantPage() {
           [selectedBatch.id]: []
         }));
         
-        // Je nach Tab die richtigen Daten neu laden
-        if (tabValue === 0) {
-          loadPlantsForBatch(selectedBatch.id, plantsCurrentPage[selectedBatch.id] || 1);
-        } else {
-          loadDestroyedPlantsForBatch(selectedBatch.id, destroyedPlantsCurrentPage[selectedBatch.id] || 1);
-        }
-        
-        loadCounts(); // Zähler aktualisieren
-        loadMotherBatches(currentPage); // Batches neu laden für aktualisierte Zahlen
+        // Daten aktualisieren
+        refreshData();
       }
     } catch (error) {
       console.error('Fehler bei der Vernichtung:', error);
@@ -362,6 +512,9 @@ export default function MotherPlantPage() {
   
   const handleFilterApply = () => {
     loadMotherBatches(1) // Zurück zur ersten Seite bei Filter-Änderung
+    if (tabValue === 1) {
+      loadCuttingBatches(1) // Auch Stecklings-Batches neu laden, wenn im entsprechenden Tab (jetzt Tab 1)
+    }
   }
   
   const handleFilterReset = () => {
@@ -369,12 +522,22 @@ export default function MotherPlantPage() {
     setMonthFilter('')
     setDayFilter('')
     setShowFilters(false)
-    loadMotherBatches(1) // Zurück zur ersten Seite nach Filter-Reset
+    
+    // Entsprechend dem aktiven Tab neu laden
+    if (tabValue === 0 || tabValue === 2) {
+      loadMotherBatches(1) // Für Tab 0 (Aktive) und Tab 2 (Vernichtete)
+    } else if (tabValue === 1) {
+      loadCuttingBatches(1) // Für Tab 1 (Stecklinge)
+    }
   }
 
-  // Tabs definieren
+  // Die Daten, die in der aktuellen Tabelle angezeigt werden sollen
+  const displayedData = getDisplayedData();
+
+  // Aktualisierte Tabs-Definition mit neuer Reihenfolge
   const tabs = [
     { label: `AKTIVE PFLANZEN (${activePlantsCount})` },
+    { label: `KONVERTIERT ZU STECKLINGEN (${cuttingBatchCount}/${cuttingCount})` },
     { label: `VERNICHTETE PFLANZEN (${destroyedPlantsCount})` }
   ];
 
@@ -411,10 +574,11 @@ export default function MotherPlantPage() {
       ) : (
         <MotherPlantTable 
           tabValue={tabValue}
-          data={motherBatches}
+          data={displayedData}
           expandedBatchId={expandedBatchId}
           onExpandBatch={handleAccordionChange}
           onOpenDestroyDialog={handleOpenDestroyDialog}
+          onOpenCreateCuttingDialog={handleOpenCreateCuttingDialog}
           currentPage={currentPage}
           totalPages={totalPages}
           onPageChange={handlePageChange}
@@ -445,6 +609,24 @@ export default function MotherPlantPage() {
         destroyReason={destroyReason}
         setDestroyReason={setDestroyReason}
         showQuantity={false}
+      />
+
+      <CreateCuttingDialog 
+        open={openCreateCuttingDialog}
+        onClose={() => setOpenCreateCuttingDialog(false)}
+        onCreateCuttings={handleCreateCuttings}
+        quantity={cuttingQuantity}
+        setQuantity={setCuttingQuantity}
+        notes={cuttingNotes}
+        setNotes={setCuttingNotes}
+        members={members}
+        selectedMemberId={selectedMemberId}
+        setSelectedMemberId={setSelectedMemberId}
+        rooms={rooms}
+        selectedRoomId={selectedRoomId}
+        setSelectedRoomId={setSelectedRoomId}
+        motherBatch={selectedBatch}
+        motherPlant={selectedMotherPlant} // Zusätzliches Prop für die Mutterpflanze
       />
     </Container>
   )

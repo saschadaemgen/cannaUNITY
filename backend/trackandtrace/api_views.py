@@ -6,12 +6,12 @@ from django.utils import timezone
 from django.db import models
 from .models import (
     SeedPurchase, MotherPlantBatch, MotherPlant, 
-    FloweringPlantBatch, FloweringPlant
+    FloweringPlantBatch, FloweringPlant, Cutting, CuttingBatch
 )
 from .serializers import (
     SeedPurchaseSerializer, MotherPlantBatchSerializer, 
     MotherPlantSerializer, FloweringPlantBatchSerializer,
-    FloweringPlantSerializer
+    FloweringPlantSerializer, CuttingBatchSerializer, CuttingSerializer  # CuttingSerializer hinzugefügt
 )
 
 class StandardResultsSetPagination(pagination.PageNumberPagination):
@@ -369,18 +369,69 @@ class MotherPlantBatchViewSet(viewsets.ModelViewSet):
         return Response({
             "message": f"{len(plant_ids)} Mutterpflanzen wurden als vernichtet markiert"
         })
-    
+
     @action(detail=False, methods=['get'])
     def counts(self, request):
         """
-        Gibt die Gesamtzahl der aktiven und vernichteten Mutterpflanzen zurück
+        Gibt die Gesamtzahl der aktiven und vernichteten Mutterpflanzen zurück,
+        sowie die Anzahl der daraus erstellten Stecklinge.
         """
         active_count = MotherPlant.objects.filter(is_destroyed=False).count()
         destroyed_count = MotherPlant.objects.filter(is_destroyed=True).count()
         
+        # Zählen der Stecklinge-Batches, die von Mutterpflanzen stammen
+        cutting_batch_count = CuttingBatch.objects.filter(mother_batch__isnull=False).count()
+        
+        # Zählen der tatsächlichen Stecklinge in diesen Batches
+        cutting_count = 0
+        cutting_batches = CuttingBatch.objects.filter(mother_batch__isnull=False)
+        for batch in cutting_batches:
+            cutting_count += batch.cuttings.filter(is_destroyed=False).count()
+        
         return Response({
             "active_count": active_count,
-            "destroyed_count": destroyed_count
+            "destroyed_count": destroyed_count,
+            "cutting_batch_count": cutting_batch_count,
+            "cutting_count": cutting_count
+        })
+        
+    @action(detail=True, methods=['post'])
+    def create_cuttings(self, request, pk=None):
+        """
+        Erstellt Stecklinge von einer Mutterpflanzen-Charge.
+        """
+        mother_batch = self.get_object()
+        quantity = int(request.data.get('quantity', 1))
+        notes = request.data.get('notes', '')
+        member_id = request.data.get('member_id', None)
+        room_id = request.data.get('room_id', None)
+        
+        # Erstelle einen Batch für die Stecklinge
+        batch_kwargs = {
+            'mother_batch': mother_batch,
+            'quantity': quantity,
+            'notes': notes
+        }
+        
+        # Hinzufügen von optionalen Feldern
+        if member_id:
+            batch_kwargs['member_id'] = member_id
+        if room_id:
+            batch_kwargs['room_id'] = room_id
+            
+        batch = CuttingBatch.objects.create(**batch_kwargs)
+        
+        # Erstelle für jeden Steckling einen eigenen Eintrag im Batch mit eindeutiger Chargenummer
+        for _ in range(quantity):
+            # Die batch_number wird automatisch in der save-Methode generiert
+            Cutting.objects.create(
+                batch=batch,
+                notes=notes
+            )
+        
+        return Response({
+            "message": f"{quantity} Stecklinge wurden erstellt",
+            "batch": CuttingBatchSerializer(batch).data
         })
 
 class FloweringPlantBatchViewSet(viewsets.ModelViewSet):
@@ -481,3 +532,182 @@ class FloweringPlantBatchViewSet(viewsets.ModelViewSet):
             "active_count": active_count,
             "destroyed_count": destroyed_count
         })
+
+class CuttingBatchViewSet(viewsets.ModelViewSet):
+    queryset = CuttingBatch.objects.all().order_by('-created_at')
+    serializer_class = CuttingBatchSerializer
+    permission_classes = [IsAuthenticated]
+    pagination_class = StandardResultsSetPagination
+    
+    def get_queryset(self):
+        queryset = CuttingBatch.objects.all().order_by('-created_at')
+        
+        # Filtern nach Zeitraum
+        year = self.request.query_params.get('year', None)
+        month = self.request.query_params.get('month', None)
+        day = self.request.query_params.get('day', None)
+        
+        # Filtern nach Mutterpflanzen-Batch, falls Parameter vorhanden
+        mother_batch_id = self.request.query_params.get('mother_batch_id', None)
+        if mother_batch_id:
+            queryset = queryset.filter(mother_batch_id=mother_batch_id)
+        
+        if year:
+            queryset = queryset.filter(created_at__year=year)
+        if month:
+            queryset = queryset.filter(created_at__month=month)
+        if day:
+            queryset = queryset.filter(created_at__day=day)
+            
+        # Berechne Anzahl für aktive und vernichtete Stecklinge
+        active_cuttings = 0
+        destroyed_cuttings = 0
+        
+        for batch in queryset:
+            active_cuttings += batch.cuttings.filter(is_destroyed=False).count()
+            destroyed_cuttings += batch.cuttings.filter(is_destroyed=True).count()
+        
+        self.counts = {
+            'active_count': active_cuttings,
+            'destroyed_count': destroyed_cuttings
+        }
+        
+        return queryset
+    
+    def list(self, request, *args, **kwargs):
+        response = super().list(request, *args, **kwargs)
+        response.data['counts'] = getattr(self, 'counts', {
+            'active_count': 0,
+            'destroyed_count': 0
+        })
+        return response
+    
+    @action(detail=True, methods=['get'])
+    def cuttings(self, request, pk=None):
+        batch = self.get_object()
+        destroyed = request.query_params.get('destroyed', None)
+        
+        cuttings = batch.cuttings.all()
+        if destroyed is not None:
+            is_destroyed = destroyed.lower() == 'true'
+            cuttings = cuttings.filter(is_destroyed=is_destroyed)
+        
+        paginator = StandardResultsSetPagination()
+        page = paginator.paginate_queryset(cuttings, request)
+        
+        if page is not None:
+            serializer = CuttingSerializer(page, many=True)
+            return paginator.get_paginated_response(serializer.data)
+        
+        serializer = CuttingSerializer(cuttings, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=True, methods=['post'])
+    def destroy_cuttings(self, request, pk=None):
+        batch = self.get_object()
+        cutting_ids = request.data.get('cutting_ids', [])
+        reason = request.data.get('reason', '')
+        destroyed_by_id = request.data.get('destroyed_by_id')
+        
+        if not cutting_ids:
+            return Response(
+                {"error": "Keine Stecklings-IDs angegeben"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if not reason:
+            return Response(
+                {"error": "Ein Vernichtungsgrund ist erforderlich"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        if not destroyed_by_id:
+            return Response(
+                {"error": "Ein verantwortliches Mitglied muss angegeben werden"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        destroy_data = {
+            'is_destroyed': True,
+            'destroy_reason': reason,
+            'destroyed_at': timezone.now()
+        }
+        
+        if destroyed_by_id:
+            destroy_data['destroyed_by_id'] = destroyed_by_id
+            
+        Cutting.objects.filter(id__in=cutting_ids, batch=batch).update(**destroy_data)
+        
+        return Response({
+            "message": f"{len(cutting_ids)} Stecklinge wurden als vernichtet markiert"
+        })
+    
+    @action(detail=False, methods=['get'])
+    def counts(self, request):
+        """
+        Gibt die Gesamtzahl der aktiven und vernichteten Stecklinge zurück
+        """
+        active_count = Cutting.objects.filter(is_destroyed=False).count()
+        destroyed_count = Cutting.objects.filter(is_destroyed=True).count()
+        
+        return Response({
+            "active_count": active_count,
+            "destroyed_count": destroyed_count
+        })
+    
+
+class MotherPlantViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet für die Verwaltung einzelner Mutterpflanzen.
+    """
+    queryset = MotherPlant.objects.all()
+    serializer_class = MotherPlantSerializer
+    permission_classes = [IsAuthenticated]
+    
+    @action(detail=True, methods=['post'])
+    def create_cuttings(self, request, pk=None):
+        """
+        Erstellt Stecklinge von einer spezifischen Mutterpflanze.
+        """
+        plant = self.get_object()
+        batch = plant.batch  # Hole den Batch der Mutterpflanze
+        
+        quantity = int(request.data.get('quantity', 1))
+        notes = request.data.get('notes', '')
+        member_id = request.data.get('member_id', None)
+        room_id = request.data.get('room_id', None)
+        
+        # Erstelle einen neuen Batch für die Stecklinge
+        batch_kwargs = {
+            'mother_batch': batch,
+            'quantity': quantity,
+            'notes': notes
+        }
+        
+        # Hinzufügen von optionalen Feldern
+        if member_id:
+            batch_kwargs['member_id'] = member_id
+        if room_id:
+            batch_kwargs['room_id'] = room_id
+        
+        # In den Notes die Ursprungspflanze vermerken
+        plant_notes = f"Erstellt von Mutterpflanze {plant.batch_number} (ID: {plant.id})"
+        if notes:
+            batch_kwargs['notes'] = f"{notes} - {plant_notes}"
+        else:
+            batch_kwargs['notes'] = plant_notes
+            
+        cutting_batch = CuttingBatch.objects.create(**batch_kwargs)
+        
+        # Erstelle für jeden Steckling einen eigenen Eintrag mit eindeutiger Nummer
+        for _ in range(quantity):
+            Cutting.objects.create(
+                batch=cutting_batch,
+                notes=batch_kwargs['notes']
+            )
+        
+        return Response({
+            "message": f"{quantity} Stecklinge wurden von Mutterpflanze {plant.batch_number} erstellt",
+            "batch": CuttingBatchSerializer(cutting_batch).data
+        })
+
