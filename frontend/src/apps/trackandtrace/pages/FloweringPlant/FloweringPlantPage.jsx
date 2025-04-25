@@ -1,19 +1,17 @@
 // frontend/src/apps/trackandtrace/pages/FloweringPlant/FloweringPlantPage.jsx
 import { useState, useEffect } from 'react'
-import { 
-  Container, Typography, Box, IconButton, 
-  Table, TableBody, TableCell, TableHead, TableRow, TableContainer, Paper,
-  Pagination, CircularProgress, Button, Dialog, DialogTitle,
-  DialogContent, DialogActions, TextField, Tabs, Tab, Checkbox,
-  FormControlLabel, Grid, InputAdornment, FormControl, InputLabel, Select, MenuItem,
-  Chip, Divider
-} from '@mui/material'
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
-import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment'
-import FilterAltIcon from '@mui/icons-material/FilterAlt'
-import ClearIcon from '@mui/icons-material/Clear'
-import ScienceIcon from '@mui/icons-material/Science'
+import { Container } from '@mui/material'
 import api from '../../../../utils/api'
+
+// Gemeinsame Komponenten
+import PageHeader from '../../components/common/PageHeader'
+import FilterSection from '../../components/common/FilterSection'
+import TabsHeader from '../../components/common/TabsHeader'
+import LoadingIndicator from '../../components/common/LoadingIndicator'
+import DestroyDialog from '../../components/dialogs/DestroyDialog'
+
+// Spezifische Komponenten
+import FloweringPlantTable from './components/FloweringPlantTable'
 
 export default function FloweringPlantPage() {
   const [floweringBatches, setFloweringBatches] = useState([])
@@ -47,24 +45,6 @@ export default function FloweringPlantPage() {
   // Mitglieder für Vernichtungen
   const [members, setMembers] = useState([])
   const [destroyedByMemberId, setDestroyedByMemberId] = useState('')
-
-  // Neue Funktion für die Activity-Stream-Nachrichten
-  const getActivityMessage = (batch) => {
-    const cultivator = batch.member 
-      ? (batch.member.display_name || `${batch.member.first_name} ${batch.member.last_name}`) 
-      : "Unbekannt";
-    const roomName = batch.room ? batch.room.name : "unbekanntem Raum";
-    const date = new Date(batch.created_at).toLocaleDateString('de-DE');
-    
-    return `Charge ${batch.batch_number} mit Genetik ${batch.seed_strain} wurde von ${cultivator} am ${date} im Raum ${roomName} angelegt.`;
-  };
-
-  // Funktion um Pflanzen-ID-Range zu generieren
-  const getPlantRangeDisplay = (batch) => {
-    if (!batch.batch_number || !batch.quantity) return '';
-    const prefix = batch.batch_number.replace('charge:', '');
-    return `${prefix}:0001-${prefix}:${String(batch.quantity).padStart(4, '0')}`;
-  };
 
   const loadFloweringBatches = async (page = 1) => {
     setLoading(true)
@@ -392,843 +372,80 @@ export default function FloweringPlantPage() {
     loadFloweringBatches(1) // Zurück zur ersten Seite nach Filter-Reset
   }
 
+  // Tabs definieren
+  const tabs = [
+    { label: `AKTIVE PFLANZEN (${activePlantsCount})` },
+    { label: `VERNICHTETE PFLANZEN (${destroyedPlantsCount})` }
+  ];
+
   return (
     <Container maxWidth="xl" sx={{ width: '100%' }}>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-        <Typography variant="h5">Blühpflanzen-Verwaltung</Typography>
-        <Box>
-          <IconButton 
-            onClick={() => setShowFilters(!showFilters)} 
-            color={showFilters ? "primary" : "default"}
-          >
-            <FilterAltIcon />
-          </IconButton>
-        </Box>
-      </Box>
+      <PageHeader 
+        title="Blühpflanzen-Verwaltung"
+        showFilters={showFilters}
+        setShowFilters={setShowFilters}
+      />
       
-      {/* Filter-Bereich */}
-      {showFilters && (
-        <Paper sx={{ mb: 2, p: 2, width: '100%' }}>
-          <Grid container spacing={2} alignItems="center">
-            <Grid item xs={12} sm={3}>
-              <TextField
-                label="Jahr"
-                fullWidth
-                value={yearFilter}
-                onChange={(e) => setYearFilter(e.target.value)}
-                InputProps={{
-                  endAdornment: yearFilter && (
-                    <InputAdornment position="end">
-                      <IconButton size="small" onClick={() => setYearFilter('')}>
-                        <ClearIcon fontSize="small" />
-                      </IconButton>
-                    </InputAdornment>
-                  )
-                }}
-              />
-            </Grid>
-            <Grid item xs={12} sm={3}>
-              <FormControl fullWidth>
-                <InputLabel>Monat</InputLabel>
-                <Select
-                  value={monthFilter}
-                  label="Monat"
-                  onChange={(e) => setMonthFilter(e.target.value)}
-                >
-                  <MenuItem value="">Alle</MenuItem>
-                  {Array.from({ length: 12 }, (_, i) => (
-                    <MenuItem key={i + 1} value={i + 1}>
-                      {new Date(0, i).toLocaleString('de-DE', { month: 'long' })}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} sm={2}>
-              <TextField
-                label="Tag"
-                fullWidth
-                value={dayFilter}
-                onChange={(e) => setDayFilter(e.target.value)}
-                type="number"
-                inputProps={{ min: 1, max: 31 }}
-                InputProps={{
-                  endAdornment: dayFilter && (
-                    <InputAdornment position="end">
-                      <IconButton size="small" onClick={() => setDayFilter('')}>
-                        <ClearIcon fontSize="small" />
-                      </IconButton>
-                    </InputAdornment>
-                  )
-                }}
-              />
-            </Grid>
-            <Grid item xs={12} sm={4} container spacing={1} justifyContent="flex-end">
-              <Grid item>
-                <Button variant="outlined" onClick={handleFilterReset}>
-                  Zurücksetzen
-                </Button>
-              </Grid>
-              <Grid item>
-                <Button variant="contained" onClick={handleFilterApply}>
-                  Filter anwenden
-                </Button>
-              </Grid>
-            </Grid>
-          </Grid>
-        </Paper>
-      )}
+      <FilterSection
+        yearFilter={yearFilter}
+        setYearFilter={setYearFilter}
+        monthFilter={monthFilter}
+        setMonthFilter={setMonthFilter}
+        dayFilter={dayFilter}
+        setDayFilter={setDayFilter}
+        onApply={handleFilterApply}
+        onReset={handleFilterReset}
+        showFilters={showFilters}
+      />
 
-      <Paper sx={{ mb: 2, width: '100%', overflow: 'hidden' }}>
-        <Tabs 
-          value={tabValue} 
-          onChange={handleTabChange} 
-          aria-label="Blühpflanzen-Tabs"
-          sx={{
-            '& .MuiTabs-indicator': { height: '3px' }
-          }}
-        >
-          <Tab 
-            label={`AKTIVE PFLANZEN (${activePlantsCount})`} 
-            sx={{ 
-              color: tabValue === 0 ? 'primary.main' : 'text.primary',
-              '&.Mui-selected': {
-                color: 'primary.main',
-                fontWeight: 700
-              }
-            }}
-          />
-          <Tab 
-            label={`VERNICHTETE PFLANZEN (${destroyedPlantsCount})`}
-            sx={{ 
-              color: tabValue === 1 ? 'primary.main' : 'text.primary',
-              '&.Mui-selected': {
-                color: 'primary.main',
-                fontWeight: 700
-              }
-            }}
-          />
-        </Tabs>
-      </Paper>
+      <TabsHeader 
+        tabValue={tabValue} 
+        onTabChange={handleTabChange} 
+        tabs={tabs}
+        color="primary"
+        ariaLabel="Blühpflanzen-Tabs"
+      />
 
       {loading ? (
-        <Box display="flex" justifyContent="center" my={4} width="100%">
-          <CircularProgress />
-        </Box>
+        <LoadingIndicator />
       ) : (
-        <Box sx={{ width: '100%' }}>
-          {/* Tabellenkopf */}
-          <Paper elevation={1} sx={{ mb: 2, borderRadius: '4px', overflow: 'hidden' }}>
-            <Table>
-              <TableHead>
-                <TableRow sx={{ bgcolor: 'rgba(0, 0, 0, 0.04)' }}>
-                  <TableCell sx={{ width: '3%', padding: '8px' }}></TableCell>
-                  <TableCell sx={{ width: '12%', fontWeight: 'bold', padding: '8px 16px', textAlign: 'left' }}>Genetik</TableCell>
-                  <TableCell sx={{ width: '22%', fontWeight: 'bold', padding: '8px 16px', textAlign: 'left' }}>Charge-Nummer(n)</TableCell>
-                  <TableCell sx={{ width: '8%', fontWeight: 'bold', padding: '8px 16px', textAlign: 'center' }}>Aktiv/Gesamt</TableCell>
-                  <TableCell sx={{ width: '10%', fontWeight: 'bold', padding: '8px 16px', textAlign: 'left' }}>Vernichtet</TableCell>
-                  <TableCell sx={{ width: '15%', fontWeight: 'bold', padding: '8px 16px', textAlign: 'left' }}>Kultiviert von</TableCell>
-                  <TableCell sx={{ width: '15%', fontWeight: 'bold', padding: '8px 16px', textAlign: 'left' }}>Raum</TableCell>
-                  <TableCell sx={{ width: '15%', fontWeight: 'bold', padding: '8px 16px', textAlign: 'left' }}>Erstellt am</TableCell>
-                </TableRow>
-              </TableHead>
-            </Table>
-          </Paper>
-
-          {/* Tabellendaten mit Akkordeons */}
-          {floweringBatches.map((batch) => (
-            <Paper 
-              key={batch.id} 
-              elevation={1} 
-              sx={{ 
-                mb: 1.5, 
-                overflow: 'hidden', 
-                borderRadius: '4px',
-                border: expandedBatchId === batch.id ? '1px solid primary.main' : 'none'
-              }}
-            >
-              {/* Akkordeon-Header als Tabellenzeile gestylt */}
-              <Box
-                onClick={() => handleAccordionChange(batch.id)}
-                sx={{
-                  display: 'flex',
-                  cursor: 'pointer',
-                  backgroundColor: expandedBatchId === batch.id ? 'rgba(0, 0, 0, 0.04)' : 'white',
-                  '&:hover': {
-                    backgroundColor: 'rgba(0, 0, 0, 0.04)'
-                  },
-                  borderLeft: '4px solid',
-                  borderColor: 'primary.main',
-                }}
-              >
-                <Box 
-                  sx={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'center',
-                    width: '3%',
-                    padding: '8px 0'
-                  }}
-                >
-                  <IconButton size="small">
-                    <ExpandMoreIcon 
-                      sx={{ 
-                        transform: expandedBatchId === batch.id ? 'rotate(180deg)' : 'rotate(0deg)',
-                        transition: 'transform 0.3s'
-                      }} 
-                    />
-                  </IconButton>
-                </Box>
-                
-                <Box 
-                  sx={{ 
-                    display: 'flex',
-                    alignItems: 'center',
-                    width: '12%', 
-                    padding: '8px 16px',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    justifyContent: 'flex-start'
-                  }}
-                >
-                  <ScienceIcon sx={{ color: 'primary.main', fontSize: '1rem', mr: 1 }} />
-                  <Typography variant="body2" component="span" sx={{ fontWeight: 'bold' }}>
-                    {batch.seed_strain}
-                  </Typography>
-                </Box>
-                
-                <Box 
-                  sx={{ 
-                    display: 'flex',
-                    alignItems: 'center',
-                    width: '22%', 
-                    padding: '8px 16px',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    justifyContent: 'flex-start'
-                  }}
-                >
-                  <Typography variant="body2" component="span" sx={{ fontFamily: 'monospace', fontSize: '0.85rem' }}>
-                    {batch.batch_number ? 
-                      `blooming-plant:${batch.batch_number.replace(/^(charge:|flowering-plant:|blooming-plant:)/g, '')}:0001-${String(batch.quantity).padStart(4, '0')}`.replace(':0001:0001', ':0001')
-                      : ''}
-                  </Typography>
-                </Box>
-                
-                <Box 
-                  sx={{ 
-                    display: 'flex', 
-                    alignItems: 'center',
-                    width: '8%', 
-                    padding: '8px 16px',
-                    justifyContent: 'center'
-                  }}
-                >
-                  <Typography variant="body2" align="center">
-                    {batch.active_plants_count}/{batch.quantity}
-                  </Typography>
-                </Box>
-
-                <Box 
-                  sx={{ 
-                    display: 'flex', 
-                    alignItems: 'center',
-                    width: '10%', 
-                    padding: '8px 16px',
-                    justifyContent: 'flex-start'
-                  }}
-                >
-                  <Typography 
-                    variant="body2" 
-                    sx={{ 
-                      color: batch.destroyed_plants_count > 0 ? 'error.main' : 'text.primary'
-                    }}
-                  >
-                    {batch.destroyed_plants_count} Pflanzen
-                  </Typography>
-                </Box>
-                
-                <Box 
-                  sx={{ 
-                    display: 'flex', 
-                    alignItems: 'center',
-                    width: '15%', 
-                    padding: '8px 16px',
-                    justifyContent: 'flex-start'
-                  }}
-                >
-                  <Typography variant="body2" noWrap>
-                    {batch.member ? 
-                      (batch.member.display_name || `${batch.member.first_name} ${batch.member.last_name}`) 
-                      : "Nicht zugewiesen"}
-                  </Typography>
-                </Box>
-                
-                <Box 
-                  sx={{ 
-                    display: 'flex', 
-                    alignItems: 'center',
-                    width: '15%', 
-                    padding: '8px 16px',
-                    justifyContent: 'flex-start'
-                  }}
-                >
-                  <Typography variant="body2" noWrap>
-                    {batch.room ? batch.room.name : "Nicht zugewiesen"}
-                  </Typography>
-                </Box>
-                
-                <Box 
-                  sx={{ 
-                    display: 'flex',
-                    alignItems: 'center',
-                    width: '15%',
-                    padding: '8px 16px',
-                    justifyContent: 'flex-start'
-                  }}
-                >
-                  <Typography variant="body2">
-                    {new Date(batch.created_at).toLocaleDateString('de-DE')}
-                  </Typography>
-                </Box>
-              </Box>
-
-              {/* Ausgeklappter Bereich */}
-              {expandedBatchId === batch.id && (
-                <Box 
-                  sx={{ 
-                    width: '100%',
-                    padding: '16px 24px 24px 24px',
-                    backgroundColor: 'rgba(0, 0, 0, 0.02)',
-                    borderTop: '1px solid rgba(0, 0, 0, 0.12)'
-                  }}
-                >
-                  {/* Activity Stream und Karten unter dem Stream */}
-                  <Box sx={{ width: '100%', mb: 3 }}>
-                    {/* Activity Stream Message */}
-                    <Box 
-                      sx={{ 
-                        p: 2, 
-                        mb: 3, 
-                        backgroundColor: 'white', 
-                        borderLeft: '4px solid',
-                        borderColor: 'primary.main',
-                        borderRadius: '4px',
-                        boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-                      }}
-                    >
-                      <Typography variant="body2" sx={{ fontStyle: 'italic', color: 'rgba(0, 0, 0, 0.6)' }}>
-                        {getActivityMessage(batch)}
-                      </Typography>
-                    </Box>
-                    
-                    {/* Karten mit gleicher Höhe - Flex-Layout statt Grid für stabile Anordnung */}
-                    <Box display="flex" flexDirection="row" width="100%" sx={{ flexWrap: 'nowrap' }}>
-                      {/* Charge-Details */}
-                      <Box sx={{ flex: '0 0 33.333%', pr: 1.5 }}>
-                        <Paper 
-                          elevation={1}
-                          sx={{ 
-                            height: '100%', 
-                            borderRadius: '4px',
-                            overflow: 'hidden',
-                            display: 'flex',
-                            flexDirection: 'column'
-                          }}
-                        >
-                          <Box sx={{ 
-                            p: 1.5, 
-                            bgcolor: 'background.paper', 
-                            borderBottom: '1px solid rgba(0, 0, 0, 0.12)'
-                          }}>
-                            <Typography variant="subtitle2" color="primary">
-                              Charge-Details
-                            </Typography>
-                          </Box>
-                          <Box sx={{ p: 2, flexGrow: 1 }}>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                              <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)' }}>
-                                Chargen-ID:
-                              </Typography>
-                              <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.87)' }}>
-                                {batch.batch_number?.startsWith('charge:') 
-                                  ? batch.batch_number 
-                                  : `charge:${batch.batch_number}`}
-                              </Typography>
-                            </Box>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                              <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)' }}>
-                                UUID:
-                              </Typography>
-                              <Typography 
-                                variant="body2" 
-                                sx={{ 
-                                  color: 'rgba(0, 0, 0, 0.87)',
-                                  fontFamily: 'monospace',
-                                  fontSize: '0.75rem',
-                                  wordBreak: 'break-all'
-                                }}
-                              >
-                                {batch.id}
-                              </Typography>
-                            </Box>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                              <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)' }}>
-                                Erstellt am:
-                              </Typography>
-                              <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.87)' }}>
-                                {new Date(batch.created_at).toLocaleDateString('de-DE')}
-                              </Typography>
-                            </Box>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                              <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)' }}>
-                                Ursprungssamen:
-                              </Typography>
-                              <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.87)' }}>
-                                {batch.seed_batch_number || "Unbekannt"}
-                              </Typography>
-                            </Box>
-                          </Box>
-                        </Paper>
-                      </Box>
-                      
-                      {/* Pflanzen-IDs */}
-                      <Box sx={{ flex: '0 0 33.333%', px: 1.5 }}>
-                        <Paper 
-                          elevation={1}
-                          sx={{ 
-                            height: '100%', 
-                            borderRadius: '4px',
-                            overflow: 'hidden',
-                            display: 'flex',
-                            flexDirection: 'column'
-                          }}
-                        >
-                          <Box sx={{ 
-                            p: 1.5, 
-                            bgcolor: 'background.paper',
-                            borderBottom: '1px solid rgba(0, 0, 0, 0.12)'
-                          }}>
-                            <Typography variant="subtitle2" color="primary">
-                              Pflanzen-IDs
-                            </Typography>
-                          </Box>
-                          <Box sx={{ p: 2, flexGrow: 1 }}>
-                            <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1, color: 'rgba(0, 0, 0, 0.87)' }}>
-                              Aktive Pflanzen:
-                            </Typography>
-                            <Box
-                              sx={{
-                                backgroundColor: 'white',
-                                p: 1.5,
-                                borderRadius: '4px',
-                                fontFamily: 'monospace',
-                                fontSize: '0.85rem',
-                                wordBreak: 'break-all',
-                                mb: 2,
-                                border: '1px solid rgba(0, 0, 0, 0.12)'
-                              }}
-                            >
-                              {batch.active_plants_count > 0 
-                                ? `blooming-plant:${batch.batch_number.replace(/^(charge:|flowering-plant:|blooming-plant:)/g, '')}:0001 bis blooming-plant:${batch.batch_number.replace(/^(charge:|flowering-plant:|blooming-plant:)/g, '')}:${String(batch.active_plants_count).padStart(4, '0')}`.replace(':0001:0001', ':0001')
-                                : "Keine aktiven Pflanzen"}
-                            </Box>
-                            
-                            <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1, color: 'rgba(0, 0, 0, 0.87)' }}>
-                              Vernichtete Pflanzen:
-                            </Typography>
-                            <Box
-                              sx={{
-                                backgroundColor: 'white',
-                                p: 1.5,
-                                borderRadius: '4px',
-                                fontFamily: 'monospace',
-                                fontSize: '0.85rem',
-                                wordBreak: 'break-all',
-                                border: '1px solid rgba(0, 0, 0, 0.12)',
-                                color: batch.destroyed_plants_count > 0 ? 'error.main' : 'rgba(0, 0, 0, 0.38)'
-                              }}
-                            >
-                              {batch.destroyed_plants_count > 0 
-                                ? `${batch.destroyed_plants_count} Pflanzen vernichtet` 
-                                : "Keine vernichteten Pflanzen"}
-                            </Box>
-                          </Box>
-                        </Paper>
-                      </Box>
-                      
-                      {/* Notizen */}
-                      <Box sx={{ flex: '0 0 33.333%', pl: 1.5 }}>
-                        <Paper 
-                          elevation={1}
-                          sx={{ 
-                            height: '100%',
-                            borderRadius: '4px',
-                            overflow: 'hidden',
-                            display: 'flex',
-                            flexDirection: 'column'
-                          }}
-                        >
-                          <Box sx={{ 
-                            p: 1.5, 
-                            bgcolor: 'background.paper',
-                            borderBottom: '1px solid rgba(0, 0, 0, 0.12)'
-                          }}>
-                            <Typography variant="subtitle2" color="primary">
-                              Notizen
-                            </Typography>
-                          </Box>
-                          <Box sx={{ p: 2, flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
-                            <Box
-                              sx={{
-                                backgroundColor: 'white',
-                                p: 2,
-                                borderRadius: '4px',
-                                border: '1px solid rgba(0, 0, 0, 0.12)',
-                                flexGrow: 1,
-                                display: 'flex',
-                                alignItems: batch.notes ? 'flex-start' : 'center',
-                                justifyContent: batch.notes ? 'flex-start' : 'center',
-                                width: '100%'
-                              }}
-                            >
-                              <Typography 
-                                variant="body2" 
-                                sx={{ 
-                                  fontStyle: batch.notes ? 'normal' : 'italic',
-                                  color: batch.notes ? 'rgba(0, 0, 0, 0.87)' : 'rgba(0, 0, 0, 0.6)',
-                                  width: '100%'
-                                }}
-                              >
-                                {batch.notes || 'Keine Notizen für diese Charge vorhanden'}
-                              </Typography>
-                            </Box>
-                          </Box>
-                        </Paper>
-                      </Box>
-                    </Box>
-                  </Box>
-                  
-                  {/* Je nach Tab die entsprechende Pflanzen-Tabelle anzeigen */}
-                  {tabValue === 0 ? (
-                    // Tab 0: Aktive Pflanzen
-                    <>
-                      {batchPlants[batch.id] ? (
-                        <Box sx={{ width: '100%', mt: 2, mb: 4 }}>
-                          <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
-                            <Typography variant="subtitle2" color="primary">
-                              Aktive Pflanzen
-                            </Typography>
-                            
-                            {batchPlants[batch.id]?.length > 0 && (
-                              <Box display="flex" alignItems="center">
-                                <FormControlLabel
-                                  control={
-                                    <Checkbox
-                                      checked={(selectedPlants[batch.id]?.length || 0) === (batchPlants[batch.id]?.length || 0)}
-                                      indeterminate={(selectedPlants[batch.id]?.length || 0) > 0 && 
-                                                    (selectedPlants[batch.id]?.length || 0) < (batchPlants[batch.id]?.length || 0)}
-                                      onChange={(e) => selectAllPlantsInBatch(batch.id, e.target.checked)}
-                                    />
-                                  }
-                                  label="Alle auswählen"
-                                />
-                                
-                                {selectedPlants[batch.id]?.length > 0 && (
-                                  <Button 
-                                    variant="contained" 
-                                    color="error"
-                                    onClick={() => handleOpenDestroyDialog(batch)}
-                                    startIcon={<LocalFireDepartmentIcon />}
-                                    sx={{ ml: 2 }}
-                                  >
-                                    {selectedPlants[batch.id].length} Pflanzen vernichten
-                                  </Button>
-                                )}
-                              </Box>
-                            )}
-                          </Box>
-                          
-                          {batchPlants[batch.id]?.length > 0 ? (
-                            <>
-                              <TableContainer component={Paper} elevation={1} sx={{ mb: 2 }}>
-                                <Table size="small">
-                                  <TableHead>
-                                    <TableRow sx={{ backgroundColor: 'primary.main' }}>
-                                      <TableCell padding="checkbox" sx={{ color: 'white' }}>
-                                        <Checkbox
-                                          checked={(selectedPlants[batch.id]?.length || 0) === (batchPlants[batch.id]?.length || 0)}
-                                          indeterminate={(selectedPlants[batch.id]?.length || 0) > 0 && 
-                                                      (selectedPlants[batch.id]?.length || 0) < (batchPlants[batch.id]?.length || 0)}
-                                          onChange={(e) => selectAllPlantsInBatch(batch.id, e.target.checked)}
-                                          sx={{
-                                            color: 'white',
-                                            '&.Mui-checked': {
-                                              color: 'white',
-                                            },
-                                            '&.MuiCheckbox-indeterminate': {
-                                              color: 'white',
-                                            }
-                                          }}
-                                        />
-                                      </TableCell>
-                                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Charge-Nummer</TableCell>
-                                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>UUID</TableCell>
-                                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Erstellt am</TableCell>
-                                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Kultiviert von</TableCell>
-                                      <TableCell align="right" sx={{ color: 'white', fontWeight: 'bold' }}>Aktionen</TableCell>
-                                    </TableRow>
-                                  </TableHead>
-                                  <TableBody>
-                                    {batchPlants[batch.id]?.map((plant, i) => (
-                                      <TableRow 
-                                        key={plant.id}
-                                        sx={{ 
-                                          backgroundColor: 'white',
-                                          '&:nth-of-type(odd)': { backgroundColor: 'rgba(0, 0, 0, 0.02)' }
-                                        }}
-                                      >
-                                        <TableCell padding="checkbox">
-                                          <Checkbox
-                                            checked={selectedPlants[batch.id]?.includes(plant.id) || false}
-                                            onChange={() => togglePlantSelection(batch.id, plant.id)}
-                                          />
-                                        </TableCell>
-                                        <TableCell>
-                                          {plant.batch_number || `Pflanze ${i+1} (Nummer nicht verfügbar)`}
-                                        </TableCell>
-                                        <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
-                                          {plant.id}
-                                        </TableCell>
-                                        <TableCell>
-                                          {new Date(plant.created_at).toLocaleString('de-DE')}
-                                        </TableCell>
-                                        <TableCell>
-                                          {batch.member ? 
-                                            (batch.member.display_name || `${batch.member.first_name} ${batch.member.last_name}`) 
-                                            : "-"}
-                                        </TableCell>
-                                        <TableCell align="right">
-                                          <IconButton 
-                                            size="small" 
-                                            sx={{ 
-                                              color: 'white',
-                                              backgroundColor: 'error.main',
-                                              '&:hover': {
-                                                backgroundColor: 'error.dark'
-                                              },
-                                              width: '28px',
-                                              height: '28px'
-                                            }}
-                                            onClick={() => {
-                                              setSelectedPlants({
-                                                ...selectedPlants,
-                                                [batch.id]: [plant.id]
-                                              });
-                                              handleOpenDestroyDialog(batch);
-                                            }}
-                                          >
-                                            <LocalFireDepartmentIcon fontSize="small" />
-                                          </IconButton>
-                                        </TableCell>
-                                      </TableRow>
-                                    ))}
-                                  </TableBody>
-                                </Table>
-                              </TableContainer>
-                              
-                              {/* Pagination für die Pflanzen innerhalb eines Batches */}
-                              {plantsTotalPages[batch.id] > 1 && (
-                                <Box display="flex" justifyContent="center" mt={2} width="100%">
-                                  <Pagination 
-                                    count={plantsTotalPages[batch.id]} 
-                                    page={plantsCurrentPage[batch.id] || 1} 
-                                    onChange={(e, page) => handlePlantsPageChange(batch.id, e, page)}
-                                    color="primary"
-                                    size="small"
-                                  />
-                                </Box>
-                              )}
-                            </>
-                          ) : (
-                            <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 2 }}>
-                              Keine aktiven Pflanzen in dieser Charge.
-                            </Typography>
-                          )}
-                        </Box>
-                      ) : (
-                        <Box display="flex" justifyContent="center" my={2} width="100%">
-                          <CircularProgress size={24} />
-                        </Box>
-                      )}
-                    </>
-                  ) : (
-                    // Tab 1: Vernichtete Pflanzen
-                    <>
-                      {destroyedBatchPlants[batch.id] ? (
-                        <Box sx={{ width: '100%', mt: 2 }}>
-                          <Typography variant="subtitle2" color="error" gutterBottom>
-                            Vernichtete Pflanzen
-                          </Typography>
-                          
-                          {destroyedBatchPlants[batch.id]?.length > 0 ? (
-                            <>
-                              <TableContainer component={Paper} elevation={1} sx={{ mb: 2 }}>
-                                <Table size="small">
-                                  <TableHead>
-                                    <TableRow sx={{ backgroundColor: 'error.main' }}>
-                                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Charge-Nummer</TableCell>
-                                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>UUID</TableCell>
-                                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Vernichtet am</TableCell>
-                                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Vernichtet durch</TableCell>
-                                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Grund</TableCell>
-                                    </TableRow>
-                                  </TableHead>
-                                  <TableBody>
-                                    {destroyedBatchPlants[batch.id]?.map((plant, i) => (
-                                      <TableRow 
-                                        key={plant.id}
-                                        sx={{ 
-                                          backgroundColor: 'white',
-                                          '&:nth-of-type(odd)': { backgroundColor: 'rgba(0, 0, 0, 0.02)' }
-                                        }}
-                                      >
-                                        <TableCell>
-                                          {plant.batch_number || `Pflanze ${i+1} (Nummer nicht verfügbar)`}
-                                        </TableCell>
-                                        <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
-                                          {plant.id}
-                                        </TableCell>
-                                        <TableCell>
-                                          {plant.destroyed_at ? new Date(plant.destroyed_at).toLocaleString('de-DE') : '-'}
-                                        </TableCell>
-                                        <TableCell>
-                                          {plant.destroyed_by ? 
-                                            (plant.destroyed_by.display_name || `${plant.destroyed_by.first_name || ''} ${plant.destroyed_by.last_name || ''}`.trim()) 
-                                            : "-"}
-                                        </TableCell>
-                                        <TableCell>
-                                          {plant.destroy_reason || '-'}
-                                        </TableCell>
-                                      </TableRow>
-                                    ))}
-                                  </TableBody>
-                                </Table>
-                              </TableContainer>
-                              
-                              {/* Pagination für die vernichteten Pflanzen */}
-                              {destroyedPlantsTotalPages[batch.id] > 1 && (
-                                <Box display="flex" justifyContent="center" mt={2} width="100%">
-                                  <Pagination 
-                                    count={destroyedPlantsTotalPages[batch.id]} 
-                                    page={destroyedPlantsCurrentPage[batch.id] || 1} 
-                                    onChange={(e, page) => handleDestroyedPlantsPageChange(batch.id, e, page)}
-                                    color="error"
-                                    size="small"
-                                  />
-                                </Box>
-                              )}
-                            </>
-                          ) : (
-                            <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 2 }}>
-                              Keine vernichteten Pflanzen in dieser Charge.
-                            </Typography>
-                          )}
-                        </Box>
-                      ) : (
-                        <Box display="flex" justifyContent="center" my={2} width="100%">
-                          <CircularProgress size={24} />
-                        </Box>
-                      )}
-                    </>
-                  )}
-                </Box>
-              )}
-            </Paper>
-          ))}
-
-          {/* Pagination für die Batches */}
-          {totalPages > 1 && (
-            <Box display="flex" justifyContent="center" mt={4} width="100%">
-              <Pagination 
-                count={totalPages} 
-                page={currentPage} 
-                onChange={handlePageChange}
-                color="primary"
-              />
-            </Box>
-          )}
-
-          {floweringBatches.length === 0 && !loading && (
-            <Typography align="center" sx={{ mt: 4, width: '100%' }}>
-              Keine Blühpflanzen vorhanden
-            </Typography>
-          )}
-        </Box>
+        <FloweringPlantTable 
+          tabValue={tabValue}
+          data={floweringBatches}
+          expandedBatchId={expandedBatchId}
+          onExpandBatch={handleAccordionChange}
+          onOpenDestroyDialog={handleOpenDestroyDialog}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={handlePageChange}
+          batchPlants={batchPlants}
+          destroyedBatchPlants={destroyedBatchPlants}
+          plantsCurrentPage={plantsCurrentPage}
+          plantsTotalPages={plantsTotalPages}
+          destroyedPlantsCurrentPage={destroyedPlantsCurrentPage}
+          destroyedPlantsTotalPages={destroyedPlantsTotalPages}
+          onPlantsPageChange={handlePlantsPageChange}
+          onDestroyedPlantsPageChange={handleDestroyedPlantsPageChange}
+          selectedPlants={selectedPlants}
+          togglePlantSelection={togglePlantSelection}
+          selectAllPlantsInBatch={selectAllPlantsInBatch}
+        />
       )}
 
-      {/* Dialog zur Vernichtung mit Mitgliederauswahl und verbesserten Stilen */}
-      <Dialog open={openDestroyDialog} onClose={() => setOpenDestroyDialog(false)}>
-        <DialogTitle>
-          {selectedPlants[selectedBatch?.id]?.length > 1 
-            ? `${selectedPlants[selectedBatch?.id].length} Blühpflanzen vernichten` 
-            : 'Blühpflanze vernichten'}
-        </DialogTitle>
-        <DialogContent>
-          {/* Mitgliederauswahl für die Vernichtung mit verbesserten Stilen */}
-          <FormControl 
-            fullWidth 
-            margin="normal"
-          >
-            <InputLabel>Vernichtet durch</InputLabel>
-            <Select
-              value={destroyedByMemberId}
-              onChange={(e) => setDestroyedByMemberId(e.target.value)}
-              label="Vernichtet durch"
-              required
-            >
-              <MenuItem value="">
-                <em>Bitte Mitglied auswählen</em>
-              </MenuItem>
-              {members.map(member => (
-                <MenuItem 
-                  key={member.id} 
-                  value={member.id}
-                >
-                  {member.display_name || `${member.first_name} ${member.last_name}`}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          
-          <Typography variant="body2" gutterBottom sx={{ mt: 2 }}>
-            Bitte gib einen Grund für die Vernichtung an:
-          </Typography>
-          <TextField
-            label="Vernichtungsgrund"
-            fullWidth
-            margin="dense"
-            multiline
-            rows={3}
-            value={destroyReason}
-            onChange={(e) => setDestroyReason(e.target.value)}
-            required
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenDestroyDialog(false)}>Abbrechen</Button>
-          <Button 
-            onClick={handleDestroy} 
-            variant="contained" 
-            color="error"
-            disabled={!destroyReason || !destroyedByMemberId}
-          >
-            Vernichten
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <DestroyDialog 
+        open={openDestroyDialog}
+        onClose={() => setOpenDestroyDialog(false)}
+        onDestroy={handleDestroy}
+        title={selectedPlants[selectedBatch?.id]?.length > 1 
+          ? `${selectedPlants[selectedBatch?.id].length} Blühpflanzen vernichten` 
+          : 'Blühpflanze vernichten'}
+        members={members}
+        destroyedByMemberId={destroyedByMemberId}
+        setDestroyedByMemberId={setDestroyedByMemberId}
+        destroyReason={destroyReason}
+        setDestroyReason={setDestroyReason}
+        showQuantity={false}
+      />
     </Container>
   )
 }
