@@ -290,7 +290,7 @@ const SeedTable = ({
       <Box>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
           <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)' }}>
-            Chargen-ID:
+            Charge-Nummer:
           </Typography>
           <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.87)' }}>
             {item.batch_number}
@@ -445,7 +445,7 @@ const SeedTable = ({
 
     const cards = [
       {
-        title: tabValue === 0 || tabValue === 3 ? 'Samen-Details' : 
+        title: tabValue === 0 || tabValue === 3 ? 'Charge-Details' : 
                tabValue === 1 ? 'Mutterpflanzen-Details' : 'Blühpflanzen-Details',
         content: chargeDetails
       },

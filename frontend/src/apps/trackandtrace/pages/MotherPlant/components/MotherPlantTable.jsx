@@ -107,7 +107,7 @@ const MotherPlantTable = ({
     const baseColumns = [
       { label: '', width: '3%', align: 'center' },
       { label: 'Genetik', width: '12%', align: 'left' },
-      { label: 'Charge-Nummer(n)', width: '22%', align: 'left' },
+      { label: 'Charge-Nummer', width: '22%', align: 'left' },
     ];
 
     // Tab-spezifische Spalten je nach aktivem Tab
@@ -246,7 +246,7 @@ const MotherPlantTable = ({
       <Box>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
           <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)' }}>
-            Chargen-ID:
+            Charge-Nummer:
           </Typography>
           <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.87)' }}>
             {batch.batch_number?.startsWith('charge:') 

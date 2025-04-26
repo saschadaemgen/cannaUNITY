@@ -31,14 +31,14 @@ urlpatterns = [
     path('', index_view, name='index'),
 
     # 🔐 UniFi-Zugriffs-API (RFID etc.)
-    path("unifi_access/", include("unifi_access.urls")),             # Für Port 8000 (Django direkt)
-    path("api/unifi_access/", include("unifi_access.urls")),         # Für React-Testserver
+    path('unifi_access/', include('unifi_access.urls')),             # Für Port 8000 (Django direkt)
+    path('api/unifi_access/', include('unifi_access.urls')),         # Für React-Testserver
 
     # ⚙️ Optionen-API für React (Globale Einstellungen)
-    path("api/options/", OptionListAPIView.as_view(), name="api-options"),
+    path('api/options/', include('options.api_urls')),  # 💥 NEU: komplett eingebunden!
 
     # 💰 Buchhaltungs-API
-    path('api/buchhaltung/', include('buchhaltung.urls')),  # → /api/buchhaltung/dashboard/
+    path('api/buchhaltung/', include('buchhaltung.urls')),
     path('api/buchhaltung/journal/', BookingJournalAPIView.as_view(), name="api-booking-journal"),
     path('buchhaltung/journal/', BookingJournalAPIView.as_view(), name='booking-journal'),
 

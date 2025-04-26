@@ -30,6 +30,43 @@ import Inventory2Icon from '@mui/icons-material/Inventory2';
 import ShoppingBasketIcon from '@mui/icons-material/ShoppingBasket';
 import BusinessIcon from '@mui/icons-material/Business';
 import StorefrontIcon from '@mui/icons-material/Storefront';
+import api from '../utils/api'; // API für die Titelanfrage importieren
+
+// Standardwerte für die Designoptionen
+const defaultDesignOptions = {
+  // Topbar Titel
+  title: 'cannaUNITY',
+  titleFont: "'Roboto', sans-serif",
+  titleWeight: 'bold',
+  titleStyle: 'normal',
+  titleDecoration: 'none',
+  titleColor: '#ffffff',
+  
+  // Topbar und Menü
+  topbarColor: 'success',
+  menuFont: "'Roboto', sans-serif",
+  menuWeight: 'normal',
+  menuStyle: 'normal',
+  menuDecoration: 'none',
+  menuColor: '#ffffff',
+  menuSpacing: 2, // Abstand zwischen Menüeinträgen (in MUI spacing units)
+  
+  // Divider
+  showDividers: true,
+  
+  // Dark Mode
+  darkMode: false,
+  
+  // Menü Sichtbarkeit
+  menuVisibility: {
+    showCommunity: true,
+    showTrackTrace: true,
+    showWawi: true,
+    showFinance: true,
+    showRooms: true,
+    showSecurity: true,
+  },
+}
 
 export default function Topbar() {
   const theme = useTheme();
@@ -38,6 +75,129 @@ export default function Topbar() {
   const [env, setEnv] = useState({ temperature: 22.7, humidity: 60 });
   const menuRef = useRef(null);
   const toolbarRef = useRef(null);
+  const [title, setTitle] = useState('cannaUNITY'); // Standardtitel falls API fehlschlägt
+  const [design, setDesign] = useState(defaultDesignOptions);
+
+  // Lade Google Fonts
+  useEffect(() => {
+    const loadGoogleFonts = () => {
+      const fonts = [
+        'Roboto',
+        'Open+Sans',
+        'Montserrat',
+        'Lato',
+        'Poppins',
+        'Oswald',
+        'Raleway',
+        'Playfair+Display',
+      ]
+      
+      const link = document.createElement('link')
+      link.rel = 'stylesheet'
+      link.href = `https://fonts.googleapis.com/css2?family=${fonts.join('&family=')}&display=swap`
+      document.head.appendChild(link)
+    }
+    
+    loadGoogleFonts()
+  }, []);
+
+  // API-Anfrage für den dynamischen Titel und Design-Optionen
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Titel laden
+        const titleRes = await api.get('/options/title/');
+        if (titleRes.data && titleRes.data.title) {
+          setTitle(titleRes.data.title);
+        }
+        
+        // Design-Optionen laden (falls vorhanden)
+        try {
+          const designRes = await api.get('/options/design-options/');
+          if (designRes.data && designRes.data.options) {
+            const loadedDesign = JSON.parse(designRes.data.options);
+            setDesign(prev => ({
+              ...prev,
+              ...loadedDesign
+            }));
+          }
+        } catch (designError) {
+          console.error('Fehler beim Laden der Design-Optionen:', designError);
+          
+          // Fallback: Alte Style-Optionen versuchen zu laden
+          try {
+            const styleRes = await api.get('/options/title-style/');
+            if (styleRes.data && styleRes.data.style) {
+              const oldStyle = JSON.parse(styleRes.data.style);
+              setDesign(prev => ({
+                ...prev,
+                titleFont: oldStyle.fontFamily || prev.titleFont,
+                titleWeight: oldStyle.fontWeight || prev.titleWeight,
+                titleStyle: oldStyle.fontStyle || prev.titleStyle,
+                titleDecoration: oldStyle.textDecoration || prev.titleDecoration,
+                titleColor: oldStyle.color || prev.titleColor
+              }));
+            }
+          } catch (styleError) {
+            console.error('Auch alte Style-Optionen nicht gefunden:', styleError);
+            // Standardwerte bleiben erhalten
+          }
+        }
+      } catch (error) {
+        console.error('Fehler beim Laden des Topbar-Titels:', error);
+      }
+    };
+    fetchData();
+
+    // Event-Listener für Titeländerungen
+    const handleTitleChange = (event) => {
+      if (event.detail) {
+        if (event.detail.title) {
+          setTitle(event.detail.title);
+        }
+        if (event.detail.style) {
+          const newStyle = event.detail.style;
+          setDesign(prev => ({
+            ...prev,
+            titleFont: newStyle.fontFamily || prev.titleFont,
+            titleWeight: newStyle.fontWeight || prev.titleWeight,
+            titleStyle: newStyle.fontStyle || prev.titleStyle,
+            titleDecoration: newStyle.textDecoration || prev.titleDecoration,
+            titleColor: newStyle.color || prev.titleColor
+          }));
+        }
+      } else {
+        fetchData();
+      }
+    };
+
+    // Event-Listener für Design-Änderungen
+    const handleDesignChange = (event) => {
+      if (event.detail) {
+        if (event.detail.title) {
+          setTitle(event.detail.title);
+        }
+        if (event.detail.designOptions) {
+          setDesign(prev => ({
+            ...prev,
+            ...event.detail.designOptions
+          }));
+        }
+      } else {
+        fetchData();
+      }
+    };
+
+    // Höre auf beide Events
+    window.addEventListener('topbarTitleChanged', handleTitleChange);
+    window.addEventListener('designChanged', handleDesignChange);
+
+    // Cleanup-Funktion
+    return () => {
+      window.removeEventListener('topbarTitleChanged', handleTitleChange);
+      window.removeEventListener('designChanged', handleDesignChange);
+    };
+  }, []);
 
   const traceData = {
     'Step 1 - Samen': { transferred: 0, total: 100, co2: 452, dust: 16, statusMsg: 'Keimung läuft planmäßig', status: 'normal', overdue: false },
@@ -110,9 +270,12 @@ export default function Topbar() {
   }, []);
 
   const menuItems = [
-    { label: 'Gemeinschaftsnetzwerk', path: '/mitglieder', icon: <GroupsIcon /> },
+    { id: 'showCommunity', label: 'Gemeinschaftsnetzwerk', path: '/mitglieder', icon: <GroupsIcon /> },
     {
-      label: 'Track & Trace', icon: <TimelineIcon />, children: [
+      id: 'showTrackTrace', 
+      label: 'Track & Trace', 
+      icon: <TimelineIcon />, 
+      children: [
         { label: 'Step 1 - Samen', path: '/trace/samen', icon: <GrassIcon /> },
         { label: 'Step 2 - Mutterpflanzen', path: '/trace/mutterpflanzen', icon: <LocalFloristIcon /> },
         { label: 'Step 3 - Stecklinge', path: '/trace/stecklinge', icon: <ContentCutIcon /> },
@@ -126,13 +289,19 @@ export default function Topbar() {
       ]
     },
     {
-      label: 'WaWi', icon: <StorefrontIcon />, children: [
+      id: 'showWawi',
+      label: 'WaWi', 
+      icon: <StorefrontIcon />, 
+      children: [
         { label: 'Samen-Verwaltung', path: '/trace/samen', icon: <GrassIcon /> },
         { label: 'Hersteller-Verwaltung', path: '/trace/hersteller', icon: <BusinessIcon /> }
       ]
     },
     {
-      label: 'Buchhaltung', icon: <PaymentsIcon />, children: [
+      id: 'showFinance',
+      label: 'Buchhaltung', 
+      icon: <PaymentsIcon />, 
+      children: [
         { label: 'Dashboard', path: '/buchhaltung', icon: <PaymentsIcon /> },
         { label: 'Kontenübersicht', path: '/buchhaltung/konten', icon: <PaymentsIcon /> },
         { label: 'Neues Konto', path: '/buchhaltung/konten/neu', icon: <PaymentsIcon /> },
@@ -143,37 +312,108 @@ export default function Topbar() {
         { label: 'Jahresabschluss', path: '/buchhaltung/jahresabschluss', icon: <PaymentsIcon /> }
       ]
     },
-    { label: 'Raumverwaltung', path: '/rooms', icon: <MeetingRoomIcon /> },
-    { label: 'Sicherheit', path: '/unifi-access/dashboard', icon: <VpnKeyIcon /> }
+    { id: 'showRooms', label: 'Raumverwaltung', path: '/rooms', icon: <MeetingRoomIcon /> },
+    { id: 'showSecurity', label: 'Sicherheit', path: '/unifi-access/dashboard', icon: <VpnKeyIcon /> }
   ];
+
+  // Filtere die sichtbaren Menüpunkte basierend auf den Sichtbarkeitseinstellungen
+  const visibleMenuItems = menuItems.filter(item => 
+    design.menuVisibility && design.menuVisibility[item.id] !== false
+  );
 
   return (
     <Box>
-      <AppBar position="fixed" color="success" sx={{ zIndex: theme.zIndex.drawer + 1 }}>
+      <AppBar 
+        position="fixed" 
+        color={design.topbarColor || 'success'}
+        sx={{ 
+          zIndex: theme.zIndex.drawer + 1,
+        }}
+      >
         <Toolbar ref={toolbarRef} sx={{ justifyContent: 'space-between', px: 4, height: 64 }}>
-          <Typography variant="h6" fontWeight="bold">Anbauvereinigung Recklinghausen e.V.</Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            {menuItems.map((item, i) => (
-              <Box key={item.label}>
+          <Typography 
+            variant="h6" 
+            sx={{ 
+              fontFamily: design.titleFont, 
+              fontWeight: design.titleWeight, 
+              fontStyle: design.titleStyle, 
+              textDecoration: design.titleDecoration,
+              color: design.titleColor,
+            }}
+          >
+            {title}
+          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            {visibleMenuItems.map((item, i) => (
+              <React.Fragment key={item.id}>
+                {/* Vertikaler Divider vor jedem Element außer dem ersten */}
+                {i > 0 && design.showDividers && (
+                  <Divider 
+                    orientation="vertical" 
+                    flexItem 
+                    sx={{ 
+                      mx: 1, 
+                      my: 'auto', // Vertikale Zentrierung
+                      height: '20px', // Angepasste Höhe
+                      alignSelf: 'center', // Zusätzliche Zentrierung
+                      borderColor: design.menuColor,
+                      opacity: 0.5,
+                    }} 
+                  />
+                )}
                 <Box
                   sx={{
-                    display: 'flex', alignItems: 'center', cursor: 'pointer', gap: 1, color: 'white', height: 64,
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    cursor: 'pointer', 
+                    gap: 1, 
+                    color: design.menuColor,
+                    px: design.menuSpacing / 2, // Abstand basierend auf menuSpacing
+                    height: 64,
                     '&:hover': { textDecoration: 'underline' }
                   }}
                   onClick={() => item.children ? handleToggle(i) : handleClickItem(item.path, false)}
                 >
                   {item.icon}
-                  <Typography>{item.label}</Typography>
+                  <Typography sx={{ 
+                    fontFamily: design.menuFont,
+                    fontWeight: design.menuWeight,
+                    fontStyle: design.menuStyle,
+                    textDecoration: design.menuDecoration,
+                  }}>
+                    {item.label}
+                  </Typography>
                 </Box>
-              </Box>
+              </React.Fragment>
             ))}
-            <IconButton onClick={() => handleClickItem('/options', false)} color="inherit"><SettingsIcon /></IconButton>
+            {/* Divider vor dem Einstellungs-Icon */}
+            {visibleMenuItems.length > 0 && design.showDividers && (
+              <Divider 
+                orientation="vertical" 
+                flexItem 
+                sx={{ 
+                  mx: 1, 
+                  my: 'auto', // Vertikale Zentrierung
+                  height: '20px', // Angepasste Höhe
+                  alignSelf: 'center', // Zusätzliche Zentrierung
+                  borderColor: design.menuColor,
+                  opacity: 0.5,
+                }} 
+              />
+            )}
+            <IconButton 
+              onClick={() => handleClickItem('/options', false)} 
+              sx={{ color: design.menuColor, px: design.menuSpacing / 2 }}
+            >
+              <SettingsIcon />
+            </IconButton>
           </Box>
         </Toolbar>
       </AppBar>
 
-      {menuItems.map((item, i) => item.children && (
-        <Collapse key={item.label} in={openMenuIndex === i} timeout="auto" unmountOnExit>
+      {/* Die ausklappbaren Menüs für sichtbare Menüpunkte */}
+      {visibleMenuItems.map((item, i) => item.children && (
+        <Collapse key={item.id} in={openMenuIndex === i} timeout="auto" unmountOnExit>
           <Box ref={openMenuIndex === i ? menuRef : null} sx={{ bgcolor: '#f4f4f4', py: 4, px: 8, boxShadow: 3 }}>
             <Grid container spacing={3} justifyContent="center">
               {item.children.map(sub => {

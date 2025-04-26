@@ -8,11 +8,57 @@ export default function Footer() {
   const theme = useTheme()
   const navigate = useNavigate()
   const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [footerMode, setFooterMode] = useState('full')
 
   // ✅ Check ob eingeloggt beim Mount
   useEffect(() => {
     const token = localStorage.getItem('authToken')
     setIsLoggedIn(!!token)
+    
+    // Lade Design-Optionen aus dem localStorage oder API
+    const loadDesignOptions = async () => {
+      try {
+        // Versuche zuerst aus dem localStorage zu laden (für schnellere Anzeige)
+        const savedOptions = localStorage.getItem('designOptions')
+        if (savedOptions) {
+          const parsedOptions = JSON.parse(savedOptions)
+          if (parsedOptions.footerMode) {
+            setFooterMode(parsedOptions.footerMode)
+          }
+        }
+        
+        // Dann von der API (für Synchronisation)
+        const response = await fetch('/api/options/design-options/')
+        if (response.ok) {
+          const data = await response.json()
+          if (data.options) {
+            const designOptions = JSON.parse(data.options)
+            if (designOptions.footerMode) {
+              setFooterMode(designOptions.footerMode)
+              // Aktualisiere auch localStorage
+              localStorage.setItem('designOptions', JSON.stringify(designOptions))
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Fehler beim Laden der Footer-Einstellungen:', error)
+      }
+    }
+    
+    loadDesignOptions()
+    
+    // Event-Listener für Design-Änderungen
+    const handleDesignChange = (event) => {
+      if (event.detail && event.detail.designOptions && event.detail.designOptions.footerMode) {
+        setFooterMode(event.detail.designOptions.footerMode)
+      }
+    }
+    
+    window.addEventListener('designChanged', handleDesignChange)
+    
+    return () => {
+      window.removeEventListener('designChanged', handleDesignChange)
+    }
   }, [])
 
   const handleLogout = async () => {
@@ -23,6 +69,20 @@ export default function Footer() {
 
   const handleLogin = () => {
     navigate('/login')
+  }
+
+  // Funktion zur Bestimmung des Footer-Titels basierend auf dem Modus
+  const getFooterTitle = () => {
+    switch (footerMode) {
+      case 'full':
+        return 'cannaUNITY v0.6.18'
+      case 'title':
+        return 'cannaUNITY'
+      case 'none':
+        return '' // Kein Titel
+      default:
+        return 'cannaUNITY v0.6.18' // Fallback
+    }
   }
 
   return (
@@ -48,7 +108,7 @@ export default function Footer() {
       }}
     >
       <Typography variant="caption" color="text.secondary">
-        ❤️ cannaUNITY v0.6.18
+        {getFooterTitle()}
       </Typography>
 
       {isLoggedIn ? (

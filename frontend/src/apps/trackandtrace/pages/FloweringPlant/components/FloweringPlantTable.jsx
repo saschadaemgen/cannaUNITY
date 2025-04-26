@@ -42,7 +42,7 @@ const FloweringPlantTable = ({
   const getHeaderColumns = () => {
     return [
       { label: 'Genetik', width: '15%', align: 'left' },
-      { label: 'Charge-Nummer(n)', width: '22%', align: 'left' },
+      { label: 'Charge-Nummer', width: '22%', align: 'left' },
       { label: 'Aktiv/Gesamt', width: '10%', align: 'center' },
       { label: 'Vernichtet', width: '10%', align: 'left' },
       { label: 'Kultiviert von', width: '15%', align: 'left' },
@@ -63,7 +63,7 @@ const FloweringPlantTable = ({
         iconColor: 'primary.main'
       },
       {
-        content: batch.batch_number || '',
+        content: batch.batch_number ? `charge:${batch.batch_number}` : '',
         width: '22%',
         fontFamily: 'monospace',
         fontSize: '0.85rem'
@@ -116,7 +116,7 @@ const FloweringPlantTable = ({
       <Box>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
           <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)' }}>
-            Chargen-ID:
+            Charge-Nummer:
           </Typography>
           <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.87)' }}>
             {batch.batch_number?.startsWith('charge:') 
@@ -362,7 +362,7 @@ const FloweringPlantTable = ({
                                 }}
                               />
                             </TableCell>
-                            <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Charge-Nummer</TableCell>
+                            <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Batch-Nummer</TableCell>
                             <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>UUID</TableCell>
                             <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Erstellt am</TableCell>
                             <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Kultiviert von</TableCell>
