@@ -1,6 +1,6 @@
 // frontend/src/apps/trackandtrace/pages/FloweringPlant/FloweringPlantPage.jsx
 import { useState, useEffect } from 'react'
-import { Container, Box, Typography, Fade, Grow, Slide } from '@mui/material'
+import { Container, Box, Typography, Fade } from '@mui/material'
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
 import api from '../../../../utils/api'
 
@@ -10,74 +10,10 @@ import FilterSection from '../../components/common/FilterSection'
 import TabsHeader from '../../components/common/TabsHeader'
 import LoadingIndicator from '../../components/common/LoadingIndicator'
 import DestroyDialog from '../../components/dialogs/DestroyDialog'
+import AnimatedTabPanel from '../../components/common/AnimatedTabPanel'
 
 // Spezifische Komponenten
 import FloweringPlantTable from './components/FloweringPlantTable'
-
-// Animierte Tab-Panel Komponente
-const AnimatedTabPanel = ({ 
-  value, 
-  index, 
-  animationType = 'fade', 
-  duration = 400,
-  direction = 'right',
-  children 
-}) => {
-  const isActive = value === index;
-  
-  // Animation basierend auf dem Typ wählen
-  const renderAnimatedContent = () => {
-    switch (animationType) {
-      case 'fade':
-        return (
-          <Fade 
-            in={isActive} 
-            timeout={duration}
-            mountOnEnter 
-            unmountOnExit
-          >
-            <Box>{children}</Box>
-          </Fade>
-        );
-      case 'slide':
-        return (
-          <Slide 
-            direction={direction} 
-            in={isActive} 
-            timeout={duration}
-            mountOnEnter 
-            unmountOnExit
-          >
-            <Box>{children}</Box>
-          </Slide>
-        );
-      case 'grow':
-        return (
-          <Grow 
-            in={isActive} 
-            timeout={duration}
-            mountOnEnter 
-            unmountOnExit
-          >
-            <Box>{children}</Box>
-          </Grow>
-        );
-      default:
-        return <Box sx={{ display: isActive ? 'block' : 'none' }}>{children}</Box>;
-    }
-  };
-
-  return (
-    <div
-      role="tabpanel"
-      id={`tabpanel-${index}`}
-      aria-labelledby={`tab-${index}`}
-      style={{ width: '100%' }}
-    >
-      {renderAnimatedContent()}
-    </div>
-  );
-};
 
 export default function FloweringPlantPage() {
   const [floweringBatches, setFloweringBatches] = useState([])
@@ -572,9 +508,7 @@ export default function FloweringPlantPage() {
           <AnimatedTabPanel 
             value={tabValue} 
             index={0} 
-            animationType="slide" 
-            direction="right" 
-            duration={500}
+            direction="right"
           >
             <FloweringPlantTable 
               tabValue={0}
@@ -602,9 +536,7 @@ export default function FloweringPlantPage() {
           <AnimatedTabPanel 
             value={tabValue} 
             index={1} 
-            animationType="slide" 
-            direction="left" 
-            duration={500}
+            direction="left"
           >
             <FloweringPlantTable 
               tabValue={1}

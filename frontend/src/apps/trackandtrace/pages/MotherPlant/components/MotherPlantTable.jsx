@@ -390,7 +390,7 @@ const MotherPlantTable = ({
           >
             {batch.converted_to_cuttings_count > 0 || (tabValue === 1 && batch.quantity > 0) ? (
               <Typography variant="body2" sx={{ fontStyle: 'italic', color: 'primary.main' }}>
-                {tabValue === 1 ? batch.quantity : (batch.converted_to_cuttings_count || 0)} Stecklinge wurden aus Pflanzen dieser Charge erstellt.
+                {tabValue === 1 ? batch.quantity : (batch.converted_to_cuttings_count || 0)} Stecklinge wurden aus dieser Charge erstellt.
               </Typography>
             ) : (
               <Typography variant="body2" sx={{ fontStyle: 'italic', color: 'text.secondary' }}>

@@ -19,6 +19,9 @@ import DestroyDialog from '../../components/dialogs/DestroyDialog'
 // Spezifische Komponenten
 import SeedTable from './components/SeedTable'
 
+// Animations-Hook importieren
+import useAnimationSettings from '../../../../hooks/useAnimationSettings'
+
 export default function SeedPurchasePage() {
   const [seeds, setSeeds] = useState([])
   const [openForm, setOpenForm] = useState(false)
@@ -34,15 +37,14 @@ export default function SeedPurchasePage() {
   const [selectedRows, setSelectedRows] = useState([]) 
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
-  const [pageSize, setPageSize] = useState(10) // Standard auf 15 gesetzt
+  const [pageSize, setPageSize] = useState(10)
   const [totalCount, setTotalCount] = useState(0)
   
   // Optionen für Page Size Dropdown
   const pageSizeOptions = [5, 10, 15, 25, 50]
   
-  // Animationstypen für die verschiedenen Tab-Inhalte
-  const [tabAnimation, setTabAnimation] = useState('slide') // 'fade', 'slide', 'grow'
-  const [animationDuration, setAnimationDuration] = useState(500)
+  // Animationseinstellungen mit neuem Hook abrufen
+  const animSettings = useAnimationSettings('slide', 500, true);
   
   // Filter-Zustandsvariablen
   const [yearFilter, setYearFilter] = useState('')
@@ -510,11 +512,6 @@ export default function SeedPurchasePage() {
     
     loadCounts();
   }
-  
-  // Funktion zum Ändern des Animationstyps
-  const changeAnimationType = (type) => {
-    setTabAnimation(type);
-  }
 
   // Funktion, die die anzuzeigenden Daten basierend auf dem Tab zurückgibt
   const getDisplayedData = () => {
@@ -641,9 +638,9 @@ export default function SeedPurchasePage() {
           <AnimatedTabPanel 
             value={tabValue} 
             index={0} 
-            animationType={tabAnimation} 
+            animationType={animSettings.type} 
             direction="right" 
-            duration={animationDuration}
+            duration={animSettings.duration}
           >
             <SeedTable 
               tabValue={0}
@@ -666,9 +663,9 @@ export default function SeedPurchasePage() {
           <AnimatedTabPanel 
             value={tabValue} 
             index={1} 
-            animationType={tabAnimation} 
+            animationType={animSettings.type} 
             direction="up" 
-            duration={animationDuration}
+            duration={animSettings.duration}
           >
             <SeedTable 
               tabValue={1}
@@ -691,9 +688,9 @@ export default function SeedPurchasePage() {
           <AnimatedTabPanel 
             value={tabValue} 
             index={2} 
-            animationType={tabAnimation} 
+            animationType={animSettings.type} 
             direction="up" 
-            duration={animationDuration}
+            duration={animSettings.duration}
           >
             <SeedTable 
               tabValue={2}
@@ -716,9 +713,9 @@ export default function SeedPurchasePage() {
           <AnimatedTabPanel 
             value={tabValue} 
             index={3} 
-            animationType={tabAnimation} 
+            animationType={animSettings.type} 
             direction="left" 
-            duration={animationDuration}
+            duration={animSettings.duration}
           >
             <SeedTable 
               tabValue={3}

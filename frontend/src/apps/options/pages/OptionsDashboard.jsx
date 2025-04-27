@@ -1,4 +1,4 @@
-// Update für OptionsDashboard.jsx
+// frontend/src/apps/options/pages/OptionsDashboard.jsx
 import { useContext, useState, useEffect } from 'react'
 import { Grid, Box, useTheme, Snackbar, Alert } from '@mui/material'
 import DesignOptionCard from '../components/DesignOptionCard'
@@ -157,6 +157,8 @@ export default function OptionsDashboard() {
   // Speichern der Design-Optionen im neuen Format
   const handleSaveDesign = async (newTitle, newDesignOptions) => {
     try {
+      console.log('Speichere folgende Design-Optionen:', newDesignOptions);
+      
       // Speichere den Titel
       await api.post('/options/update-title/', { title: newTitle })
       setTopbarTitle(newTitle)
@@ -207,6 +209,17 @@ export default function OptionsDashboard() {
         }
       })
       window.dispatchEvent(designChangedEvent)
+      
+      // Zusätzlich ein separates Event nur für die Animation auslösen, um sicherzustellen, 
+      // dass die Änderungen in allen Komponenten ankommen
+      const animationChangedEvent = new CustomEvent('animationSettingsChanged', {
+        detail: {
+          animations: newDesignOptions.animations
+        }
+      });
+      window.dispatchEvent(animationChangedEvent);
+      
+      console.log('Alle Events wurden ausgelöst, einschließlich animationSettingsChanged');
     } catch (error) {
       console.error('Fehler beim Aktualisieren des Designs:', error)
       setSnackbarMessage('Fehler beim Speichern.')

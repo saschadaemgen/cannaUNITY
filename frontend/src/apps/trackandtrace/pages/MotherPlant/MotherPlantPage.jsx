@@ -16,6 +16,9 @@ import AnimatedTabPanel from '../../components/common/AnimatedTabPanel'
 // Spezifische Komponenten
 import MotherPlantTable from './components/MotherPlantTable'
 
+// Animations-Hook importieren
+import useAnimationSettings from '../../../../hooks/useAnimationSettings'
+
 export default function MotherPlantPage() {
   const [motherBatches, setMotherBatches] = useState([])
   const [loading, setLoading] = useState(false)
@@ -35,9 +38,8 @@ export default function MotherPlantPage() {
   const [selectedPlants, setSelectedPlants] = useState({})
   const [loadingOptions, setLoadingOptions] = useState(false)
   
-  // Animationstypen für die verschiedenen Tab-Inhalte
-  const [tabAnimation, setTabAnimation] = useState('slide') // 'fade', 'slide', 'grow'
-  const [animationDuration, setAnimationDuration] = useState(500)
+  // Animationseinstellungen mit neuem Hook abrufen
+  const animSettings = useAnimationSettings('slide', 500, true);
   
   // Filter-Zustandsvariablen
   const [yearFilter, setYearFilter] = useState('')
@@ -577,11 +579,6 @@ export default function MotherPlantPage() {
       loadCuttingBatches(1) // Für Tab 1 (Stecklinge)
     }
   }
-  
-  // Funktion zum Ändern des Animationstyps
-  const changeAnimationType = (type) => {
-    setTabAnimation(type);
-  }
 
   // Die Daten, die in der aktuellen Tabelle angezeigt werden sollen
   const displayedData = getDisplayedData();
@@ -666,9 +663,9 @@ export default function MotherPlantPage() {
           <AnimatedTabPanel 
             value={tabValue} 
             index={0} 
-            animationType={tabAnimation} 
+            animationType={animSettings.type} 
             direction="right" 
-            duration={animationDuration}
+            duration={animSettings.duration}
           >
             <MotherPlantTable 
               tabValue={0}
@@ -697,9 +694,9 @@ export default function MotherPlantPage() {
           <AnimatedTabPanel 
             value={tabValue} 
             index={1} 
-            animationType={tabAnimation} 
+            animationType={animSettings.type} 
             direction="up" 
-            duration={animationDuration}
+            duration={animSettings.duration}
           >
             <MotherPlantTable 
               tabValue={1}
@@ -728,9 +725,9 @@ export default function MotherPlantPage() {
           <AnimatedTabPanel 
             value={tabValue} 
             index={2} 
-            animationType={tabAnimation} 
+            animationType={animSettings.type} 
             direction="left" 
-            duration={animationDuration}
+            duration={animSettings.duration}
           >
             <MotherPlantTable 
               tabValue={2}

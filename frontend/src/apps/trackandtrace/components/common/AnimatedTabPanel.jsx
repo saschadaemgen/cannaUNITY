@@ -45,6 +45,7 @@ const AnimatedTabPanel = ({
               type: animationType || options.animations.type || 'slide',
               duration: duration || options.animations.duration || 400,
             });
+            console.log('Animationseinstellungen geladen aus localStorage:', options.animations);
           }
         }
       } catch (e) {
@@ -63,6 +64,7 @@ const AnimatedTabPanel = ({
           type: animationType || options.animations.type || 'slide',
           duration: duration || options.animations.duration || 400,
         });
+        console.log('Animationseinstellungen aktualisiert durch Event:', options.animations);
       }
     };
     
