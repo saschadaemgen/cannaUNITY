@@ -1,6 +1,7 @@
 // frontend/src/apps/trackandtrace/pages/Cutting/CuttingPage.jsx
 import { useState, useEffect } from 'react'
-import { Container } from '@mui/material'
+import { Container, Box, Typography, Fade } from '@mui/material'
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
 import api from '../../../../utils/api'
 
 // Gemeinsame Komponenten
@@ -9,6 +10,7 @@ import FilterSection from '../../components/common/FilterSection'
 import TabsHeader from '../../components/common/TabsHeader'
 import LoadingIndicator from '../../components/common/LoadingIndicator'
 import DestroyDialog from '../../components/dialogs/DestroyDialog'
+import AnimatedTabPanel from '../../components/common/AnimatedTabPanel'
 
 // Spezifische Komponenten
 import CuttingTable from './components/CuttingTable'
@@ -31,6 +33,10 @@ export default function CuttingPage() {
   const [selectedBatch, setSelectedBatch] = useState(null)
   const [selectedCuttings, setSelectedCuttings] = useState({})
   const [loadingOptions, setLoadingOptions] = useState(false)
+  
+  // Animationstypen für die verschiedenen Tab-Inhalte
+  const [tabAnimation, setTabAnimation] = useState('slide') // 'fade', 'slide', 'grow'
+  const [animationDuration, setAnimationDuration] = useState(500)
   
   // Filter-Zustandsvariablen
   const [yearFilter, setYearFilter] = useState('')
@@ -405,32 +411,65 @@ export default function CuttingPage() {
     setShowFilters(false)
     loadCuttingBatches(1) // Zurück zur ersten Seite nach Filter-Reset
   }
+  
+  // Funktion zum Ändern des Animationstyps
+  const changeAnimationType = (type) => {
+    setTabAnimation(type);
+  }
 
   // Tabs definieren
   const tabs = [
-    { label: `CHARGEN / AKTIVE STECKLINGE (${activeBatchesCount}/${activeCuttingsCount})` },
-    { label: `CHARGEN / VERNICHTETE STECKLINGE (${destroyedBatchesCount}/${destroyedCuttingsCount})` }
+    { 
+      label: (
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <Typography component="span" sx={{ fontWeight: 'bold' }}>CHARGEN</Typography>
+          <Typography component="span" sx={{ mx: 0.5, color: 'primary.main', fontWeight: 500 }}>{`(${activeBatchesCount})`}</Typography>
+          <ArrowForwardIcon sx={{ mx: 0.5, fontSize: 14, color: 'primary.main' }} />
+          <Typography component="span" sx={{ fontWeight: 'bold' }}>AKTIVE STECKLINGE</Typography>
+          <Typography component="span" sx={{ mx: 0.5, color: 'primary.main', fontWeight: 500 }}>{`(${activeCuttingsCount})`}</Typography>
+        </Box>
+      ) 
+    },
+    { 
+      label: (
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <Typography component="span" sx={{ fontWeight: 'bold' }}>CHARGEN</Typography>
+          <Typography component="span" sx={{ mx: 0.5, color: 'error.main', fontWeight: 500 }}>{`(${destroyedBatchesCount})`}</Typography>
+          <ArrowForwardIcon sx={{ mx: 0.5, fontSize: 14, color: 'error.main' }} />
+          <Typography component="span" sx={{ fontWeight: 'bold' }}>VERNICHTETE STECKLINGE</Typography>
+          <Typography component="span" sx={{ mx: 0.5, color: 'error.main', fontWeight: 500 }}>{`(${destroyedCuttingsCount})`}</Typography>
+        </Box>
+      )
+    }
   ];
 
   return (
     <Container maxWidth="xl" sx={{ width: '100%' }}>
-      <PageHeader 
-        title="Stecklinge-Verwaltung"
-        showFilters={showFilters}
-        setShowFilters={setShowFilters}
-      />
+      <Fade in={true} timeout={800}>
+        <Box>
+          <PageHeader 
+            title="Stecklinge-Verwaltung"
+            showFilters={showFilters}
+            setShowFilters={setShowFilters}
+          />
+        </Box>
+      </Fade>
       
-      <FilterSection
-        yearFilter={yearFilter}
-        setYearFilter={setYearFilter}
-        monthFilter={monthFilter}
-        setMonthFilter={setMonthFilter}
-        dayFilter={dayFilter}
-        setDayFilter={setDayFilter}
-        onApply={handleFilterApply}
-        onReset={handleFilterReset}
-        showFilters={showFilters}
-      />
+      <Fade in={showFilters} timeout={400}>
+        <Box sx={{ display: showFilters ? 'block' : 'none' }}>
+          <FilterSection
+            yearFilter={yearFilter}
+            setYearFilter={setYearFilter}
+            monthFilter={monthFilter}
+            setMonthFilter={setMonthFilter}
+            dayFilter={dayFilter}
+            setDayFilter={setDayFilter}
+            onApply={handleFilterApply}
+            onReset={handleFilterReset}
+            showFilters={showFilters}
+          />
+        </Box>
+      </Fade>
 
       <TabsHeader 
         tabValue={tabValue} 
@@ -443,43 +482,87 @@ export default function CuttingPage() {
       {loading ? (
         <LoadingIndicator />
       ) : (
-        <CuttingTable 
-          tabValue={tabValue}
-          data={cuttingBatches}
-          expandedBatchId={expandedBatchId}
-          onExpandBatch={handleAccordionChange}
-          onOpenDestroyDialog={handleOpenDestroyDialog}
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={handlePageChange}
-          batchCuttings={batchCuttings}
-          destroyedBatchCuttings={destroyedBatchCuttings}
-          cuttingsCurrentPage={cuttingsCurrentPage}
-          cuttingsTotalPages={cuttingsTotalPages}
-          destroyedCuttingsCurrentPage={destroyedCuttingsCurrentPage}
-          destroyedCuttingsTotalPages={destroyedCuttingsTotalPages}
-          onCuttingsPageChange={handleCuttingsPageChange}
-          onDestroyedCuttingsPageChange={handleDestroyedCuttingsPageChange}
-          selectedCuttings={selectedCuttings}
-          toggleCuttingSelection={toggleCuttingSelection}
-          selectAllCuttingsInBatch={selectAllCuttingsInBatch}
-        />
+        <>
+          <AnimatedTabPanel 
+            value={tabValue} 
+            index={0} 
+            animationType={tabAnimation} 
+            direction="right" 
+            duration={animationDuration}
+          >
+            <CuttingTable 
+              tabValue={0}
+              data={cuttingBatches}
+              expandedBatchId={expandedBatchId}
+              onExpandBatch={handleAccordionChange}
+              onOpenDestroyDialog={handleOpenDestroyDialog}
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+              batchCuttings={batchCuttings}
+              destroyedBatchCuttings={destroyedBatchCuttings}
+              cuttingsCurrentPage={cuttingsCurrentPage}
+              cuttingsTotalPages={cuttingsTotalPages}
+              destroyedCuttingsCurrentPage={destroyedCuttingsCurrentPage}
+              destroyedCuttingsTotalPages={destroyedCuttingsTotalPages}
+              onCuttingsPageChange={handleCuttingsPageChange}
+              onDestroyedCuttingsPageChange={handleDestroyedCuttingsPageChange}
+              selectedCuttings={selectedCuttings}
+              toggleCuttingSelection={toggleCuttingSelection}
+              selectAllCuttingsInBatch={selectAllCuttingsInBatch}
+            />
+          </AnimatedTabPanel>
+          
+          <AnimatedTabPanel 
+            value={tabValue} 
+            index={1} 
+            animationType={tabAnimation} 
+            direction="left" 
+            duration={animationDuration}
+          >
+            <CuttingTable 
+              tabValue={1}
+              data={cuttingBatches}
+              expandedBatchId={expandedBatchId}
+              onExpandBatch={handleAccordionChange}
+              onOpenDestroyDialog={handleOpenDestroyDialog}
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+              batchCuttings={batchCuttings}
+              destroyedBatchCuttings={destroyedBatchCuttings}
+              cuttingsCurrentPage={cuttingsCurrentPage}
+              cuttingsTotalPages={cuttingsTotalPages}
+              destroyedCuttingsCurrentPage={destroyedCuttingsCurrentPage}
+              destroyedCuttingsTotalPages={destroyedCuttingsTotalPages}
+              onCuttingsPageChange={handleCuttingsPageChange}
+              onDestroyedCuttingsPageChange={handleDestroyedCuttingsPageChange}
+              selectedCuttings={selectedCuttings}
+              toggleCuttingSelection={toggleCuttingSelection}
+              selectAllCuttingsInBatch={selectAllCuttingsInBatch}
+            />
+          </AnimatedTabPanel>
+        </>
       )}
 
-      <DestroyDialog 
-        open={openDestroyDialog}
-        onClose={() => setOpenDestroyDialog(false)}
-        onDestroy={handleDestroy}
-        title={selectedCuttings[selectedBatch?.id]?.length > 1 
-          ? `${selectedCuttings[selectedBatch?.id].length} Stecklinge vernichten` 
-          : 'Steckling vernichten'}
-        members={members}
-        destroyedByMemberId={destroyedByMemberId}
-        setDestroyedByMemberId={setDestroyedByMemberId}
-        destroyReason={destroyReason}
-        setDestroyReason={setDestroyReason}
-        showQuantity={false}
-      />
+      <Fade in={openDestroyDialog} timeout={500}>
+        <div style={{ display: openDestroyDialog ? 'block' : 'none' }}>
+          <DestroyDialog 
+            open={openDestroyDialog}
+            onClose={() => setOpenDestroyDialog(false)}
+            onDestroy={handleDestroy}
+            title={selectedCuttings[selectedBatch?.id]?.length > 1 
+              ? `${selectedCuttings[selectedBatch?.id].length} Stecklinge vernichten` 
+              : 'Steckling vernichten'}
+            members={members}
+            destroyedByMemberId={destroyedByMemberId}
+            setDestroyedByMemberId={setDestroyedByMemberId}
+            destroyReason={destroyReason}
+            setDestroyReason={setDestroyReason}
+            showQuantity={false}
+          />
+        </div>
+      </Fade>
     </Container>
   )
 }

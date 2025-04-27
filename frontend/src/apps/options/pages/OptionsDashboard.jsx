@@ -1,3 +1,4 @@
+// Update für OptionsDashboard.jsx
 import { useContext, useState, useEffect } from 'react'
 import { Grid, Box, useTheme, Snackbar, Alert } from '@mui/material'
 import DesignOptionCard from '../components/DesignOptionCard'
@@ -7,16 +8,16 @@ import api from '../../../utils/api'
 export default function OptionsDashboard() {
   const colorMode = useContext(ColorModeContext)
   const theme = useTheme()
-  const [topbarTitle, setTopbarTitle] = useState('')  // Leerer String als Initialwert
-  const [titleStyle, setTitleStyle] = useState(null)  // Altes Format für Style-Optionen
-  const [designOptions, setDesignOptions] = useState(null)  // Neues Format für Design-Optionen
-  const [isLoading, setIsLoading] = useState(true)  // Loading-Zustand hinzufügen
+  const [topbarTitle, setTopbarTitle] = useState('')
+  const [titleStyle, setTitleStyle] = useState(null)
+  const [designOptions, setDesignOptions] = useState(null)
+  const [isLoading, setIsLoading] = useState(true)
 
   const [snackbarOpen, setSnackbarOpen] = useState(false)
   const [snackbarMessage, setSnackbarMessage] = useState('')
   const [snackbarSeverity, setSnackbarSeverity] = useState('success')
 
-  // 🔥 Lade aktuellen Titel und Style/Design-Optionen bei Seitenaufruf
+  // Lade aktuellen Titel und Style/Design-Optionen bei Seitenaufruf
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true)
@@ -33,6 +34,9 @@ export default function OptionsDashboard() {
           if (designRes.data && designRes.data.options) {
             const loadedDesign = JSON.parse(designRes.data.options)
             setDesignOptions(loadedDesign)
+            
+            // Speichere für den schnellen Zugriff in localStorage
+            localStorage.setItem('designOptions', JSON.stringify(loadedDesign));
             
             // Konvertiere für die Abwärtskompatibilität zu titleStyle
             setTitleStyle({
@@ -54,7 +58,7 @@ export default function OptionsDashboard() {
               setTitleStyle(oldStyle)
               
               // Konvertiere altes Format zu neuem Design-Format
-              setDesignOptions({
+              const newDesignOptions = {
                 // Topbar-Titel Einstellungen
                 titleFont: oldStyle.fontFamily || "'Roboto', sans-serif",
                 titleWeight: oldStyle.fontWeight || 'bold',
@@ -79,8 +83,19 @@ export default function OptionsDashboard() {
                   showFinance: true,
                   showRooms: true,
                   showSecurity: true,
+                },
+                // Standardwerte für Animationen
+                animations: {
+                  enabled: true,
+                  type: 'slide',
+                  duration: 500,
                 }
-              })
+              }
+              
+              setDesignOptions(newDesignOptions);
+              
+              // Speichere für den schnellen Zugriff in localStorage
+              localStorage.setItem('designOptions', JSON.stringify(newDesignOptions));
             }
           } catch (styleError) {
             console.error('Auch alte Style-Optionen nicht gefunden:', styleError)
@@ -93,7 +108,7 @@ export default function OptionsDashboard() {
               color: '#ffffff'
             })
             
-            setDesignOptions({
+            const defaultDesignOptions = {
               titleFont: "'Roboto', sans-serif",
               titleWeight: 'bold',
               titleStyle: 'normal',
@@ -115,8 +130,19 @@ export default function OptionsDashboard() {
                 showFinance: true,
                 showRooms: true,
                 showSecurity: true,
+              },
+              // Standardwerte für Animationen
+              animations: {
+                enabled: true,
+                type: 'slide',
+                duration: 500,
               }
-            })
+            };
+            
+            setDesignOptions(defaultDesignOptions);
+            
+            // Speichere für den schnellen Zugriff in localStorage
+            localStorage.setItem('designOptions', JSON.stringify(defaultDesignOptions));
           }
         }
       } catch (error) {
@@ -140,6 +166,9 @@ export default function OptionsDashboard() {
         options: JSON.stringify(newDesignOptions) 
       })
       setDesignOptions(newDesignOptions)
+      
+      // Speichere für den schnellen Zugriff in localStorage
+      localStorage.setItem('designOptions', JSON.stringify(newDesignOptions));
       
       // Konvertiere für Abwärtskompatibilität auch zu titleStyle
       const updatedStyle = {

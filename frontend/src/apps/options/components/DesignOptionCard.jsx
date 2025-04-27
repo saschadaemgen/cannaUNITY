@@ -29,7 +29,11 @@ import {
   Input,
   Stack,
   Radio,
-  RadioGroup
+  RadioGroup,
+  Slider,
+  Fade,
+  Grow,
+  Slide
 } from '@mui/material'
 import FormatBoldIcon from '@mui/icons-material/FormatBold'
 import FormatItalicIcon from '@mui/icons-material/FormatItalic'
@@ -43,6 +47,7 @@ import VisibilityIcon from '@mui/icons-material/Visibility'
 import DarkModeIcon from '@mui/icons-material/DarkMode'
 import LightModeIcon from '@mui/icons-material/LightMode'
 import FormatAlignLeftIcon from '@mui/icons-material/FormatAlignLeft'
+import MotionPhotosAutoIcon from '@mui/icons-material/MotionPhotosAuto'
 
 // Erweiterte Google Fonts Auswahl
 const googleFonts = [
@@ -104,6 +109,13 @@ const footerOptions = [
   { id: 'hideFooter', label: 'Keinen Titel anzeigen', value: 'none' },
 ]
 
+// Animationstypen-Optionen
+const animationTypes = [
+  { id: 'slide', label: 'Gleiten', description: 'Elemente gleiten von der Seite herein' },
+  { id: 'fade', label: 'Einblenden', description: 'Elemente blenden sanft ein und aus' },
+  { id: 'grow', label: 'Wachsen', description: 'Elemente wachsen beim Erscheinen' },
+]
+
 // Standardwerte für die Designoptionen
 const defaultDesignOptions = {
   // Topbar Titel
@@ -141,7 +153,72 @@ const defaultDesignOptions = {
   
   // Footer Einstellungen
   footerMode: 'full', // 'full', 'title', 'none'
+  
+  // NEU: Animations-Einstellungen
+  animations: {
+    enabled: true,
+    type: 'slide', // 'fade', 'slide', 'grow'
+    duration: 500,
+  },
 }
+
+// Die Animation Vorschau-Komponente
+const AnimationPreview = ({ type, duration, enabled }) => {
+  const [key, setKey] = useState(0);
+  const [running, setRunning] = useState(false);
+  
+  // Eine Animation neu starten
+  const triggerAnimation = () => {
+    if (!enabled) return;
+    setRunning(true);
+    setKey(prevKey => prevKey + 1);
+    setTimeout(() => setRunning(false), duration + 100);
+  };
+  
+  return (
+    <Box sx={{ mb: 3, p: 2, border: '1px solid #ccc', borderRadius: 1 }}>
+      <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Typography variant="subtitle2">Animation-Vorschau</Typography>
+        <Button 
+          variant="outlined" 
+          size="small" 
+          onClick={triggerAnimation}
+          disabled={running || !enabled}
+        >
+          Animation testen
+        </Button>
+      </Box>
+      
+      <Box sx={{ height: 100, display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative', overflow: 'hidden' }}>
+        {enabled ? (
+          type === 'fade' ? (
+            <Fade key={key} in={!running} timeout={duration}>
+              <Box sx={{ p: 2, bgcolor: 'primary.main', color: 'white', borderRadius: 1 }}>
+                <Typography>Animationseffekt</Typography>
+              </Box>
+            </Fade>
+          ) : type === 'grow' ? (
+            <Grow key={key} in={!running} timeout={duration}>
+              <Box sx={{ p: 2, bgcolor: 'primary.main', color: 'white', borderRadius: 1 }}>
+                <Typography>Animationseffekt</Typography>
+              </Box>
+            </Grow>
+          ) : (
+            <Slide key={key} direction="right" in={!running} timeout={duration}>
+              <Box sx={{ p: 2, bgcolor: 'primary.main', color: 'white', borderRadius: 1 }}>
+                <Typography>Animationseffekt</Typography>
+              </Box>
+            </Slide>
+          )
+        ) : (
+          <Box sx={{ p: 2, bgcolor: 'grey.500', color: 'white', borderRadius: 1, opacity: 0.7 }}>
+            <Typography>Animationen deaktiviert</Typography>
+          </Box>
+        )}
+      </Box>
+    </Box>
+  );
+};
 
 export default function DesignOptionCard({ 
   value = '', 
@@ -472,6 +549,17 @@ export default function DesignOptionCard({
                 color: activeTab === 3 
                   ? (design.darkMode ? '#90caf9' : theme.palette.primary.main) // Aktiver Tab - blau im Dark Mode
                   : 'inherit', // Inaktive Tabs normal
+              }}
+            />
+            {/* NEUER TAB FÜR ANIMATIONEN */}
+            <Tab 
+              label="Animationen" 
+              icon={<MotionPhotosAutoIcon />}
+              iconPosition="start"
+              sx={{
+                color: activeTab === 4 
+                  ? (design.darkMode ? '#90caf9' : theme.palette.primary.main)
+                  : 'inherit',
               }}
             />
           </Tabs>
@@ -877,6 +965,97 @@ export default function DesignOptionCard({
                 />
               ))}
             </RadioGroup>
+          </Box>
+        )}
+        
+        {/* Animations-Einstellungen */}
+        {activeTab === 4 && (
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="body2" color="textSecondary" gutterBottom>
+              Hier kannst du Animationen im Interface ein- oder ausschalten und anpassen
+            </Typography>
+            
+            <Box sx={{ mb: 3 }}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={design.animations?.enabled !== false}
+                    onChange={(e) => handleDesignChange('animations', {
+                      ...design.animations,
+                      enabled: e.target.checked
+                    })}
+                    color="primary"
+                  />
+                }
+                label="Animationen aktivieren"
+              />
+              
+              <AnimationPreview 
+                type={design.animations?.type || 'slide'}
+                duration={design.animations?.duration || 500}
+                enabled={design.animations?.enabled !== false}
+              />
+            </Box>
+            
+            <FormControl component="fieldset" sx={{ mb: 2 }} disabled={design.animations?.enabled === false}>
+              <Typography variant="subtitle2" gutterBottom>Animationstyp</Typography>
+              <RadioGroup
+                value={design.animations?.type || 'slide'}
+                onChange={(e) => handleDesignChange('animations', {
+                  ...design.animations,
+                  type: e.target.value
+                })}
+              >
+                {animationTypes.map((type) => (
+                  <FormControlLabel 
+                    key={type.id} 
+                    value={type.id} 
+                    control={<Radio />} 
+                    label={
+                      <Box>
+                        <Typography variant="body2">{type.label}</Typography>
+                        <Typography variant="caption" color="textSecondary">{type.description}</Typography>
+                      </Box>
+                    }
+                    sx={{ mb: 1 }}
+                  />
+                ))}
+              </RadioGroup>
+            </FormControl>
+            
+            <Box sx={{ mb: 3 }} disabled={design.animations?.enabled === false}>
+              <Typography variant="subtitle2" gutterBottom>Animationsdauer</Typography>
+              <Box sx={{ px: 2 }}>
+                <Stack direction="row" spacing={2} alignItems="center">
+                  <Typography variant="caption">Schnell</Typography>
+                  <Slider
+                    value={design.animations?.duration || 500}
+                    min={200}
+                    max={1000}
+                    step={50}
+                    marks={[
+                      { value: 200, label: '0.2s' },
+                      { value: 500, label: '0.5s' },
+                      { value: 1000, label: '1.0s' },
+                    ]}
+                    valueLabelDisplay="auto"
+                    valueLabelFormat={(value) => `${value/1000}s`}
+                    onChange={(e, value) => handleDesignChange('animations', {
+                      ...design.animations,
+                      duration: value
+                    })}
+                    disabled={design.animations?.enabled === false}
+                  />
+                  <Typography variant="caption">Langsam</Typography>
+                </Stack>
+              </Box>
+            </Box>
+            
+            <Typography variant="body2" color="textSecondary" sx={{ mt: 4 }}>
+              Hinweis: Animationen können auf manchen Geräten die Leistung beeinträchtigen. 
+              Wenn du Performance-Probleme bemerkst, kannst du die Animationen deaktivieren 
+              oder die Dauer verkürzen.
+            </Typography>
           </Box>
         )}
         

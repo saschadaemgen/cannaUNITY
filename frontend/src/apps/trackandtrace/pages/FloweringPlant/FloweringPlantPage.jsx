@@ -1,6 +1,7 @@
 // frontend/src/apps/trackandtrace/pages/FloweringPlant/FloweringPlantPage.jsx
 import { useState, useEffect } from 'react'
-import { Container } from '@mui/material'
+import { Container, Box, Typography, Fade, Grow, Slide } from '@mui/material'
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
 import api from '../../../../utils/api'
 
 // Gemeinsame Komponenten
@@ -12,6 +13,71 @@ import DestroyDialog from '../../components/dialogs/DestroyDialog'
 
 // Spezifische Komponenten
 import FloweringPlantTable from './components/FloweringPlantTable'
+
+// Animierte Tab-Panel Komponente
+const AnimatedTabPanel = ({ 
+  value, 
+  index, 
+  animationType = 'fade', 
+  duration = 400,
+  direction = 'right',
+  children 
+}) => {
+  const isActive = value === index;
+  
+  // Animation basierend auf dem Typ wählen
+  const renderAnimatedContent = () => {
+    switch (animationType) {
+      case 'fade':
+        return (
+          <Fade 
+            in={isActive} 
+            timeout={duration}
+            mountOnEnter 
+            unmountOnExit
+          >
+            <Box>{children}</Box>
+          </Fade>
+        );
+      case 'slide':
+        return (
+          <Slide 
+            direction={direction} 
+            in={isActive} 
+            timeout={duration}
+            mountOnEnter 
+            unmountOnExit
+          >
+            <Box>{children}</Box>
+          </Slide>
+        );
+      case 'grow':
+        return (
+          <Grow 
+            in={isActive} 
+            timeout={duration}
+            mountOnEnter 
+            unmountOnExit
+          >
+            <Box>{children}</Box>
+          </Grow>
+        );
+      default:
+        return <Box sx={{ display: isActive ? 'block' : 'none' }}>{children}</Box>;
+    }
+  };
+
+  return (
+    <div
+      role="tabpanel"
+      id={`tabpanel-${index}`}
+      aria-labelledby={`tab-${index}`}
+      style={{ width: '100%' }}
+    >
+      {renderAnimatedContent()}
+    </div>
+  );
+};
 
 export default function FloweringPlantPage() {
   const [floweringBatches, setFloweringBatches] = useState([])
@@ -437,34 +503,64 @@ export default function FloweringPlantPage() {
     loadFloweringBatches(1) // Zurück zur ersten Seite nach Filter-Reset
   }
 
-  // Tab-Definition direkt im Return-Statement
+  // Tab-Definition als separate Variable
+  const tabs = [
+    { 
+      label: (
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <Typography component="span" sx={{ fontWeight: 'bold' }}>CHARGEN</Typography>
+          <Typography component="span" sx={{ mx: 0.5, color: 'primary.main', fontWeight: 500 }}>{`(${activeBatchesCount})`}</Typography>
+          <ArrowForwardIcon sx={{ mx: 0.5, fontSize: 14, color: 'primary.main' }} />
+          <Typography component="span" sx={{ fontWeight: 'bold' }}>AKTIVE PFLANZEN</Typography>
+          <Typography component="span" sx={{ mx: 0.5, color: 'primary.main', fontWeight: 500 }}>{`(${activePlantsCount})`}</Typography>
+        </Box>
+      ) 
+    },
+    { 
+      label: (
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <Typography component="span" sx={{ fontWeight: 'bold' }}>CHARGEN</Typography>
+          <Typography component="span" sx={{ mx: 0.5, color: 'error.main', fontWeight: 500 }}>{`(${destroyedBatchesCount})`}</Typography>
+          <ArrowForwardIcon sx={{ mx: 0.5, fontSize: 14, color: 'error.main' }} />
+          <Typography component="span" sx={{ fontWeight: 'bold' }}>VERNICHTETE PFLANZEN</Typography>
+          <Typography component="span" sx={{ mx: 0.5, color: 'error.main', fontWeight: 500 }}>{`(${destroyedPlantsCount})`}</Typography>
+        </Box>
+      )
+    }
+  ];
+
   return (
     <Container maxWidth="xl" sx={{ width: '100%' }}>
-      <PageHeader 
-        title="Blühpflanzen-Verwaltung"
-        showFilters={showFilters}
-        setShowFilters={setShowFilters}
-      />
+      <Fade in={true} timeout={800}>
+        <Box>
+          <PageHeader 
+            title="Blühpflanzen-Verwaltung"
+            showFilters={showFilters}
+            setShowFilters={setShowFilters}
+          />
+        </Box>
+      </Fade>
       
-      <FilterSection
-        yearFilter={yearFilter}
-        setYearFilter={setYearFilter}
-        monthFilter={monthFilter}
-        setMonthFilter={setMonthFilter}
-        dayFilter={dayFilter}
-        setDayFilter={setDayFilter}
-        onApply={handleFilterApply}
-        onReset={handleFilterReset}
-        showFilters={showFilters}
-      />
+      <Fade in={showFilters} timeout={400}>
+        <Box sx={{ display: showFilters ? 'block' : 'none' }}>
+          <FilterSection
+            yearFilter={yearFilter}
+            setYearFilter={setYearFilter}
+            monthFilter={monthFilter}
+            setMonthFilter={setMonthFilter}
+            dayFilter={dayFilter}
+            setDayFilter={setDayFilter}
+            onApply={handleFilterApply}
+            onReset={handleFilterReset}
+            showFilters={showFilters}
+          />
+        </Box>
+      </Fade>
 
       <TabsHeader 
         tabValue={tabValue} 
         onTabChange={handleTabChange} 
-        tabs={[
-          { label: `CHARGEN / AKTIVE PFLANZEN (${activeBatchesCount}/${activePlantsCount})` },
-          { label: `CHARGEN / VERNICHTETE PFLANZEN (${destroyedBatchesCount}/${destroyedPlantsCount})` }
-        ]}
+        tabs={tabs}
         color="primary"
         ariaLabel="Blühpflanzen-Tabs"
       />
@@ -472,43 +568,87 @@ export default function FloweringPlantPage() {
       {loading ? (
         <LoadingIndicator />
       ) : (
-        <FloweringPlantTable 
-          tabValue={tabValue}
-          data={floweringBatches}
-          expandedBatchId={expandedBatchId}
-          onExpandBatch={handleAccordionChange}
-          onOpenDestroyDialog={handleOpenDestroyDialog}
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={handlePageChange}
-          batchPlants={batchPlants}
-          destroyedBatchPlants={destroyedBatchPlants}
-          plantsCurrentPage={plantsCurrentPage}
-          plantsTotalPages={plantsTotalPages}
-          destroyedPlantsCurrentPage={destroyedPlantsCurrentPage}
-          destroyedPlantsTotalPages={destroyedPlantsTotalPages}
-          onPlantsPageChange={handlePlantsPageChange}
-          onDestroyedPlantsPageChange={handleDestroyedPlantsPageChange}
-          selectedPlants={selectedPlants}
-          togglePlantSelection={togglePlantSelection}
-          selectAllPlantsInBatch={selectAllPlantsInBatch}
-        />
+        <>
+          <AnimatedTabPanel 
+            value={tabValue} 
+            index={0} 
+            animationType="slide" 
+            direction="right" 
+            duration={500}
+          >
+            <FloweringPlantTable 
+              tabValue={0}
+              data={floweringBatches}
+              expandedBatchId={expandedBatchId}
+              onExpandBatch={handleAccordionChange}
+              onOpenDestroyDialog={handleOpenDestroyDialog}
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+              batchPlants={batchPlants}
+              destroyedBatchPlants={destroyedBatchPlants}
+              plantsCurrentPage={plantsCurrentPage}
+              plantsTotalPages={plantsTotalPages}
+              destroyedPlantsCurrentPage={destroyedPlantsCurrentPage}
+              destroyedPlantsTotalPages={destroyedPlantsTotalPages}
+              onPlantsPageChange={handlePlantsPageChange}
+              onDestroyedPlantsPageChange={handleDestroyedPlantsPageChange}
+              selectedPlants={selectedPlants}
+              togglePlantSelection={togglePlantSelection}
+              selectAllPlantsInBatch={selectAllPlantsInBatch}
+            />
+          </AnimatedTabPanel>
+          
+          <AnimatedTabPanel 
+            value={tabValue} 
+            index={1} 
+            animationType="slide" 
+            direction="left" 
+            duration={500}
+          >
+            <FloweringPlantTable 
+              tabValue={1}
+              data={floweringBatches}
+              expandedBatchId={expandedBatchId}
+              onExpandBatch={handleAccordionChange}
+              onOpenDestroyDialog={handleOpenDestroyDialog}
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+              batchPlants={batchPlants}
+              destroyedBatchPlants={destroyedBatchPlants}
+              plantsCurrentPage={plantsCurrentPage}
+              plantsTotalPages={plantsTotalPages}
+              destroyedPlantsCurrentPage={destroyedPlantsCurrentPage}
+              destroyedPlantsTotalPages={destroyedPlantsTotalPages}
+              onPlantsPageChange={handlePlantsPageChange}
+              onDestroyedPlantsPageChange={handleDestroyedPlantsPageChange}
+              selectedPlants={selectedPlants}
+              togglePlantSelection={togglePlantSelection}
+              selectAllPlantsInBatch={selectAllPlantsInBatch}
+            />
+          </AnimatedTabPanel>
+        </>
       )}
 
-      <DestroyDialog 
-        open={openDestroyDialog}
-        onClose={() => setOpenDestroyDialog(false)}
-        onDestroy={handleDestroy}
-        title={selectedPlants[selectedBatch?.id]?.length > 1 
-          ? `${selectedPlants[selectedBatch?.id].length} Blühpflanzen vernichten` 
-          : 'Blühpflanze vernichten'}
-        members={members}
-        destroyedByMemberId={destroyedByMemberId}
-        setDestroyedByMemberId={setDestroyedByMemberId}
-        destroyReason={destroyReason}
-        setDestroyReason={setDestroyReason}
-        showQuantity={false}
-      />
+      <Fade in={openDestroyDialog} timeout={400}>
+        <div style={{ display: openDestroyDialog ? 'block' : 'none' }}>
+          <DestroyDialog 
+            open={openDestroyDialog}
+            onClose={() => setOpenDestroyDialog(false)}
+            onDestroy={handleDestroy}
+            title={selectedPlants[selectedBatch?.id]?.length > 1 
+              ? `${selectedPlants[selectedBatch?.id].length} Blühpflanzen vernichten` 
+              : 'Blühpflanze vernichten'}
+            members={members}
+            destroyedByMemberId={destroyedByMemberId}
+            setDestroyedByMemberId={setDestroyedByMemberId}
+            destroyReason={destroyReason}
+            setDestroyReason={setDestroyReason}
+            showQuantity={false}
+          />
+        </div>
+      </Fade>
     </Container>
   )
 }

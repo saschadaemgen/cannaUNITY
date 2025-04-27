@@ -1,6 +1,7 @@
 // frontend/src/apps/trackandtrace/pages/MotherPlant/MotherPlantPage.jsx
 import { useState, useEffect } from 'react'
-import { Container } from '@mui/material'
+import { Container, Box, Typography, Fade } from '@mui/material'
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
 import api from '../../../../utils/api'
 
 // Gemeinsame Komponenten
@@ -10,6 +11,7 @@ import TabsHeader from '../../components/common/TabsHeader'
 import LoadingIndicator from '../../components/common/LoadingIndicator'
 import DestroyDialog from '../../components/dialogs/DestroyDialog'
 import CreateCuttingDialog from '../../components/dialogs/CreateCuttingDialog'
+import AnimatedTabPanel from '../../components/common/AnimatedTabPanel'
 
 // Spezifische Komponenten
 import MotherPlantTable from './components/MotherPlantTable'
@@ -32,6 +34,10 @@ export default function MotherPlantPage() {
   const [selectedBatch, setSelectedBatch] = useState(null)
   const [selectedPlants, setSelectedPlants] = useState({})
   const [loadingOptions, setLoadingOptions] = useState(false)
+  
+  // Animationstypen für die verschiedenen Tab-Inhalte
+  const [tabAnimation, setTabAnimation] = useState('slide') // 'fade', 'slide', 'grow'
+  const [animationDuration, setAnimationDuration] = useState(500)
   
   // Filter-Zustandsvariablen
   const [yearFilter, setYearFilter] = useState('')
@@ -195,6 +201,12 @@ export default function MotherPlantPage() {
     // Zurücksetzen der Seite bei Tab-Wechsel
     setCurrentPage(1);
     
+    // Zurücksetzen des expandierten Batches und Daten beim Tab-Wechsel
+    setExpandedBatchId('');
+    setBatchPlants({});
+    setDestroyedBatchPlants({});
+    setSelectedPlants({}); // Wichtig: Ausgewählte Pflanzen zurücksetzen
+    
     // Je nach Tab unterschiedliche Ladestrategien
     if (tabValue === 0) {
       // Tab 0: Aktive Pflanzen
@@ -209,9 +221,6 @@ export default function MotherPlantPage() {
     
     // Verbessert: Lade alle Zähler unabhängig vom Tab
     loadAllCounts();
-    
-    // Zurücksetzen des expandierten Batches beim Tab-Wechsel
-    setExpandedBatchId('');
   }, [tabValue]);
 
   const handleTabChange = (event, newValue) => {
@@ -220,6 +229,7 @@ export default function MotherPlantPage() {
     setExpandedBatchId('')
     setBatchPlants({})
     setDestroyedBatchPlants({})
+    setSelectedPlants({}) // Wichtig: Ausgewählte Pflanzen zurücksetzen
   }
 
   const handleAccordionChange = async (batchId) => {
@@ -346,6 +356,12 @@ export default function MotherPlantPage() {
       setDestroyedPlantsTotalPages(prev => ({
         ...prev,
         [batchId]: pages
+      }))
+      
+      // Auch hier: Zurücksetzen der ausgewählten Pflanzen für diesen Batch
+      setSelectedPlants(prev => ({
+        ...prev,
+        [batchId]: []
       }))
     } catch (error) {
       console.error('Fehler beim Laden der vernichteten Pflanzen:', error)
@@ -501,7 +517,9 @@ export default function MotherPlantPage() {
 
   const togglePlantSelection = (batchId, plantId) => {
     setSelectedPlants(prev => {
-      const batchPlants = prev[batchId] || []
+      // Initialisiere das Array für diesen Batch, falls es noch nicht existiert
+      const batchPlants = prev[batchId] || [];
+      
       if (batchPlants.includes(plantId)) {
         return {
           ...prev,
@@ -518,10 +536,18 @@ export default function MotherPlantPage() {
 
   const selectAllPlantsInBatch = (batchId, select) => {
     if (select) {
-      const allPlantIds = batchPlants[batchId]?.map(plant => plant.id) || []
+      // Je nach Tab die richtigen Daten verwenden
+      let plantsToSelect = [];
+      
+      if (tabValue === 0) {
+        plantsToSelect = batchPlants[batchId]?.map(plant => plant.id) || [];
+      } else if (tabValue === 2) {
+        plantsToSelect = destroyedBatchPlants[batchId]?.map(plant => plant.id) || [];
+      }
+      
       setSelectedPlants(prev => ({
         ...prev,
-        [batchId]: allPlantIds
+        [batchId]: plantsToSelect
       }))
     } else {
       setSelectedPlants(prev => ({
@@ -551,36 +577,79 @@ export default function MotherPlantPage() {
       loadCuttingBatches(1) // Für Tab 1 (Stecklinge)
     }
   }
+  
+  // Funktion zum Ändern des Animationstyps
+  const changeAnimationType = (type) => {
+    setTabAnimation(type);
+  }
 
   // Die Daten, die in der aktuellen Tabelle angezeigt werden sollen
   const displayedData = getDisplayedData();
 
   // Aktualisierte Tabs-Definition mit separaten Zählern für Batches und Pflanzen
   const tabs = [
-    { label: `CHARGEN / AKTIVE PFLANZEN (${activeBatchesCount}/${activePlantsCount})` },
-    { label: `CHARGEN / ZU STECKLINGE (${cuttingBatchCount}/${cuttingCount})` },
-    { label: `CHARGEN / VERNICHTETE PFLANZEN (${destroyedBatchesCount}/${destroyedPlantsCount})` }
+    { 
+      label: (
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <Typography component="span" sx={{ fontWeight: 'bold' }}>CHARGEN</Typography>
+          <Typography component="span" sx={{ mx: 0.5, color: 'primary.main', fontWeight: 500 }}>{`(${activeBatchesCount})`}</Typography>
+          <ArrowForwardIcon sx={{ mx: 0.5, fontSize: 14, color: 'primary.main' }} />
+          <Typography component="span" sx={{ fontWeight: 'bold' }}>AKTIVE PFLANZEN</Typography>
+          <Typography component="span" sx={{ mx: 0.5, color: 'primary.main', fontWeight: 500 }}>{`(${activePlantsCount})`}</Typography>
+        </Box>
+      ) 
+    },
+    { 
+      label: (
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <Typography component="span" sx={{ fontWeight: 'bold' }}>CHARGEN</Typography>
+          <Typography component="span" sx={{ mx: 0.5, color: 'primary.main', fontWeight: 500 }}>{`(${cuttingBatchCount})`}</Typography>
+          <ArrowForwardIcon sx={{ mx: 0.5, fontSize: 14, color: 'primary.main' }} />
+          <Typography component="span" sx={{ fontWeight: 'bold' }}>ZU STECKLINGE</Typography>
+          <Typography component="span" sx={{ mx: 0.5, color: 'primary.main', fontWeight: 500 }}>{`(${cuttingCount})`}</Typography>
+        </Box>
+      )
+    },
+    { 
+      label: (
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <Typography component="span" sx={{ fontWeight: 'bold' }}>CHARGEN</Typography>
+          <Typography component="span" sx={{ mx: 0.5, color: 'error.main', fontWeight: 500 }}>{`(${destroyedBatchesCount})`}</Typography>
+          <ArrowForwardIcon sx={{ mx: 0.5, fontSize: 14, color: 'error.main' }} />
+          <Typography component="span" sx={{ fontWeight: 'bold' }}>VERNICHTETE PFLANZEN</Typography>
+          <Typography component="span" sx={{ mx: 0.5, color: 'error.main', fontWeight: 500 }}>{`(${destroyedPlantsCount})`}</Typography>
+        </Box>
+      )
+    }
   ];
 
   return (
     <Container maxWidth="xl" sx={{ width: '100%' }}>
-      <PageHeader 
-        title="Mutterpflanzen-Verwaltung"
-        showFilters={showFilters}
-        setShowFilters={setShowFilters}
-      />
+      <Fade in={true} timeout={800}>
+        <Box>
+          <PageHeader 
+            title="Mutterpflanzen-Verwaltung"
+            showFilters={showFilters}
+            setShowFilters={setShowFilters}
+          />
+        </Box>
+      </Fade>
       
-      <FilterSection
-        yearFilter={yearFilter}
-        setYearFilter={setYearFilter}
-        monthFilter={monthFilter}
-        setMonthFilter={setMonthFilter}
-        dayFilter={dayFilter}
-        setDayFilter={setDayFilter}
-        onApply={handleFilterApply}
-        onReset={handleFilterReset}
-        showFilters={showFilters}
-      />
+      <Fade in={showFilters} timeout={400}>
+        <Box sx={{ display: showFilters ? 'block' : 'none' }}>
+          <FilterSection
+            yearFilter={yearFilter}
+            setYearFilter={setYearFilter}
+            monthFilter={monthFilter}
+            setMonthFilter={setMonthFilter}
+            dayFilter={dayFilter}
+            setDayFilter={setDayFilter}
+            onApply={handleFilterApply}
+            onReset={handleFilterReset}
+            showFilters={showFilters}
+          />
+        </Box>
+      </Fade>
 
       <TabsHeader 
         tabValue={tabValue} 
@@ -593,62 +662,142 @@ export default function MotherPlantPage() {
       {loading ? (
         <LoadingIndicator />
       ) : (
-        <MotherPlantTable 
-          tabValue={tabValue}
-          data={displayedData}
-          expandedBatchId={expandedBatchId}
-          onExpandBatch={handleAccordionChange}
-          onOpenDestroyDialog={handleOpenDestroyDialog}
-          onOpenCreateCuttingDialog={handleOpenCreateCuttingDialog}
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={handlePageChange}
-          batchPlants={batchPlants}
-          destroyedBatchPlants={destroyedBatchPlants}
-          plantsCurrentPage={plantsCurrentPage}
-          plantsTotalPages={plantsTotalPages}
-          destroyedPlantsCurrentPage={destroyedPlantsCurrentPage}
-          destroyedPlantsTotalPages={destroyedPlantsTotalPages}
-          onPlantsPageChange={handlePlantsPageChange}
-          onDestroyedPlantsPageChange={handleDestroyedPlantsPageChange}
-          selectedPlants={selectedPlants}
-          togglePlantSelection={togglePlantSelection}
-          selectAllPlantsInBatch={selectAllPlantsInBatch}
-        />
+        <>
+          <AnimatedTabPanel 
+            value={tabValue} 
+            index={0} 
+            animationType={tabAnimation} 
+            direction="right" 
+            duration={animationDuration}
+          >
+            <MotherPlantTable 
+              tabValue={0}
+              data={displayedData}
+              expandedBatchId={expandedBatchId}
+              onExpandBatch={handleAccordionChange}
+              onOpenDestroyDialog={handleOpenDestroyDialog}
+              onOpenCreateCuttingDialog={handleOpenCreateCuttingDialog}
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+              batchPlants={batchPlants}
+              destroyedBatchPlants={destroyedBatchPlants}
+              plantsCurrentPage={plantsCurrentPage}
+              plantsTotalPages={plantsTotalPages}
+              destroyedPlantsCurrentPage={destroyedPlantsCurrentPage}
+              destroyedPlantsTotalPages={destroyedPlantsTotalPages}
+              onPlantsPageChange={handlePlantsPageChange}
+              onDestroyedPlantsPageChange={handleDestroyedPlantsPageChange}
+              selectedPlants={selectedPlants}
+              togglePlantSelection={togglePlantSelection}
+              selectAllPlantsInBatch={selectAllPlantsInBatch}
+            />
+          </AnimatedTabPanel>
+          
+          <AnimatedTabPanel 
+            value={tabValue} 
+            index={1} 
+            animationType={tabAnimation} 
+            direction="up" 
+            duration={animationDuration}
+          >
+            <MotherPlantTable 
+              tabValue={1}
+              data={displayedData}
+              expandedBatchId={expandedBatchId}
+              onExpandBatch={handleAccordionChange}
+              onOpenDestroyDialog={handleOpenDestroyDialog}
+              onOpenCreateCuttingDialog={handleOpenCreateCuttingDialog}
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+              batchPlants={batchPlants}
+              destroyedBatchPlants={destroyedBatchPlants}
+              plantsCurrentPage={plantsCurrentPage}
+              plantsTotalPages={plantsTotalPages}
+              destroyedPlantsCurrentPage={destroyedPlantsCurrentPage}
+              destroyedPlantsTotalPages={destroyedPlantsTotalPages}
+              onPlantsPageChange={handlePlantsPageChange}
+              onDestroyedPlantsPageChange={handleDestroyedPlantsPageChange}
+              selectedPlants={selectedPlants}
+              togglePlantSelection={togglePlantSelection}
+              selectAllPlantsInBatch={selectAllPlantsInBatch}
+            />
+          </AnimatedTabPanel>
+          
+          <AnimatedTabPanel 
+            value={tabValue} 
+            index={2} 
+            animationType={tabAnimation} 
+            direction="left" 
+            duration={animationDuration}
+          >
+            <MotherPlantTable 
+              tabValue={2}
+              data={displayedData}
+              expandedBatchId={expandedBatchId}
+              onExpandBatch={handleAccordionChange}
+              onOpenDestroyDialog={handleOpenDestroyDialog}
+              onOpenCreateCuttingDialog={handleOpenCreateCuttingDialog}
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+              batchPlants={batchPlants}
+              destroyedBatchPlants={destroyedBatchPlants}
+              plantsCurrentPage={plantsCurrentPage}
+              plantsTotalPages={plantsTotalPages}
+              destroyedPlantsCurrentPage={destroyedPlantsCurrentPage}
+              destroyedPlantsTotalPages={destroyedPlantsTotalPages}
+              onPlantsPageChange={handlePlantsPageChange}
+              onDestroyedPlantsPageChange={handleDestroyedPlantsPageChange}
+              selectedPlants={selectedPlants}
+              togglePlantSelection={togglePlantSelection}
+              selectAllPlantsInBatch={selectAllPlantsInBatch}
+            />
+          </AnimatedTabPanel>
+        </>
       )}
 
-      <DestroyDialog 
-        open={openDestroyDialog}
-        onClose={() => setOpenDestroyDialog(false)}
-        onDestroy={handleDestroy}
-        title={selectedPlants[selectedBatch?.id]?.length > 1 
-          ? `${selectedPlants[selectedBatch?.id].length} Mutterpflanzen vernichten` 
-          : 'Mutterpflanze vernichten'}
-        members={members}
-        destroyedByMemberId={destroyedByMemberId}
-        setDestroyedByMemberId={setDestroyedByMemberId}
-        destroyReason={destroyReason}
-        setDestroyReason={setDestroyReason}
-        showQuantity={false}
-      />
+      <Fade in={openDestroyDialog} timeout={500}>
+        <div style={{ display: openDestroyDialog ? 'block' : 'none' }}>
+          <DestroyDialog 
+            open={openDestroyDialog}
+            onClose={() => setOpenDestroyDialog(false)}
+            onDestroy={handleDestroy}
+            title={selectedPlants[selectedBatch?.id]?.length > 1 
+              ? `${selectedPlants[selectedBatch?.id].length} Mutterpflanzen vernichten` 
+              : 'Mutterpflanze vernichten'}
+            members={members}
+            destroyedByMemberId={destroyedByMemberId}
+            setDestroyedByMemberId={setDestroyedByMemberId}
+            destroyReason={destroyReason}
+            setDestroyReason={setDestroyReason}
+            showQuantity={false}
+          />
+        </div>
+      </Fade>
 
-      <CreateCuttingDialog 
-        open={openCreateCuttingDialog}
-        onClose={() => setOpenCreateCuttingDialog(false)}
-        onCreateCuttings={handleCreateCuttings}
-        quantity={cuttingQuantity}
-        setQuantity={setCuttingQuantity}
-        notes={cuttingNotes}
-        setNotes={setCuttingNotes}
-        members={members}
-        selectedMemberId={selectedMemberId}
-        setSelectedMemberId={setSelectedMemberId}
-        rooms={rooms}
-        selectedRoomId={selectedRoomId}
-        setSelectedRoomId={setSelectedRoomId}
-        motherBatch={selectedBatch}
-        motherPlant={selectedMotherPlant} // Zusätzliches Prop für die Mutterpflanze
-      />
+      <Fade in={openCreateCuttingDialog} timeout={500}>
+        <div style={{ display: openCreateCuttingDialog ? 'block' : 'none' }}>
+          <CreateCuttingDialog 
+            open={openCreateCuttingDialog}
+            onClose={() => setOpenCreateCuttingDialog(false)}
+            onCreateCuttings={handleCreateCuttings}
+            quantity={cuttingQuantity}
+            setQuantity={setCuttingQuantity}
+            notes={cuttingNotes}
+            setNotes={setCuttingNotes}
+            members={members}
+            selectedMemberId={selectedMemberId}
+            setSelectedMemberId={setSelectedMemberId}
+            rooms={rooms}
+            selectedRoomId={selectedRoomId}
+            setSelectedRoomId={setSelectedRoomId}
+            motherBatch={selectedBatch}
+            motherPlant={selectedMotherPlant}
+          />
+        </div>
+      </Fade>
     </Container>
   )
 }

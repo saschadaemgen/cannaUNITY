@@ -1,6 +1,7 @@
 // frontend/src/apps/trackandtrace/pages/SeedPurchase/SeedPurchasePage.jsx
 import { useState, useEffect } from 'react'
-import { Container, Button } from '@mui/material'
+import { Container, Button, Box, Typography, Fade } from '@mui/material'
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
 import api from '../../../../utils/api'
 
 // Gemeinsame Komponenten
@@ -8,6 +9,7 @@ import PageHeader from '../../components/common/PageHeader'
 import FilterSection from '../../components/common/FilterSection'
 import TabsHeader from '../../components/common/TabsHeader'
 import LoadingIndicator from '../../components/common/LoadingIndicator'
+import AnimatedTabPanel from '../../components/common/AnimatedTabPanel'
 
 // Dialog-Komponenten
 import SeedPurchaseForm from './SeedPurchaseForm'
@@ -34,6 +36,10 @@ export default function SeedPurchasePage() {
   const [totalPages, setTotalPages] = useState(1)
   const [pageSize, setPageSize] = useState(5)
   const [totalCount, setTotalCount] = useState(0)
+  
+  // Animationstypen für die verschiedenen Tab-Inhalte
+  const [tabAnimation, setTabAnimation] = useState('slide') // 'fade', 'slide', 'grow'
+  const [animationDuration, setAnimationDuration] = useState(500)
   
   // Filter-Zustandsvariablen
   const [yearFilter, setYearFilter] = useState('')
@@ -391,6 +397,11 @@ export default function SeedPurchasePage() {
     
     loadCounts();
   }
+  
+  // Funktion zum Ändern des Animationstyps
+  const changeAnimationType = (type) => {
+    setTabAnimation(type);
+  }
 
   // Funktion, die die anzuzeigenden Daten basierend auf dem Tab zurückgibt
   const getDisplayedData = () => {
@@ -414,45 +425,93 @@ export default function SeedPurchasePage() {
 
   // Tabs definieren
   const tabs = [
-    { label: `CHARGEN / AKTIVE SAMEN (${activeSeedCount}/${totalActiveQuantity})` },
-    { label: `CHARGEN / ZU MUTTERPFLANZEN (${motherBatchCount}/${motherPlantCount})` },
-    { label: `CHARGEN / ZU BLÜHPFLANZEN (${floweringBatchCount}/${floweringPlantCount})` },
-    { label: `CHARGEN / VERNICHTET (${destroyedCount}/${totalDestroyedQuantity})` }
+    { 
+      label: (
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <Typography component="span" sx={{ fontWeight: 'bold' }}>CHARGEN</Typography>
+          <Typography component="span" sx={{ mx: 0.5, color: 'success.main', fontWeight: 500 }}>{`(${activeSeedCount})`}</Typography>
+          <ArrowForwardIcon sx={{ mx: 0.5, fontSize: 14, color: 'success.main' }} />
+          <Typography component="span" sx={{ fontWeight: 'bold' }}>AKTIVE SAMEN</Typography>
+          <Typography component="span" sx={{ mx: 0.5, color: 'success.main', fontWeight: 500 }}>{`(${totalActiveQuantity})`}</Typography>
+        </Box>
+      ) 
+    },
+    { 
+      label: (
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <Typography component="span" sx={{ fontWeight: 'bold' }}>CHARGEN</Typography>
+          <Typography component="span" sx={{ mx: 0.5, color: 'success.main', fontWeight: 500 }}>{`(${motherBatchCount})`}</Typography>
+          <ArrowForwardIcon sx={{ mx: 0.5, fontSize: 14, color: 'success.main' }} />
+          <Typography component="span" sx={{ fontWeight: 'bold' }}>ZU MUTTERPFLANZEN</Typography>
+          <Typography component="span" sx={{ mx: 0.5, color: 'success.main', fontWeight: 500 }}>{`(${motherPlantCount})`}</Typography>
+        </Box>
+      )
+    },
+    { 
+      label: (
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <Typography component="span" sx={{ fontWeight: 'bold' }}>CHARGEN</Typography>
+          <Typography component="span" sx={{ mx: 0.5, color: 'success.main', fontWeight: 500 }}>{`(${floweringBatchCount})`}</Typography>
+          <ArrowForwardIcon sx={{ mx: 0.5, fontSize: 14, color: 'success.main' }} />
+          <Typography component="span" sx={{ fontWeight: 'bold' }}>ZU BLÜHPFLANZEN</Typography>
+          <Typography component="span" sx={{ mx: 0.5, color: 'success.main', fontWeight: 500 }}>{`(${floweringPlantCount})`}</Typography>
+        </Box>
+      )
+    },
+    { 
+      label: (
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <Typography component="span" sx={{ fontWeight: 'bold' }}>CHARGEN</Typography>
+          <Typography component="span" sx={{ mx: 0.5, color: 'error.main', fontWeight: 500 }}>{`(${destroyedCount})`}</Typography>
+          <ArrowForwardIcon sx={{ mx: 0.5, fontSize: 14, color: 'error.main' }} />
+          <Typography component="span" sx={{ fontWeight: 'bold' }}>VERNICHTET</Typography>
+          <Typography component="span" sx={{ mx: 0.5, color: 'error.main', fontWeight: 500 }}>{`(${totalDestroyedQuantity})`}</Typography>
+        </Box>
+      )
+    }
   ];
 
   return (
     <Container maxWidth="xl" sx={{ width: '100%' }}>
-      <PageHeader 
-        title="Samen-Verwaltung"
-        showFilters={showFilters}
-        setShowFilters={setShowFilters}
-        actions={
-          tabValue === 0 && (
-            <Button 
-              variant="contained" 
-              color="success"
-              onClick={() => {
-                setSelectedSeed(null)
-                setOpenForm(true)
-              }}
-            >
-              NEUER SAMEN
-            </Button>
-          )
-        }
-      />
+      <Fade in={true} timeout={800}>
+        <Box>
+          <PageHeader 
+            title="Samen-Verwaltung"
+            showFilters={showFilters}
+            setShowFilters={setShowFilters}
+            actions={
+              tabValue === 0 && (
+                <Button 
+                  variant="contained" 
+                  color="success"
+                  onClick={() => {
+                    setSelectedSeed(null)
+                    setOpenForm(true)
+                  }}
+                >
+                  NEUER SAMEN
+                </Button>
+              )
+            }
+          />
+        </Box>
+      </Fade>
       
-      <FilterSection
-        yearFilter={yearFilter}
-        setYearFilter={setYearFilter}
-        monthFilter={monthFilter}
-        setMonthFilter={setMonthFilter}
-        dayFilter={dayFilter}
-        setDayFilter={setDayFilter}
-        onApply={handleFilterApply}
-        onReset={handleFilterReset}
-        showFilters={showFilters}
-      />
+      <Fade in={showFilters} timeout={400}>
+        <Box sx={{ display: showFilters ? 'block' : 'none' }}>
+          <FilterSection
+            yearFilter={yearFilter}
+            setYearFilter={setYearFilter}
+            monthFilter={monthFilter}
+            setMonthFilter={setMonthFilter}
+            dayFilter={dayFilter}
+            setDayFilter={setDayFilter}
+            onApply={handleFilterApply}
+            onReset={handleFilterReset}
+            showFilters={showFilters}
+          />
+        </Box>
+      </Fade>
 
       <TabsHeader 
         tabValue={tabValue} 
@@ -465,67 +524,152 @@ export default function SeedPurchasePage() {
       {loading ? (
         <LoadingIndicator />
       ) : (
-        <SeedTable 
-          tabValue={tabValue}
-          data={displayedData}
-          expandedSeedId={expandedSeedId}
-          onExpandSeed={handleAccordionChange}
-          onOpenConvertDialog={handleOpenConvertDialog}
-          onOpenDestroyDialog={handleOpenDestroyDialog}
-          onOpenEditForm={handleOpenEditForm}
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={handlePageChange}
-        />
+        <>
+          <AnimatedTabPanel 
+            value={tabValue} 
+            index={0} 
+            animationType={tabAnimation} 
+            direction="right" 
+            duration={animationDuration}
+          >
+            <SeedTable 
+              tabValue={0}
+              data={displayedData}
+              expandedSeedId={expandedSeedId}
+              onExpandSeed={handleAccordionChange}
+              onOpenConvertDialog={handleOpenConvertDialog}
+              onOpenDestroyDialog={handleOpenDestroyDialog}
+              onOpenEditForm={handleOpenEditForm}
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+            />
+          </AnimatedTabPanel>
+
+          <AnimatedTabPanel 
+            value={tabValue} 
+            index={1} 
+            animationType={tabAnimation} 
+            direction="up" 
+            duration={animationDuration}
+          >
+            <SeedTable 
+              tabValue={1}
+              data={displayedData}
+              expandedSeedId={expandedSeedId}
+              onExpandSeed={handleAccordionChange}
+              onOpenConvertDialog={handleOpenConvertDialog}
+              onOpenDestroyDialog={handleOpenDestroyDialog}
+              onOpenEditForm={handleOpenEditForm}
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+            />
+          </AnimatedTabPanel>
+
+          <AnimatedTabPanel 
+            value={tabValue} 
+            index={2} 
+            animationType={tabAnimation} 
+            direction="up" 
+            duration={animationDuration}
+          >
+            <SeedTable 
+              tabValue={2}
+              data={displayedData}
+              expandedSeedId={expandedSeedId}
+              onExpandSeed={handleAccordionChange}
+              onOpenConvertDialog={handleOpenConvertDialog}
+              onOpenDestroyDialog={handleOpenDestroyDialog}
+              onOpenEditForm={handleOpenEditForm}
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+            />
+          </AnimatedTabPanel>
+
+          <AnimatedTabPanel 
+            value={tabValue} 
+            index={3} 
+            animationType={tabAnimation} 
+            direction="left" 
+            duration={animationDuration}
+          >
+            <SeedTable 
+              tabValue={3}
+              data={displayedData}
+              expandedSeedId={expandedSeedId}
+              onExpandSeed={handleAccordionChange}
+              onOpenConvertDialog={handleOpenConvertDialog}
+              onOpenDestroyDialog={handleOpenDestroyDialog}
+              onOpenEditForm={handleOpenEditForm}
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+            />
+          </AnimatedTabPanel>
+        </>
       )}
 
-      <SeedPurchaseForm
-        open={openForm}
-        onClose={() => {
-          setOpenForm(false)
-          setSelectedSeed(null)
-        }}
-        onSuccess={() => {
-          setOpenForm(false)
-          setSelectedSeed(null)
-          refreshData()
-        }}
-        initialData={selectedSeed || {}}
-      />
+      <Fade in={openForm} timeout={500}>
+        <div style={{ display: openForm ? 'block' : 'none' }}>
+          <SeedPurchaseForm
+            open={openForm}
+            onClose={() => {
+              setOpenForm(false)
+              setSelectedSeed(null)
+            }}
+            onSuccess={() => {
+              setOpenForm(false)
+              setSelectedSeed(null)
+              refreshData()
+            }}
+            initialData={selectedSeed || {}}
+          />
+        </div>
+      </Fade>
 
-      <ConvertDialog 
-        open={openConvertDialog}
-        onClose={() => setOpenConvertDialog(false)}
-        onConvert={handleConvert}
-        type={convertType}
-        quantity={convertQuantity}
-        setQuantity={setConvertQuantity}
-        notes={convertNotes}
-        setNotes={setConvertNotes}
-        members={members}
-        selectedMemberId={selectedMemberId}
-        setSelectedMemberId={setSelectedMemberId}
-        rooms={rooms}
-        selectedRoomId={selectedRoomId}
-        setSelectedRoomId={setSelectedRoomId}
-        maxQuantity={selectedSeed?.remaining_quantity || 1}
-      />
+      <Fade in={openConvertDialog} timeout={500}>
+        <div style={{ display: openConvertDialog ? 'block' : 'none' }}>
+          <ConvertDialog 
+            open={openConvertDialog}
+            onClose={() => setOpenConvertDialog(false)}
+            onConvert={handleConvert}
+            type={convertType}
+            quantity={convertQuantity}
+            setQuantity={setConvertQuantity}
+            notes={convertNotes}
+            setNotes={setConvertNotes}
+            members={members}
+            selectedMemberId={selectedMemberId}
+            setSelectedMemberId={setSelectedMemberId}
+            rooms={rooms}
+            selectedRoomId={selectedRoomId}
+            setSelectedRoomId={setSelectedRoomId}
+            maxQuantity={selectedSeed?.remaining_quantity || 1}
+          />
+        </div>
+      </Fade>
 
-      <DestroyDialog 
-        open={openDestroyDialog}
-        onClose={() => setOpenDestroyDialog(false)}
-        onDestroy={handleDestroy}
-        title="Samen vernichten"
-        members={members}
-        destroyedByMemberId={destroyedByMemberId}
-        setDestroyedByMemberId={setDestroyedByMemberId}
-        destroyReason={destroyReason}
-        setDestroyReason={setDestroyReason}
-        quantity={destroyQuantity}
-        setQuantity={setDestroyQuantity}
-        showQuantity={tabValue === 0}
-        maxQuantity={selectedSeed?.remaining_quantity || 1}
-      />
+      <Fade in={openDestroyDialog} timeout={500}>
+        <div style={{ display: openDestroyDialog ? 'block' : 'none' }}>
+          <DestroyDialog 
+            open={openDestroyDialog}
+            onClose={() => setOpenDestroyDialog(false)}
+            onDestroy={handleDestroy}
+            title="Samen vernichten"
+            members={members}
+            destroyedByMemberId={destroyedByMemberId}
+            setDestroyedByMemberId={setDestroyedByMemberId}
+            destroyReason={destroyReason}
+            setDestroyReason={setDestroyReason}
+            quantity={destroyQuantity}
+            setQuantity={setDestroyQuantity}
+            showQuantity={tabValue === 0}
+            maxQuantity={selectedSeed?.remaining_quantity || 1}
+          />
+        </div>
+      </Fade>
     </Container>
   )
 }
