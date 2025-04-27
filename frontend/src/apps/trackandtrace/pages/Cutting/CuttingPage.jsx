@@ -607,10 +607,10 @@ export default function CuttingPage() {
       label: (
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
           <Typography component="span" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>CHARGEN</Typography>
-          <Typography component="span" sx={{ mx: 0.3, color: 'error.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${destroyedBatchesCount})`}</Typography>
-          <ArrowForwardIcon sx={{ mx: 0.3, fontSize: 10, color: 'error.main' }} />
-          <Typography component="span" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>VERNICHTETE STECKLINGE</Typography>
-          <Typography component="span" sx={{ mx: 0.3, color: 'error.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${destroyedCuttingsCount})`}</Typography>
+          <Typography component="span" sx={{ mx: 0.3, color: 'success.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${convertedBatchesCount})`}</Typography>
+          <ArrowForwardIcon sx={{ mx: 0.3, fontSize: 10, color: 'success.main' }} />
+          <Typography component="span" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>BLÜHPFLANZEN</Typography>
+          <Typography component="span" sx={{ mx: 0.3, color: 'success.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${convertedCuttingsCount})`}</Typography>
         </Box>
       )
     },
@@ -618,10 +618,10 @@ export default function CuttingPage() {
       label: (
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
           <Typography component="span" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>CHARGEN</Typography>
-          <Typography component="span" sx={{ mx: 0.3, color: 'success.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${convertedBatchesCount})`}</Typography>
-          <ArrowForwardIcon sx={{ mx: 0.3, fontSize: 10, color: 'success.main' }} />
-          <Typography component="span" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>BLÜHPFLANZEN</Typography>
-          <Typography component="span" sx={{ mx: 0.3, color: 'success.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${convertedCuttingsCount})`}</Typography>
+          <Typography component="span" sx={{ mx: 0.3, color: 'error.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${destroyedBatchesCount})`}</Typography>
+          <ArrowForwardIcon sx={{ mx: 0.3, fontSize: 10, color: 'error.main' }} />
+          <Typography component="span" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>VERNICHTETE STECKLINGE</Typography>
+          <Typography component="span" sx={{ mx: 0.3, color: 'error.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${destroyedCuttingsCount})`}</Typography>
         </Box>
       )
     }

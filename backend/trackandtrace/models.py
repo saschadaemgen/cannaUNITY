@@ -222,6 +222,11 @@ class Cutting(models.Model):
     is_destroyed = models.BooleanField(default=False)
     destroy_reason = models.TextField(blank=True, null=True)
     destroyed_at = models.DateTimeField(blank=True, null=True)
+
+    converted_by = models.ForeignKey(Member, on_delete=models.SET_NULL, null=True, blank=True,
+                                    related_name='converted_cuttings')
+    converted_at = models.DateTimeField(blank=True, null=True)
+    converted_to = models.UUIDField(blank=True, null=True)
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
