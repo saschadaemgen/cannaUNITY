@@ -15,6 +15,9 @@ import AnimatedTabPanel from '../../components/common/AnimatedTabPanel'
 // Spezifische Komponenten
 import CuttingTable from './components/CuttingTable'
 
+// Animations-Hook importieren
+import useAnimationSettings from '../../../../hooks/useAnimationSettings'
+
 export default function CuttingPage() {
   const [cuttingBatches, setCuttingBatches] = useState([])
   const [loading, setLoading] = useState(false)
@@ -34,9 +37,8 @@ export default function CuttingPage() {
   const [selectedCuttings, setSelectedCuttings] = useState({})
   const [loadingOptions, setLoadingOptions] = useState(false)
   
-  // Animationstypen für die verschiedenen Tab-Inhalte
-  const [tabAnimation, setTabAnimation] = useState('slide') // 'fade', 'slide', 'grow'
-  const [animationDuration, setAnimationDuration] = useState(500)
+  // Animationseinstellungen mit neuem Hook abrufen
+  const animSettings = useAnimationSettings('slide', 500, true);
   
   // Filter-Zustandsvariablen
   const [yearFilter, setYearFilter] = useState('')
@@ -411,33 +413,28 @@ export default function CuttingPage() {
     setShowFilters(false)
     loadCuttingBatches(1) // Zurück zur ersten Seite nach Filter-Reset
   }
-  
-  // Funktion zum Ändern des Animationstyps
-  const changeAnimationType = (type) => {
-    setTabAnimation(type);
-  }
 
-  // Tabs definieren
+  // Tabs definieren mit kleinerer Schriftgröße
   const tabs = [
     { 
       label: (
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <Typography component="span" sx={{ fontWeight: 'bold' }}>CHARGEN</Typography>
-          <Typography component="span" sx={{ mx: 0.5, color: 'primary.main', fontWeight: 500 }}>{`(${activeBatchesCount})`}</Typography>
-          <ArrowForwardIcon sx={{ mx: 0.5, fontSize: 14, color: 'primary.main' }} />
-          <Typography component="span" sx={{ fontWeight: 'bold' }}>AKTIVE STECKLINGE</Typography>
-          <Typography component="span" sx={{ mx: 0.5, color: 'primary.main', fontWeight: 500 }}>{`(${activeCuttingsCount})`}</Typography>
+          <Typography component="span" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>CHARGEN</Typography>
+          <Typography component="span" sx={{ mx: 0.3, color: 'primary.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${activeBatchesCount})`}</Typography>
+          <ArrowForwardIcon sx={{ mx: 0.3, fontSize: 10, color: 'primary.main' }} />
+          <Typography component="span" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>AKTIVE STECKLINGE</Typography>
+          <Typography component="span" sx={{ mx: 0.3, color: 'primary.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${activeCuttingsCount})`}</Typography>
         </Box>
       ) 
     },
     { 
       label: (
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <Typography component="span" sx={{ fontWeight: 'bold' }}>CHARGEN</Typography>
-          <Typography component="span" sx={{ mx: 0.5, color: 'error.main', fontWeight: 500 }}>{`(${destroyedBatchesCount})`}</Typography>
-          <ArrowForwardIcon sx={{ mx: 0.5, fontSize: 14, color: 'error.main' }} />
-          <Typography component="span" sx={{ fontWeight: 'bold' }}>VERNICHTETE STECKLINGE</Typography>
-          <Typography component="span" sx={{ mx: 0.5, color: 'error.main', fontWeight: 500 }}>{`(${destroyedCuttingsCount})`}</Typography>
+          <Typography component="span" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>CHARGEN</Typography>
+          <Typography component="span" sx={{ mx: 0.3, color: 'error.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${destroyedBatchesCount})`}</Typography>
+          <ArrowForwardIcon sx={{ mx: 0.3, fontSize: 10, color: 'error.main' }} />
+          <Typography component="span" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>VERNICHTETE STECKLINGE</Typography>
+          <Typography component="span" sx={{ mx: 0.3, color: 'error.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${destroyedCuttingsCount})`}</Typography>
         </Box>
       )
     }
@@ -477,6 +474,12 @@ export default function CuttingPage() {
         tabs={tabs}
         color="primary"
         ariaLabel="Stecklinge-Tabs"
+        sx={{ 
+          '& .MuiTab-root': { 
+            minHeight: '36px', 
+            py: 0.5 // Reduzierte vertikale Polsterung
+          }
+        }}
       />
 
       {loading ? (
@@ -486,9 +489,9 @@ export default function CuttingPage() {
           <AnimatedTabPanel 
             value={tabValue} 
             index={0} 
-            animationType={tabAnimation} 
+            animationType={animSettings.type} 
             direction="right" 
-            duration={animationDuration}
+            duration={animSettings.duration}
           >
             <CuttingTable 
               tabValue={0}
@@ -516,9 +519,9 @@ export default function CuttingPage() {
           <AnimatedTabPanel 
             value={tabValue} 
             index={1} 
-            animationType={tabAnimation} 
+            animationType={animSettings.type} 
             direction="left" 
-            duration={animationDuration}
+            duration={animSettings.duration}
           >
             <CuttingTable 
               tabValue={1}
