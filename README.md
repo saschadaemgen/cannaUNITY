@@ -1,4 +1,5 @@
 # 🌿 cannaUNITY v0.6.18 (Pre-Alpha)
+"Masteransicht für festes UI Panel 1920x1080p"
 
 > **Modulare Open-Source-Software für Cannabis Social Clubs und Anbauvereinigungen gemäß dem Konsumcannabisgesetz § (KCanG)**  
 > Mitgliederverwaltung · Aufgabenplanung · Zutrittskontrolle · Track & Trace · Buchhaltung · WaWi · Raumautomation · Sicherheitssysteme
