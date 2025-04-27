@@ -29,7 +29,7 @@ import SeedPurchasePage from '../apps/trackandtrace/pages/SeedPurchase/SeedPurch
 import MotherPlantPage from '../apps/trackandtrace/pages/MotherPlant/MotherPlantPage';
 import FloweringPlantPage from '../apps/trackandtrace/pages/FloweringPlant/FloweringPlantPage';
 import CuttingPage from '../apps/trackandtrace/pages/Cutting/CuttingPage';
-
+import BloomingCuttingPlantPage from '../apps/trackandtrace/pages/BloomingCuttingPlant/BloomingCuttingPlantPage';
 
 export const router = createBrowserRouter([
   {
@@ -75,6 +75,7 @@ export const router = createBrowserRouter([
       { path: 'trace/samen', element: <SeedPurchasePage /> },
       { path: 'trace/mutterpflanzen', element: <MotherPlantPage /> },
       { path: 'trace/bluehpflanzen', element: <FloweringPlantPage /> },
+      { path: 'trace/bluehpflanzen-aus-stecklingen', element: <BloomingCuttingPlantPage /> },
 
       { path: 'trace/stecklinge', element: <CuttingPage /> },
 

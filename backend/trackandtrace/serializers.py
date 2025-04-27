@@ -1,7 +1,8 @@
 from rest_framework import serializers
 from .models import (
     SeedPurchase, MotherPlantBatch, MotherPlant, 
-    FloweringPlantBatch, FloweringPlant, Cutting, CuttingBatch
+    FloweringPlantBatch, FloweringPlant, Cutting, CuttingBatch,
+    BloomingCuttingBatch, BloomingCuttingPlant
 )
 from members.models import Member
 from rooms.models import Room
@@ -243,12 +244,51 @@ class CuttingSerializer(serializers.ModelSerializer):
         allow_null=True
     )
     
+    # Serializer für das Mitglied, das konvertiert hat
+    converted_by = MemberSerializer(read_only=True)
+    converted_by_id = serializers.PrimaryKeyRelatedField(
+        queryset=Member.objects.all(),
+        source='converted_by',
+        write_only=True,
+        required=False,
+        allow_null=True
+    )
+    
+    # Hinzufügen eines Feldes für die Blühpflanzen-Batch-ID
+    converted_to = serializers.SerializerMethodField()
+    
     class Meta:
         model = Cutting
         fields = [
             'id', 'batch_number', 'notes', 'is_destroyed', 'destroy_reason', 
-            'destroyed_at', 'created_at', 'destroyed_by', 'destroyed_by_id'
+            'destroyed_at', 'created_at', 'destroyed_by', 'destroyed_by_id',
+            'converted_to', 'converted_at', 'converted_by', 'converted_by_id'
         ]
+    
+    def get_converted_to(self, obj):
+        """
+        Extrahiert die Blühpflanzen-Batch-ID aus dem destroy_reason, wenn der Steckling
+        zu einer Blühpflanze konvertiert wurde
+        """
+        # Wenn das Feld direkt in der Datenbank gespeichert ist, verwende es
+        if hasattr(obj, 'converted_to') and obj.converted_to:
+            return str(obj.converted_to)
+            
+        # Ansonsten versuche, die Batch-ID aus dem destroy_reason zu extrahieren
+        if obj.is_destroyed and obj.destroy_reason and "Zu Blühpflanze konvertiert" in obj.destroy_reason:
+            # Versuche, die Batch-ID aus dem String zu extrahieren
+            import re
+            match = re.search(r'Charge: (.+?)(\)|\s|$)', obj.destroy_reason)
+            if match:
+                batch_number = match.group(1)
+                # Versuche, die BloomingCuttingBatch mit dieser Nummer zu finden
+                try:
+                    batch = BloomingCuttingBatch.objects.filter(batch_number=batch_number).first()
+                    if batch:
+                        return str(batch.id)
+                except:
+                    pass
+        return None
 
 # Dateiname: serializers.py
 
@@ -333,3 +373,72 @@ class CuttingBatchSerializer(serializers.ModelSerializer):
         if number_match:
             return number_match.group(1)
         return None
+    
+class BloomingCuttingPlantSerializer(serializers.ModelSerializer):
+    # Serializer für das Mitglied, das vernichtet hat
+    destroyed_by = MemberSerializer(read_only=True)
+    destroyed_by_id = serializers.PrimaryKeyRelatedField(
+        queryset=Member.objects.all(), 
+        source='destroyed_by',
+        write_only=True,
+        required=False,
+        allow_null=True
+    )
+    
+    class Meta:
+        model = BloomingCuttingPlant
+        fields = [
+            'id', 'batch_number', 'notes', 'is_destroyed', 'destroy_reason', 
+            'destroyed_at', 'created_at', 'destroyed_by', 'destroyed_by_id'
+        ]
+
+class BloomingCuttingBatchSerializer(serializers.ModelSerializer):
+    # Serializers für Mitglieder und Räume
+    member = MemberSerializer(read_only=True)
+    member_id = serializers.PrimaryKeyRelatedField(
+        queryset=Member.objects.all(), 
+        source='member',
+        write_only=True,
+        required=False,
+        allow_null=True
+    )
+    
+    room = RoomSerializer(read_only=True)
+    room_id = serializers.PrimaryKeyRelatedField(
+        queryset=Room.objects.all(), 
+        source='room',
+        write_only=True,
+        required=False,
+        allow_null=True
+    )
+    
+    # Abgeleitete Felder für Steckling-Informationen
+    cutting_strain = serializers.SerializerMethodField()
+    cutting_batch_number = serializers.SerializerMethodField()
+    
+    # Abgeleitete Felder für aktive und vernichtete Pflanzen
+    active_plants_count = serializers.SerializerMethodField()
+    destroyed_plants_count = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = BloomingCuttingBatch
+        fields = [
+            'id', 'batch_number', 'cutting_batch', 'quantity', 'notes',
+            'created_at', 'member', 'member_id', 'room', 'room_id',
+            'cutting_strain', 'cutting_batch_number', 'active_plants_count', 'destroyed_plants_count'
+        ]
+    
+    def get_cutting_strain(self, obj):
+        # Wenn vorhanden, hole die Genetik über Mutterpflanzen und Samen
+        if obj.cutting_batch and obj.cutting_batch.mother_batch and obj.cutting_batch.mother_batch.seed_purchase:
+            return obj.cutting_batch.mother_batch.seed_purchase.strain_name
+        return "Unbekannt"
+    
+    def get_cutting_batch_number(self, obj):
+        return obj.cutting_batch.batch_number if obj.cutting_batch else None
+    
+    def get_active_plants_count(self, obj):
+        return obj.plants.filter(is_destroyed=False).count()
+    
+    def get_destroyed_plants_count(self, obj):
+        return obj.plants.filter(is_destroyed=True).count()

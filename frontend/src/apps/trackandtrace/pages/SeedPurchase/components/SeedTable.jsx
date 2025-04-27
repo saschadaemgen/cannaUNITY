@@ -5,6 +5,7 @@ import EditIcon from '@mui/icons-material/Edit'
 import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment'
 import SpaIcon from '@mui/icons-material/Spa'
 import LocalFloristIcon from '@mui/icons-material/LocalFlorist'
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 
 import TableHeader from '../../../components/common/TableHeader'
 import AccordionRow from '../../../components/common/AccordionRow'
@@ -48,64 +49,65 @@ const SeedTable = ({
   // Spalten für den Tabellenkopf definieren (basierend auf Tab)
   const getHeaderColumns = () => {
     const baseColumns = [
-      { label: '', width: '40px', align: 'center' },
-      { label: 'Sortenname', width: '15%', align: 'left' },
-      { label: 'Charge-Nummer', width: '15%', align: 'left' }
+      { label: 'Sortenname', width: '15%', align: 'left', padding: '0 8px 0 28px' },
+      { label: 'Charge-Nummer', width: '15%', align: 'left', padding: '0 10px' }
     ]
 
     const tabSpecificColumns = {
       0: [ // Aktive Samen
-        { label: 'Gesamt/Verfügbar', width: '12%', align: 'center' },
-        { label: 'Zugeordnetes Mitglied', width: '15%', align: 'left' },
-        { label: 'Zugeordneter Raum', width: '15%', align: 'left' },
-        { label: 'Erstellt am', width: '13%', align: 'left' }
+        { label: 'Gesamt/Verfügbar', width: '12%', align: 'center', padding: '0 10px' },
+        { label: 'Zugeordnetes Mitglied', width: '15%', align: 'left', padding: '0 10px' },
+        { label: 'Zugeordneter Raum', width: '15%', align: 'left', padding: '0 10px' },
+        { label: 'Erstellt am', width: '16%', align: 'left', padding: '0 10px' }
       ],
       1: [ // Mutterpflanzen
-        { label: 'Anzahl Pflanzen', width: '12%', align: 'center' },
-        { label: 'Zugeordnetes Mitglied', width: '15%', align: 'left' },
-        { label: 'Zugeordneter Raum', width: '15%', align: 'left' },
-        { label: 'Erstellt am', width: '13%', align: 'left' }
+        { label: 'Anzahl Pflanzen', width: '12%', align: 'center', padding: '0 10px' },
+        { label: 'Zugeordnetes Mitglied', width: '15%', align: 'left', padding: '0 10px' },
+        { label: 'Zugeordneter Raum', width: '15%', align: 'left', padding: '0 10px' },
+        { label: 'Erstellt am', width: '16%', align: 'left', padding: '0 10px' }
       ],
       2: [ // Blühpflanzen
-        { label: 'Anzahl Pflanzen', width: '12%', align: 'center' },
-        { label: 'Zugeordnetes Mitglied', width: '15%', align: 'left' },
-        { label: 'Zugeordneter Raum', width: '15%', align: 'left' },
-        { label: 'Erstellt am', width: '13%', align: 'left' }
+        { label: 'Anzahl Pflanzen', width: '12%', align: 'center', padding: '0 10px' },
+        { label: 'Zugeordnetes Mitglied', width: '15%', align: 'left', padding: '0 10px' },
+        { label: 'Zugeordneter Raum', width: '15%', align: 'left', padding: '0 10px' },
+        { label: 'Erstellt am', width: '16%', align: 'left', padding: '0 10px' }
       ],
       3: [ // Vernichtet
-        { label: 'Vernichtete Menge', width: '12%', align: 'center' },
-        { label: 'Vernichtet durch', width: '15%', align: 'left' },
-        { label: 'Vernichtungsgrund', width: '15%', align: 'left' },
-        { label: 'Vernichtet am', width: '13%', align: 'left' }
+        { label: 'Vernichtete Menge', width: '12%', align: 'center', padding: '0 10px' },
+        { label: 'Vernichtet durch', width: '15%', align: 'left', padding: '0 10px' },
+        { label: 'Vernichtungsgrund', width: '15%', align: 'left', padding: '0 10px' },
+        { label: 'Vernichtet am', width: '16%', align: 'left', padding: '0 10px' }
       ]
     }
 
-    return [
+    // Basis-Spalten und tab-spezifische Spalten
+    const columns = [
       ...baseColumns,
       ...tabSpecificColumns[tabValue],
-      { label: 'Aktionen', width: '12%', align: 'center' },
+      // Aktionen-Spalte für alle Tabs
+      { label: 'Aktionen', width: '12%', align: 'center', padding: '0 8px' }
     ]
+    
+    return columns
   }
 
   // Funktion zum Erstellen der Spalten für eine Zeile
   const getRowColumns = (item) => {
     const baseColumns = [
       {
-        content: '',
-        width: '40px'
-      },
-      {
         content: tabValue === 0 || tabValue === 3 ? item.strain_name : item.seed_strain,
         width: '15%',
         bold: true,
         icon: ScienceIcon,
-        iconColor: 'success.main'
+        iconColor: 'success.main',
+        padding: '0 8px 0 28px'
       },
       {
         content: item.batch_number || '',
         width: '15%',
         fontFamily: 'monospace',
-        fontSize: '0.85rem'
+        fontSize: '0.85rem',
+        padding: '0 10px'
       }
     ]
 
@@ -114,63 +116,75 @@ const SeedTable = ({
         {
           content: `${item.quantity}/${item.remaining_quantity}`,
           width: '12%',
-          align: 'center'
+          align: 'center',
+          padding: '0 10px'
         },
         {
           content: item.member ? 
             (item.member.display_name || `${item.member.first_name} ${item.member.last_name}`) 
             : "Nicht zugewiesen",
-          width: '15%'
+          width: '15%',
+          padding: '0 10px'
         },
         {
           content: item.room ? item.room.name : "Nicht zugewiesen",
-          width: '15%'
+          width: '15%',
+          padding: '0 10px'
         },
         {
           content: new Date(item.created_at).toLocaleDateString('de-DE'),
-          width: '13%'
+          width: '16%',
+          padding: '0 10px'
         }
       ],
       1: [ // Mutterpflanzen
         {
           content: item.active_plants_count || 0,
           width: '12%',
-          align: 'center'
+          align: 'center',
+          padding: '0 10px'
         },
         {
           content: item.member ? 
             (item.member.display_name || `${item.member.first_name} ${item.member.last_name}`) 
             : "Nicht zugewiesen",
-          width: '15%'
+          width: '15%',
+          padding: '0 10px'
         },
         {
           content: item.room ? item.room.name : "Nicht zugewiesen",
-          width: '15%'
+          width: '15%',
+          padding: '0 10px'
         },
         {
           content: new Date(item.created_at).toLocaleDateString('de-DE'),
-          width: '13%'
+          width: '16%',
+          padding: '0 10px'
         }
       ],
       2: [ // Blühpflanzen
         {
           content: item.active_plants_count || 0,
           width: '12%',
-          align: 'center'
+          align: 'center',
+          padding: '0 10px'
         },
         {
           content: item.member ? 
             (item.member.display_name || `${item.member.first_name} ${item.member.last_name}`) 
             : "Nicht zugewiesen",
-          width: '15%'
+          width: '15%',
+          padding: '0 10px'
         },
         {
           content: item.room ? item.room.name : "Nicht zugewiesen",
-          width: '15%'
+          width: '15%',
+          padding: '0 10px'
         },
         {
           content: new Date(item.created_at).toLocaleDateString('de-DE'),
-          width: '13%'
+          width: '16%',
+          padding: '0 10px'
         }
       ],
       3: [ // Vernichtet
@@ -178,38 +192,47 @@ const SeedTable = ({
           content: item.destroyed_quantity,
           width: '12%',
           align: 'center',
-          color: 'error.main'
+          color: 'error.main',
+          padding: '0 10px'
         },
         {
           content: item.destroyed_by ? 
             (item.destroyed_by.display_name || `${item.destroyed_by.first_name} ${item.destroyed_by.last_name}`) 
             : "-",
-          width: '15%'
+          width: '15%',
+          padding: '0 10px'
         },
         {
           content: item.destroy_reason || "-",
-          width: '15%'
+          width: '15%',
+          padding: '0 10px'
         },
         {
           content: item.destroyed_at ? new Date(item.destroyed_at).toLocaleDateString('de-DE') : '-',
-          width: '13%'
+          width: '16%',
+          padding: '0 10px'
         }
       ]
     }
 
-    return [
+    // Basis-Spalten, tab-spezifische Spalten und Aktionen-Spalte
+    const columns = [
       ...baseColumns,
       ...tabSpecificColumns[tabValue],
-      { 
+      {
+        // Die Aktionsspalte enthält je nach Tab verschiedene Inhalte
         content: renderActions(item),
         width: '12%',
-        align: 'center'
-      },
+        align: 'center',
+        padding: '0 8px'
+      }
     ]
+    
+    return columns
   }
 
   // Funktion zum Rendern der Aktionen-Spalte
-  const renderActions = (item, event) => {
+  const renderActions = (item) => {
     // Stopt das Event-Bubbling, damit sich das Akkordeon nicht öffnet
     const stopPropagation = (e) => {
       if (e) e.stopPropagation()
@@ -226,6 +249,22 @@ const SeedTable = ({
         }}
         onClick={stopPropagation}
       >
+        {/* Aufklapp-Icon wird in allen Tabs angezeigt */}
+        <IconButton 
+          size="small" 
+          onClick={() => onExpandSeed(item.id)}
+          sx={{ mr: tabValue === 0 ? 0.5 : 0 }}
+        >
+          <ExpandMoreIcon 
+            sx={{ 
+              transform: expandedSeedId === item.id ? 'rotate(180deg)' : 'rotate(0deg)',
+              transition: 'transform 300ms ease-in-out',
+              fontSize: '1.2rem'
+            }} 
+          />
+        </IconButton>
+
+        {/* Aktionsbuttons nur im Tab 0 (Aktive Samen) anzeigen */}
         {tabValue === 0 && (
           <>
             <Tooltip title="Zu Mutterpflanze konvertieren">
@@ -253,40 +292,34 @@ const SeedTable = ({
                 <LocalFloristIcon fontSize="small" color="success" />
               </IconButton>
             </Tooltip>
+            
+            <Tooltip title="Bearbeiten">
+              <IconButton 
+                size="small" 
+                onClick={(e) => {
+                  stopPropagation(e)
+                  onOpenEditForm(item, e)
+                }}
+                sx={{ mx: 0.5 }}
+              >
+                <EditIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            
+            <Tooltip title="Vernichten">
+              <IconButton 
+                size="small" 
+                color="error"
+                onClick={(e) => {
+                  stopPropagation(e)
+                  onOpenDestroyDialog(item, e)
+                }}
+                sx={{ mx: 0.5 }}
+              >
+                <LocalFireDepartmentIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
           </>
-        )}
-        
-        {/* Bearbeiten-Button für alle Tabs außer "Vernichtet" */}
-        {tabValue !== 3 && (
-          <Tooltip title="Bearbeiten">
-            <IconButton 
-              size="small" 
-              onClick={(e) => {
-                stopPropagation(e)
-                onOpenEditForm(item, e)
-              }}
-              sx={{ mx: 0.5 }}
-            >
-              <EditIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-        )}
-        
-        {/* Vernichten-Button für alle Tabs außer "Vernichtet" */}
-        {tabValue !== 3 && (
-          <Tooltip title="Vernichten">
-            <IconButton 
-              size="small" 
-              color="error"
-              onClick={(e) => {
-                stopPropagation(e)
-                onOpenDestroyDialog(item, e)
-              }}
-              sx={{ mx: 0.5 }}
-            >
-              <LocalFireDepartmentIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
         )}
       </Box>
     )
@@ -546,15 +579,89 @@ const SeedTable = ({
 
       {data && data.length > 0 ? (
         data.map((item) => (
-          <AccordionRow
+          <Box
             key={item.id}
-            isExpanded={expandedSeedId === item.id}
-            onClick={() => onExpandSeed(item.id)}
-            columns={getRowColumns(item)}
-            borderColor="success.main"
+            sx={{ 
+              mb: 1.2, 
+              overflow: 'hidden', 
+              borderRadius: '4px',
+              border: expandedSeedId === item.id ? '1px solid rgba(76, 175, 80, 0.5)' : 'none'
+            }}
           >
-            {renderSeedDetails(item)}
-          </AccordionRow>
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                backgroundColor: expandedSeedId === item.id ? 'rgba(0, 0, 0, 0.04)' : 'white',
+                '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.04)' },
+                borderLeft: '4px solid',
+                borderColor: 'success.main',
+                cursor: 'pointer',
+                height: '48px',
+                width: '100%',
+              }}
+              onClick={() => onExpandSeed(item.id)}
+            >
+              {/* Spalten-Inhalte direkt aus getRowColumns() */}
+              {getRowColumns(item).map((column, index) => (
+                <Box 
+                  key={index}
+                  sx={{ 
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: column.align === 'center'
+                      ? 'center'
+                      : column.align === 'right'
+                        ? 'flex-end'
+                        : 'flex-start',
+                    width: column.width || 'auto',
+                    padding: column.padding || '0 16px',
+                    overflow: 'hidden',
+                    flexShrink: 0,
+                    textAlign: column.align || 'left',
+                    height: '100%'
+                  }}
+                >
+                  {column.icon && (
+                    <column.icon sx={{ color: column.iconColor || 'inherit', fontSize: '0.9rem', mr: 0.8 }} />
+                  )}
+                  {typeof column.content === 'string' || typeof column.content === 'number' ? (
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        fontWeight: column.bold ? 'bold' : 'normal',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        fontSize: '0.8rem',
+                        color: column.color || 'inherit',
+                        lineHeight: 1.4,
+                        fontFamily: column.fontFamily
+                      }}
+                    >
+                      {column.content}
+                    </Typography>
+                  ) : (
+                    column.content
+                  )}
+                </Box>
+              ))}
+            </Box>
+
+            {/* Ausgeklappter Inhalt mit Animation */}
+            {expandedSeedId === item.id && (
+              <Box 
+                sx={{ 
+                  width: '100%',
+                  padding: '14px 20px 20px 20px',
+                  backgroundColor: 'rgba(0, 0, 0, 0.02)',
+                  borderTop: '1px solid rgba(0, 0, 0, 0.12)'
+                }}
+              >
+                {renderSeedDetails(item)}
+              </Box>
+            )}
+          </Box>
         ))
       ) : (
         <Typography align="center" sx={{ mt: 4, width: '100%' }}>

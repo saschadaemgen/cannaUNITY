@@ -9,10 +9,10 @@ import { Paper, Table, TableHead, TableRow, TableCell } from '@mui/material'
 const TableHeader = ({ columns }) => {
   return (
     <Paper elevation={1} sx={{ mb: 1.5, borderRadius: '4px', overflow: 'hidden' }}>
-      <Table size="small"> {/* Änderung auf size="small" für kompaktere Darstellung */}
+      <Table size="small">
         <TableHead>
           <TableRow sx={{ 
-            height: '48px', // Reduziert von 54px auf 48px (ca. 11% Reduzierung)
+            height: '48px',
             bgcolor: 'rgba(0, 0, 0, 0.04)' 
           }}>
             {columns.map((column, index) => (
@@ -21,16 +21,14 @@ const TableHeader = ({ columns }) => {
                 sx={{ 
                   width: column.width || 'auto', 
                   fontWeight: 'bold', 
-                  padding: '8px 12px', // Reduziert von 12px 16px auf 8px 12px
+                  padding: '8px 12px',
                   textAlign: column.align || 'left', 
                   whiteSpace: 'nowrap',
                   verticalAlign: 'middle',
-                  fontSize: '0.8rem', // Weiter reduziert von 0.85rem auf 0.8rem
-                  height: '48px' // Explizite Höhenangabe
+                  fontSize: '0.8rem',
+                  height: '48px'
                 }}
-              >
-                {column.label}
-              </TableCell>
+              >{column.label}</TableCell>
             ))}
           </TableRow>
         </TableHead>

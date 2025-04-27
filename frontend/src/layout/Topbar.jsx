@@ -1,3 +1,5 @@
+// Dateiname: src/components/Topbar.jsx
+
 import React, { useState, useEffect, useRef } from 'react';
 import {
   AppBar,
@@ -199,17 +201,118 @@ export default function Topbar() {
     };
   }, []);
 
+  // Aktualisierte traceData mit den neuen Step 4a und 4b anstelle der alten Einträge und allen weiteren Untertiteln
   const traceData = {
-    'Step 1 - Samen': { transferred: 0, total: 100, co2: 452, dust: 16, statusMsg: 'Keimung läuft planmäßig', status: 'normal', overdue: false },
-    'Step 2 - Mutterpflanzen': { transferred: 10, total: 120, co2: 387, dust: 19, statusMsg: 'Wachstum regulär', status: 'normal', overdue: false },
-    'Step 3 - Stecklinge': { transferred: 15, total: 130, co2: 493, dust: 12, statusMsg: 'Bewurzelung aktiv', status: 'normal', overdue: false },
-    'Step 4 - Blühpflanzen': { transferred: 5, total: 90, co2: 412, dust: 18, statusMsg: 'Düngemittel niedrig', status: 'warning', overdue: false },
-    'Step 5 - Ernte': { transferred: 0, total: 85, co2: 423, dust: 15, statusMsg: 'Zwei Ernten überfällig!', status: 'error', overdue: true },
-    'Step 6 - Trocknung': { transferred: 8, total: 100, co2: 436, dust: 18, statusMsg: 'Feuchtewerte im Zielbereich', status: 'normal', overdue: false },
-    'Step 7 - Verarbeitung': { transferred: 12, total: 110, co2: 347, dust: 11, statusMsg: 'Parameter kontrolliert', status: 'normal', overdue: false },
-    'Step 8 - Laborkontrolle': { transferred: 9, total: 95, co2: 298, dust: 17, statusMsg: 'Tests laufen planmäßig', status: 'normal', overdue: false },
-    'Step 9 - Verpackung': { transferred: 7, total: 100, co2: 362, dust: 14, statusMsg: 'Vorrat niedrig', status: 'warning', overdue: false },
-    'Step 10 - Produktausgabe': { transferred: 14, total: 120, co2: 428, dust: 9, statusMsg: 'Ausgabe im Zeitplan', status: 'normal', overdue: false }
+    'Step 1 - Samen': { 
+      transferred: 0, 
+      total: 100, 
+      co2: 452, 
+      dust: 16, 
+      statusMsg: 'Keimung läuft planmäßig', 
+      status: 'normal', 
+      overdue: false,
+      subtitle: 'Ausgangsmaterial'
+    },
+    'Step 2 - Mutterpflanzen': { 
+      transferred: 10, 
+      total: 120, 
+      co2: 387, 
+      dust: 19, 
+      statusMsg: 'Wachstum regulär', 
+      status: 'normal', 
+      overdue: false,
+      subtitle: 'überführt aus Samen'
+    },
+    'Step 3 - Stecklinge': { 
+      transferred: 15, 
+      total: 130, 
+      co2: 493, 
+      dust: 12, 
+      statusMsg: 'Bewurzelung aktiv', 
+      status: 'normal', 
+      overdue: false,
+      subtitle: 'überführt aus Mutterpflanzen'
+    },
+    'Step 4a - Blühpflanzen': { 
+      transferred: 5, 
+      total: 90, 
+      co2: 412, 
+      dust: 18, 
+      statusMsg: 'Düngemittel niedrig', 
+      status: 'warning', 
+      overdue: false, 
+      subtitle: 'überführt aus Samen' 
+    },
+    'Step 4b - Blühpflanzen': { 
+      transferred: 8, 
+      total: 85, 
+      co2: 405, 
+      dust: 14, 
+      statusMsg: 'Wachstum optimal', 
+      status: 'normal', 
+      overdue: false, 
+      subtitle: 'überführt aus Stecklingen' 
+    },
+    'Step 5 - Ernte': { 
+      transferred: 0, 
+      total: 85, 
+      co2: 423, 
+      dust: 15, 
+      statusMsg: 'Zwei Ernten überfällig!', 
+      status: 'error', 
+      overdue: true,
+      subtitle: 'überführt aus Blühpflanzen'
+    },
+    'Step 6 - Trocknung': { 
+      transferred: 8, 
+      total: 100, 
+      co2: 436, 
+      dust: 18, 
+      statusMsg: 'Feuchtewerte im Zielbereich', 
+      status: 'normal', 
+      overdue: false,
+      subtitle: 'überführt aus Ernte'
+    },
+    'Step 7 - Verarbeitung': { 
+      transferred: 12, 
+      total: 110, 
+      co2: 347, 
+      dust: 11, 
+      statusMsg: 'Parameter kontrolliert', 
+      status: 'normal', 
+      overdue: false,
+      subtitle: 'überführt aus Trocknung'
+    },
+    'Step 8 - Laborkontrolle': { 
+      transferred: 9, 
+      total: 95, 
+      co2: 298, 
+      dust: 17, 
+      statusMsg: 'Tests laufen planmäßig', 
+      status: 'normal', 
+      overdue: false,
+      subtitle: 'überführt aus Verarbeitung'
+    },
+    'Step 9 - Verpackung': { 
+      transferred: 7, 
+      total: 100, 
+      co2: 362, 
+      dust: 14, 
+      statusMsg: 'Vorrat niedrig', 
+      status: 'warning', 
+      overdue: false,
+      subtitle: 'überführt aus Laborkontrolle'
+    },
+    'Step 10 - Produktausgabe': { 
+      transferred: 14, 
+      total: 120, 
+      co2: 428, 
+      dust: 9, 
+      statusMsg: 'Ausgabe im Zeitplan', 
+      status: 'normal', 
+      overdue: false,
+      subtitle: 'überführt aus Verpackung'
+    }
   };
 
   const financeData = {
@@ -269,6 +372,7 @@ export default function Topbar() {
     document.head.appendChild(style);
   }, []);
 
+  // Aktualisierte menuItems mit Step 4a und 4b und allen weiteren Untertiteln
   const menuItems = [
     { id: 'showCommunity', label: 'Gemeinschaftsnetzwerk', path: '/mitglieder', icon: <GroupsIcon /> },
     {
@@ -276,16 +380,72 @@ export default function Topbar() {
       label: 'Track & Trace', 
       icon: <TimelineIcon />, 
       children: [
-        { label: 'Step 1 - Samen', path: '/trace/samen', icon: <GrassIcon /> },
-        { label: 'Step 2 - Mutterpflanzen', path: '/trace/mutterpflanzen', icon: <LocalFloristIcon /> },
-        { label: 'Step 3 - Stecklinge', path: '/trace/stecklinge', icon: <ContentCutIcon /> },
-        { label: 'Step 4 - Blühpflanzen', path: '/trace/bluehpflanzen', icon: <AcUnitIcon /> },
-        { label: 'Step 5 - Ernte', path: '/trace/ernte', icon: <AgricultureIcon /> },
-        { label: 'Step 6 - Trocknung', path: '/trace/trocknung', icon: <AcUnitIcon /> },
-        { label: 'Step 7 - Verarbeitung', path: '/trace/verarbeitung', icon: <ScienceIcon /> },
-        { label: 'Step 8 - Laborkontrolle', path: '/trace/laborkontrolle', icon: <BiotechIcon /> },
-        { label: 'Step 9 - Verpackung', path: '/trace/verpackung', icon: <Inventory2Icon /> },
-        { label: 'Step 10 - Produktausgabe', path: '/trace/ausgabe', icon: <ShoppingBasketIcon /> }
+        { 
+          label: 'Step 1 - Samen', 
+          path: '/trace/samen', 
+          icon: <GrassIcon />,
+          subtitle: 'Ausgangsmaterial'
+        },
+        { 
+          label: 'Step 2 - Mutterpflanzen', 
+          path: '/trace/mutterpflanzen', 
+          icon: <LocalFloristIcon />,
+          subtitle: 'überführt aus Samen'
+        },
+        { 
+          label: 'Step 3 - Stecklinge', 
+          path: '/trace/stecklinge', 
+          icon: <ContentCutIcon />,
+          subtitle: 'überführt aus Mutterpflanzen'
+        },
+        { 
+          label: 'Step 4a - Blühpflanzen', 
+          path: '/trace/bluehpflanzen', 
+          icon: <AcUnitIcon />,
+          subtitle: 'überführt aus Samen'
+        },
+        { 
+          label: 'Step 4b - Blühpflanzen', 
+          path: '/trace/bluehpflanzen-aus-stecklingen', 
+          icon: <LocalFloristIcon />,
+          subtitle: 'überführt aus Stecklingen'
+        },
+        { 
+          label: 'Step 5 - Ernte', 
+          path: '/trace/ernte', 
+          icon: <AgricultureIcon />,
+          subtitle: 'überführt aus Blühpflanzen'
+        },
+        { 
+          label: 'Step 6 - Trocknung', 
+          path: '/trace/trocknung', 
+          icon: <AcUnitIcon />,
+          subtitle: 'überführt aus Ernte'
+        },
+        { 
+          label: 'Step 7 - Verarbeitung', 
+          path: '/trace/verarbeitung', 
+          icon: <ScienceIcon />,
+          subtitle: 'überführt aus Trocknung'
+        },
+        { 
+          label: 'Step 8 - Laborkontrolle', 
+          path: '/trace/laborkontrolle', 
+          icon: <BiotechIcon />,
+          subtitle: 'überführt aus Verarbeitung'
+        },
+        { 
+          label: 'Step 9 - Verpackung', 
+          path: '/trace/verpackung', 
+          icon: <Inventory2Icon />,
+          subtitle: 'überführt aus Laborkontrolle'
+        },
+        { 
+          label: 'Step 10 - Produktausgabe', 
+          path: '/trace/ausgabe', 
+          icon: <ShoppingBasketIcon />,
+          subtitle: 'überführt aus Verpackung'
+        }
       ]
     },
     {
@@ -423,6 +583,7 @@ export default function Topbar() {
                 const tData = traceData[sub.label] || {};
                 const fData = financeData[sub.label] || {};
                 const wData = wawiData[sub.label] || {};
+                
                 return (
                   <Grid item key={sub.label}>
                     <Paper
@@ -444,9 +605,27 @@ export default function Topbar() {
                       }}
                       onClick={() => handleClickItem(sub.path, false)}
                     >
-                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                        {sub.icon}
-                        <Typography variant="subtitle1" sx={{ ml: 1 }}>{sub.label}</Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 1 }}>
+                        <Box sx={{ mr: 1, mt: '2px' }}>{sub.icon}</Box>
+                        <Box>
+                          <Typography variant="subtitle1">
+                            {sub.label}
+                          </Typography>
+                          {sub.subtitle && (
+                            <Typography 
+                              variant="caption" 
+                              sx={{ 
+                                display: 'block', 
+                                lineHeight: 1, 
+                                mt: 0.3,
+                                color: 'text.secondary',
+                                fontSize: '0.7rem'
+                              }}
+                            >
+                              {sub.subtitle}
+                            </Typography>
+                          )}
+                        </Box>
                       </Box>
                       <Divider />
                       <Box sx={{ textAlign: 'center', py: 1 }}>

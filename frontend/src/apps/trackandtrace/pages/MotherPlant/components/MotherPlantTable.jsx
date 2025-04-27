@@ -868,7 +868,7 @@ const MotherPlantTable = ({
   return (
     <Box sx={{ width: '100%' }}>
       <TableHeader columns={getHeaderColumns()} />
-
+  
       {data && data.length > 0 ? (
         data.map((batch) => (
           <AccordionRow
@@ -877,6 +877,7 @@ const MotherPlantTable = ({
             onClick={() => onExpandBatch(batch.id)}
             columns={getRowColumns(batch)}
             borderColor="primary.main"
+            expandIconPosition="end" // Diese Zeile hinzufügen
           >
             {renderBatchDetails(batch)}
           </AccordionRow>
@@ -886,7 +887,7 @@ const MotherPlantTable = ({
           {tabValue === 1 ? 'Keine Stecklinge vorhanden' : 'Keine Mutterpflanzen vorhanden'}
         </Typography>
       )}
-
+  
       <PaginationFooter
         currentPage={currentPage}
         totalPages={totalPages}

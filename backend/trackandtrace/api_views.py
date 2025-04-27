@@ -4,14 +4,17 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.utils import timezone
 from django.db import models
+from django.db.models import Q
 from .models import (
     SeedPurchase, MotherPlantBatch, MotherPlant, 
-    FloweringPlantBatch, FloweringPlant, Cutting, CuttingBatch
+    FloweringPlantBatch, FloweringPlant, Cutting, CuttingBatch,
+    BloomingCuttingBatch, BloomingCuttingPlant  # Neue Modelle hinzugefügt
 )
 from .serializers import (
     SeedPurchaseSerializer, MotherPlantBatchSerializer, 
     MotherPlantSerializer, FloweringPlantBatchSerializer,
-    FloweringPlantSerializer, CuttingBatchSerializer, CuttingSerializer  # CuttingSerializer hinzugefügt
+    FloweringPlantSerializer, CuttingBatchSerializer, CuttingSerializer,
+    BloomingCuttingBatchSerializer, BloomingCuttingPlantSerializer  # Neue Serializer hinzugefügt
 )
 
 # api_views.py
@@ -717,9 +720,10 @@ class CuttingBatchViewSet(viewsets.ModelViewSet):
         month = self.request.query_params.get('month', None)
         day = self.request.query_params.get('day', None)
         
-        # Neue Filter für aktive/vernichtete Stecklinge
+        # Filter für aktive/vernichtete/konvertierte Stecklinge
         has_active = self.request.query_params.get('has_active', None)
         has_destroyed = self.request.query_params.get('has_destroyed', None)
+        has_converted = self.request.query_params.get('has_converted', None)
         
         # Filtern nach Mutterpflanzen-Batch, falls Parameter vorhanden
         mother_batch_id = self.request.query_params.get('mother_batch_id', None)
@@ -740,6 +744,11 @@ class CuttingBatchViewSet(viewsets.ModelViewSet):
         # Filter für Batches mit vernichteten Stecklingen
         if has_destroyed == 'true':
             queryset = queryset.filter(cuttings__is_destroyed=True).distinct()
+            
+        # Neuer Filter für Batches mit zu Blühpflanzen konvertierten Stecklingen
+        if has_converted == 'true':
+            converted_query = Q(is_destroyed=True, destroy_reason__icontains="Zu Blühpflanze konvertiert")
+            queryset = queryset.filter(cuttings__in=Cutting.objects.filter(converted_query)).distinct()
             
         # Berechne Anzahl für aktive und vernichtete Stecklinge
         active_cuttings = 0
@@ -768,11 +777,22 @@ class CuttingBatchViewSet(viewsets.ModelViewSet):
     def cuttings(self, request, pk=None):
         batch = self.get_object()
         destroyed = request.query_params.get('destroyed', None)
+        converted = request.query_params.get('converted', None)
         
         cuttings = batch.cuttings.all()
+        
         if destroyed is not None:
             is_destroyed = destroyed.lower() == 'true'
             cuttings = cuttings.filter(is_destroyed=is_destroyed)
+        
+        if converted is not None:
+            is_converted = converted.lower() == 'true'
+            # Filtern nach Stecklingen, die zu Blühpflanzen konvertiert wurden
+            if is_converted:
+                cuttings = cuttings.filter(
+                    is_destroyed=True,
+                    destroy_reason__icontains="Zu Blühpflanze konvertiert"
+                )
         
         paginator = StandardResultsSetPagination()
         page = paginator.paginate_queryset(cuttings, request)
@@ -843,11 +863,20 @@ class CuttingBatchViewSet(viewsets.ModelViewSet):
             ).distinct().count()
             destroyed_count = Cutting.objects.filter(is_destroyed=True).count()
             
+            # Zu Blühpflanzen konvertierte Stecklinge zählen
+            converted_query = Q(is_destroyed=True, destroy_reason__icontains="Zu Blühpflanze konvertiert")
+            converted_batches = CuttingBatch.objects.filter(
+                cuttings__in=Cutting.objects.filter(converted_query)
+            ).distinct().count()
+            converted_count = Cutting.objects.filter(converted_query).count()
+            
             return Response({
                 "active_batches_count": active_batches,
                 "active_count": active_count,
                 "destroyed_batches_count": destroyed_batches,
-                "destroyed_count": destroyed_count
+                "destroyed_count": destroyed_count,
+                "converted_batches_count": converted_batches,
+                "converted_count": converted_count
             })
         
         # Standardverhalten: nur aktive/vernichtete Zähler zurückgeben
@@ -858,6 +887,104 @@ class CuttingBatchViewSet(viewsets.ModelViewSet):
             "active_count": active_count,
             "destroyed_count": destroyed_count
         })
+        
+    @action(detail=True, methods=['post'])
+    def convert_to_blooming(self, request, pk=None):
+        """
+        Konvertiert Stecklinge zu Blühpflanzen aus Stecklingen.
+        """
+        cutting_batch = self.get_object()
+        quantity = int(request.data.get('quantity', 1))
+        notes = request.data.get('notes', '')
+        member_id = request.data.get('member_id', None)
+        room_id = request.data.get('room_id', None)
+        cutting_ids = request.data.get('cutting_ids', [])
+        
+        print(f"Converting cutting batch {pk} with data: {request.data}")
+        
+        # Filtere ungültige IDs heraus
+        if cutting_ids and isinstance(cutting_ids, list):
+            cutting_ids = [id for id in cutting_ids if id is not None]
+        
+        # Prüfen, ob genügend aktive Stecklinge vorhanden sind
+        active_cuttings = cutting_batch.cuttings.filter(is_destroyed=False)
+        
+        if cutting_ids:
+            # Nur bestimmte Stecklinge verwenden
+            selected_cuttings = active_cuttings.filter(id__in=cutting_ids)
+            
+            if selected_cuttings.count() < len(cutting_ids):
+                return Response(
+                    {"error": "Einige ausgewählte Stecklinge wurden nicht gefunden oder sind bereits vernichtet"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            if selected_cuttings.count() < quantity:
+                return Response(
+                    {"error": f"Nicht genügend ausgewählte Stecklinge verfügbar (verfügbar: {selected_cuttings.count()})"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            cuttings_to_use = selected_cuttings
+        else:
+            # Alle aktiven Stecklinge verwenden
+            if active_cuttings.count() < quantity:
+                return Response(
+                    {"error": f"Nicht genügend aktive Stecklinge verfügbar (verfügbar: {active_cuttings.count()})"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            cuttings_to_use = active_cuttings
+        
+        # Erstelle einen Batch für die Blühpflanzen aus Stecklingen
+        batch_kwargs = {
+            'cutting_batch': cutting_batch,
+            'quantity': quantity,
+            'notes': notes
+        }
+        
+        # Hinzufügen von optionalen Feldern
+        if member_id:
+            batch_kwargs['member_id'] = member_id
+        if room_id:
+            batch_kwargs['room_id'] = room_id
+            
+        try:
+            batch = BloomingCuttingBatch.objects.create(**batch_kwargs)
+            
+            # Erstelle für jede Blühpflanze einen eigenen Eintrag im Batch mit eindeutiger Chargenummer
+            for _ in range(quantity):
+                # Die batch_number wird automatisch in der save-Methode generiert
+                BloomingCuttingPlant.objects.create(
+                    batch=batch,
+                    notes=notes
+                )
+            
+            # Markiere die verwendeten Stecklinge als vernichtet und konvertiert
+            cuttings_to_mark = cuttings_to_use[:quantity]
+            conversion_time = timezone.now()
+            
+            for cutting in cuttings_to_mark:
+                cutting.is_destroyed = True
+                cutting.destroy_reason = f"Zu Blühpflanze konvertiert (Charge: {batch.batch_number})"
+                cutting.destroyed_at = conversion_time
+                cutting.destroyed_by_id = member_id
+                cutting.converted_to = batch.id  # Speichern der Ziel-Batch-ID
+                cutting.converted_at = conversion_time
+                cutting.converted_by_id = member_id
+                cutting.save()
+                
+            return Response({
+                "message": f"{quantity} Blühpflanzen wurden aus Stecklingen erstellt",
+                "batch": BloomingCuttingBatchSerializer(batch).data
+            })
+        
+        except Exception as e:
+            print(f"Error during conversion: {str(e)}")
+            return Response(
+                {"error": f"Fehler bei der Konvertierung: {str(e)}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
 class MotherPlantViewSet(viewsets.ModelViewSet):
     """
@@ -914,3 +1041,162 @@ class MotherPlantViewSet(viewsets.ModelViewSet):
             "batch": CuttingBatchSerializer(cutting_batch).data
         })
 
+class BloomingCuttingBatchViewSet(viewsets.ModelViewSet):
+    queryset = BloomingCuttingBatch.objects.all().order_by('-created_at')
+    serializer_class = BloomingCuttingBatchSerializer
+    permission_classes = [IsAuthenticated]
+    pagination_class = StandardResultsSetPagination
+    
+    def get_queryset(self):
+        queryset = BloomingCuttingBatch.objects.all().order_by('-created_at')
+        
+        # Filtern nach Zeitraum
+        year = self.request.query_params.get('year', None)
+        month = self.request.query_params.get('month', None)
+        day = self.request.query_params.get('day', None)
+        
+        # Neue Filter für aktive/vernichtete Pflanzen
+        has_active = self.request.query_params.get('has_active', None)
+        has_destroyed = self.request.query_params.get('has_destroyed', None)
+        
+        if year:
+            queryset = queryset.filter(created_at__year=year)
+        if month:
+            queryset = queryset.filter(created_at__month=month)
+        if day:
+            queryset = queryset.filter(created_at__day=day)
+        
+        # Filter für Batches mit aktiven Pflanzen
+        if has_active == 'true':
+            queryset = queryset.filter(plants__is_destroyed=False).distinct()
+        
+        # Filter für Batches mit vernichteten Pflanzen
+        if has_destroyed == 'true':
+            queryset = queryset.filter(plants__is_destroyed=True).distinct()
+            
+        # Berechne Anzahl für aktive und vernichtete Pflanzen
+        active_plants = 0
+        destroyed_plants = 0
+        
+        for batch in queryset:
+            active_plants += batch.plants.filter(is_destroyed=False).count()
+            destroyed_plants += batch.plants.filter(is_destroyed=True).count()
+        
+        self.counts = {
+            'active_count': active_plants,
+            'destroyed_count': destroyed_plants
+        }
+        
+        return queryset
+    
+    def list(self, request, *args, **kwargs):
+        response = super().list(request, *args, **kwargs)
+        response.data['counts'] = getattr(self, 'counts', {
+            'active_count': 0,
+            'destroyed_count': 0
+        })
+        return response
+    
+    @action(detail=True, methods=['get'])
+    def plants(self, request, pk=None):
+        batch = self.get_object()
+        destroyed = request.query_params.get('destroyed', None)
+        
+        plants = batch.plants.all()
+        if destroyed is not None:
+            is_destroyed = destroyed.lower() == 'true'
+            plants = plants.filter(is_destroyed=is_destroyed)
+        
+        paginator = StandardResultsSetPagination()
+        page = paginator.paginate_queryset(plants, request)
+        
+        if page is not None:
+            serializer = BloomingCuttingPlantSerializer(page, many=True)
+            return paginator.get_paginated_response(serializer.data)
+        
+        serializer = BloomingCuttingPlantSerializer(plants, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=True, methods=['post'])
+    def destroy_plants(self, request, pk=None):
+        batch = self.get_object()
+        plant_ids = request.data.get('plant_ids', [])
+        reason = request.data.get('reason', '')
+        destroyed_by_id = request.data.get('destroyed_by_id', None)
+        
+        if not plant_ids:
+            return Response(
+                {"error": "Keine Pflanzen IDs angegeben"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        if not reason:
+            return Response(
+                {"error": "Ein Vernichtungsgrund ist erforderlich"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        destroy_data = {
+            'is_destroyed': True,
+            'destroy_reason': reason,
+            'destroyed_at': timezone.now()
+        }
+        
+        if destroyed_by_id:
+            destroy_data['destroyed_by_id'] = destroyed_by_id
+        
+        BloomingCuttingPlant.objects.filter(id__in=plant_ids, batch=batch).update(**destroy_data)
+        
+        return Response({
+            "message": f"{len(plant_ids)} Blühpflanzen wurden als vernichtet markiert"
+        })
+    
+    @action(detail=False, methods=['get'])
+    def counts(self, request):
+        """
+        Gibt die Anzahl der Batches und Pflanzen je nach Typ zurück.
+        """
+        count_type = self.request.query_params.get('type', None)
+        
+        if count_type == 'active':
+            # Zählung für aktive Pflanzen
+            batches_count = BloomingCuttingBatch.objects.filter(
+                plants__is_destroyed=False
+            ).distinct().count()
+            plants_count = BloomingCuttingPlant.objects.filter(is_destroyed=False).count()
+            
+            return Response({
+                "batches_count": batches_count,
+                "plants_count": plants_count
+            })
+            
+        elif count_type == 'destroyed':
+            # Zählung für vernichtete Pflanzen
+            batches_count = BloomingCuttingBatch.objects.filter(
+                plants__is_destroyed=True
+            ).distinct().count()
+            plants_count = BloomingCuttingPlant.objects.filter(is_destroyed=True).count()
+            
+            return Response({
+                "batches_count": batches_count,
+                "plants_count": plants_count
+            })
+        
+        else:
+            # Wenn kein Typ angegeben ist, gib alle Zahlen zurück
+            active_batches = BloomingCuttingBatch.objects.filter(
+                plants__is_destroyed=False
+            ).distinct().count()
+            active_plants = BloomingCuttingPlant.objects.filter(is_destroyed=False).count()
+            
+            destroyed_batches = BloomingCuttingBatch.objects.filter(
+                plants__is_destroyed=True
+            ).distinct().count()
+            destroyed_plants = BloomingCuttingPlant.objects.filter(is_destroyed=True).count()
+            
+            return Response({
+                "active_batches_count": active_batches,
+                "active_plants_count": active_plants,
+                "destroyed_batches_count": destroyed_batches,
+                "destroyed_plants_count": destroyed_plants
+            })

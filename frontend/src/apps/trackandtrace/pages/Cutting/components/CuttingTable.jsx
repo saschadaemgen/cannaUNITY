@@ -7,6 +7,8 @@ import {
 } from '@mui/material'
 import ScienceIcon from '@mui/icons-material/Science'
 import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment'
+import LocalFloristIcon from '@mui/icons-material/LocalFlorist' // Neues Icon für Blühpflanzen
+import { Link } from 'react-router-dom'
 
 import TableHeader from '../../../components/common/TableHeader'
 import AccordionRow from '../../../components/common/AccordionRow'
@@ -23,6 +25,7 @@ const CuttingTable = ({
   expandedBatchId,
   onExpandBatch,
   onOpenDestroyDialog,
+  onOpenConvertDialog, // Neue Prop für die Konvertierungsfunktion
   currentPage,
   totalPages,
   onPageChange,
@@ -36,7 +39,12 @@ const CuttingTable = ({
   onDestroyedCuttingsPageChange,
   selectedCuttings,
   toggleCuttingSelection,
-  selectAllCuttingsInBatch
+  selectAllCuttingsInBatch,
+  // Neue Props für überführte Stecklinge
+  convertedBatchCuttings,
+  convertedCuttingsCurrentPage,
+  convertedCuttingsTotalPages,
+  onConvertedCuttingsPageChange
 }) => {
   // Spalten für den Tabellenkopf definieren
   const getHeaderColumns = () => {
@@ -253,7 +261,8 @@ const CuttingTable = ({
       }
     ]
 
-    return (
+    // Activity Stream Message und Detailkarten immer anzeigen
+    const commonDetails = (
       <>
         {/* Activity Stream Message */}
         <Box 
@@ -273,33 +282,65 @@ const CuttingTable = ({
         </Box>
         
         <DetailCards cards={cards} color="primary.main" />
+      </>
+    );
 
-        {/* Je nach Tab die entsprechende Stecklinge-Tabelle anzeigen */}
-        {tabValue === 0 ? (
-          // Tab 0: Aktive Stecklinge
-          <>
-            {batchCuttings[batch.id] ? (
-              <Box sx={{ width: '100%', mt: 2, mb: 4 }}>
-                <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
-                  <Typography variant="subtitle2" color="primary">
-                    Aktive Stecklinge
-                  </Typography>
-                  
-                  {batchCuttings[batch.id]?.length > 0 && (
-                    <Box display="flex" alignItems="center">
-                      <FormControlLabel
-                        control={
-                          <Checkbox
-                            checked={(selectedCuttings[batch.id]?.length || 0) === (batchCuttings[batch.id]?.length || 0)}
-                            indeterminate={(selectedCuttings[batch.id]?.length || 0) > 0 && 
-                                          (selectedCuttings[batch.id]?.length || 0) < (batchCuttings[batch.id]?.length || 0)}
-                            onChange={(e) => selectAllCuttingsInBatch(batch.id, e.target.checked)}
-                          />
-                        }
-                        label="Alle auswählen"
-                      />
-                      
-                      {selectedCuttings[batch.id]?.length > 0 && (
+    // Je nach Tab unterschiedliche Inhalte anzeigen
+    if (tabValue === 0) {
+      // Tab 0: Aktive Stecklinge
+      return (
+        <>
+          {commonDetails}
+          
+          {batchCuttings[batch.id] ? (
+            <Box sx={{ width: '100%', mt: 2, mb: 4 }}>
+              {/* Button zum Konvertieren aller Stecklinge */}
+              <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                <Typography variant="subtitle2" color="primary">
+                  Aktive Stecklinge
+                </Typography>
+                
+                {batchCuttings[batch.id]?.length > 0 && (
+                  <Box display="flex" alignItems="center">
+                    <Button 
+                      variant="contained" 
+                      color="success"
+                      onClick={() => {
+                        // Den dritten Parameter auf true setzen, um anzuzeigen, dass alle konvertiert werden sollen
+                        onOpenConvertDialog(batch, [], true);
+                      }}
+                      startIcon={<LocalFloristIcon />}
+                    >
+                      Alle Stecklinge zu Blühpflanzen umwandeln
+                    </Button>
+                    
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={(selectedCuttings[batch.id]?.length || 0) === (batchCuttings[batch.id]?.length || 0)}
+                          indeterminate={(selectedCuttings[batch.id]?.length || 0) > 0 && 
+                                        (selectedCuttings[batch.id]?.length || 0) < (batchCuttings[batch.id]?.length || 0)}
+                          onChange={(e) => selectAllCuttingsInBatch(batch.id, e.target.checked)}
+                        />
+                      }
+                      label="Alle auswählen"
+                      sx={{ ml: 2 }}
+                    />
+                    
+                    {selectedCuttings[batch.id]?.length > 0 && (
+                      <>
+                        {/* Button für Konvertierung ausgewählter Stecklinge zu Blühpflanzen */}
+                        <Button 
+                          variant="contained" 
+                          color="success"
+                          onClick={() => onOpenConvertDialog(batch, selectedCuttings[batch.id], false)}
+                          startIcon={<LocalFloristIcon />}
+                          sx={{ ml: 2 }}
+                        >
+                          {selectedCuttings[batch.id].length} zu Blühpflanzen
+                        </Button>
+                        
+                        {/* Bestehender Button für Vernichtung */}
                         <Button 
                           variant="contained" 
                           color="error"
@@ -309,199 +350,327 @@ const CuttingTable = ({
                         >
                           {selectedCuttings[batch.id].length} Stecklinge vernichten
                         </Button>
-                      )}
-                    </Box>
-                  )}
-                </Box>
-                
-                {batchCuttings[batch.id]?.length > 0 ? (
-                  <>
-                    <TableContainer component={Paper} elevation={1} sx={{ mb: 2 }}>
-                      <Table size="small">
-                        <TableHead>
-                          <TableRow sx={{ backgroundColor: 'primary.main' }}>
-                            <TableCell padding="checkbox" sx={{ color: 'white' }}>
-                              <Checkbox
-                                checked={(selectedCuttings[batch.id]?.length || 0) === (batchCuttings[batch.id]?.length || 0)}
-                                indeterminate={(selectedCuttings[batch.id]?.length || 0) > 0 && 
-                                            (selectedCuttings[batch.id]?.length || 0) < (batchCuttings[batch.id]?.length || 0)}
-                                onChange={(e) => selectAllCuttingsInBatch(batch.id, e.target.checked)}
-                                sx={{
+                      </>
+                    )}
+                  </Box>
+                )}
+              </Box>
+              
+              {batchCuttings[batch.id]?.length > 0 ? (
+                <>
+                  <TableContainer component={Paper} elevation={1} sx={{ mb: 2 }}>
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow sx={{ backgroundColor: 'primary.main' }}>
+                          <TableCell padding="checkbox" sx={{ color: 'white' }}>
+                            <Checkbox
+                              checked={(selectedCuttings[batch.id]?.length || 0) === (batchCuttings[batch.id]?.length || 0)}
+                              indeterminate={(selectedCuttings[batch.id]?.length || 0) > 0 && 
+                                          (selectedCuttings[batch.id]?.length || 0) < (batchCuttings[batch.id]?.length || 0)}
+                              onChange={(e) => selectAllCuttingsInBatch(batch.id, e.target.checked)}
+                              sx={{
+                                color: 'white',
+                                '&.Mui-checked': {
                                   color: 'white',
-                                  '&.Mui-checked': {
-                                    color: 'white',
-                                  },
-                                  '&.MuiCheckbox-indeterminate': {
-                                    color: 'white',
-                                  }
-                                }}
+                                },
+                                '&.MuiCheckbox-indeterminate': {
+                                  color: 'white',
+                                }
+                              }}
+                            />
+                          </TableCell>
+                          <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Charge-Nummer</TableCell>
+                          <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>UUID</TableCell>
+                          <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Erstellt am</TableCell>
+                          <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Kultiviert von</TableCell>
+                          <TableCell align="right" sx={{ color: 'white', fontWeight: 'bold' }}>Aktionen</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {batchCuttings[batch.id]?.map((cutting, i) => (
+                          <TableRow 
+                            key={cutting.id}
+                            sx={{ 
+                              backgroundColor: 'white',
+                              '&:nth-of-type(odd)': { backgroundColor: 'rgba(0, 0, 0, 0.02)' }
+                            }}
+                          >
+                            <TableCell padding="checkbox">
+                              <Checkbox
+                                checked={selectedCuttings[batch.id]?.includes(cutting.id) || false}
+                                onChange={() => toggleCuttingSelection(batch.id, cutting.id)}
                               />
                             </TableCell>
-                            <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Charge-Nummer</TableCell>
-                            <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>UUID</TableCell>
-                            <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Erstellt am</TableCell>
-                            <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Kultiviert von</TableCell>
-                            <TableCell align="right" sx={{ color: 'white', fontWeight: 'bold' }}>Aktionen</TableCell>
+                            <TableCell>
+                              {cutting.batch_number || `Steckling ${i+1} (Nummer nicht verfügbar)`}
+                            </TableCell>
+                            <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
+                              {cutting.id}
+                            </TableCell>
+                            <TableCell>
+                              {new Date(cutting.created_at).toLocaleString('de-DE')}
+                            </TableCell>
+                            <TableCell>
+                              {batch.member ? 
+                                (batch.member.display_name || `${batch.member.first_name} ${batch.member.last_name}`) 
+                                : "-"}
+                            </TableCell>
+                            <TableCell align="right">
+                              {/* Action Buttons in der Zeile */}
+                              <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+                                {/* Neuer Konvertieren-Button in der Zeile */}
+                                <Tooltip title="Zu Blühpflanze umwandeln">
+                                  <IconButton 
+                                    size="small" 
+                                    sx={{ 
+                                      color: 'white',
+                                      backgroundColor: 'success.main',
+                                      '&:hover': {
+                                        backgroundColor: 'success.dark'
+                                      },
+                                      width: '28px',
+                                      height: '28px'
+                                    }}
+                                    onClick={() => {
+                                      toggleCuttingSelection(batch.id, cutting.id, true);
+                                      onOpenConvertDialog(batch, [cutting.id], false);
+                                    }}
+                                  >
+                                    <LocalFloristIcon fontSize="small" />
+                                  </IconButton>
+                                </Tooltip>
+                                
+                                {/* Bestehender Vernichten-Button */}
+                                <Tooltip title="Steckling vernichten">
+                                  <IconButton 
+                                    size="small" 
+                                    sx={{ 
+                                      color: 'white',
+                                      backgroundColor: 'error.main',
+                                      '&:hover': {
+                                        backgroundColor: 'error.dark'
+                                      },
+                                      width: '28px',
+                                      height: '28px'
+                                    }}
+                                    onClick={() => {
+                                      toggleCuttingSelection(batch.id, cutting.id);
+                                      onOpenDestroyDialog(batch);
+                                    }}
+                                  >
+                                    <LocalFireDepartmentIcon fontSize="small" />
+                                  </IconButton>
+                                </Tooltip>
+                              </Box>
+                            </TableCell>
                           </TableRow>
-                        </TableHead>
-                        <TableBody>
-                          {batchCuttings[batch.id]?.map((cutting, i) => (
-                            <TableRow 
-                              key={cutting.id}
-                              sx={{ 
-                                backgroundColor: 'white',
-                                '&:nth-of-type(odd)': { backgroundColor: 'rgba(0, 0, 0, 0.02)' }
-                              }}
-                            >
-                              <TableCell padding="checkbox">
-                                <Checkbox
-                                  checked={selectedCuttings[batch.id]?.includes(cutting.id) || false}
-                                  onChange={() => toggleCuttingSelection(batch.id, cutting.id)}
-                                />
-                              </TableCell>
-                              <TableCell>
-                                {cutting.batch_number || `Steckling ${i+1} (Nummer nicht verfügbar)`}
-                              </TableCell>
-                              <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
-                                {cutting.id}
-                              </TableCell>
-                              <TableCell>
-                                {new Date(cutting.created_at).toLocaleString('de-DE')}
-                              </TableCell>
-                              <TableCell>
-                                {batch.member ? 
-                                  (batch.member.display_name || `${batch.member.first_name} ${batch.member.last_name}`) 
-                                  : "-"}
-                              </TableCell>
-                              <TableCell align="right">
-                                <IconButton 
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                  
+                  {/* Pagination für die Stecklinge innerhalb eines Batches */}
+                  {cuttingsTotalPages[batch.id] > 1 && (
+                    <Box display="flex" justifyContent="center" mt={2} width="100%">
+                      <Pagination 
+                        count={cuttingsTotalPages[batch.id]} 
+                        page={cuttingsCurrentPage[batch.id] || 1} 
+                        onChange={(e, page) => onCuttingsPageChange(batch.id, e, page)}
+                        color="primary"
+                        size="small"
+                      />
+                    </Box>
+                  )}
+                </>
+              ) : (
+                <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 2 }}>
+                  Keine aktiven Stecklinge in dieser Charge.
+                </Typography>
+              )}
+            </Box>
+          ) : (
+            <LoadingIndicator size={24} />
+          )}
+        </>
+      );
+    } else if (tabValue === 1) {
+      // Tab 1: Vernichtete Stecklinge
+      return (
+        <>
+          {commonDetails}
+          
+          {destroyedBatchCuttings[batch.id] ? (
+            <Box sx={{ width: '100%', mt: 2 }}>
+              <Typography variant="subtitle2" color="error" gutterBottom>
+                Vernichtete Stecklinge
+              </Typography>
+              
+              {destroyedBatchCuttings[batch.id]?.length > 0 ? (
+                <>
+                  <TableContainer component={Paper} elevation={1} sx={{ mb: 2 }}>
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow sx={{ backgroundColor: 'error.main' }}>
+                          <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Charge-Nummer</TableCell>
+                          <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>UUID</TableCell>
+                          <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Vernichtet am</TableCell>
+                          <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Vernichtet durch</TableCell>
+                          <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Grund</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {destroyedBatchCuttings[batch.id]?.map((cutting, i) => (
+                          <TableRow 
+                            key={cutting.id}
+                            sx={{ 
+                              backgroundColor: 'white',
+                              '&:nth-of-type(odd)': { backgroundColor: 'rgba(0, 0, 0, 0.02)' }
+                            }}
+                          >
+                            <TableCell>
+                              {cutting.batch_number || `Steckling ${i+1} (Nummer nicht verfügbar)`}
+                            </TableCell>
+                            <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
+                              {cutting.id}
+                            </TableCell>
+                            <TableCell>
+                              {cutting.destroyed_at ? new Date(cutting.destroyed_at).toLocaleString('de-DE') : '-'}
+                            </TableCell>
+                            <TableCell>
+                              {cutting.destroyed_by ? 
+                                (cutting.destroyed_by.display_name || `${cutting.destroyed_by.first_name || ''} ${cutting.destroyed_by.last_name || ''}`.trim()) 
+                                : "-"}
+                            </TableCell>
+                            <TableCell>
+                              {cutting.destroy_reason || '-'}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                  
+                  {/* Pagination für die vernichteten Stecklinge */}
+                  {destroyedCuttingsTotalPages[batch.id] > 1 && (
+                    <Box display="flex" justifyContent="center" mt={2} width="100%">
+                      <Pagination 
+                        count={destroyedCuttingsTotalPages[batch.id]} 
+                        page={destroyedCuttingsCurrentPage[batch.id] || 1} 
+                        onChange={(e, page) => onDestroyedCuttingsPageChange(batch.id, e, page)}
+                        color="error"
+                        size="small"
+                      />
+                    </Box>
+                  )}
+                </>
+              ) : (
+                <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 2 }}>
+                  Keine vernichteten Stecklinge in dieser Charge.
+                </Typography>
+              )}
+            </Box>
+          ) : (
+            <LoadingIndicator size={24} />
+          )}
+        </>
+      );
+    } else if (tabValue === 2) {
+      // Tab 2: Zu Blühpflanzen überführte Stecklinge
+      return (
+        <>
+          {commonDetails}
+          
+          {/* Tabelle für überführte Stecklinge */}
+          {convertedBatchCuttings && convertedBatchCuttings[batch.id] ? (
+            <Box sx={{ width: '100%', mt: 2 }}>
+              <Typography variant="subtitle2" color="success.main" gutterBottom>
+                Zu Blühpflanzen überführte Stecklinge
+              </Typography>
+              
+              {convertedBatchCuttings[batch.id]?.length > 0 ? (
+                <>
+                  <TableContainer component={Paper} elevation={1} sx={{ mb: 2 }}>
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow sx={{ backgroundColor: 'success.main' }}>
+                          <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Steckling-Nummer</TableCell>
+                          <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>UUID</TableCell>
+                          <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Überführt am</TableCell>
+                          <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Überführt durch</TableCell>
+                          <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Blühpflanzen-Charge</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {convertedBatchCuttings[batch.id]?.map((cutting, i) => (
+                          <TableRow 
+                            key={cutting.id}
+                            sx={{ 
+                              backgroundColor: 'white',
+                              '&:nth-of-type(odd)': { backgroundColor: 'rgba(0, 0, 0, 0.02)' }
+                            }}
+                          >
+                            <TableCell>
+                              {cutting.batch_number || `Steckling ${i+1} (Nummer nicht verfügbar)`}
+                            </TableCell>
+                            <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
+                              {cutting.id}
+                            </TableCell>
+                            <TableCell>
+                              {cutting.converted_at ? new Date(cutting.converted_at).toLocaleString('de-DE') : '-'}
+                            </TableCell>
+                            <TableCell>
+                              {cutting.converted_by ? 
+                                (cutting.converted_by.display_name || `${cutting.converted_by.first_name || ''} ${cutting.converted_by.last_name || ''}`.trim()) 
+                                : "-"}
+                            </TableCell>
+                            <TableCell>
+                              {cutting.converted_to ? 
+                                <Button 
+                                  variant="outlined" 
                                   size="small" 
-                                  sx={{ 
-                                    color: 'white',
-                                    backgroundColor: 'error.main',
-                                    '&:hover': {
-                                      backgroundColor: 'error.dark'
-                                    },
-                                    width: '28px',
-                                    height: '28px'
-                                  }}
+                                  color="success"
+                                  component={Link}
+                                  to={`/trace/bluehpflanzen-aus-stecklingen`}
                                   onClick={() => {
-                                    toggleCuttingSelection(batch.id, cutting.id);
-                                    onOpenDestroyDialog(batch);
+                                    // Optional: Speichern der Batch-ID, die in der Zielseite hervorgehoben werden soll
+                                    localStorage.setItem('highlightBatchId', cutting.converted_to);
                                   }}
                                 >
-                                  <LocalFireDepartmentIcon fontSize="small" />
-                                </IconButton>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </TableContainer>
-                    
-                    {/* Pagination für die Stecklinge innerhalb eines Batches */}
-                    {cuttingsTotalPages[batch.id] > 1 && (
-                      <Box display="flex" justifyContent="center" mt={2} width="100%">
-                        <Pagination 
-                          count={cuttingsTotalPages[batch.id]} 
-                          page={cuttingsCurrentPage[batch.id] || 1} 
-                          onChange={(e, page) => onCuttingsPageChange(batch.id, e, page)}
-                          color="primary"
-                          size="small"
-                        />
-                      </Box>
-                    )}
-                  </>
-                ) : (
-                  <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 2 }}>
-                    Keine aktiven Stecklinge in dieser Charge.
-                  </Typography>
-                )}
-              </Box>
-            ) : (
-              <LoadingIndicator size={24} />
-            )}
-          </>
-        ) : (
-          // Tab 1: Vernichtete Stecklinge
-          <>
-            {destroyedBatchCuttings[batch.id] ? (
-              <Box sx={{ width: '100%', mt: 2 }}>
-                <Typography variant="subtitle2" color="error" gutterBottom>
-                  Vernichtete Stecklinge
-                </Typography>
-                
-                {destroyedBatchCuttings[batch.id]?.length > 0 ? (
-                  <>
-                    <TableContainer component={Paper} elevation={1} sx={{ mb: 2 }}>
-                      <Table size="small">
-                        <TableHead>
-                          <TableRow sx={{ backgroundColor: 'error.main' }}>
-                            <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Charge-Nummer</TableCell>
-                            <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>UUID</TableCell>
-                            <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Vernichtet am</TableCell>
-                            <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Vernichtet durch</TableCell>
-                            <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Grund</TableCell>
+                                  Zur Blühpflanze
+                                </Button>
+                                : "-"}
+                            </TableCell>
                           </TableRow>
-                        </TableHead>
-                        <TableBody>
-                          {destroyedBatchCuttings[batch.id]?.map((cutting, i) => (
-                            <TableRow 
-                              key={cutting.id}
-                              sx={{ 
-                                backgroundColor: 'white',
-                                '&:nth-of-type(odd)': { backgroundColor: 'rgba(0, 0, 0, 0.02)' }
-                              }}
-                            >
-                              <TableCell>
-                                {cutting.batch_number || `Steckling ${i+1} (Nummer nicht verfügbar)`}
-                              </TableCell>
-                              <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
-                                {cutting.id}
-                              </TableCell>
-                              <TableCell>
-                                {cutting.destroyed_at ? new Date(cutting.destroyed_at).toLocaleString('de-DE') : '-'}
-                              </TableCell>
-                              <TableCell>
-                                {cutting.destroyed_by ? 
-                                  (cutting.destroyed_by.display_name || `${cutting.destroyed_by.first_name || ''} ${cutting.destroyed_by.last_name || ''}`.trim()) 
-                                  : "-"}
-                              </TableCell>
-                              <TableCell>
-                                {cutting.destroy_reason || '-'}
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </TableContainer>
-                    
-                    {/* Pagination für die vernichteten Stecklinge */}
-                    {destroyedCuttingsTotalPages[batch.id] > 1 && (
-                      <Box display="flex" justifyContent="center" mt={2} width="100%">
-                        <Pagination 
-                          count={destroyedCuttingsTotalPages[batch.id]} 
-                          page={destroyedCuttingsCurrentPage[batch.id] || 1} 
-                          onChange={(e, page) => onDestroyedCuttingsPageChange(batch.id, e, page)}
-                          color="error"
-                          size="small"
-                        />
-                      </Box>
-                    )}
-                  </>
-                ) : (
-                  <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 2 }}>
-                    Keine vernichteten Stecklinge in dieser Charge.
-                  </Typography>
-                )}
-              </Box>
-            ) : (
-              <LoadingIndicator size={24} />
-            )}
-          </>
-        )}
-      </>
-    )
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                  
+                  {/* Pagination für die überführten Stecklinge */}
+                  {convertedCuttingsTotalPages[batch.id] > 1 && (
+                    <Box display="flex" justifyContent="center" mt={2} width="100%">
+                      <Pagination 
+                        count={convertedCuttingsTotalPages[batch.id]} 
+                        page={convertedCuttingsCurrentPage[batch.id] || 1} 
+                        onChange={(e, page) => onConvertedCuttingsPageChange(batch.id, e, page)}
+                        color="success"
+                        size="small"
+                      />
+                    </Box>
+                  )}
+                </>
+              ) : (
+                <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 2 }}>
+                  Keine zu Blühpflanzen überführten Stecklinge in dieser Charge.
+                </Typography>
+              )}
+            </Box>
+          ) : (
+            <LoadingIndicator size={24} />
+          )}
+        </>
+      );
+    }
   }
 
   return (

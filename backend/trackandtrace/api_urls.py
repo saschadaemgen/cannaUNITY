@@ -6,7 +6,8 @@ from .api_views import (
     MotherPlantBatchViewSet, 
     MotherPlantViewSet,
     FloweringPlantBatchViewSet, 
-    CuttingBatchViewSet
+    CuttingBatchViewSet,
+    BloomingCuttingBatchViewSet
 )
 
 router = DefaultRouter()
@@ -15,6 +16,7 @@ router.register(r'motherbatches', MotherPlantBatchViewSet, basename='motherbatch
 router.register(r'motherplants', MotherPlantViewSet, basename='motherplants')
 router.register(r'floweringbatches', FloweringPlantBatchViewSet, basename='floweringbatches')
 router.register(r'cuttingbatches', CuttingBatchViewSet, basename='cuttingbatches')
+router.register(r'bloomingcuttingbatches', BloomingCuttingBatchViewSet, basename='bloomingcuttingbatches')
 
 urlpatterns = [
     path('', include(router.urls)),

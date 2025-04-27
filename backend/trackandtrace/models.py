@@ -241,3 +241,69 @@ class Cutting(models.Model):
             self.batch_number = f"cutting:{today.strftime('%d:%m:%Y')}:{count:04d}"
         
         super().save(*args, **kwargs)
+
+class BloomingCuttingBatch(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    batch_number = models.CharField(max_length=50, unique=True, blank=True, null=True)
+    
+    cutting_batch = models.ForeignKey(CuttingBatch, related_name='blooming_batches', on_delete=models.CASCADE)
+    quantity = models.PositiveIntegerField()
+    notes = models.TextField(blank=True, null=True)
+    
+    # Mitglieder- und Raumzuordnung für Blühpflanzen-Erstellung
+    member = models.ForeignKey(Member, on_delete=models.SET_NULL, null=True, blank=True,
+                              related_name='blooming_cutting_batches')
+    room = models.ForeignKey(Room, on_delete=models.SET_NULL, null=True, blank=True,
+                            related_name='blooming_cutting_batches')
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def save(self, *args, **kwargs):
+        # Generiere Batch-Nummer falls nicht vorhanden
+        if not self.batch_number:
+            today = timezone.now()
+            # Zähle Blühpflanzen-Batches, die heute erstellt wurden
+            count = BloomingCuttingBatch.objects.filter(
+                created_at__year=today.year,
+                created_at__month=today.month,
+                created_at__day=today.day
+            ).count() + 1
+            
+            # Generiere Batch-Nummer
+            self.batch_number = f"charge:blooming-cutting:{today.strftime('%d:%m:%Y')}:{count:04d}"
+        
+        super().save(*args, **kwargs)
+
+class BloomingCuttingPlant(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    batch = models.ForeignKey(BloomingCuttingBatch, related_name='plants', on_delete=models.CASCADE)
+    batch_number = models.CharField(max_length=50, unique=True, blank=True, null=True)
+    notes = models.TextField(blank=True, null=True)
+    
+    # Mitgliederzuordnung für Vernichtung
+    destroyed_by = models.ForeignKey(Member, on_delete=models.SET_NULL, null=True, blank=True,
+                                    related_name='destroyed_blooming_cutting_plants')
+    
+    is_destroyed = models.BooleanField(default=False)
+    destroy_reason = models.TextField(blank=True, null=True)
+    destroyed_at = models.DateTimeField(blank=True, null=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def save(self, *args, **kwargs):
+        # Generiere Batch-Nummer falls nicht vorhanden
+        if not self.batch_number:
+            today = timezone.now()
+            # Zähle Blühpflanzen, die heute erstellt wurden
+            count = BloomingCuttingPlant.objects.filter(
+                created_at__year=today.year,
+                created_at__month=today.month,
+                created_at__day=today.day
+            ).count() + 1
+            
+            # Generiere Batch-Nummer
+            self.batch_number = f"blooming-cutting:{today.strftime('%d:%m:%Y')}:{count:04d}"
+        
+        super().save(*args, **kwargs)
