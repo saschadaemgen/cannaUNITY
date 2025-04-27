@@ -1,12 +1,10 @@
-// Diese Funktion sollte zu jeder Seiten-Komponente hinzugefügt werden
-// Frontend/src/apps/trackandtrace/components/common/AnimatedTabPanel.jsx
-
+// frontend/src/apps/trackandtrace/components/common/AnimatedTabPanel.jsx
 import React, { useEffect, useState } from 'react'
 import { Box, Fade, Slide, Grow } from '@mui/material'
 
 /**
  * AnimatedTabPanel - Eine wiederverwendbare Komponente für animierte Tab-Wechsel
- * mit globalen Animations-Einstellungen
+ * mit Optimierungen zur Vermeidung von Layout-Shifts durch Scrollbalken
  * 
  * @param {number} value - Aktueller Tab-Wert
  * @param {number} index - Index des Tab-Panels
@@ -29,6 +27,9 @@ const AnimatedTabPanel = ({
     type: animationType || 'slide',
     duration: duration || 400,
   });
+  
+  // Ref für den Inhalt-Container
+  const contentRef = React.useRef(null);
   
   // Globale Animations-Einstellungen laden
   useEffect(() => {
@@ -85,6 +86,17 @@ const AnimatedTabPanel = ({
     );
   }
   
+  // Gemeinsame Styling-Eigenschaften für alle Animationstypen
+  const containerStyles = {
+    width: '100%',
+    overflowX: 'hidden',
+    position: 'relative',
+    // Wichtig: Stelle sicher, dass der Container niemals breiter als 100% wird
+    maxWidth: '100%',
+    // Vermeide Scrollbalken während Animationen
+    overflowY: isActive ? 'visible' : 'hidden'
+  };
+  
   // Animation basierend auf dem Typ wählen
   const renderAnimatedContent = () => {
     switch (animSettings.type) {
@@ -96,7 +108,7 @@ const AnimatedTabPanel = ({
             mountOnEnter 
             unmountOnExit
           >
-            <Box>{children}</Box>
+            <Box ref={contentRef} sx={containerStyles}>{children}</Box>
           </Fade>
         );
       case 'slide':
@@ -108,7 +120,7 @@ const AnimatedTabPanel = ({
             mountOnEnter 
             unmountOnExit
           >
-            <Box>{children}</Box>
+            <Box ref={contentRef} sx={containerStyles}>{children}</Box>
           </Slide>
         );
       case 'grow':
@@ -119,11 +131,21 @@ const AnimatedTabPanel = ({
             mountOnEnter 
             unmountOnExit
           >
-            <Box>{children}</Box>
+            <Box ref={contentRef} sx={containerStyles}>{children}</Box>
           </Grow>
         );
       default:
-        return <Box sx={{ display: isActive ? 'block' : 'none' }}>{children}</Box>;
+        return (
+          <Box 
+            ref={contentRef}
+            sx={{
+              ...containerStyles,
+              display: isActive ? 'block' : 'none'
+            }}
+          >
+            {children}
+          </Box>
+        );
     }
   };
 
@@ -132,7 +154,12 @@ const AnimatedTabPanel = ({
       role="tabpanel"
       id={`tabpanel-${index}`}
       aria-labelledby={`tab-${index}`}
-      style={{ width: '100%' }}
+      className="animated-tab-panel"
+      style={{
+        width: '100%',
+        position: 'relative',
+        overflow: 'hidden'
+      }}
     >
       {renderAnimatedContent()}
     </div>

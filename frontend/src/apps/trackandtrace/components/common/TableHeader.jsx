@@ -8,26 +8,30 @@ import { Paper, Table, TableHead, TableRow, TableCell } from '@mui/material'
  */
 const TableHeader = ({ columns }) => {
   return (
-    <Paper elevation={1} sx={{ mb: 2, borderRadius: '4px', overflow: 'hidden' }}>
-      <Table>
+    <Paper elevation={1} sx={{ mb: 1.5, borderRadius: '4px', overflow: 'hidden' }}>
+      <Table size="small"> {/* Änderung auf size="small" für kompaktere Darstellung */}
         <TableHead>
-          <TableRow sx={{ height: '56px', bgcolor: 'rgba(0, 0, 0, 0.04)' }}>
+          <TableRow sx={{ 
+            height: '48px', // Reduziert von 54px auf 48px (ca. 11% Reduzierung)
+            bgcolor: 'rgba(0, 0, 0, 0.04)' 
+          }}>
             {columns.map((column, index) => (
               <TableCell 
                 key={index}
                 sx={{ 
                   width: column.width || 'auto', 
                   fontWeight: 'bold', 
-                  padding: '12px 16px', 
+                  padding: '8px 12px', // Reduziert von 12px 16px auf 8px 12px
                   textAlign: column.align || 'left', 
                   whiteSpace: 'nowrap',
-                  verticalAlign: 'middle'
+                  verticalAlign: 'middle',
+                  fontSize: '0.8rem', // Weiter reduziert von 0.85rem auf 0.8rem
+                  height: '48px' // Explizite Höhenangabe
                 }}
               >
                 {column.label}
               </TableCell>
             ))}
-
           </TableRow>
         </TableHead>
       </Table>

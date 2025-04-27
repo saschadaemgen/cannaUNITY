@@ -24,6 +24,10 @@ import PaginationFooter from '../../../components/common/PaginationFooter'
  * @param {number} currentPage - Aktuelle Seite
  * @param {number} totalPages - Gesamtanzahl der Seiten
  * @param {function} onPageChange - Handler für Seitenwechsel
+ * @param {number} pageSize - Anzahl der Einträge pro Seite
+ * @param {function} onPageSizeChange - Handler für Änderung der Einträge pro Seite
+ * @param {Array} pageSizeOptions - Verfügbare Optionen für Einträge pro Seite
+ * @param {number} totalCount - Gesamtanzahl der Einträge
  */
 const SeedTable = ({
   tabValue,
@@ -35,7 +39,11 @@ const SeedTable = ({
   onOpenEditForm,
   currentPage,
   totalPages,
-  onPageChange
+  onPageChange,
+  pageSize,
+  onPageSizeChange,
+  pageSizeOptions = [5, 10, 15, 25, 50],
+  totalCount
 }) => {
   // Spalten für den Tabellenkopf definieren (basierend auf Tab)
   const getHeaderColumns = () => {
@@ -561,6 +569,9 @@ const SeedTable = ({
         hasData={data && data.length > 0}
         emptyMessage="Keine Samen vorhanden"
         color="primary"
+        pageSize={pageSize}
+        onPageSizeChange={onPageSizeChange}
+        pageSizeOptions={pageSizeOptions}
       />
     </Box>
   )

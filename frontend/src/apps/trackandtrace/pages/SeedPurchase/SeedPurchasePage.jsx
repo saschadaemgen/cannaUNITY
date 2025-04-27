@@ -34,8 +34,11 @@ export default function SeedPurchasePage() {
   const [selectedRows, setSelectedRows] = useState([]) 
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
-  const [pageSize, setPageSize] = useState(5)
+  const [pageSize, setPageSize] = useState(10) // Standard auf 15 gesetzt
   const [totalCount, setTotalCount] = useState(0)
+  
+  // Optionen für Page Size Dropdown
+  const pageSizeOptions = [5, 10, 15, 25, 50]
   
   // Animationstypen für die verschiedenen Tab-Inhalte
   const [tabAnimation, setTabAnimation] = useState('slide') // 'fade', 'slide', 'grow'
@@ -236,6 +239,116 @@ export default function SeedPurchasePage() {
     }
     
     loadCounts();
+  };
+
+  // Handler für Änderung der Anzahl der Einträge pro Seite
+  const handlePageSizeChange = (newPageSize) => {
+    console.log(`Ändere pageSize von ${pageSize} auf ${newPageSize}`);
+    
+    // pageSize-State aktualisieren und zurück zur ersten Seite
+    setPageSize(newPageSize);
+    setCurrentPage(1);
+    
+    // Verzögerung hinzufügen, um sicherzustellen, dass der State aktualisiert ist
+    // bevor die Daten geladen werden
+    setTimeout(() => {
+      // Daten mit neuer Seitengröße laden
+      if (tabValue === 0 || tabValue === 3) {
+        // Direktes Erstellen der URL mit dem neuen pageSize
+        let url = `/trackandtrace/seeds/?page=1&page_size=${newPageSize}`;
+        
+        // Bei Tab "Vernichtet" nach zerstörten Samen filtern
+        if (tabValue === 3) {
+          url += '&destroyed=true';
+        } else {
+          url += '&destroyed=false';
+        }
+        
+        // Zeitfilter hinzufügen, wenn vorhanden
+        if (yearFilter) url += `&year=${yearFilter}`;
+        if (monthFilter) url += `&month=${monthFilter}`;
+        if (dayFilter) url += `&day=${dayFilter}`;
+        
+        console.log("Sende API-Anfrage:", url);
+        setLoading(true);
+        
+        api.get(url)
+          .then(res => {
+            console.log('Geladene Samen mit neuer pageSize:', res.data);
+            setSeeds(res.data.results || []);
+            
+            // Gesamtzahl der Einträge setzen für korrekte Paginierung
+            const total = res.data.count || 0;
+            setTotalCount(total);
+            
+            // Gesamtzahl der Seiten berechnen
+            const pages = Math.ceil(total / newPageSize);
+            setTotalPages(pages);
+          })
+          .catch(error => {
+            console.error('Fehler beim Laden der Samen:', error);
+          })
+          .finally(() => {
+            setLoading(false);
+          });
+      } else if (tabValue === 1) {
+        // Ähnliche Anpassung für Mutterpflanzen-Batches
+        let url = `/trackandtrace/motherbatches/?page=1&page_size=${newPageSize}`;
+        
+        // Zeitfilter hinzufügen, wenn vorhanden
+        if (yearFilter) url += `&year=${yearFilter}`;
+        if (monthFilter) url += `&month=${monthFilter}`;
+        if (dayFilter) url += `&day=${dayFilter}`;
+        
+        console.log("Sende API-Anfrage:", url);
+        setLoading(true);
+        
+        api.get(url)
+          .then(res => {
+            console.log('Geladene Mutterpflanzen-Batches mit neuer pageSize:', res.data);
+            setMotherBatches(res.data.results || []);
+            setTotalCount(res.data.count || 0);
+            
+            // Gesamtzahl der Seiten berechnen
+            const pages = Math.ceil((res.data.count || 0) / newPageSize);
+            setTotalPages(pages);
+          })
+          .catch(error => {
+            console.error('Fehler beim Laden der Mutterpflanzen-Batches:', error);
+          })
+          .finally(() => {
+            setLoading(false);
+          });
+      } else if (tabValue === 2) {
+        // Und für Blühpflanzen-Batches
+        let url = `/trackandtrace/floweringbatches/?page=1&page_size=${newPageSize}`;
+        
+        // Zeitfilter hinzufügen, wenn vorhanden
+        if (yearFilter) url += `&year=${yearFilter}`;
+        if (monthFilter) url += `&month=${monthFilter}`;
+        if (dayFilter) url += `&day=${dayFilter}`;
+        
+        console.log("Sende API-Anfrage:", url);
+        setLoading(true);
+        
+        api.get(url)
+          .then(res => {
+            console.log('Geladene Blühpflanzen-Batches mit neuer pageSize:', res.data);
+            setFloweringBatches(res.data.results || []);
+            setTotalCount(res.data.count || 0);
+            
+            // Gesamtzahl der Seiten berechnen
+            const pages = Math.ceil((res.data.count || 0) / newPageSize);
+            setTotalPages(pages);
+          })
+          .catch(error => {
+            console.error('Fehler beim Laden der Blühpflanzen-Batches:', error);
+          })
+          .finally(() => {
+            setLoading(false);
+          });
+      }
+    }, 0);
   };
 
   useEffect(() => {
@@ -543,6 +656,10 @@ export default function SeedPurchasePage() {
               currentPage={currentPage}
               totalPages={totalPages}
               onPageChange={handlePageChange}
+              pageSize={pageSize}
+              onPageSizeChange={handlePageSizeChange}
+              pageSizeOptions={pageSizeOptions}
+              totalCount={totalCount}
             />
           </AnimatedTabPanel>
 
@@ -564,6 +681,10 @@ export default function SeedPurchasePage() {
               currentPage={currentPage}
               totalPages={totalPages}
               onPageChange={handlePageChange}
+              pageSize={pageSize}
+              onPageSizeChange={handlePageSizeChange}
+              pageSizeOptions={pageSizeOptions}
+              totalCount={totalCount}
             />
           </AnimatedTabPanel>
 
@@ -585,6 +706,10 @@ export default function SeedPurchasePage() {
               currentPage={currentPage}
               totalPages={totalPages}
               onPageChange={handlePageChange}
+              pageSize={pageSize}
+              onPageSizeChange={handlePageSizeChange}
+              pageSizeOptions={pageSizeOptions}
+              totalCount={totalCount}
             />
           </AnimatedTabPanel>
 
@@ -606,6 +731,10 @@ export default function SeedPurchasePage() {
               currentPage={currentPage}
               totalPages={totalPages}
               onPageChange={handlePageChange}
+              pageSize={pageSize}
+              onPageSizeChange={handlePageSizeChange}
+              pageSizeOptions={pageSizeOptions}
+              totalCount={totalCount}
             />
           </AnimatedTabPanel>
         </>

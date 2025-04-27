@@ -14,10 +14,75 @@ from .serializers import (
     FloweringPlantSerializer, CuttingBatchSerializer, CuttingSerializer  # CuttingSerializer hinzugefügt
 )
 
+# api_views.py
+# Verbesserte Pagination-Klasse mit Debug-Ausgaben
+
 class StandardResultsSetPagination(pagination.PageNumberPagination):
-    page_size = 5
+    page_size = 10  # Standard auf 15 setzen
     page_size_query_param = 'page_size'
     max_page_size = 100
+    
+    def get_page_size(self, request):
+        """
+        Überschreiben der get_page_size-Methode, um die Verarbeitung 
+        des page_size-Parameters zu verbessern und zu debuggen
+        """
+        # Versuche, den page_size-Parameter aus der Anfrage zu lesen
+        page_size = request.query_params.get(self.page_size_query_param)
+        
+        # Debug-Ausgaben
+        print(f"Erhaltener page_size-Parameter: {page_size}")
+        
+        if page_size:
+            try:
+                # Explizite Umwandlung in einen Integer
+                parsed_size = int(page_size)
+                print(f"Umgewandelter page_size: {parsed_size}")
+                
+                # Überprüfung auf gültige Größe
+                if parsed_size < 1:
+                    print(f"page_size zu klein, verwende Standard: {self.page_size}")
+                    return self.page_size
+                    
+                if self.max_page_size and parsed_size > self.max_page_size:
+                    print(f"page_size zu groß, verwende max: {self.max_page_size}")
+                    return self.max_page_size
+                    
+                # Gültiger Wert
+                print(f"Verwende page_size: {parsed_size}")
+                return parsed_size
+                
+            except ValueError:
+                # Fehler bei der Umwandlung, verwende Standard
+                print(f"Fehler bei der Umwandlung, verwende Standard: {self.page_size}")
+                return self.page_size
+        
+        # Kein page_size-Parameter, verwende Standard
+        print(f"Kein page_size-Parameter, verwende Standard: {self.page_size}")
+        return self.page_size
+
+# Beispiel für die Anwendung in einem ViewSet
+# Hier ist ein Beispiel, wie man sicherstellt, dass die Pagination korrekt verwendet wird:
+
+class SeedPurchaseViewSet(viewsets.ModelViewSet):
+    queryset = SeedPurchase.objects.all().order_by('-created_at')
+    serializer_class = SeedPurchaseSerializer
+    permission_classes = [IsAuthenticated]
+    pagination_class = StandardResultsSetPagination
+    
+    def get_queryset(self):
+        queryset = SeedPurchase.objects.all().order_by('-created_at')
+        
+        # DEBUG: Zeige den Zustand der Pagination
+        # Dies sollte in der Konsole erscheinen, wenn die Liste der Samen abgerufen wird
+        print(f"Pagination in get_queryset: {self.pagination_class}")
+        print(f"Request query params: {self.request.query_params}")
+        print(f"page_size parameter: {self.request.query_params.get('page_size')}")
+        
+        # Rest der get_queryset-Methode bleibt unverändert
+        # ...
+        
+        return queryset
 
 class SeedPurchaseViewSet(viewsets.ModelViewSet):
     queryset = SeedPurchase.objects.all().order_by('-created_at')
