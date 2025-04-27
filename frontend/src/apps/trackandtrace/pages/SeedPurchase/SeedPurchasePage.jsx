@@ -538,44 +538,44 @@ export default function SeedPurchasePage() {
     { 
       label: (
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <Typography component="span" sx={{ fontWeight: 'bold' }}>CHARGEN</Typography>
-          <Typography component="span" sx={{ mx: 0.5, color: 'success.main', fontWeight: 500 }}>{`(${activeSeedCount})`}</Typography>
-          <ArrowForwardIcon sx={{ mx: 0.5, fontSize: 14, color: 'success.main' }} />
-          <Typography component="span" sx={{ fontWeight: 'bold' }}>AKTIVE SAMEN</Typography>
-          <Typography component="span" sx={{ mx: 0.5, color: 'success.main', fontWeight: 500 }}>{`(${totalActiveQuantity})`}</Typography>
+          <Typography component="span" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>CHARGEN</Typography>
+          <Typography component="span" sx={{ mx: 0.3, color: 'success.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${activeSeedCount})`}</Typography>
+          <ArrowForwardIcon sx={{ mx: 0.3, fontSize: 10, color: 'success.main' }} />
+          <Typography component="span" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>AKTIVE SAMEN</Typography>
+          <Typography component="span" sx={{ mx: 0.3, color: 'success.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${totalActiveQuantity})`}</Typography>
         </Box>
       ) 
     },
     { 
       label: (
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <Typography component="span" sx={{ fontWeight: 'bold' }}>CHARGEN</Typography>
-          <Typography component="span" sx={{ mx: 0.5, color: 'success.main', fontWeight: 500 }}>{`(${motherBatchCount})`}</Typography>
-          <ArrowForwardIcon sx={{ mx: 0.5, fontSize: 14, color: 'success.main' }} />
-          <Typography component="span" sx={{ fontWeight: 'bold' }}>ZU MUTTERPFLANZEN</Typography>
-          <Typography component="span" sx={{ mx: 0.5, color: 'success.main', fontWeight: 500 }}>{`(${motherPlantCount})`}</Typography>
+          <Typography component="span" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>CHARGEN</Typography>
+          <Typography component="span" sx={{ mx: 0.3, color: 'success.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${motherBatchCount})`}</Typography>
+          <ArrowForwardIcon sx={{ mx: 0.3, fontSize: 10, color: 'success.main' }} />
+          <Typography component="span" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>ZU MUTTERPFLANZEN</Typography>
+          <Typography component="span" sx={{ mx: 0.3, color: 'success.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${motherPlantCount})`}</Typography>
         </Box>
       )
     },
     { 
       label: (
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <Typography component="span" sx={{ fontWeight: 'bold' }}>CHARGEN</Typography>
-          <Typography component="span" sx={{ mx: 0.5, color: 'success.main', fontWeight: 500 }}>{`(${floweringBatchCount})`}</Typography>
-          <ArrowForwardIcon sx={{ mx: 0.5, fontSize: 14, color: 'success.main' }} />
-          <Typography component="span" sx={{ fontWeight: 'bold' }}>ZU BLÜHPFLANZEN</Typography>
-          <Typography component="span" sx={{ mx: 0.5, color: 'success.main', fontWeight: 500 }}>{`(${floweringPlantCount})`}</Typography>
+          <Typography component="span" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>CHARGEN</Typography>
+          <Typography component="span" sx={{ mx: 0.3, color: 'success.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${floweringBatchCount})`}</Typography>
+          <ArrowForwardIcon sx={{ mx: 0.3, fontSize: 10, color: 'success.main' }} />
+          <Typography component="span" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>ZU BLÜHPFLANZEN</Typography>
+          <Typography component="span" sx={{ mx: 0.3, color: 'success.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${floweringPlantCount})`}</Typography>
         </Box>
       )
     },
     { 
       label: (
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <Typography component="span" sx={{ fontWeight: 'bold' }}>CHARGEN</Typography>
-          <Typography component="span" sx={{ mx: 0.5, color: 'error.main', fontWeight: 500 }}>{`(${destroyedCount})`}</Typography>
-          <ArrowForwardIcon sx={{ mx: 0.5, fontSize: 14, color: 'error.main' }} />
-          <Typography component="span" sx={{ fontWeight: 'bold' }}>VERNICHTET</Typography>
-          <Typography component="span" sx={{ mx: 0.5, color: 'error.main', fontWeight: 500 }}>{`(${totalDestroyedQuantity})`}</Typography>
+          <Typography component="span" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>CHARGEN</Typography>
+          <Typography component="span" sx={{ mx: 0.3, color: 'error.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${destroyedCount})`}</Typography>
+          <ArrowForwardIcon sx={{ mx: 0.3, fontSize: 10, color: 'error.main' }} />
+          <Typography component="span" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>VERNICHTET</Typography>
+          <Typography component="span" sx={{ mx: 0.3, color: 'error.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${totalDestroyedQuantity})`}</Typography>
         </Box>
       )
     }

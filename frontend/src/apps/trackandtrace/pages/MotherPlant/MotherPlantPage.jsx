@@ -588,33 +588,33 @@ export default function MotherPlantPage() {
     { 
       label: (
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <Typography component="span" sx={{ fontWeight: 'bold' }}>CHARGEN</Typography>
-          <Typography component="span" sx={{ mx: 0.5, color: 'primary.main', fontWeight: 500 }}>{`(${activeBatchesCount})`}</Typography>
-          <ArrowForwardIcon sx={{ mx: 0.5, fontSize: 14, color: 'primary.main' }} />
-          <Typography component="span" sx={{ fontWeight: 'bold' }}>AKTIVE PFLANZEN</Typography>
-          <Typography component="span" sx={{ mx: 0.5, color: 'primary.main', fontWeight: 500 }}>{`(${activePlantsCount})`}</Typography>
+          <Typography component="span" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>CHARGEN</Typography>
+          <Typography component="span" sx={{ mx: 0.3, color: 'primary.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${activeBatchesCount})`}</Typography>
+          <ArrowForwardIcon sx={{ mx: 0.3, fontSize: 10, color: 'primary.main' }} />
+          <Typography component="span" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>AKTIVE PFLANZEN</Typography>
+          <Typography component="span" sx={{ mx: 0.3, color: 'primary.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${activePlantsCount})`}</Typography>
         </Box>
       ) 
     },
     { 
       label: (
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <Typography component="span" sx={{ fontWeight: 'bold' }}>CHARGEN</Typography>
-          <Typography component="span" sx={{ mx: 0.5, color: 'primary.main', fontWeight: 500 }}>{`(${cuttingBatchCount})`}</Typography>
-          <ArrowForwardIcon sx={{ mx: 0.5, fontSize: 14, color: 'primary.main' }} />
-          <Typography component="span" sx={{ fontWeight: 'bold' }}>ZU STECKLINGE</Typography>
-          <Typography component="span" sx={{ mx: 0.5, color: 'primary.main', fontWeight: 500 }}>{`(${cuttingCount})`}</Typography>
+          <Typography component="span" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>CHARGEN</Typography>
+          <Typography component="span" sx={{ mx: 0.3, color: 'primary.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${cuttingBatchCount})`}</Typography>
+          <ArrowForwardIcon sx={{ mx: 0.3, fontSize: 10, color: 'primary.main' }} />
+          <Typography component="span" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>ZU STECKLINGE</Typography>
+          <Typography component="span" sx={{ mx: 0.3, color: 'primary.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${cuttingCount})`}</Typography>
         </Box>
       )
     },
     { 
       label: (
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <Typography component="span" sx={{ fontWeight: 'bold' }}>CHARGEN</Typography>
-          <Typography component="span" sx={{ mx: 0.5, color: 'error.main', fontWeight: 500 }}>{`(${destroyedBatchesCount})`}</Typography>
-          <ArrowForwardIcon sx={{ mx: 0.5, fontSize: 14, color: 'error.main' }} />
-          <Typography component="span" sx={{ fontWeight: 'bold' }}>VERNICHTETE PFLANZEN</Typography>
-          <Typography component="span" sx={{ mx: 0.5, color: 'error.main', fontWeight: 500 }}>{`(${destroyedPlantsCount})`}</Typography>
+          <Typography component="span" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>CHARGEN</Typography>
+          <Typography component="span" sx={{ mx: 0.3, color: 'error.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${destroyedBatchesCount})`}</Typography>
+          <ArrowForwardIcon sx={{ mx: 0.3, fontSize: 10, color: 'error.main' }} />
+          <Typography component="span" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>VERNICHTETE PFLANZEN</Typography>
+          <Typography component="span" sx={{ mx: 0.3, color: 'error.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${destroyedPlantsCount})`}</Typography>
         </Box>
       )
     }

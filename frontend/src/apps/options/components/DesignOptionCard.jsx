@@ -111,10 +111,10 @@ const footerOptions = [
 
 // Animationstypen-Optionen
 const animationTypes = [
-  { id: 'slide', label: 'Gleiten', description: 'Elemente gleiten von der Seite herein' },
-  { id: 'fade', label: 'Einblenden', description: 'Elemente blenden sanft ein und aus' },
-  { id: 'grow', label: 'Wachsen', description: 'Elemente wachsen beim Erscheinen' },
-]
+  { id: 'slide', label: 'Gleiten', description: '(Elemente gleiten von der Seite herein)' },
+  { id: 'fade', label: 'Einblenden', description: '(Elemente blenden sanft ein und aus)' },
+  { id: 'grow', label: 'Wachsen', description: '(Elemente wachsen beim Erscheinen)' },
+];
 
 // Standardwerte für die Designoptionen
 const defaultDesignOptions = {
@@ -996,33 +996,68 @@ export default function DesignOptionCard({
                 enabled={design.animations?.enabled !== false}
               />
             </Box>
-            
-            <FormControl component="fieldset" sx={{ mb: 2 }} disabled={design.animations?.enabled === false}>
-              <Typography variant="subtitle2" gutterBottom>Animationstyp</Typography>
-              <RadioGroup
-                value={design.animations?.type || 'slide'}
-                onChange={(e) => handleDesignChange('animations', {
-                  ...design.animations,
-                  type: e.target.value
-                })}
-              >
-                {animationTypes.map((type) => (
-                  <FormControlLabel 
-                    key={type.id} 
-                    value={type.id} 
-                    control={<Radio />} 
-                    label={
-                      <Box>
-                        <Typography variant="body2">{type.label}</Typography>
-                        <Typography variant="caption" color="textSecondary">{type.description}</Typography>
-                      </Box>
-                    }
-                    sx={{ mb: 1 }}
+
+            <Box sx={{ mb: 2 }}>
+            <Typography variant="subtitle2" gutterBottom>Animationstyp</Typography>
+            <Box 
+              sx={{ 
+                display: 'flex',
+                alignItems: 'center',
+                flexWrap: 'nowrap',
+                pl: 1
+              }}
+            >
+              {animationTypes.map((type, index) => (
+                <Box 
+                  key={type.id} 
+                  sx={{ 
+                    display: 'inline-flex', 
+                    alignItems: 'center',
+                    mr: index < animationTypes.length - 1 ? 3 : 0 // Abstand nur zwischen den Elementen
+                  }}
+                  onClick={() => !design.animations?.enabled === false && 
+                    handleDesignChange('animations', {
+                      ...design.animations,
+                      type: type.id
+                    })
+                  }
+                >
+                  <Radio
+                    disabled={design.animations?.enabled === false}
+                    checked={design.animations?.type === type.id}
+                    onChange={() => {}}
+                    size="small"
+                    sx={{ 
+                      p: 0.5, 
+                      mr: 0.5,
+                      '& .MuiSvgIcon-root': { fontSize: 18 } // Kleinere Radio-Buttons
+                    }}
                   />
-                ))}
-              </RadioGroup>
-            </FormControl>
-            
+                  <Box sx={{ 
+                    cursor: design.animations?.enabled === false ? 'default' : 'pointer',
+                    opacity: design.animations?.enabled === false ? 0.5 : 1
+                  }}>
+                    <Typography 
+                      variant="body2" 
+                      component="span" 
+                      sx={{ fontSize: '0.9rem' }}
+                    >
+                      {type.label}
+                    </Typography>
+                    <Typography 
+                      component="span" 
+                      variant="caption" 
+                      color="text.secondary" 
+                      sx={{ ml: 0.5 }}
+                    >
+                      {type.description}
+                    </Typography>
+                  </Box>
+                </Box>
+              ))}
+            </Box>
+          </Box>
+
             <Box sx={{ mb: 3 }} disabled={design.animations?.enabled === false}>
               <Typography variant="subtitle2" gutterBottom>Animationsdauer</Typography>
               <Box sx={{ px: 2 }}>
