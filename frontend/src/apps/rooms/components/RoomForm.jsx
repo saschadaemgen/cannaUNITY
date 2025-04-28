@@ -1,9 +1,10 @@
-// frontend/src/apps/rooms/components/RoomForm.jsx (Erweiterung)
+// frontend/src/apps/rooms/components/RoomForm.jsx
 
 import React, { useState, useEffect } from 'react';
 import { 
   Box, TextField, Button, Switch, FormControlLabel, 
-  Typography, Paper, Slider, Divider, Grid 
+  Typography, Paper, Slider, Divider, Grid, 
+  Select, MenuItem, InputLabel, FormControl
 } from '@mui/material';
 
 const RoomForm = ({ initialData, onSubmit, isLoading }) => {
@@ -12,6 +13,8 @@ const RoomForm = ({ initialData, onSubmit, isLoading }) => {
     description: '',
     capacity: 0,
     is_active: true,
+    room_type: 'other',
+    pflanzenanzahl: 0,
     length: 500,  // 5m default
     width: 500,   // 5m default
     height: 250,  // 2.5m default
@@ -25,6 +28,8 @@ const RoomForm = ({ initialData, onSubmit, isLoading }) => {
         description: initialData.description || '',
         capacity: initialData.capacity || 0,
         is_active: initialData.is_active !== undefined ? initialData.is_active : true,
+        room_type: initialData.room_type || 'other',
+        pflanzenanzahl: initialData.pflanzenanzahl || 0,
         length: initialData.length || 500,
         width: initialData.width || 500,
         height: initialData.height || 250,
@@ -53,6 +58,7 @@ const RoomForm = ({ initialData, onSubmit, isLoading }) => {
     onSubmit({
       ...formData,
       capacity: parseInt(formData.capacity, 10),
+      pflanzenanzahl: parseInt(formData.pflanzenanzahl, 10),
       length: parseInt(formData.length, 10),
       width: parseInt(formData.width, 10),
       height: parseInt(formData.height, 10),
@@ -76,6 +82,26 @@ const RoomForm = ({ initialData, onSubmit, isLoading }) => {
             required
           />
           
+          <FormControl fullWidth>
+            <InputLabel id="room-type-label">Raumtyp</InputLabel>
+            <Select
+              labelId="room-type-label"
+              name="room_type"
+              value={formData.room_type}
+              label="Raumtyp"
+              onChange={handleChange}
+            >
+              <MenuItem value="bluetekammer">Blütekammer</MenuItem>
+              <MenuItem value="produktausgabe">Produktausgabe</MenuItem>
+              <MenuItem value="trocknungsraum">Trocknungsraum</MenuItem>
+              <MenuItem value="labor">Labor</MenuItem>
+              <MenuItem value="mutterraum">Mutterraum</MenuItem>
+              <MenuItem value="anzuchtraum">Anzuchtraum</MenuItem>
+              <MenuItem value="verarbeitung">Verarbeitung</MenuItem>
+              <MenuItem value="other">Sonstiges</MenuItem>
+            </Select>
+          </FormControl>
+          
           <TextField
             label="Beschreibung"
             name="description"
@@ -86,15 +112,30 @@ const RoomForm = ({ initialData, onSubmit, isLoading }) => {
             fullWidth
           />
           
-          <TextField
-            label="Kapazität"
-            name="capacity"
-            type="number"
-            value={formData.capacity}
-            onChange={handleChange}
-            fullWidth
-            InputProps={{ inputProps: { min: 0 } }}
-          />
+          <Grid container spacing={2}>
+            <Grid item xs={12} md={6}>
+              <TextField
+                label="Kapazität (Personen)"
+                name="capacity"
+                type="number"
+                value={formData.capacity}
+                onChange={handleChange}
+                fullWidth
+                InputProps={{ inputProps: { min: 0 } }}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                label="Pflanzenanzahl"
+                name="pflanzenanzahl"
+                type="number"
+                value={formData.pflanzenanzahl}
+                onChange={handleChange}
+                fullWidth
+                InputProps={{ inputProps: { min: 0 } }}
+              />
+            </Grid>
+          </Grid>
           
           <FormControlLabel
             control={

@@ -5,13 +5,18 @@ from .models import Room, RoomItemType, RoomItem, Sensor
 
 class RoomSerializer(serializers.ModelSerializer):
     volume = serializers.ReadOnlyField()
+    room_type_display = serializers.SerializerMethodField()
     
     class Meta:
         model = Room
         fields = ['id', 'name', 'description', 'capacity', 'is_active', 
+                 'room_type', 'room_type_display', 'pflanzenanzahl',
                  'length', 'width', 'height', 'grid_size', 'volume',
                  'created_at', 'updated_at']
         read_only_fields = ['created_at', 'updated_at']
+    
+    def get_room_type_display(self, obj):
+        return obj.get_room_type_display()
 
 class SensorSerializer(serializers.ModelSerializer):
     class Meta:
@@ -35,10 +40,15 @@ class RoomItemSerializer(serializers.ModelSerializer):
 class RoomDetailSerializer(serializers.ModelSerializer):
     items = RoomItemSerializer(many=True, read_only=True)
     volume = serializers.ReadOnlyField()
+    room_type_display = serializers.SerializerMethodField()
     
     class Meta:
         model = Room
         fields = ['id', 'name', 'description', 'capacity', 'is_active', 
+                 'room_type', 'room_type_display', 'pflanzenanzahl',
                  'length', 'width', 'height', 'grid_size', 'volume',
                  'items', 'created_at', 'updated_at']
         read_only_fields = ['created_at', 'updated_at']
+        
+    def get_room_type_display(self, obj):
+        return obj.get_room_type_display()

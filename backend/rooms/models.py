@@ -3,10 +3,23 @@
 from django.db import models
 
 class Room(models.Model):
+    ROOM_TYPE_CHOICES = [
+        ('bluetekammer', 'Blütekammer'),
+        ('produktausgabe', 'Produktausgabe'),
+        ('trocknungsraum', 'Trocknungsraum'),
+        ('labor', 'Labor'),
+        ('mutterraum', 'Mutterraum'),
+        ('anzuchtraum', 'Anzuchtraum'),
+        ('verarbeitung', 'Verarbeitung'),
+        ('other', 'Sonstiges'),
+    ]
+    
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True, null=True)
     capacity = models.IntegerField(default=0)
     is_active = models.BooleanField(default=True)
+    room_type = models.CharField(max_length=20, choices=ROOM_TYPE_CHOICES, default='other')
+    pflanzenanzahl = models.IntegerField(default=0, help_text="Anzahl der Pflanzen im Raum")
     
     # Neue Felder für die räumliche Darstellung
     length = models.IntegerField(default=500, help_text="Länge in cm")
@@ -24,6 +37,9 @@ class Room(models.Model):
     def volume(self):
         """Berechnet das Raumvolumen in Kubikmetern"""
         return (self.length * self.width * self.height) / 1000000
+    
+    class Meta:
+        ordering = ['name']  # Sortierung alphabetisch nach Namen
 
 class RoomItemType(models.Model):
     """Typen von Elementen, die in einem Raum platziert werden können"""
@@ -45,6 +61,9 @@ class RoomItemType(models.Model):
     
     def __str__(self):
         return f"{self.name} ({self.get_category_display()})"
+    
+    class Meta:
+        ordering = ['name']
 
 class RoomItem(models.Model):
     """Konkrete Elemente, die in einem Raum platziert sind"""
