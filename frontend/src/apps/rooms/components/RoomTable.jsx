@@ -37,8 +37,8 @@ const RoomTable = ({
     { label: 'Größe', width: '10%', align: 'center' },
     { label: 'Fläche (m²)', width: '8%', align: 'center' },
     { label: 'Volumen (m³)', width: '8%', align: 'center' },
-    { label: 'Kapazität', width: '7%', align: 'center' },
-    { label: 'Pflanzen', width: '7%', align: 'center' },
+    { label: 'Max. Pers.', width: '7%', align: 'center' },
+    { label: 'Pflanzen / Menge', width: '7%', align: 'center' },
     { label: 'Status', width: '7%', align: 'center' },
     { label: 'Aktionen', width: '11%', align: 'center' }
   ];
@@ -108,9 +108,21 @@ const RoomTable = ({
         align: 'center'
       },
       {
-        content: room.pflanzenanzahl,
+        content: (() => {
+          // Für bestimmte Raumtypen spezielle Anzeige
+          if (['Sonstiges', 'Produktausgabe'].includes(room.room_type_display)) {
+            return '(keine)';
+          } else if (['Labor', 'Trocknungsraum', 'Verarbeitung'].includes(room.room_type_display)) {
+            return `${room.pflanzenanzahl} Gramm`;
+          } else {
+            return `${room.pflanzenanzahl} Stück`;
+          }
+        })(),
         width: '7%',
-        align: 'center'
+        align: 'center',
+        color: ['Sonstiges', 'Produktausgabe'].includes(room.room_type_display) 
+                ? 'text.secondary' 
+                : 'text.primary'
       },
       {
         content: room.is_active ? 'Aktiv' : 'Inaktiv',
