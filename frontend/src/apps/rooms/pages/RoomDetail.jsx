@@ -81,17 +81,22 @@ const RoomDetail = () => {
           </Grid>
           
           <Box sx={{ mt: 4, display: 'flex', gap: 2 }}>
-            <Button variant="outlined" component={Link} to="/rooms">
-              Zurück zur Raumliste
-            </Button>
-            
-            <Button variant="contained" component={Link} to={`/rooms/${id}/edit`}>
-              Bearbeiten
-            </Button>
-            <Button variant="contained" color="error" component={Link} to={`/rooms/${id}/delete`}>
-              Löschen
-            </Button>
-          </Box>
+          <Button variant="outlined" component={Link} to="/rooms">
+            Zurück zur Raumliste
+          </Button>
+          
+          <Button variant="contained" component={Link} to={`/rooms/${id}/edit`}>
+            Bearbeiten
+          </Button>
+          
+          <Button variant="contained" color="secondary" component={Link} to={`/rooms/${id}/designer`}>
+            Raumdesigner öffnen
+          </Button>
+          
+          <Button variant="contained" color="error" component={Link} to={`/rooms/${id}/delete`}>
+            Löschen
+          </Button>
+        </Box>
         </Paper>
       </Box>
     </Container>

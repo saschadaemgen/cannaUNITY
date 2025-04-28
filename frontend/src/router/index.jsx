@@ -7,6 +7,10 @@ import RoomDetail from "../apps/rooms/pages/RoomDetail"
 import RoomCreate from "../apps/rooms/pages/RoomCreate"
 import RoomEdit from "../apps/rooms/pages/RoomEdit"
 import RoomDelete from "../apps/rooms/pages/RoomDelete"
+import RoomItemTypeList from '../apps/rooms/pages/RoomItemTypeList'
+import RoomItemTypeCreate from '../apps/rooms/pages/RoomItemTypeCreate'
+import RoomItemTypeEdit from '../apps/rooms/pages/RoomItemTypeEdit'
+import RoomDesignerPage from '../apps/rooms/pages/RoomDesignerPage'
 import Login from '../pages/Login'
 import Dashboard from '../apps/unifi_access/pages/Dashboard'
 import OptionsDashboard from '../apps/options/pages/OptionsDashboard'
@@ -50,6 +54,12 @@ export const router = createBrowserRouter([
       { path: 'rooms/:id', element: <RoomDetail /> },
       { path: 'rooms/:id/edit', element: <RoomEdit /> },
       { path: 'rooms/:id/delete', element: <RoomDelete /> },
+      { path: 'rooms/:id/designer', element: <RoomDesignerPage /> },
+
+      // Raumelement-Typen
+      { path: 'rooms/item-types', element: <RoomItemTypeList /> },
+      { path: 'rooms/item-types/new', element: <RoomItemTypeCreate /> },
+      { path: 'rooms/item-types/:id/edit', element: <RoomItemTypeEdit /> },
 
       // Dashboards
       { path: 'unifi-access', element: <Dashboard /> },

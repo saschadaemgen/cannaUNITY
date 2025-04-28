@@ -44,4 +44,6 @@ urlpatterns = [
 
     # ⚙️ UUID Track and Trace
     path('api/trackandtrace/', include('trackandtrace.urls')),
+
+    path('api/', include('rooms.api_urls')),
 ]

@@ -32,6 +32,9 @@ import Inventory2Icon from '@mui/icons-material/Inventory2';
 import ShoppingBasketIcon from '@mui/icons-material/ShoppingBasket';
 import BusinessIcon from '@mui/icons-material/Business';
 import StorefrontIcon from '@mui/icons-material/Storefront';
+import CategoryIcon from '@mui/icons-material/Category';
+import AddIcon from '@mui/icons-material/Add';
+import DashboardCustomizeIcon from '@mui/icons-material/DashboardCustomize';
 import api from '../utils/api'; // API für die Titelanfrage importieren
 
 // Standardwerte für die Designoptionen
@@ -472,7 +475,19 @@ export default function Topbar() {
         { label: 'Jahresabschluss', path: '/buchhaltung/jahresabschluss', icon: <PaymentsIcon /> }
       ]
     },
-    { id: 'showRooms', label: 'Raumverwaltung', path: '/rooms', icon: <MeetingRoomIcon /> },
+    {
+      id: 'showRooms',
+      label: 'Raumverwaltung', 
+      icon: <MeetingRoomIcon />,
+      children: [
+        { label: 'Raumliste', path: '/rooms', icon: <MeetingRoomIcon /> },
+        { label: 'Neuer Raum', path: '/rooms/new', icon: <AddIcon /> },
+        { label: 'Elemente-Bibliothek', path: '/rooms/item-types', icon: <CategoryIcon /> },
+        { label: 'Neuer Elementtyp', path: '/rooms/item-types/new', icon: <AddIcon /> },
+        { label: 'Raumdesigner', path: '/rooms', icon: <DashboardCustomizeIcon />, 
+          subtitle: 'Wähle zuerst einen Raum aus der Liste' }
+      ]
+    },
     { id: 'showSecurity', label: 'Sicherheit', path: '/unifi-access/dashboard', icon: <VpnKeyIcon /> }
   ];
 
@@ -580,6 +595,7 @@ export default function Topbar() {
                 const isFinance = item.label === 'Buchhaltung';
                 const isTrace = item.label === 'Track & Trace';
                 const isWawi = item.label === 'WaWi';
+                const isRooms = item.label === 'Raumverwaltung';
                 const tData = traceData[sub.label] || {};
                 const fData = financeData[sub.label] || {};
                 const wData = wawiData[sub.label] || {};
@@ -636,7 +652,9 @@ export default function Topbar() {
                               ? 'Finanzmodul aktiv' 
                               : (isWawi 
                                 ? `Status: ${wData.status}` 
-                                : 'System bereit'))}
+                                : (isRooms
+                                  ? 'Raumverwaltung aktiv'
+                                  : 'System bereit')))}
                         </Typography>
                       </Box>
                       <Divider />
@@ -665,6 +683,15 @@ export default function Topbar() {
                           <Typography variant="caption">Ausstehend: {wData.pending}</Typography><br />
                           <Box sx={{ mt: 1, textAlign: 'right' }}>
                             <Typography variant="caption">Letzte Aktualisierung: {wData.lastUpdate}</Typography>
+                          </Box>
+                        </Box>
+                      )}
+                      {isRooms && (
+                        <Box sx={{ mt: 1 }}>
+                          <Typography variant="caption">Raumverwaltungssystem</Typography><br />
+                          <Typography variant="caption">Zugriffsstatus: Aktiv</Typography><br />
+                          <Box sx={{ mt: 1, textAlign: 'right' }}>
+                            <Typography variant="caption">Letzte Aktualisierung: 27.04.2025</Typography>
                           </Box>
                         </Box>
                       )}

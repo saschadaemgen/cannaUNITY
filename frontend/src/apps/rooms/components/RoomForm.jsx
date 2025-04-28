@@ -1,5 +1,10 @@
+// frontend/src/apps/rooms/components/RoomForm.jsx (Erweiterung)
+
 import React, { useState, useEffect } from 'react';
-import { Box, TextField, Button, Switch, FormControlLabel, Typography, Paper } from '@mui/material';
+import { 
+  Box, TextField, Button, Switch, FormControlLabel, 
+  Typography, Paper, Slider, Divider, Grid 
+} from '@mui/material';
 
 const RoomForm = ({ initialData, onSubmit, isLoading }) => {
   const [formData, setFormData] = useState({
@@ -7,6 +12,10 @@ const RoomForm = ({ initialData, onSubmit, isLoading }) => {
     description: '',
     capacity: 0,
     is_active: true,
+    length: 500,  // 5m default
+    width: 500,   // 5m default
+    height: 250,  // 2.5m default
+    grid_size: 10 // 10cm default
   });
   
   useEffect(() => {
@@ -16,6 +25,10 @@ const RoomForm = ({ initialData, onSubmit, isLoading }) => {
         description: initialData.description || '',
         capacity: initialData.capacity || 0,
         is_active: initialData.is_active !== undefined ? initialData.is_active : true,
+        length: initialData.length || 500,
+        width: initialData.width || 500,
+        height: initialData.height || 250,
+        grid_size: initialData.grid_size || 10
       });
     }
   }, [initialData]);
@@ -28,13 +41,27 @@ const RoomForm = ({ initialData, onSubmit, isLoading }) => {
     });
   };
   
+  const handleSliderChange = (name) => (event, newValue) => {
+    setFormData({
+      ...formData,
+      [name]: newValue
+    });
+  };
+  
   const handleSubmit = (e) => {
     e.preventDefault();
     onSubmit({
       ...formData,
       capacity: parseInt(formData.capacity, 10),
+      length: parseInt(formData.length, 10),
+      width: parseInt(formData.width, 10),
+      height: parseInt(formData.height, 10),
+      grid_size: parseInt(formData.grid_size, 10)
     });
   };
+  
+  // Berechne das Volumen in Kubikmetern
+  const volume = ((formData.length * formData.width * formData.height) / 1000000).toFixed(2);
   
   return (
     <Paper elevation={3} sx={{ p: 3 }}>
@@ -79,6 +106,96 @@ const RoomForm = ({ initialData, onSubmit, isLoading }) => {
             }
             label="Aktiv"
           />
+          
+          <Divider sx={{ my: 2 }} />
+          
+          <Typography variant="h6" gutterBottom>
+            Räumliche Parameter
+          </Typography>
+          
+          <Grid container spacing={2}>
+            <Grid item xs={12} md={6}>
+              <Typography gutterBottom>
+                Länge: {formData.length} cm ({(formData.length / 100).toFixed(2)} m)
+              </Typography>
+              <Slider
+                value={formData.length}
+                onChange={handleSliderChange('length')}
+                min={100}
+                max={2000}
+                step={10}
+                marks={[
+                  { value: 100, label: '1m' },
+                  { value: 500, label: '5m' },
+                  { value: 1000, label: '10m' },
+                  { value: 2000, label: '20m' }
+                ]}
+              />
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <Typography gutterBottom>
+                Breite: {formData.width} cm ({(formData.width / 100).toFixed(2)} m)
+              </Typography>
+              <Slider
+                value={formData.width}
+                onChange={handleSliderChange('width')}
+                min={100}
+                max={2000}
+                step={10}
+                marks={[
+                  { value: 100, label: '1m' },
+                  { value: 500, label: '5m' },
+                  { value: 1000, label: '10m' },
+                  { value: 2000, label: '20m' }
+                ]}
+              />
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <Typography gutterBottom>
+                Höhe: {formData.height} cm ({(formData.height / 100).toFixed(2)} m)
+              </Typography>
+              <Slider
+                value={formData.height}
+                onChange={handleSliderChange('height')}
+                min={100}
+                max={500}
+                step={10}
+                marks={[
+                  { value: 100, label: '1m' },
+                  { value: 250, label: '2.5m' },
+                  { value: 400, label: '4m' },
+                  { value: 500, label: '5m' }
+                ]}
+              />
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <Typography gutterBottom>
+                Rastergröße: {formData.grid_size} cm
+              </Typography>
+              <Slider
+                value={formData.grid_size}
+                onChange={handleSliderChange('grid_size')}
+                min={5}
+                max={50}
+                step={5}
+                marks={[
+                  { value: 5, label: '5cm' },
+                  { value: 10, label: '10cm' },
+                  { value: 25, label: '25cm' },
+                  { value: 50, label: '50cm' }
+                ]}
+              />
+            </Grid>
+          </Grid>
+          
+          <Box sx={{ mt: 2, p: 2, bgcolor: 'background.paper', borderRadius: 1 }}>
+            <Typography variant="subtitle1" fontWeight="bold">
+              Raumvolumen: {volume} m³
+            </Typography>
+          </Box>
           
           <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 2 }}>
             <Button 
