@@ -40,7 +40,7 @@ const RoomTable = ({
     { label: 'Kapazität', width: '7%', align: 'center' },
     { label: 'Pflanzen', width: '7%', align: 'center' },
     { label: 'Status', width: '7%', align: 'center' },
-    { label: 'Aktionen', width: '12%', align: 'right' }
+    { label: 'Aktionen', width: '11%', align: 'center' }
   ];
 
   // Funktion zum Erstellen der Spalten für eine Zeile
@@ -51,13 +51,33 @@ const RoomTable = ({
     
     return [
       {
-        content: '',
-        width: '3%'
+        content: (
+          <IconButton 
+            onClick={(e) => {
+              e.stopPropagation();
+              onExpandRoom(room.id);
+            }}
+            size="small"
+            sx={{ 
+              color: 'primary.main',
+              width: '28px',
+              height: '28px',
+              transform: expandedRoomId === room.id ? 'rotate(180deg)' : 'rotate(0deg)',
+              transition: 'transform 300ms ease-in-out'
+            }}
+          >
+            <ExpandMoreIcon fontSize="small" />
+          </IconButton>
+        ),
+        width: '3%',
+        align: 'center'
       },
       {
         content: room.name,
         width: '13%',
-        bold: true
+        bold: true,
+        icon: TableChartIcon,
+        iconColor: 'success.main'
       },
       {
         content: room.room_type_display || 'Sonstiges',
@@ -100,7 +120,7 @@ const RoomTable = ({
       },
       {
         content: (
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', width: '100%', pl: 1 }}>
             <Tooltip title="Details anzeigen">
               <IconButton 
                 component={Link} 
@@ -169,26 +189,10 @@ const RoomTable = ({
                 <DeleteIcon fontSize="small" />
               </IconButton>
             </Tooltip>
-            <IconButton 
-              onClick={(e) => {
-                e.stopPropagation();
-                onExpandRoom(room.id);
-              }}
-              size="small"
-              sx={{ 
-                color: 'primary.main',
-                width: '28px',
-                height: '28px',
-                transform: expandedRoomId === room.id ? 'rotate(180deg)' : 'rotate(0deg)',
-                transition: 'transform 300ms ease-in-out'
-              }}
-            >
-              <ExpandMoreIcon />
-            </IconButton>
           </Box>
         ),
-        width: '12%',
-        align: 'right'
+        width: '11%',
+        align: 'center'
       }
     ];
   };
@@ -430,7 +434,7 @@ const RoomTable = ({
             onClick={() => onExpandRoom(room.id)}
             columns={getRowColumns(room)}
             borderColor="primary.main"
-            expandIconPosition="none" // Disable standard icon since we have a custom one
+            expandIconPosition="none" // Deaktiviere das Standard-Icon, da wir ein eigenes verwenden
           >
             {renderRoomDetails(room)}
           </AccordionRow>
