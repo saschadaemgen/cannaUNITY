@@ -1,140 +1,213 @@
-import React, { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import {
-  Typography,
-  Button,
-  Box,
-  Pagination,
-  CircularProgress,
-  Table,
-  TableHead,
-  TableBody,
-  TableCell,
-  TableRow,
-  TableContainer,
-  Paper,
-} from '@mui/material'
-import api from '../../../utils/api'
+// frontend/src/apps/members/pages/MemberList.jsx
+import React, { useState, useEffect } from 'react';
+import { 
+  Box, Typography, Button, Container, Paper, 
+  Fade, Alert, Snackbar
+} from '@mui/material';
+import { Link } from 'react-router-dom';
+import AddIcon from '@mui/icons-material/Add';
+import api from '../../../utils/api';
 
-export default function MemberList() {
-  const [members, setMembers] = useState([])
-  const [page, setPage] = useState(1)
-  const [totalPages, setTotalPages] = useState(1)
-  const [error, setError] = useState(null)
-  const [loading, setLoading] = useState(false)
-  const [userGroups, setUserGroups] = useState([])
+// Komponenten importieren
+import MemberTable from '../components/MemberTable';
+import PageHeader from '../components/common/PageHeader';
+import LoadingIndicator from '../components/common/LoadingIndicator';
 
-  const navigate = useNavigate()
-  const isTeamleiter = userGroups.includes('teamleiter')
-
+const MemberList = () => {
+  const [members, setMembers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [userGroups, setUserGroups] = useState([]);
+  
+  // Zusätzliche States für erweiterte Funktionalität
+  const [expandedMemberId, setExpandedMemberId] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [showFilters, setShowFilters] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  
   // Benutzergruppen laden
   useEffect(() => {
     const fetchUserInfo = async () => {
       try {
-        const res = await api.get('/user-info/')
-        setUserGroups(res.data.groups || [])
-      } catch {
-        setUserGroups([])
+        const res = await api.get('/user-info/');
+        setUserGroups(res.data.groups || []);
+      } catch (error) {
+        console.error('Error fetching user info:', error);
+        setUserGroups([]);
       }
-    }
-    fetchUserInfo()
-  }, [])
-
-  // Mitglieder laden
+    };
+    fetchUserInfo();
+  }, []);
+  
+  // Teamleiter-Berechtigungen prüfen
+  const isTeamleiter = userGroups.includes('teamleiter');
+  
   useEffect(() => {
     const fetchMembers = async () => {
-      setLoading(true)
       try {
-        const res = await api.get(`/members/?page=${page}`)
-        if (Array.isArray(res.data.results)) {
-          setMembers(res.data.results)
-          setTotalPages(Math.ceil(res.data.count / 25))
-          setError(null)
+        const response = await api.get(`/members/?page=${currentPage}`);
+        console.log('API response:', response.data);
+        
+        // Prüfen, ob es sich um ein paginiertes Ergebnis handelt
+        if (response.data && response.data.results) {
+          setMembers(response.data.results);
+          
+          // Berechne die Gesamtanzahl der Seiten basierend auf der Gesamtanzahl der Einträge
+          const total = response.data.count || 0;
+          const pages = Math.ceil(total / 25); // 25 Einträge pro Seite (MemberPagination)
+          setTotalPages(pages);
+        } else if (Array.isArray(response.data)) {
+          setMembers(response.data);
+          
+          // Bei nicht-paginierten Daten Seitenzahl basierend auf Arraygröße berechnen
+          const pages = Math.ceil(response.data.length / 25); 
+          setTotalPages(pages);
         } else {
-          setError('API-Fehler: Kein gültiges results-Feld')
+          // Fallback: Leeres Array, wenn das Format unbekannt ist
+          console.error('Unerwartetes Datenformat:', response.data);
+          setMembers([]);
+          setError('Unerwartetes Datenformat von der API');
         }
-      } catch {
-        setError('Fehler beim Laden der Mitglieder.')
-        setMembers([])
-      } finally {
-        setLoading(false)
+        
+        setLoading(false);
+      } catch (error) {
+        console.error('Error fetching members:', error);
+        setError('Fehler beim Laden der Mitglieder');
+        setMembers([]);
+        setLoading(false);
       }
+    };
+    
+    fetchMembers();
+  }, [currentPage]); // Abhängigkeit hinzugefügt, damit bei Seitenwechsel neu geladen wird
+  
+  const handlePageChange = (event, page) => {
+    setCurrentPage(page);
+    // Beim Seitenwechsel alle geöffneten Akkordeons schließen
+    setExpandedMemberId('');
+  };
+  
+  const handleAccordionChange = (memberId) => {
+    if (expandedMemberId === memberId) {
+      setExpandedMemberId('');
+    } else {
+      setExpandedMemberId(memberId);
     }
-    fetchMembers()
-  }, [page])
-
+  };
+  
+  const handleCloseError = () => {
+    setError(null);
+  };
+  
+  const handleCloseSuccess = () => {
+    setSuccessMessage('');
+  };
+  
+  // Zeige einen Ladeindikator, falls die Daten noch geladen werden
+  if (loading) {
+    return (
+      <Container maxWidth="xl" sx={{ width: '100%' }}>
+        <Box sx={{ my: 4 }}>
+          <PageHeader 
+            title="Mitgliederliste"
+            showFilters={false}
+            setShowFilters={() => {}}
+            actions={
+              <Button 
+                variant="contained" 
+                color="primary" 
+                component={Link} 
+                to="/mitglieder/neu"
+                startIcon={<AddIcon />}
+                disabled
+              >
+                Neues Mitglied hinzufügen
+              </Button>
+            }
+          />
+          <LoadingIndicator />
+        </Box>
+      </Container>
+    );
+  }
+  
+  // Sicherheitsprüfung vor dem Rendern
+  if (!Array.isArray(members)) {
+    return (
+      <Container maxWidth="xl" sx={{ width: '100%' }}>
+        <Box sx={{ my: 4 }}>
+          <Alert severity="error" onClose={handleCloseError}>
+            Die Daten haben ein unerwartetes Format
+          </Alert>
+        </Box>
+      </Container>
+    );
+  }
+  
   return (
-    <Box>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4">Mitgliederliste</Typography>
-        <Button variant="contained" color="primary" onClick={() => navigate('/mitglieder/neu')}>
-          Mitglied neu
-        </Button>
-      </Box>
+    <Container maxWidth="xl" sx={{ width: '100%' }}>
+      <Fade in={true} timeout={800}>
+        <Box sx={{ my: 4 }}>
+          <PageHeader 
+            title="Mitgliederliste"
+            showFilters={showFilters}
+            setShowFilters={setShowFilters}
+            actions={
+              <Button 
+                variant="contained" 
+                color="primary" 
+                component={Link} 
+                to="/mitglieder/neu"
+                startIcon={<AddIcon />}
+              >
+                Neues Mitglied hinzufügen
+              </Button>
+            }
+          />
+          
+          {error && (
+            <Alert 
+              severity="error" 
+              onClose={handleCloseError}
+              sx={{ mb: 2 }}
+            >
+              {error}
+            </Alert>
+          )}
+          
+          {/* Hier kann später ein Filter-Bereich eingefügt werden */}
+          {showFilters && (
+            <Fade in={showFilters} timeout={500}>
+              <Paper sx={{ p: 2, mb: 2 }}>
+                <Typography variant="subtitle1">
+                  Filter-Optionen können hier später hinzugefügt werden
+                </Typography>
+              </Paper>
+            </Fade>
+          )}
+          
+          {/* MemberTable Komponente einbinden */}
+          <MemberTable 
+            data={members}
+            expandedMemberId={expandedMemberId}
+            onExpandMember={handleAccordionChange}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+            isTeamleiter={isTeamleiter}
+          />
+        </Box>
+      </Fade>
+      
+      <Snackbar
+        open={!!successMessage}
+        autoHideDuration={6000}
+        onClose={handleCloseSuccess}
+        message={successMessage}
+      />
+    </Container>
+  );
+};
 
-      {error && (
-        <Typography color="error" sx={{ mb: 2 }}>
-          {error}
-        </Typography>
-      )}
-
-      {loading ? (
-        <CircularProgress />
-      ) : (
-        <TableContainer component={Paper}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Name</TableCell>
-                <TableCell>Geburtsdatum</TableCell>
-                <TableCell>Adresse</TableCell>
-                <TableCell>E-Mail</TableCell>
-                <TableCell>Kontostand</TableCell>
-                {isTeamleiter && <TableCell align="right">Aktionen</TableCell>}
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {members.map((member) => (
-                <TableRow key={member.id}>
-                  <TableCell>{member.first_name} {member.last_name}</TableCell>
-                  <TableCell>{member.birthdate || '—'}</TableCell>
-                  <TableCell>
-                    {member.street} {member.house_number},<br />
-                    {member.zip_code} {member.city}
-                  </TableCell>
-                  <TableCell>{member.email || '—'}</TableCell>
-                  <TableCell>{member.kontostand} €</TableCell>
-                  {isTeamleiter && (
-                    <TableCell align="right">
-                      <Button size="small" onClick={() => navigate(`/mitglieder/${member.id}/edit`)}>
-                        Bearbeiten
-                      </Button>
-                      <Button size="small" color="error" onClick={() => navigate(`/mitglieder/${member.id}/delete`)}>
-                        Löschen
-                      </Button>
-                    </TableCell>
-                  )}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      )}
-
-      <Box mt={4} display="flex" justifyContent="center">
-        <Pagination
-          count={totalPages}
-          page={page}
-          onChange={(e, value) => setPage(value)}
-          color="primary"
-        />
-      </Box>
-
-      <Box mt={2} display="flex" justifyContent="flex-end">
-        <Typography variant="caption" color="text.secondary">
-          Aktuell geladen: {members.length} Mitglieder
-        </Typography>
-      </Box>
-    </Box>
-  )
-}
+export default MemberList;
