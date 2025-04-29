@@ -205,7 +205,7 @@ const MemberTable = ({
     { label: 'Name', width: '19%', align: 'left' },
     { label: 'Status', width: '10%', align: 'center' },
     { label: 'Altersklasse', width: '9%', align: 'center' },
-    { label: 'Beschäftigt', width: '9%', align: 'center' },
+    { label: 'Minijob', width: '9%', align: 'center' },
     { label: 'Pflichtstunden', width: '10%', align: 'center' },
     { label: 'Kontostand', width: '10%', align: 'center' },
     { label: 'Beitrag', width: '8%', align: 'center' },

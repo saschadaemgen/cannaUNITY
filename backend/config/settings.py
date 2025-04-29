@@ -1,4 +1,9 @@
 from pathlib import Path
+import os
+from dotenv import load_dotenv
+
+# Umgebungsvariablen laden
+load_dotenv()
 
 # 📌 Projektbasisverzeichnis
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -47,7 +52,6 @@ MIDDLEWARE = [
 
 # 🌐 URL-Konfiguration
 ROOT_URLCONF = 'config.urls'
-import os
 
 # 🖼️ Templates
 TEMPLATES = [
@@ -96,11 +100,23 @@ REST_FRAMEWORK = {
     'PAGE_SIZE': 25,
 }
 
-# 💾 Datenbank (SQLite – ideal für lokale Entwicklung)
+# 💾 Datenbanken
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
+    },
+    'joomla': {
+        'ENGINE': os.getenv('JOOMLA_DB_ENGINE', 'django.db.backends.mysql'),
+        'NAME': os.getenv('JOOMLA_DB_NAME'),
+        'USER': os.getenv('JOOMLA_DB_USER'),
+        'PASSWORD': os.getenv('JOOMLA_DB_PASSWORD'),
+        'HOST': os.getenv('JOOMLA_DB_HOST', 'localhost'),
+        'PORT': os.getenv('JOOMLA_DB_PORT', '3306'),
+        'OPTIONS': {
+            'charset': os.getenv('JOOMLA_DB_OPTIONS_CHARSET', 'utf8mb4'),
+            'init_command': os.getenv('JOOMLA_DB_OPTIONS_COMMAND', "SET sql_mode='STRICT_TRANS_TABLES'")
+        }
     }
 }
 
@@ -120,13 +136,38 @@ USE_TZ = True
 
 # 📁 Statische Dateien
 STATIC_URL = 'static/'
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, "static"),
+]
 
 # 🆔 Primärschlüssel-Typ
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# ganz unten ergänzen
-import os
+# 🔌 API-Zugänge aus Umgebungsvariablen ohne Fallback-Werte
+UNIFI_ACCESS_HOST = os.getenv('UNIFI_ACCESS_HOST')
+UNIFI_ACCESS_TOKEN = os.getenv('UNIFI_ACCESS_TOKEN')
+HOME_ASSISTANT_ACCESS_TOKEN = os.getenv('HOME_ASSISTANT_ACCESS_TOKEN')
+HOME_ASSISTANT_API_URL = os.getenv('HOME_ASSISTANT_API_URL')
 
-STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, "static"),
-]
+# 📝 Logging-Konfiguration für Debugging
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+    'loggers': {
+        'django.db.backends': {
+            'level': 'INFO',
+        },
+        'members': {
+            'level': 'DEBUG',
+        },
+    },
+}

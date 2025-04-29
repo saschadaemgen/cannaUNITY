@@ -11,12 +11,16 @@ import TwentyOneUpIcon from '@mui/icons-material/NoAdultContent';
 import WorkIcon from '@mui/icons-material/Work';
 import api from '../../../utils/api'
 
+// Neue Komponente importieren
+import ExternalIntegration from './ExternalIntegration';
+
 export default function MemberEdit() {
   const { id } = useParams()
   const navigate = useNavigate()
   const [member, setMember] = useState(null)
   const [loading, setLoading] = useState(true)
   const [mojoOpen, setMojoOpen] = useState(false)
+  const [isTeamleiter, setIsTeamleiter] = useState(false)
 
   const today = new Date()
   const minBirthdate = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate())
@@ -67,6 +71,17 @@ export default function MemberEdit() {
     const date = new Date(dateString);
     return date.toLocaleDateString('de-DE', { year: 'numeric', month: '2-digit', day: '2-digit' }).split('.').join('.');
   };
+  
+  // Prüfe Benutzerrolle
+  useEffect(() => {
+    api.get('/user-info/')
+      .then(res => {
+        if (res.data.groups && res.data.groups.includes('teamleiter')) {
+          setIsTeamleiter(true);
+        }
+      })
+      .catch(err => console.error('Fehler beim Laden der Benutzerinfos:', err));
+  }, []);
 
   useEffect(() => {
     api.get(`/members/${id}/`).then(res => {
@@ -346,6 +361,11 @@ export default function MemberEdit() {
           <Grid item xs={6}><TextField fullWidth multiline minRows={2} label="Verwarnungen" name="warnings" value={member.warnings || ''} onChange={handleChange} /></Grid>
         </Grid>
       </Box>
+      
+      {/* Externe Integrationen (nur für Teamleiter sichtbar) */}
+      {isTeamleiter && (
+        <ExternalIntegration memberId={id} />
+      )}
 
       <Box mt={4} display="flex" justifyContent="flex-end">
         <Button variant="contained" onClick={handleSave}>Speichern</Button>
