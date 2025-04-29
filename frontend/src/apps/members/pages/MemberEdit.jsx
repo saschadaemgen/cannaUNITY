@@ -96,8 +96,8 @@ export default function MemberEdit() {
     }).catch(() => setLoading(false))
   }, [id])
 
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
+  const handleChange = (name) => (e) => {
+    const { value, type, checked } = e.target;
 
     if (type === 'checkbox') {
       setMember((prev) => ({ ...prev, [name]: checked }));
@@ -110,10 +110,78 @@ export default function MemberEdit() {
           setMojoOpen(true)
         }
       }
+    } else if (name === 'notes') {
+      // Hier extrahieren wir zuerst die ursprünglichen UniFi-ID-Informationen
+      const originalNotes = member.notes || '';
+      const unifiInfo = extractUnifiInfo(originalNotes);
+      
+      // Dann setzen wir den neuen Wert
+      setMember((prev) => ({ ...prev, notes: value }));
+      
+      // Wenn UniFi-Informationen vorhanden waren, fügen wir sie wieder hinzu
+      // aber nur im Backend, nicht in der Anzeige
+      if (unifiInfo) {
+        setTimeout(() => {
+          setMember(prev => {
+            // Sicherstellen, dass die UniFi-ID-Informationen im Member-Objekt erhalten bleiben
+            const updatedNotes = prev.notes.endsWith('\n') ? 
+              prev.notes + unifiInfo : 
+              prev.notes + '\n' + unifiInfo;
+            
+            return { ...prev, notes: updatedNotes };
+          });
+        }, 0);
+      }
     } else {
       setMember((prev) => ({ ...prev, [name]: value }))
     }
   }
+
+  // Hilfsfunktion zum Extrahieren der UniFi-ID-Informationen
+  const extractUnifiInfo = (notes) => {
+    const patterns = [
+      /UniFi-ID:\s*\S+(\s*\([^)]*\))?\n?/g,
+      /UniFi-ID[:|=]\s*\S+(\s*\([^)]*\))?\n?/g,
+      /UniFi[:|=]\s*\S+(\s*\([^)]*\))?\n?/g,
+      /UNIFI_ID[:|=]\s*\S+(\s*\([^)]*\))?\n?/g
+    ];
+    
+    // Extrahieren aller UniFi-bezogenen Informationen
+    let unifiInfo = '';
+    for (const pattern of patterns) {
+      const matches = notes.match(pattern);
+      if (matches) {
+        unifiInfo += matches.join('');
+      }
+    }
+    
+    return unifiInfo;
+  }
+
+  // Funktion zum Bereinigen der Notizen für die Anzeige
+  const getDisplayNotes = () => {
+    if (!member || !member.notes) return '';
+    
+    let displayNotes = member.notes;
+    
+    // UniFi-ID-Einträge in verschiedenen Formaten aus der Anzeige entfernen
+    const patterns = [
+      /UniFi-ID:\s*\S+(\s*\([^)]*\))?\n?/g,
+      /UniFi-ID[:|=]\s*\S+(\s*\([^)]*\))?\n?/g,
+      /UniFi[:|=]\s*\S+(\s*\([^)]*\))?\n?/g,
+      /UNIFI_ID[:|=]\s*\S+(\s*\([^)]*\))?\n?/g
+    ];
+    
+    // Jedes Muster anwenden
+    patterns.forEach(pattern => {
+      displayNotes = displayNotes.replace(pattern, '');
+    });
+    
+    // Doppelte Leerzeilen entfernen, die durch das Entfernen entstehen könnten
+    displayNotes = displayNotes.replace(/\n\s*\n/g, '\n\n').trim();
+    
+    return displayNotes;
+  };
 
   const handleSave = () => {
     api.put(`/members/${id}/`, member)
@@ -163,7 +231,7 @@ export default function MemberEdit() {
               label="Anrede"
               name="gender"
               value={member.gender || 'male'}
-              onChange={handleChange}
+              onChange={(e) => handleChange('gender')(e)}
             >
               {genderOptions.map((option) => (
                 <MenuItem key={option.value} value={option.value}>
@@ -172,8 +240,8 @@ export default function MemberEdit() {
               ))}
             </TextField>
           </Grid>
-          <Grid item xs={4}><TextField fullWidth label="Vorname" name="first_name" value={member.first_name || ''} onChange={handleChange} /></Grid>
-          <Grid item xs={5}><TextField fullWidth label="Nachname" name="last_name" value={member.last_name || ''} onChange={handleChange} /></Grid>
+          <Grid item xs={4}><TextField fullWidth label="Vorname" name="first_name" value={member.first_name || ''} onChange={(e) => handleChange('first_name')(e)} /></Grid>
+          <Grid item xs={5}><TextField fullWidth label="Nachname" name="last_name" value={member.last_name || ''} onChange={(e) => handleChange('last_name')(e)} /></Grid>
           <Grid item xs={6}>
             <TextField
               select
@@ -181,7 +249,7 @@ export default function MemberEdit() {
               label="Status"
               name="status"
               value={member.status || 'active'}
-              onChange={handleChange}
+              onChange={(e) => handleChange('status')(e)}
             >
               {statusOptions.map((option) => (
                 <MenuItem key={option.value} value={option.value}>
@@ -197,7 +265,7 @@ export default function MemberEdit() {
               type="date"
               name="birthdate"
               value={member.birthdate || minBirthdateISO}
-              onChange={handleChange}
+              onChange={(e) => handleChange('birthdate')(e)}
               inputProps={{ max: minBirthdateISO }}
               InputLabelProps={{ shrink: true }}
               helperText="Mindestalter: 18 Jahre (§ 3 Abs. 1 KCanG) - Bestimmt automatisch die Altersklasse"
@@ -215,7 +283,7 @@ export default function MemberEdit() {
               control={
                 <Switch
                   checked={member.is_marginally_employed || false}
-                  onChange={handleChange}
+                  onChange={(e) => handleChange('is_marginally_employed')(e)}
                   name="is_marginally_employed"
                   color="primary"
                 />
@@ -230,7 +298,7 @@ export default function MemberEdit() {
               type="number"
               name="working_hours_per_month"
               value={member.working_hours_per_month || 0}
-              onChange={handleChange}
+              onChange={(e) => handleChange('working_hours_per_month')(e)}
               InputProps={{ 
                 inputProps: { min: 0, max: 80 },
                 endAdornment: <InputAdornment position="end">Std</InputAdornment>
@@ -245,7 +313,7 @@ export default function MemberEdit() {
               type="number"
               name="max_working_hours"
               value={member.max_working_hours || 40}
-              onChange={handleChange}
+              onChange={(e) => handleChange('max_working_hours')(e)}
               InputProps={{ 
                 inputProps: { min: 0, max: 80 },
                 endAdornment: <InputAdornment position="end">Std</InputAdornment>
@@ -260,7 +328,7 @@ export default function MemberEdit() {
               type="number"
               name="hourly_wage"
               value={member.hourly_wage || 12.00}
-              onChange={handleChange}
+              onChange={(e) => handleChange('hourly_wage')(e)}
               InputProps={{ 
                 inputProps: { min: 0, step: 0.01 },
                 endAdornment: <InputAdornment position="end">€</InputAdornment>
@@ -290,18 +358,18 @@ export default function MemberEdit() {
         <Typography variant="h6" sx={{ mb: 2 }}>🏠 Kontaktdaten</Typography>
         <Divider sx={{ mb: 3 }} />
         <Grid container spacing={2}>
-          <Grid item xs={6}><TextField fullWidth label="E-Mail" name="email" value={member.email || ''} onChange={handleChange} /></Grid>
-          <Grid item xs={6}><TextField fullWidth label="Telefonnummer" name="phone" value={member.phone || ''} onChange={handleChange} /></Grid>
+          <Grid item xs={6}><TextField fullWidth label="E-Mail" name="email" value={member.email || ''} onChange={(e) => handleChange('email')(e)} /></Grid>
+          <Grid item xs={6}><TextField fullWidth label="Telefonnummer" name="phone" value={member.phone || ''} onChange={(e) => handleChange('phone')(e)} /></Grid>
           <Grid item xs={6}>
             <Grid container spacing={2}>
-              <Grid item xs={9}><TextField fullWidth label="Straße" name="street" value={member.street || ''} onChange={handleChange} /></Grid>
-              <Grid item xs={3}><TextField fullWidth label="Nr." name="house_number" value={member.house_number || ''} onChange={handleChange} /></Grid>
+              <Grid item xs={9}><TextField fullWidth label="Straße" name="street" value={member.street || ''} onChange={(e) => handleChange('street')(e)} /></Grid>
+              <Grid item xs={3}><TextField fullWidth label="Nr." name="house_number" value={member.house_number || ''} onChange={(e) => handleChange('house_number')(e)} /></Grid>
             </Grid>
           </Grid>
           <Grid item xs={6}>
             <Grid container spacing={2}>
-              <Grid item xs={4}><TextField fullWidth label="PLZ" name="zip_code" value={member.zip_code || ''} onChange={handleChange} /></Grid>
-              <Grid item xs={8}><TextField fullWidth label="Stadt" name="city" value={member.city || ''} onChange={handleChange} /></Grid>
+              <Grid item xs={4}><TextField fullWidth label="PLZ" name="zip_code" value={member.zip_code || ''} onChange={(e) => handleChange('zip_code')(e)} /></Grid>
+              <Grid item xs={8}><TextField fullWidth label="Stadt" name="city" value={member.city || ''} onChange={(e) => handleChange('city')(e)} /></Grid>
             </Grid>
           </Grid>
         </Grid>
@@ -348,8 +416,8 @@ export default function MemberEdit() {
         <Typography variant="h6" sx={{ mb: 2 }}>🧑‍⚕️ Gesundheit</Typography>
         <Divider sx={{ mb: 3 }} />
         <Grid container spacing={2}>
-          <Grid item xs={6}><TextField fullWidth multiline minRows={2} label="Körperliche Einschränkungen" name="physical_limitations" value={member.physical_limitations || ''} onChange={handleChange} /></Grid>
-          <Grid item xs={6}><TextField fullWidth multiline minRows={2} label="Geistige Einschränkungen" name="mental_limitations" value={member.mental_limitations || ''} onChange={handleChange} /></Grid>
+          <Grid item xs={6}><TextField fullWidth multiline minRows={2} label="Körperliche Einschränkungen" name="physical_limitations" value={member.physical_limitations || ''} onChange={(e) => handleChange('physical_limitations')(e)} /></Grid>
+          <Grid item xs={6}><TextField fullWidth multiline minRows={2} label="Geistige Einschränkungen" name="mental_limitations" value={member.mental_limitations || ''} onChange={(e) => handleChange('mental_limitations')(e)} /></Grid>
         </Grid>
       </Box>
 
@@ -357,8 +425,18 @@ export default function MemberEdit() {
         <Typography variant="h6" sx={{ mb: 2 }}>📝 Intern</Typography>
         <Divider sx={{ mb: 3 }} />
         <Grid container spacing={2}>
-          <Grid item xs={6}><TextField fullWidth multiline minRows={2} label="Bemerkungen" name="notes" value={member.notes || ''} onChange={handleChange} /></Grid>
-          <Grid item xs={6}><TextField fullWidth multiline minRows={2} label="Verwarnungen" name="warnings" value={member.warnings || ''} onChange={handleChange} /></Grid>
+          <Grid item xs={6}>
+            <TextField 
+              fullWidth 
+              multiline 
+              minRows={2} 
+              label="Bemerkungen" 
+              name="notes" 
+              value={getDisplayNotes()} 
+              onChange={(e) => handleChange('notes')(e)} 
+            />
+          </Grid>
+          <Grid item xs={6}><TextField fullWidth multiline minRows={2} label="Verwarnungen" name="warnings" value={member.warnings || ''} onChange={(e) => handleChange('warnings')(e)} /></Grid>
         </Grid>
       </Box>
       

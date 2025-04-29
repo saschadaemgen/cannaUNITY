@@ -1,10 +1,12 @@
 // src/apps/members/components/ExternalIntegration.jsx
+
 import React, { useState, useEffect } from 'react';
 import { 
   Box, Typography, Button, Paper, Divider, 
   Snackbar, Alert, Dialog, DialogTitle, DialogContent, 
   DialogActions, CircularProgress, TextField, Tooltip, 
-  Accordion, AccordionSummary, AccordionDetails, Grid
+  Accordion, AccordionSummary, AccordionDetails, Grid,
+  Chip
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import CloudIcon from '@mui/icons-material/Cloud';
@@ -16,6 +18,7 @@ import LockIcon from '@mui/icons-material/Lock';
 import LockResetIcon from '@mui/icons-material/LockReset';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import InfoIcon from '@mui/icons-material/Info';
+import FingerprintIcon from '@mui/icons-material/Fingerprint';
 import api from '../../../utils/api';
 
 /**
@@ -56,12 +59,15 @@ const ExternalIntegration = ({ memberId }) => {
     checked: false,
     status: null,
     isActive: false,
-    unifi_id: null
+    id: null // UniFi-ID speichern
   });
+
+  // Referenz, um zu erkennen, ob es die erste Statusprüfung ist
+  const initialCheck = React.useRef(true);
 
   // Status der UniFi-Integration beim Öffnen prüfen
   useEffect(() => {
-    if (expanded && !unifiStatus.checked) {
+    if (expanded) {
       checkUnifiStatus();
     }
   }, [expanded]);
@@ -99,30 +105,46 @@ const ExternalIntegration = ({ memberId }) => {
       const response = await api.get(`/members/${memberId}/unifi/status/`);
       
       if (response.data.success) {
+        // Status erfolgreich abgerufen
         setUnifiStatus({
           checked: true,
           status: response.data.status,
           isActive: response.data.is_active,
-          unifi_id: response.data.unifi_id
+          id: response.data.unifi_id // UniFi-ID speichern
         });
         
-        // Erfolg anzeigen, wenn wir aktiv nach einer Statusprüfung gefragt haben
-        if (expanded) {
+        // Erfolg anzeigen, aber nur wenn explizit geprüft wurde
+        if (expanded && !initialCheck.current) {
           showAlert(`Status abgerufen: ${response.data.status}`, 'info');
         }
       } else {
-        // Wenn kein Status gefunden wurde, setzen wir checked auf true,
-        // aber status und isActive bleiben null bzw. false
-        setUnifiStatus({
-          checked: true,
-          status: null,
-          isActive: false,
-          unifi_id: null
-        });
-        
-        // Nur wenn der Benutzer explizit nach dem Status gefragt hat, zeigen wir die Warnung
-        if (expanded) {
-          showAlert(response.data.error || 'Kein UniFi-Zugang gefunden', 'warning');
+        // Prüfen, ob setup benötigt wird (keine ID vorhanden)
+        if (response.data.needs_setup) {
+          setUnifiStatus({
+            checked: true,
+            status: null,
+            isActive: false,
+            needsSetup: true,
+            id: null
+          });
+          
+          // Nur anzeigen, wenn explizit Status geprüft wurde
+          if (expanded && !initialCheck.current) {
+            showAlert('Kein UniFi-Zugang konfiguriert. Erstellen Sie einen neuen Zugang.', 'info');
+          }
+        } else {
+          // Status konnte nicht abgerufen werden
+          setUnifiStatus({
+            checked: true,
+            status: response.data.status || null,
+            isActive: false,
+            id: response.data.unifi_id // ID speichern, falls vorhanden
+          });
+          
+          // Nur anzeigen, wenn explizit Status geprüft wurde
+          if (expanded && !initialCheck.current) {
+            showAlert(response.data.error || 'Status konnte nicht abgerufen werden', 'warning');
+          }
         }
       }
     } catch (error) {
@@ -133,18 +155,17 @@ const ExternalIntegration = ({ memberId }) => {
         checked: true,
         status: null,
         isActive: false,
-        unifi_id: null
+        error: true,
+        id: null
       });
       
       // Status-Fehler anzeigen, aber nur wenn der Benutzer explizit danach gefragt hat
-      if (expanded) {
-        // Prüfen, ob das Backend eine bestimmte Fehlermeldung zurückgibt
-        const errorMessage = error.response?.data?.error || 
-                            'Fehler beim Prüfen des UniFi-Status';
-        showAlert(errorMessage, 'error');
+      if (expanded && !initialCheck.current) {
+        showAlert('Fehler beim Prüfen des UniFi-Status', 'error');
       }
     } finally {
       setLoading(prev => ({ ...prev, unifiStatus: false }));
+      initialCheck.current = false; // Nach dem ersten Check zurücksetzen
     }
   };
 
@@ -344,7 +365,7 @@ const ExternalIntegration = ({ memberId }) => {
   // UniFi-Benutzer deaktivieren
   const handleDeactivateUnifiUser = async () => {
     // Speichern der aktuellen unifi_id bevor wir deaktivieren
-    const currentUnifiId = unifiStatus.unifi_id;
+    const currentUnifiId = unifiStatus.id;
     
     setConfirmDialog({
       open: true,
@@ -354,7 +375,7 @@ const ExternalIntegration = ({ memberId }) => {
     });
   };
 
-  // UniFi-Benutzer reaktivieren - verbesserte Version
+  // UniFi-Benutzer reaktivieren
   const handleReactivateUnifiUser = async () => {
     setLoading(prev => ({ ...prev, unifiReactivate: true }));
     
@@ -396,7 +417,7 @@ const ExternalIntegration = ({ memberId }) => {
     }
   };
 
-  // Bestätigte Deaktivierung eines UniFi-Benutzers - verbesserte Version
+  // Bestätigte Deaktivierung eines UniFi-Benutzers
   const confirmDeactivateUnifiUser = async () => {
     setLoading(prev => ({ ...prev, unifiDelete: true }));
     setConfirmDialog(prev => ({ ...prev, open: false }));
@@ -415,7 +436,7 @@ const ExternalIntegration = ({ memberId }) => {
           ...prev,
           isActive: false,
           status: 'DEACTIVATED',
-          unifi_id: deactivatedId // ID für spätere Reaktivierung speichern
+          id: deactivatedId // ID für spätere Reaktivierung speichern
         }));
         
         // Nach kurzer Verzögerung Status vom Server abfragen
@@ -458,6 +479,13 @@ const ExternalIntegration = ({ memberId }) => {
     }
   };
 
+  // Kopieren der UniFi ID in die Zwischenablage
+  const handleCopyUnifiId = () => {
+    if (unifiStatus.id) {
+      copyToClipboard(unifiStatus.id);
+    }
+  };
+
   return (
     <Paper elevation={0} sx={{ p: 0, mt: 4, bgcolor: 'background.paper', border: '1px solid rgba(0, 0, 0, 0.12)', borderRadius: 1 }}>
       <Accordion 
@@ -495,7 +523,7 @@ const ExternalIntegration = ({ memberId }) => {
               Verwalten Sie den Joomla-Benutzer für dieses Mitglied im Mitgliederportal.
             </Typography>
             
-            <Grid container spacing={2} sx={{ mb: 3 }}>
+            <Grid container spacing={1} sx={{ mb: 3 }} wrap="nowrap">
               <Grid item>
                 <Button
                   variant="contained"
@@ -503,10 +531,12 @@ const ExternalIntegration = ({ memberId }) => {
                   startIcon={<CloudIcon />}
                   disabled={loading.joomlaCreate}
                   onClick={handleCreateJoomlaUser}
+                  size="small"
+                  sx={{ whiteSpace: 'nowrap' }}
                 >
                   {loading.joomlaCreate ? (
-                    <CircularProgress size={24} color="inherit" />
-                  ) : 'Benutzer erstellen'}
+                    <CircularProgress size={20} color="inherit" />
+                  ) : 'Erstellen'}
                 </Button>
               </Grid>
               
@@ -517,10 +547,12 @@ const ExternalIntegration = ({ memberId }) => {
                   startIcon={<CloudSyncIcon />}
                   disabled={loading.joomlaUpdate}
                   onClick={handleUpdateJoomlaUser}
+                  size="small"
+                  sx={{ whiteSpace: 'nowrap' }}
                 >
                   {loading.joomlaUpdate ? (
-                    <CircularProgress size={24} color="inherit" />
-                  ) : 'Daten synchronisieren'}
+                    <CircularProgress size={20} color="inherit" />
+                  ) : 'Synchronisieren'}
                 </Button>
               </Grid>
               
@@ -531,10 +563,12 @@ const ExternalIntegration = ({ memberId }) => {
                   startIcon={<LockResetIcon />}
                   disabled={loading.joomlaPassword}
                   onClick={handleRegenerateJoomlaPassword}
+                  size="small"
+                  sx={{ whiteSpace: 'nowrap' }}
                 >
                   {loading.joomlaPassword ? (
-                    <CircularProgress size={24} color="inherit" />
-                  ) : 'Passwort zurücksetzen'}
+                    <CircularProgress size={20} color="inherit" />
+                  ) : 'Passwort'}
                 </Button>
               </Grid>
               
@@ -545,10 +579,12 @@ const ExternalIntegration = ({ memberId }) => {
                   startIcon={<DeleteIcon />}
                   disabled={loading.joomlaDelete}
                   onClick={handleDeleteJoomlaUser}
+                  size="small"
+                  sx={{ whiteSpace: 'nowrap' }}
                 >
                   {loading.joomlaDelete ? (
-                    <CircularProgress size={24} color="error" />
-                  ) : 'Benutzer löschen'}
+                    <CircularProgress size={20} color="error" />
+                  ) : 'Löschen'}
                 </Button>
               </Grid>
             </Grid>
@@ -574,7 +610,7 @@ const ExternalIntegration = ({ memberId }) => {
               )}
             </Typography>
             
-            <Grid container spacing={2}>
+            <Grid container spacing={1} sx={{ mb: 2 }} wrap="nowrap">
               {/* Wenn kein Status bekannt ist oder der Status nicht aktiv ist */}
               {(!unifiStatus.checked || !unifiStatus.status || !unifiStatus.isActive) && (
                 <Grid item>
@@ -584,9 +620,11 @@ const ExternalIntegration = ({ memberId }) => {
                     startIcon={<CloudIcon />}
                     disabled={loading.unifiCreate || loading.unifiStatus}
                     onClick={handleCreateUnifiUser}
+                    size="small"
+                    sx={{ whiteSpace: 'nowrap' }}
                   >
                     {loading.unifiCreate || loading.unifiStatus ? (
-                      <CircularProgress size={24} color="inherit" />
+                      <CircularProgress size={20} color="inherit" />
                     ) : 'Zugang erstellen'}
                   </Button>
                 </Grid>
@@ -603,10 +641,12 @@ const ExternalIntegration = ({ memberId }) => {
                       startIcon={<CloudSyncIcon />}
                       disabled={loading.unifiUpdate || loading.unifiStatus}
                       onClick={handleUpdateUnifiUser}
+                      size="small"
+                      sx={{ whiteSpace: 'nowrap' }}
                     >
                       {loading.unifiUpdate || loading.unifiStatus ? (
-                        <CircularProgress size={24} color="inherit" />
-                      ) : 'Daten synchronisieren'}
+                        <CircularProgress size={20} color="inherit" />
+                      ) : 'Synchronisieren'}
                     </Button>
                   </Grid>
                   
@@ -619,10 +659,12 @@ const ExternalIntegration = ({ memberId }) => {
                         startIcon={<CloudOffIcon />}
                         disabled={loading.unifiDelete || loading.unifiStatus}
                         onClick={handleDeactivateUnifiUser}
+                        size="small"
+                        sx={{ whiteSpace: 'nowrap' }}
                       >
                         {loading.unifiDelete || loading.unifiStatus ? (
-                          <CircularProgress size={24} color="error" />
-                        ) : 'Zugang deaktivieren'}
+                          <CircularProgress size={20} color="error" />
+                        ) : 'Deaktivieren'}
                       </Button>
                     ) : (
                       <Button
@@ -631,10 +673,12 @@ const ExternalIntegration = ({ memberId }) => {
                         startIcon={<CloudDoneIcon />}
                         disabled={loading.unifiReactivate || loading.unifiStatus}
                         onClick={handleReactivateUnifiUser}
+                        size="small"
+                        sx={{ whiteSpace: 'nowrap' }}
                       >
                         {loading.unifiReactivate || loading.unifiStatus ? (
-                          <CircularProgress size={24} color="success" />
-                        ) : 'Zugang aktivieren'}
+                          <CircularProgress size={20} color="success" />
+                        ) : 'Aktivieren'}
                       </Button>
                     )}
                   </Grid>
@@ -645,17 +689,63 @@ const ExternalIntegration = ({ memberId }) => {
               {expanded && (
                 <Grid item>
                   <Button
-                    variant="text"
+                    variant="outlined"
                     color="info"
                     startIcon={loading.unifiStatus ? <CircularProgress size={16} /> : <InfoIcon />}
                     disabled={loading.unifiStatus}
                     onClick={checkUnifiStatus}
+                    size="small"
+                    sx={{ whiteSpace: 'nowrap' }}
                   >
                     Status prüfen
                   </Button>
                 </Grid>
               )}
             </Grid>
+
+            {/* UniFi-ID Anzeige */}
+            {unifiStatus.id && (
+              <Box 
+                sx={{ 
+                  mt: 2, 
+                  p: 2, 
+                  bgcolor: 'rgba(0, 0, 0, 0.03)', 
+                  borderRadius: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between'
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <FingerprintIcon sx={{ mr: 1, color: 'primary.main' }} />
+                  <Box>
+                    <Typography variant="body2" color="text.secondary">
+                      UniFi Device ID:
+                    </Typography>
+                    <Typography 
+                      variant="body1" 
+                      sx={{ 
+                        fontFamily: 'monospace', 
+                        fontWeight: 'medium',
+                        fontSize: '0.9rem'
+                      }}
+                    >
+                      {unifiStatus.id}
+                    </Typography>
+                  </Box>
+                </Box>
+                <Tooltip title="ID in Zwischenablage kopieren">
+                  <Button 
+                    size="small" 
+                    startIcon={<ContentCopyIcon />} 
+                    onClick={handleCopyUnifiId}
+                    sx={{ ml: 2 }}
+                  >
+                    Kopieren
+                  </Button>
+                </Tooltip>
+              </Box>
+            )}
           </Box>
         </AccordionDetails>
       </Accordion>
