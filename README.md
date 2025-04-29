@@ -20,7 +20,7 @@
 
 - **Backend:** Django 5.x (API-only), Django REST Framework, PostgreSQL / SQLite
 - **Frontend:** React + Vite + Material UI (SPA)
-- **Schnittstellen:** UniFi Access/Protect, Home Assistant, Siemens LOGO!, Siemens SIMATIC, Loxone Mini Server
+- **Schnittstellen:** UniFi Access/Protect, Joomla 5, Home Assistant, Siemens LOGO!, Siemens SIMATIC, Loxone Mini Server
 - **Technologien:** TokenAuth, WebSocket, Axios, passkey-auth, Container-kompatibel
 
 ---
