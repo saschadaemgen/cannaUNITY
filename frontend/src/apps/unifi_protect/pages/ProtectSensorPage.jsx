@@ -4,10 +4,9 @@ import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import axios from 'axios';
 import {
   Box, Typography, CircularProgress, FormControl, InputLabel, Select, MenuItem,
-  Alert, Snackbar, Button, Chip
+  Alert, Snackbar
 } from '@mui/material';
-import AutorenewIcon from '@mui/icons-material/Autorenew';
-import RefreshIcon from '@mui/icons-material/Refresh';
+import FavoriteIcon from '@mui/icons-material/Favorite';
 import { FixedSizeList as VirtualList } from 'react-window';
 
 import SensorItem from '../components/SensorItem';
@@ -32,11 +31,8 @@ const ProtectSensorPage = () => {
   const [errorMessage, setErrorMessage] = useState('');
   const [showError, setShowError] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
-  const [countdown, setCountdown] = useState(AUTO_UPDATE_INTERVAL / 1000);
-  const [nextUpdateTime, setNextUpdateTime] = useState(null);
-  const [autoUpdateEnabled, setAutoUpdateEnabled] = useState(true);
+  const [lastHeartbeat, setLastHeartbeat] = useState(null);
 
-  const countdownTimerRef = useRef(null);
   const requestCacheRef = useRef({});
 
   const getUniqueUrl = useCallback((baseUrl) => {
@@ -62,6 +58,7 @@ const ProtectSensorPage = () => {
       const sensorArray = Object.values(uniqueSensors);
       setSensors(sensorArray);
       setLastUpdated(new Date());
+      setLastHeartbeat(new Date());
       setLoading(false);
       if (expanded) {
         const expandedSensor = sensorArray.find(s => s.id === expanded);
@@ -110,33 +107,7 @@ const ProtectSensorPage = () => {
 
   useEffect(() => {
     fetchSensors();
-    const initialUpdateTime = Date.now() + AUTO_UPDATE_INTERVAL;
-    setNextUpdateTime(initialUpdateTime);
-    return () => {
-      if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
-    };
   }, [fetchSensors]);
-
-  useEffect(() => {
-    if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
-    if (autoUpdateEnabled) {
-      countdownTimerRef.current = setInterval(() => {
-        if (!nextUpdateTime) return;
-        const now = Date.now();
-        const timeLeft = Math.max(0, nextUpdateTime - now);
-        const secondsLeft = Math.ceil(timeLeft / 1000);
-        setCountdown(secondsLeft);
-        if (timeLeft <= 0) {
-          fetchSensors();
-          const newUpdateTime = Date.now() + AUTO_UPDATE_INTERVAL;
-          setNextUpdateTime(newUpdateTime);
-        }
-      }, 1000);
-    }
-    return () => {
-      if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
-    };
-  }, [autoUpdateEnabled, fetchSensors, nextUpdateTime]);
 
   const handleExpand = useCallback((sensorId) => {
     setExpanded(prevExpanded => {
@@ -145,29 +116,6 @@ const ProtectSensorPage = () => {
       return newExpanded;
     });
   }, [fetchHistory]);
-
-  const handleRefresh = useCallback(() => {
-    fetchSensors();
-    if (expanded) fetchHistory(expanded);
-    const newUpdateTime = Date.now() + AUTO_UPDATE_INTERVAL;
-    setNextUpdateTime(newUpdateTime);
-  }, [fetchSensors, fetchHistory, expanded]);
-
-  const toggleAutoUpdate = useCallback(() => {
-    setAutoUpdateEnabled(prev => {
-      if (!prev) {
-        fetchSensors();
-        setNextUpdateTime(Date.now() + AUTO_UPDATE_INTERVAL);
-      }
-      return !prev;
-    });
-  }, [fetchSensors]);
-
-  const formatCountdown = (seconds) => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
-  };
 
   const renderedSensors = useMemo(() => {
     if (loading && sensors.length === 0) {
@@ -221,34 +169,9 @@ const ProtectSensorPage = () => {
     <Box p={3}>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
         <Typography variant="h4">UniFi Protect Sensoren</Typography>
-        <Box display="flex" alignItems="center">
-          <Chip
-            icon={<AutorenewIcon />}
-            label={autoUpdateEnabled ? `Auto-Update in ${formatCountdown(countdown)}` : 'Auto-Update aus'}
-            color={autoUpdateEnabled ? 'success' : 'default'}
-            onClick={toggleAutoUpdate}
-            sx={{ mr: 2 }}
-          />
-          <Button
-            variant="contained"
-            color="primary"
-            startIcon={<RefreshIcon />}
-            onClick={handleRefresh}
-            disabled={loading}
-            size="small"
-            sx={{ mr: 2 }}
-          >
-            AKTUALISIEREN
-          </Button>
-          {lastUpdated && (
-            <Typography variant="caption" color="text.secondary">
-              Letzte Aktualisierung: {lastUpdated.toLocaleString()}
-            </Typography>
-          )}
-        </Box>
       </Box>
 
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+      <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
         <FormControl sx={{ minWidth: 200 }}>
           <InputLabel>Zeitraum</InputLabel>
           <Select
@@ -261,14 +184,19 @@ const ProtectSensorPage = () => {
             ))}
           </Select>
         </FormControl>
-        <Typography variant="body2">
-          {sensors.length} Sensoren gefunden
-          {autoUpdateEnabled && (
-            <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 1 }}>
-              (Auto-Update alle 5 Minuten)
+        <Box textAlign="right">
+          <Typography variant="caption" color="success.main" display="flex" justifyContent="flex-end" alignItems="center" gap={0.5}>
+            <FavoriteIcon sx={{ fontSize: 14 }} /> Heartbeat: {lastHeartbeat ? lastHeartbeat.toLocaleTimeString() : '–'}
+          </Typography>
+          <Typography variant="body2">
+            {sensors.length} Sensoren gefunden
+          </Typography>
+          {lastUpdated && (
+            <Typography variant="caption" color="text.secondary">
+              Letzte Aktualisierung: {lastUpdated.toLocaleString()}
             </Typography>
           )}
-        </Typography>
+        </Box>
       </Box>
 
       {renderedSensors}

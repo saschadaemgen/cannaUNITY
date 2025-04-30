@@ -1,14 +1,16 @@
 // src/apps/unifi_protect/components/SensorChart.jsx
 
 import React from 'react';
-import { Box, Typography, CircularProgress, Alert } from '@mui/material';
+import { Box, Typography, CircularProgress, Alert, Paper } from '@mui/material';
 import {
   ChartContainer,
   ChartsXAxis,
   ChartsYAxis,
   ChartsTooltip,
   ChartsLegend,
-  LinePlot
+  ChartsGrid,
+  LinePlot,
+  MarkPlot
 } from '@mui/x-charts';
 
 const SensorChart = ({ historyData, isLoading }) => {
@@ -36,41 +38,54 @@ const SensorChart = ({ historyData, isLoading }) => {
 
   return (
     <Box mt={2}>
-      <Typography variant="subtitle1" gutterBottom>
-        Temperatur- und Luftfeuchtigkeitsverlauf
-      </Typography>
-      <ChartContainer
-        height={300}
-        xAxis={[{ id: 'x', data: timestamps, scaleType: 'point', label: 'Zeit' }]}
-        yAxis={[
-          { id: 'left', label: 'Temperatur (°C)', scaleType: 'linear' },
-          { id: 'right', label: 'Luftfeuchte (%)', position: 'right', scaleType: 'linear' }
-        ]}
-        series={[
-          {
-            type: 'line',
-            yAxisKey: 'left',
-            id: 'temp',
-            label: 'Temperatur (°C)',
-            color: '#1976d2',
-            data: temperatures
-          },
-          {
-            type: 'line',
-            yAxisKey: 'right',
-            id: 'humid',
-            label: 'Luftfeuchte (%)',
-            color: '#66bb6a',
-            data: humidities
-          }
-        ]}
+      <Paper
+        elevation={2}
+        sx={{
+          p: 2,
+          backgroundColor: 'background.paper',
+          borderRadius: 3,
+          boxShadow: '0 4px 20px rgba(0,0,0,0.05)'
+        }}
       >
-        <ChartsTooltip />
-        <ChartsLegend />
-        <ChartsXAxis />
-        <ChartsYAxis />
-        <LinePlot />
-      </ChartContainer>
+        <ChartContainer
+          height={320}
+          xAxis={[{ id: 'x', data: timestamps, scaleType: 'point', label: 'Zeit' }]}
+          yAxis={[
+            { id: 'left', label: 'Temperatur (°C)', scaleType: 'linear' },
+            { id: 'right', label: 'Luftfeuchte (%)', position: 'right', scaleType: 'linear' }
+          ]}
+          series={[
+            {
+              type: 'line',
+              yAxisKey: 'left',
+              id: 'temp',
+              label: 'Temperatur (°C)',
+              color: '#1976d2',
+              data: temperatures,
+              area: false,
+              curve: 'monotone'
+            },
+            {
+              type: 'line',
+              yAxisKey: 'right',
+              id: 'humid',
+              label: 'Luftfeuchte (%)',
+              color: '#66bb6a',
+              data: humidities,
+              area: false,
+              curve: 'monotone'
+            }
+          ]}
+        >
+          <ChartsGrid horizontal vertical />
+          <ChartsTooltip />
+          <ChartsLegend position="top" direction="row" />
+          <ChartsXAxis />
+          <ChartsYAxis />
+          <LinePlot />
+          <MarkPlot />
+        </ChartContainer>
+      </Paper>
     </Box>
   );
 };
