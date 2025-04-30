@@ -1,7 +1,7 @@
-# C:\Users\sash710\avre\cannaUNITY\backend\config\urls.py
+# config/urls.py
 
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path, include, re_path
 from rest_framework.routers import DefaultRouter
 from rest_framework.authtoken.views import obtain_auth_token
 from interface.views import index_view
@@ -27,7 +27,7 @@ urlpatterns = [
     path('api/login/', login_view),
     path('api/logout/', logout_view),
     path('api/token/', obtain_auth_token, name='api_token'),
-    
+
     # Members API-Routen einbinden (inkl. user_info und Integration)
     path('', include('members.api_urls')),
 
@@ -35,19 +35,27 @@ urlpatterns = [
     path('', index_view, name='index'),
 
     # 🔐 UniFi-Zugriffs-API - mit eindeutigen Namespaces
-    path('unifi_access/', include('unifi_access.urls', namespace='unifi_access_web')),      # Für Port 8000 (Django direkt)
-    path('api/unifi_access/', include('unifi_access.urls', namespace='unifi_access_api')),  # Für React-Testserver
+    path('unifi_access/', include('unifi_access.urls', namespace='unifi_access_web')),      # Für Port 8000
+    path('api/unifi_access/', include('unifi_access.urls', namespace='unifi_access_api')),  # Für Vite
 
-    # ⚙️ Optionen-API für React (Globale Einstellungen)
-    path('api/options/', include('options.api_urls')),  # 💥 NEU: komplett eingebunden!
+    # 🛡️ UniFi Protect-API – NEU HINZUGEFÜGT
+    path('unifi_protect/', include('unifi_protect.api_urls')),          # Für Port 8000 (REACT BUILD)
+    path('api/unifi_protect/', include('unifi_protect.api_urls')),      # Für Dev-Server
+
+    # ⚙️ Optionen-API
+    path('api/options/', include('options.api_urls')),
 
     # 💰 Buchhaltungs-API
     path('api/buchhaltung/', include('buchhaltung.urls')),
     path('api/buchhaltung/journal/', BookingJournalAPIView.as_view(), name="api-booking-journal"),
     path('buchhaltung/journal/', BookingJournalAPIView.as_view(), name='booking-journal'),
 
-    # ⚙️ UUID Track and Trace
+    # 🌱 Track and Trace
     path('api/trackandtrace/', include('trackandtrace.urls')),
-
     path('api/', include('rooms.api_urls')),
+]
+
+# 🔁 Fallback für alle nicht-API-URLs → React SPA laden
+urlpatterns += [
+    re_path(r'^(?!api|admin|static|media).*', index_view),
 ]

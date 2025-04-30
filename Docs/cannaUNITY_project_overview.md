@@ -150,7 +150,30 @@ Damit ist die Anbindung zwischen React + Vite und Django vollständig dynamisch 
 
 ---
 
+## 🌐 Zugriff auf API-Endpunkte im Dev- und Build-Modus (Dual Routing)
 
+Damit React sowohl im Vite-Dev-Modus (localhost:5173) als auch im Django-Build-Modus (localhost:8000) korrekt auf die APIs zugreifen kann, wird jeder API-Endpunkt doppelt eingebunden:
+
+# Beispiel für unifi_access:
+path('unifi_access/', include('unifi_access.urls', namespace='unifi_access_web')),      # für Port 8000
+path('api/unifi_access/', include('unifi_access.urls', namespace='unifi_access_api')),  # für Port 5173
+
+# Beispiel für unifi_protect:
+path('unifi_protect/', include('unifi_protect.api_urls')),         # für Port 8000 (Build-Modus)
+path('api/unifi_protect/', include('unifi_protect.api_urls')),     # für Dev-Modus
+
+Vorteil: Der Vite-Dev-Server nutzt einen Proxy auf /api/* (siehe vite.config.js), sodass React z. B. /api/unifi_protect/sensors/ aufruft. Im Build-Modus hingegen ruft React direkt z. B. /unifi_protect/sensors/ auf – ohne Proxy, direkt über Django.
+
+Wichtig: In urls.py muss zusätzlich ein Fallback-Catch-All definiert werden, damit alle nicht-API-Routen vom React-Router übernommen werden:
+
+from django.urls import re_path
+urlpatterns += [
+    re_path(r'^(?!api|admin|static|media).*', index_view),
+]
+
+Damit sind alle React-Seiten wie http://localhost:8000/unifi-protect/sensoren auch im Build-Modus korrekt erreichbar – ohne Umwege oder manuelle Routenanpassung.
+
+---
 
 ## 🔐 Authentifizierungssystem in cannaUNITY (Django + React)
 

@@ -34,6 +34,8 @@ import MotherPlantPage from '../apps/trackandtrace/pages/MotherPlant/MotherPlant
 import FloweringPlantPage from '../apps/trackandtrace/pages/FloweringPlant/FloweringPlantPage';
 import CuttingPage from '../apps/trackandtrace/pages/Cutting/CuttingPage';
 import BloomingCuttingPlantPage from '../apps/trackandtrace/pages/BloomingCuttingPlant/BloomingCuttingPlantPage';
+import ProtectSensorPage from '../apps/unifi_protect/pages/ProtectSensorPage';
+
 
 export const router = createBrowserRouter([
   {
@@ -89,6 +91,7 @@ export const router = createBrowserRouter([
 
       { path: 'trace/stecklinge', element: <CuttingPage /> },
 
+      { path: 'unifi-protect/sensoren', element: <ProtectSensorPage /> },
 
       // Optional: zukünftige Seiten
       { path: 'netzwerk', element: <div>Gemeinschaftsnetzwerk</div> },

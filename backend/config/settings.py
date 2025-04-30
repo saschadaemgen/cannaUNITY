@@ -31,10 +31,12 @@ INSTALLED_APPS = [
     # Eigene Apps
     'members',
     'rooms',
-    "options",
+    'options',
     'buchhaltung',
-    "interface",
+    'interface',
+    'ha',
     'unifi_access',
+    'unifi_protect',
     'trackandtrace',
 ]
 

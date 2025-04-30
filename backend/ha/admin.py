@@ -1,3 +1,5 @@
 from django.contrib import admin
+from .models import SensorTemplate, RoomSensor
 
-# Register your models here.
+admin.site.register(SensorTemplate)
+admin.site.register(RoomSensor)
