@@ -170,21 +170,37 @@ const TopbarMenuTab = ({ design, theme, handleDesignChange, handleNestedChange }
         <Typography variant="body2" color="textSecondary" gutterBottom>
           Menü-Abstand
         </Typography>
-        <Stack direction="row" spacing={2} alignItems="center">
-          <Typography variant="caption">Eng</Typography>
-          <Box sx={{ flexGrow: 1 }}>
-            <input
-              type="range"
-              min="0.5"
-              max="4"
-              step="0.5"
+        <Box sx={{ px: 2 }}>
+          <Stack direction="row" spacing={2} alignItems="center">
+            <Typography variant="caption">Eng</Typography>
+            <Slider
               value={design.menuSpacing}
-              onChange={(e) => handleDesignChange('menuSpacing', parseFloat(e.target.value))}
-              style={{ width: '100%' }}
+              min={0.5}
+              max={4}
+              step={0.5}
+              valueLabelDisplay="auto"
+              onChange={(e, value) => handleDesignChange('menuSpacing', value)}
+              sx={{
+                color: '#4caf50', // Grüne Farbe wie beim Balkenhöhe-Slider
+                '& .MuiSlider-thumb': {
+                  height: 16,
+                  width: 16,
+                  backgroundColor: '#fff',
+                  border: '2px solid currentColor',
+                },
+                '& .MuiSlider-track': {
+                  height: 8
+                },
+                '& .MuiSlider-rail': {
+                  height: 8,
+                  opacity: 0.2,
+                  backgroundColor: '#bdbdbd',
+                }
+              }}
             />
-          </Box>
-          <Typography variant="caption">Weit</Typography>
-        </Stack>
+            <Typography variant="caption">Weit</Typography>
+          </Stack>
+        </Box>
       </Box>
       
       {/* Floating Bar Einstellungen */}
@@ -220,6 +236,23 @@ const TopbarMenuTab = ({ design, theme, handleDesignChange, handleNestedChange }
               valueLabelDisplay="auto"
               onChange={(e, value) => handleNestedChange('floatingBar', 'height', value)}
               disabled={design.floatingBar?.enabled === false}
+              sx={{
+                color: '#4caf50', // Grüne Farbe
+                '& .MuiSlider-thumb': {
+                  height: 16,
+                  width: 16,
+                  backgroundColor: '#fff',
+                  border: '2px solid currentColor',
+                },
+                '& .MuiSlider-track': {
+                  height: 8
+                },
+                '& .MuiSlider-rail': {
+                  height: 8,
+                  opacity: 0.2,
+                  backgroundColor: '#bdbdbd',
+                }
+              }}
             />
             <Typography variant="caption">Dick</Typography>
           </Stack>
