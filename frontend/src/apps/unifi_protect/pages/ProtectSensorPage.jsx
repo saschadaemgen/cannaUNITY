@@ -2,16 +2,22 @@
 
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import axios from 'axios';
+import dayjs from 'dayjs';
 import {
-  Box, Typography, CircularProgress, FormControl, InputLabel, Select, MenuItem,
-  Alert, Snackbar
+  Box, Typography, CircularProgress, Alert, Snackbar, Button, ButtonGroup, IconButton, TextField
 } from '@mui/material';
 import FavoriteIcon from '@mui/icons-material/Favorite';
+import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
+import ClearIcon from '@mui/icons-material/Clear';
 import { FixedSizeList as VirtualList } from 'react-window';
+import { DateRangePicker } from '@mui/x-date-pickers-pro/DateRangePicker';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import Popover from '@mui/material/Popover';
 
 import SensorItem from '../components/SensorItem';
 
-const TIME_OPTIONS = [
+const QUICK_RANGES = [
   { label: '1 Tag', value: 1 },
   { label: '3 Tage', value: 3 },
   { label: '7 Tage', value: 7 },
@@ -26,6 +32,8 @@ const ProtectSensorPage = () => {
   const [expanded, setExpanded] = useState(null);
   const [history, setHistory] = useState({});
   const [timeRange, setTimeRange] = useState(1);
+  const [dateRange, setDateRange] = useState([null, null]);
+  const [calendarAnchorEl, setCalendarAnchorEl] = useState(null);
   const [loading, setLoading] = useState(true);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -83,7 +91,16 @@ const ProtectSensorPage = () => {
       if (now - lastFetchTime < 5000) return;
       requestCacheRef.current[cacheKey] = now;
       setHistoryLoading(true);
-      const url = getUniqueUrl(`/api/unifi_protect/sensors/${sensorId}/history/?days=${timeRange}`);
+
+      let url;
+      if (dateRange[0] && dateRange[1]) {
+        const start = dayjs(dateRange[0]).toISOString();
+        const end = dayjs(dateRange[1]).toISOString();
+        url = getUniqueUrl(`/api/unifi_protect/sensors/${sensorId}/history/?start=${start}&end=${end}`);
+      } else {
+        url = getUniqueUrl(`/api/unifi_protect/sensors/${sensorId}/history/?days=${timeRange}`);
+      }
+
       const response = await axios.get(url);
       const data = response.data;
       if (!Array.isArray(data)) throw new Error('Ungültiges Verlaufsdatenformat');
@@ -103,7 +120,7 @@ const ProtectSensorPage = () => {
       setShowError(true);
       setHistoryLoading(false);
     }
-  }, [timeRange, getUniqueUrl]);
+  }, [timeRange, dateRange, getUniqueUrl]);
 
   useEffect(() => {
     fetchSensors();
@@ -116,6 +133,10 @@ const ProtectSensorPage = () => {
       return newExpanded;
     });
   }, [fetchHistory]);
+
+  const handleClearDateRange = () => {
+    setDateRange([null, null]);
+  };
 
   const renderedSensors = useMemo(() => {
     if (loading && sensors.length === 0) {
@@ -166,52 +187,81 @@ const ProtectSensorPage = () => {
   }, [sensors, expanded, loading, history, historyLoading, handleExpand, fetchHistory, timeRange]);
 
   return (
-    <Box p={3}>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-        <Typography variant="h4">UniFi Protect Sensoren</Typography>
-      </Box>
-
-      <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
-        <FormControl sx={{ minWidth: 200 }}>
-          <InputLabel>Zeitraum</InputLabel>
-          <Select
-            value={timeRange}
-            label="Zeitraum"
-            onChange={(e) => setTimeRange(e.target.value)}
-          >
-            {TIME_OPTIONS.map(opt => (
-              <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-        <Box textAlign="right">
-          <Typography variant="caption" color="success.main" display="flex" justifyContent="flex-end" alignItems="center" gap={0.5}>
-            <FavoriteIcon sx={{ fontSize: 14 }} /> Heartbeat: {lastHeartbeat ? lastHeartbeat.toLocaleTimeString() : '–'}
-          </Typography>
-          <Typography variant="body2">
-            {sensors.length} Sensoren gefunden
-          </Typography>
-          {lastUpdated && (
-            <Typography variant="caption" color="text.secondary">
-              Letzte Aktualisierung: {lastUpdated.toLocaleString()}
-            </Typography>
-          )}
+    <LocalizationProvider dateAdapter={AdapterDayjs}>
+      <Box p={3}>
+        <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+          <Typography variant="h4">UniFi Protect Sensoren</Typography>
         </Box>
+
+        <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+          <Box display="flex" alignItems="center" gap={1}>
+            <ButtonGroup variant="outlined">
+              {QUICK_RANGES.map(opt => (
+                <Button
+                  key={opt.value}
+                  onClick={() => setTimeRange(opt.value)}
+                  variant={timeRange === opt.value ? 'contained' : 'outlined'}
+                >
+                  {opt.label}
+                </Button>
+              ))}
+            </ButtonGroup>
+            <IconButton onClick={(e) => setCalendarAnchorEl(e.currentTarget)}>
+              <CalendarTodayIcon />
+            </IconButton>
+            <Popover
+              open={Boolean(calendarAnchorEl)}
+              anchorEl={calendarAnchorEl}
+              onClose={() => setCalendarAnchorEl(null)}
+              anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+            >
+              <Box p={2}>
+                <DateRangePicker
+                  value={dateRange}
+                  onChange={setDateRange}
+                  localeText={{ start: 'Von', end: 'Bis' }}
+                  calendars={2}
+                  slotProps={{
+                    field: {
+                      clearable: true,
+                      onClear: handleClearDateRange,
+                    },
+                  }}
+                  enableAccessibleFieldDOMStructure={false}
+                />
+              </Box>
+            </Popover>
+          </Box>
+
+          <Box textAlign="right">
+            <Typography variant="caption" color="success.main" display="flex" justifyContent="flex-end" alignItems="center" gap={0.5}>
+              <FavoriteIcon sx={{ fontSize: 14 }} /> Heartbeat: {lastHeartbeat ? lastHeartbeat.toLocaleTimeString() : '–'}
+            </Typography>
+            <Typography variant="body2">
+              {sensors.length} Sensoren gefunden
+            </Typography>
+            {lastUpdated && (
+              <Typography variant="caption" color="text.secondary">
+                Letzte Aktualisierung: {lastUpdated.toLocaleString()}
+              </Typography>
+            )}
+          </Box>
+        </Box>
+
+        {renderedSensors}
+
+        <Snackbar
+          open={showError}
+          autoHideDuration={6000}
+          onClose={() => setShowError(false)}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        >
+          <Alert severity="error" onClose={() => setShowError(false)}>
+            {errorMessage}
+          </Alert>
+        </Snackbar>
       </Box>
-
-      {renderedSensors}
-
-      <Snackbar
-        open={showError}
-        autoHideDuration={6000}
-        onClose={() => setShowError(false)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-      >
-        <Alert severity="error" onClose={() => setShowError(false)}>
-          {errorMessage}
-        </Alert>
-      </Snackbar>
-    </Box>
+    </LocalizationProvider>
   );
 };
 

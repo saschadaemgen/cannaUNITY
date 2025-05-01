@@ -4,6 +4,9 @@ import { CssBaseline, ThemeProvider } from '@mui/material'
 import { RouterProvider } from 'react-router-dom'
 import { router } from './router'
 import { ColorModeContext, useColorMode } from './context/ColorModeContext'
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import { LocalizationProvider } from '@mui/x-date-pickers';
+
 console.log('Hello Manifest Hash!');
 function AppWrapper() {
   const { theme, colorMode } = useColorMode()

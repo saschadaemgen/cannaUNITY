@@ -1,4 +1,4 @@
-// Dateiname: src/components/Topbar.jsx
+// Dateiname: src/layout/Topbar.jsx
 
 import React, { useState, useEffect, useRef } from 'react';
 import {
@@ -7,80 +7,28 @@ import {
   Typography,
   Box,
   IconButton,
-  Collapse,
-  useTheme,
-  Grid,
-  Paper,
   Divider,
-  Chip
+  useTheme
 } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
-import GroupsIcon from '@mui/icons-material/Groups';
-import TimelineIcon from '@mui/icons-material/Timeline';
-import PaymentsIcon from '@mui/icons-material/Payments';
-import MeetingRoomIcon from '@mui/icons-material/MeetingRoom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import SettingsIcon from '@mui/icons-material/Settings';
-import VpnKeyIcon from '@mui/icons-material/VpnKey';
-import GrassIcon from '@mui/icons-material/Grass';
-import LocalFloristIcon from '@mui/icons-material/LocalFlorist';
-import ContentCutIcon from '@mui/icons-material/ContentCut';
-import AgricultureIcon from '@mui/icons-material/Agriculture';
-import AcUnitIcon from '@mui/icons-material/AcUnit';
-import ScienceIcon from '@mui/icons-material/Science';
-import BiotechIcon from '@mui/icons-material/Biotech';
-import Inventory2Icon from '@mui/icons-material/Inventory2';
-import ShoppingBasketIcon from '@mui/icons-material/ShoppingBasket';
-import BusinessIcon from '@mui/icons-material/Business';
-import StorefrontIcon from '@mui/icons-material/Storefront';
-import CategoryIcon from '@mui/icons-material/Category';
-import AddIcon from '@mui/icons-material/Add';
-import DashboardCustomizeIcon from '@mui/icons-material/DashboardCustomize';
-import api from '../utils/api'; // API für die Titelanfrage importieren
-
-// Standardwerte für die Designoptionen
-const defaultDesignOptions = {
-  // Topbar Titel
-  title: 'cannaUNITY',
-  titleFont: "'Roboto', sans-serif",
-  titleWeight: 'bold',
-  titleStyle: 'normal',
-  titleDecoration: 'none',
-  titleColor: '#ffffff',
-  
-  // Topbar und Menü
-  topbarColor: 'success',
-  menuFont: "'Roboto', sans-serif",
-  menuWeight: 'normal',
-  menuStyle: 'normal',
-  menuDecoration: 'none',
-  menuColor: '#ffffff',
-  menuSpacing: 2, // Abstand zwischen Menüeinträgen (in MUI spacing units)
-  
-  // Divider
-  showDividers: true,
-  
-  // Dark Mode
-  darkMode: false,
-  
-  // Menü Sichtbarkeit
-  menuVisibility: {
-    showCommunity: true,
-    showTrackTrace: true,
-    showWawi: true,
-    showFinance: true,
-    showRooms: true,
-    showSecurity: true,
-  },
-}
+import api from '../utils/api';
+import TopbarMenuItems from './TopbarMenuItems';
+import TopbarDropdownMenu from './TopbarDropdownMenu';
+import { defaultDesignOptions } from './TopbarConfig';
 
 export default function Topbar() {
   const theme = useTheme();
   const navigate = useNavigate();
+  const location = useLocation();
   const [openMenuIndex, setOpenMenuIndex] = useState(null);
-  const [env, setEnv] = useState({ temperature: 22.7, humidity: 60 });
+  const [selectedMenuIndex, setSelectedMenuIndex] = useState(null);
+  const [floatingBar, setFloatingBar] = useState({ left: 0, width: 0, opacity: 0 });
   const menuRef = useRef(null);
   const toolbarRef = useRef(null);
-  const [title, setTitle] = useState('cannaUNITY'); // Standardtitel falls API fehlschlägt
+  const menuItemsRef = useRef([]);
+  const menuContainerRef = useRef(null);
+  const [title, setTitle] = useState('cannaUNITY');
   const [design, setDesign] = useState(defaultDesignOptions);
 
   // Lade Google Fonts
@@ -154,7 +102,7 @@ export default function Topbar() {
     };
     fetchData();
 
-    // Event-Listener für Titeländerungen
+    // Event-Listener für Titeländerungen und Design-Änderungen
     const handleTitleChange = (event) => {
       if (event.detail) {
         if (event.detail.title) {
@@ -176,7 +124,6 @@ export default function Topbar() {
       }
     };
 
-    // Event-Listener für Design-Änderungen
     const handleDesignChange = (event) => {
       if (event.detail) {
         if (event.detail.title) {
@@ -193,159 +140,107 @@ export default function Topbar() {
       }
     };
 
-    // Höre auf beide Events
     window.addEventListener('topbarTitleChanged', handleTitleChange);
     window.addEventListener('designChanged', handleDesignChange);
 
-    // Cleanup-Funktion
     return () => {
       window.removeEventListener('topbarTitleChanged', handleTitleChange);
       window.removeEventListener('designChanged', handleDesignChange);
     };
   }, []);
 
-  // Aktualisierte traceData mit den neuen Step 4a und 4b anstelle der alten Einträge und allen weiteren Untertiteln
-  const traceData = {
-    'Step 1 - Samen': { 
-      transferred: 0, 
-      total: 100, 
-      co2: 452, 
-      dust: 16, 
-      statusMsg: 'Keimung läuft planmäßig', 
-      status: 'normal', 
-      overdue: false,
-      subtitle: 'Ausgangsmaterial'
-    },
-    'Step 2 - Mutterpflanzen': { 
-      transferred: 10, 
-      total: 120, 
-      co2: 387, 
-      dust: 19, 
-      statusMsg: 'Wachstum regulär', 
-      status: 'normal', 
-      overdue: false,
-      subtitle: 'überführt aus Samen'
-    },
-    'Step 3 - Stecklinge': { 
-      transferred: 15, 
-      total: 130, 
-      co2: 493, 
-      dust: 12, 
-      statusMsg: 'Bewurzelung aktiv', 
-      status: 'normal', 
-      overdue: false,
-      subtitle: 'überführt aus Mutterpflanzen'
-    },
-    'Step 4a - Blühpflanzen': { 
-      transferred: 5, 
-      total: 90, 
-      co2: 412, 
-      dust: 18, 
-      statusMsg: 'Düngemittel niedrig', 
-      status: 'warning', 
-      overdue: false, 
-      subtitle: 'überführt aus Samen' 
-    },
-    'Step 4b - Blühpflanzen': { 
-      transferred: 8, 
-      total: 85, 
-      co2: 405, 
-      dust: 14, 
-      statusMsg: 'Wachstum optimal', 
-      status: 'normal', 
-      overdue: false, 
-      subtitle: 'überführt aus Stecklingen' 
-    },
-    'Step 5 - Ernte': { 
-      transferred: 0, 
-      total: 85, 
-      co2: 423, 
-      dust: 15, 
-      statusMsg: 'Zwei Ernten überfällig!', 
-      status: 'error', 
-      overdue: true,
-      subtitle: 'überführt aus Blühpflanzen'
-    },
-    'Step 6 - Trocknung': { 
-      transferred: 8, 
-      total: 100, 
-      co2: 436, 
-      dust: 18, 
-      statusMsg: 'Feuchtewerte im Zielbereich', 
-      status: 'normal', 
-      overdue: false,
-      subtitle: 'überführt aus Ernte'
-    },
-    'Step 7 - Verarbeitung': { 
-      transferred: 12, 
-      total: 110, 
-      co2: 347, 
-      dust: 11, 
-      statusMsg: 'Parameter kontrolliert', 
-      status: 'normal', 
-      overdue: false,
-      subtitle: 'überführt aus Trocknung'
-    },
-    'Step 8 - Laborkontrolle': { 
-      transferred: 9, 
-      total: 95, 
-      co2: 298, 
-      dust: 17, 
-      statusMsg: 'Tests laufen planmäßig', 
-      status: 'normal', 
-      overdue: false,
-      subtitle: 'überführt aus Verarbeitung'
-    },
-    'Step 9 - Verpackung': { 
-      transferred: 7, 
-      total: 100, 
-      co2: 362, 
-      dust: 14, 
-      statusMsg: 'Vorrat niedrig', 
-      status: 'warning', 
-      overdue: false,
-      subtitle: 'überführt aus Laborkontrolle'
-    },
-    'Step 10 - Produktausgabe': { 
-      transferred: 14, 
-      total: 120, 
-      co2: 428, 
-      dust: 9, 
-      statusMsg: 'Ausgabe im Zeitplan', 
-      status: 'normal', 
-      overdue: false,
-      subtitle: 'überführt aus Verpackung'
+  // Finde den aktiven Menüpunkt basierend auf dem aktuellen Pfad
+  useEffect(() => {
+    const currentPath = location.pathname;
+    
+    // Filtere die sichtbaren Menüpunkte
+    const visibleItems = TopbarMenuItems.filter(item => 
+      design.menuVisibility && design.menuVisibility[item.id] !== false
+    );
+    
+    // Suche nach dem passenden Menüpunkt
+    for (let i = 0; i < visibleItems.length; i++) {
+      const item = visibleItems[i];
+      
+      // Für Hauptmenüpunkte
+      if (item.path === currentPath) {
+        setSelectedMenuIndex(i);
+        // Update floating bar position
+        updateFloatingBarPosition(i);
+        return;
+      }
+      
+      // Für Untermenüpunkte
+      if (item.children) {
+        const matchingChild = item.children.find(child => child.path === currentPath);
+        if (matchingChild) {
+          setSelectedMenuIndex(i);
+          // Update floating bar position
+          updateFloatingBarPosition(i);
+          return;
+        }
+      }
+    }
+  }, [location.pathname, design.menuVisibility]);
+
+  // Aktualisiere die Position des schwebenden Balkens
+  const updateFloatingBarPosition = (index) => {
+    // Wenn der Floating Bar deaktiviert ist oder der Index ungültig ist, abbrechen
+    if (design.floatingBar?.enabled === false || 
+        index === null || 
+        !menuItemsRef.current[index] || 
+        !menuContainerRef.current) return;
+    
+    const menuItem = menuItemsRef.current[index];
+    const rect = menuItem.getBoundingClientRect();
+    const containerRect = menuContainerRef.current.getBoundingClientRect();
+    
+    // Berechne Position relativ zum Menü-Container
+    setFloatingBar({
+      left: rect.left - containerRect.left,
+      width: rect.width,
+      opacity: 1
+    });
+  };
+
+  // Funktionen für Hover-Effekte
+  const handleMenuHover = (index) => {
+    // Nur wenn Floating Bar aktiviert ist
+    if (design.floatingBar?.enabled !== false) {
+      updateFloatingBarPosition(index);
     }
   };
 
-  const financeData = {
-    Dashboard: { period: '01.01.2025 – 30.04.2025', revenue: 185000, expenses: 112500, profit: 72500 },
-    'Kontenübersicht': { accounts: 5, balance: 243500 },
-    'Neues Konto': { createdThisPeriod: 1, accountName: 'Rücklagen', creationDate: '15.04.2025' },
-    'Buchungsjournal': { entries: 278, pendingEntries: 4, lastJournalEntry: '29.04.2025' },
-    'Neue Buchung': { drafts: 2, lastDraft: '30.04.2025' },
-    'GuV': { revenue: 185000, expenses: 112500, profit: 72500, period: '01.01.2025 – 30.04.2025' },
-    'Bilanz': { equity: 180000 },
-    'Jahresabschluss': { closingDate: '31.12.2024' }
+  const handleMenuClick = (index, item) => {
+    setSelectedMenuIndex(index);
+    
+    if (item.children) {
+      handleToggle(index);
+    } else if (item.path) {
+      handleClickItem(item.path, false);
+    }
   };
 
-  const wawiData = {
-    'Samen-Verwaltung': { count: 25, pending: 3, status: 'Aktiv', lastUpdate: '19.04.2025' },
-    'Hersteller-Verwaltung': { count: 12, pending: 2, status: 'Aktiv', lastUpdate: '18.04.2025' }
-  };
-
+  // Animation für das Glühen bei überfälligen Items
   useEffect(() => {
-    const id = setInterval(() => setEnv({ temperature: 22.7, humidity: 60 }), 60000);
-    return () => clearInterval(id);
-  }, []);
+    // Nur wenn Glow aktiviert ist
+    if (design.floatingBar?.glow) {
+      const style = document.createElement('style');
+      style.innerHTML = `
+        @keyframes glow {
+          0% { box-shadow: 0 0 0px ${design.floatingBar?.glowColor || 'rgba(255, 255, 255, 0.0)'}; }
+          100% { box-shadow: 0 0 ${design.floatingBar?.glowStrength || 12}px ${design.floatingBar?.glowColor || 'rgba(255, 255, 255, 0.6)'}; }
+        }
+      `;
+      document.head.appendChild(style);
+      
+      return () => {
+        document.head.removeChild(style);
+      };
+    }
+  }, [design.floatingBar?.glow, design.floatingBar?.glowColor, design.floatingBar?.glowStrength]);
 
-  const handleToggle = idx => setOpenMenuIndex(openMenuIndex === idx ? null : idx);
-
-  const handleClickItem = (path, hasChildren) => {
-    if (!hasChildren) setOpenMenuIndex(null);
-    navigate(path);
-  };
-
+  // Mausbewegungs-Handling für Menü schließen
   useEffect(() => {
     if (openMenuIndex === null) return;
     const onMove = e => {
@@ -364,135 +259,62 @@ export default function Topbar() {
     return () => document.removeEventListener('mousemove', thr);
   }, [openMenuIndex]);
 
+  // Toggle-Funktion für Menü-Öffnen/Schließen
+  const handleToggle = idx => {
+    setOpenMenuIndex(openMenuIndex === idx ? null : idx);
+  };
+
+  // Klick-Handler für Menüpunkte
+  const handleClickItem = (path, hasChildren) => {
+    if (!hasChildren) setOpenMenuIndex(null);
+    navigate(path);
+  };
+
+  // Stelle sicher, dass die Refs aktualisiert werden, wenn sich die Menüpunkte ändern
   useEffect(() => {
-    const style = document.createElement('style');
-    style.innerHTML = `
-      @keyframes glow {
-        0% { box-shadow: 0 0 0px rgba(255, 0, 0, 0.0); }
-        100% { box-shadow: 0 0 12px rgba(255, 0, 0, 0.6); }
+    // Filtere die sichtbaren Menüpunkte
+    const visibleItems = TopbarMenuItems.filter(item => 
+      design.menuVisibility && design.menuVisibility[item.id] !== false
+    );
+    
+    // Aktualisiere die Refs
+    menuItemsRef.current = menuItemsRef.current.slice(0, visibleItems.length);
+    while (menuItemsRef.current.length < visibleItems.length) {
+      menuItemsRef.current.push(null);
+    }
+    
+    // Aktualisiere die Position des Balkens
+    if (selectedMenuIndex !== null) {
+      // Wir müssen einen kleinen Timeout verwenden, da die DOM-Aktualisierung etwas Zeit braucht
+      setTimeout(() => updateFloatingBarPosition(selectedMenuIndex), 100);
+    }
+  }, [design.menuVisibility]);
+
+  // Aktualisiere den Balken bei Änderungen der Fenstergröße
+  useEffect(() => {
+    const handleResize = () => {
+      if (selectedMenuIndex !== null) {
+        updateFloatingBarPosition(selectedMenuIndex);
       }
-    `;
-    document.head.appendChild(style);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [selectedMenuIndex]);
+
+  // Aktualisiere den Balken, wenn die Komponente erstmals montiert wird
+  useEffect(() => {
+    if (selectedMenuIndex !== null) {
+      // Wir müssen einen kleinen Timeout verwenden, da die DOM-Aktualisierung etwas Zeit braucht
+      setTimeout(() => updateFloatingBarPosition(selectedMenuIndex), 300);
+    }
   }, []);
 
-  // Aktualisierte menuItems mit Step 4a und 4b und allen weiteren Untertiteln
-  const menuItems = [
-    { id: 'showCommunity', label: 'Gemeinschaftsnetzwerk', path: '/mitglieder', icon: <GroupsIcon /> },
-    {
-      id: 'showTrackTrace', 
-      label: 'Track & Trace', 
-      icon: <TimelineIcon />, 
-      children: [
-        { 
-          label: 'Step 1 - Samen', 
-          path: '/trace/samen', 
-          icon: <GrassIcon />,
-          subtitle: 'Ausgangsmaterial'
-        },
-        { 
-          label: 'Step 2 - Mutterpflanzen', 
-          path: '/trace/mutterpflanzen', 
-          icon: <LocalFloristIcon />,
-          subtitle: 'überführt aus Samen'
-        },
-        { 
-          label: 'Step 3 - Stecklinge', 
-          path: '/trace/stecklinge', 
-          icon: <ContentCutIcon />,
-          subtitle: 'überführt aus Mutterpflanzen'
-        },
-        { 
-          label: 'Step 4a - Blühpflanzen', 
-          path: '/trace/bluehpflanzen', 
-          icon: <AcUnitIcon />,
-          subtitle: 'überführt aus Samen'
-        },
-        { 
-          label: 'Step 4b - Blühpflanzen', 
-          path: '/trace/bluehpflanzen-aus-stecklingen', 
-          icon: <LocalFloristIcon />,
-          subtitle: 'überführt aus Stecklingen'
-        },
-        { 
-          label: 'Step 5 - Ernte', 
-          path: '/trace/ernte', 
-          icon: <AgricultureIcon />,
-          subtitle: 'überführt aus Blühpflanzen'
-        },
-        { 
-          label: 'Step 6 - Trocknung', 
-          path: '/trace/trocknung', 
-          icon: <AcUnitIcon />,
-          subtitle: 'überführt aus Ernte'
-        },
-        { 
-          label: 'Step 7 - Verarbeitung', 
-          path: '/trace/verarbeitung', 
-          icon: <ScienceIcon />,
-          subtitle: 'überführt aus Trocknung'
-        },
-        { 
-          label: 'Step 8 - Laborkontrolle', 
-          path: '/trace/laborkontrolle', 
-          icon: <BiotechIcon />,
-          subtitle: 'überführt aus Verarbeitung'
-        },
-        { 
-          label: 'Step 9 - Verpackung', 
-          path: '/trace/verpackung', 
-          icon: <Inventory2Icon />,
-          subtitle: 'überführt aus Laborkontrolle'
-        },
-        { 
-          label: 'Step 10 - Produktausgabe', 
-          path: '/trace/ausgabe', 
-          icon: <ShoppingBasketIcon />,
-          subtitle: 'überführt aus Verpackung'
-        }
-      ]
-    },
-    {
-      id: 'showWawi',
-      label: 'WaWi', 
-      icon: <StorefrontIcon />, 
-      children: [
-        { label: 'Samen-Verwaltung', path: '/trace/samen', icon: <GrassIcon /> },
-        { label: 'Hersteller-Verwaltung', path: '/trace/hersteller', icon: <BusinessIcon /> }
-      ]
-    },
-    {
-      id: 'showFinance',
-      label: 'Buchhaltung', 
-      icon: <PaymentsIcon />, 
-      children: [
-        { label: 'Dashboard', path: '/buchhaltung', icon: <PaymentsIcon /> },
-        { label: 'Kontenübersicht', path: '/buchhaltung/konten', icon: <PaymentsIcon /> },
-        { label: 'Neues Konto', path: '/buchhaltung/konten/neu', icon: <PaymentsIcon /> },
-        { label: 'Buchungsjournal', path: '/buchhaltung/journal', icon: <PaymentsIcon /> },
-        { label: 'Neue Buchung', path: '/buchhaltung/buchung/neu', icon: <PaymentsIcon /> },
-        { label: 'GuV', path: '/buchhaltung/guv', icon: <PaymentsIcon /> },
-        { label: 'Bilanz', path: '/buchhaltung/bilanz', icon: <PaymentsIcon /> },
-        { label: 'Jahresabschluss', path: '/buchhaltung/jahresabschluss', icon: <PaymentsIcon /> }
-      ]
-    },
-    {
-      id: 'showRooms',
-      label: 'Raumverwaltung', 
-      icon: <MeetingRoomIcon />,
-      children: [
-        { label: 'Raumliste', path: '/rooms', icon: <MeetingRoomIcon /> },
-        { label: 'Neuer Raum', path: '/rooms/new', icon: <AddIcon /> },
-        { label: 'Elemente-Bibliothek', path: '/rooms/item-types', icon: <CategoryIcon /> },
-        { label: 'Neuer Elementtyp', path: '/rooms/item-types/new', icon: <AddIcon /> },
-        { label: 'Raumdesigner', path: '/rooms', icon: <DashboardCustomizeIcon />, 
-          subtitle: 'Wähle zuerst einen Raum aus der Liste' }
-      ]
-    },
-    { id: 'showSecurity', label: 'Sicherheit', path: '/unifi-access/dashboard', icon: <VpnKeyIcon /> }
-  ];
-
   // Filtere die sichtbaren Menüpunkte basierend auf den Sichtbarkeitseinstellungen
-  const visibleMenuItems = menuItems.filter(item => 
+  const visibleMenuItems = TopbarMenuItems.filter(item => 
     design.menuVisibility && design.menuVisibility[item.id] !== false
   );
 
@@ -505,7 +327,7 @@ export default function Topbar() {
           zIndex: theme.zIndex.drawer + 1,
         }}
       >
-        <Toolbar ref={toolbarRef} sx={{ justifyContent: 'space-between', px: 4, height: 64 }}>
+        <Toolbar ref={toolbarRef} sx={{ justifyContent: 'space-between', px: 4, height: 64, position: 'relative' }}>
           <Typography 
             variant="h6" 
             sx={{ 
@@ -518,7 +340,36 @@ export default function Topbar() {
           >
             {title}
           </Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <Box 
+            ref={menuContainerRef} 
+            sx={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              position: 'relative' 
+            }}
+          >
+            {/* Schwebender Balken - mit den neuen Designoptionen */}
+            {design.floatingBar?.enabled !== false && (
+              <Box
+                sx={{
+                  position: 'absolute',
+                  height: `${design.floatingBar?.height || 3}px`,
+                  backgroundColor: design.floatingBar?.color || 'white',
+                  bottom: '11px',
+                  borderRadius: '4px',
+                  transition: 'all 0.3s ease',
+                  left: `${floatingBar.left}px`,
+                  width: `${floatingBar.width}px`,
+                  opacity: floatingBar.opacity,
+                  ...(design.floatingBar?.glow && {
+                    boxShadow: `0 0 ${design.floatingBar?.glowStrength || 12}px ${design.floatingBar?.glowColor || 'rgba(255, 255, 255, 0.6)'}`,
+                    animation: 'glow 1.5s ease-in-out infinite alternate'
+                  }),
+                  zIndex: 10
+                }}
+              />
+            )}
+            
             {visibleMenuItems.map((item, i) => (
               <React.Fragment key={item.id}>
                 {/* Vertikaler Divider vor jedem Element außer dem ersten */}
@@ -528,26 +379,29 @@ export default function Topbar() {
                     flexItem 
                     sx={{ 
                       mx: 1, 
-                      my: 'auto', // Vertikale Zentrierung
-                      height: '20px', // Angepasste Höhe
-                      alignSelf: 'center', // Zusätzliche Zentrierung
+                      my: 'auto',
+                      height: '20px',
+                      alignSelf: 'center',
                       borderColor: design.menuColor,
                       opacity: 0.5,
                     }} 
                   />
                 )}
                 <Box
+                  ref={el => menuItemsRef.current[i] = el}
                   sx={{
                     display: 'flex', 
                     alignItems: 'center', 
                     cursor: 'pointer', 
                     gap: 1, 
                     color: design.menuColor,
-                    px: design.menuSpacing / 2, // Abstand basierend auf menuSpacing
+                    px: design.menuSpacing / 2,
                     height: 64,
-                    '&:hover': { textDecoration: 'underline' }
+                    position: 'relative',
+                    '&:hover': {} // Leerer Hover-Effekt
                   }}
-                  onClick={() => item.children ? handleToggle(i) : handleClickItem(item.path, false)}
+                  onMouseEnter={() => handleMenuHover(i)}
+                  onClick={() => handleMenuClick(i, item)}
                 >
                   {item.icon}
                   <Typography sx={{ 
@@ -561,6 +415,7 @@ export default function Topbar() {
                 </Box>
               </React.Fragment>
             ))}
+            
             {/* Divider vor dem Einstellungs-Icon */}
             {visibleMenuItems.length > 0 && design.showDividers && (
               <Divider 
@@ -568,9 +423,9 @@ export default function Topbar() {
                 flexItem 
                 sx={{ 
                   mx: 1, 
-                  my: 'auto', // Vertikale Zentrierung
-                  height: '20px', // Angepasste Höhe
-                  alignSelf: 'center', // Zusätzliche Zentrierung
+                  my: 'auto',
+                  height: '20px',
+                  alignSelf: 'center',
                   borderColor: design.menuColor,
                   opacity: 0.5,
                 }} 
@@ -588,120 +443,13 @@ export default function Topbar() {
 
       {/* Die ausklappbaren Menüs für sichtbare Menüpunkte */}
       {visibleMenuItems.map((item, i) => item.children && (
-        <Collapse key={item.id} in={openMenuIndex === i} timeout="auto" unmountOnExit>
-          <Box ref={openMenuIndex === i ? menuRef : null} sx={{ bgcolor: '#f4f4f4', py: 4, px: 8, boxShadow: 3 }}>
-            <Grid container spacing={3} justifyContent="center">
-              {item.children.map(sub => {
-                const isFinance = item.label === 'Buchhaltung';
-                const isTrace = item.label === 'Track & Trace';
-                const isWawi = item.label === 'WaWi';
-                const isRooms = item.label === 'Raumverwaltung';
-                const tData = traceData[sub.label] || {};
-                const fData = financeData[sub.label] || {};
-                const wData = wawiData[sub.label] || {};
-                
-                return (
-                  <Grid item key={sub.label}>
-                    <Paper
-                      elevation={3}
-                      sx={{
-                        width: 300,
-                        p: 2,
-                        cursor: 'pointer',
-                        borderRadius: 2,
-                        transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-                        border: '2px solid transparent',
-                        '&:hover': {
-                          transform: 'translateY(-4px)',
-                          boxShadow: 6,
-                          border: '2px solid #4caf50',
-                          backgroundColor: '#f0fdf4',
-                          animation: tData.overdue ? 'glow 0.8s ease-in-out infinite alternate' : 'none'
-                        }
-                      }}
-                      onClick={() => handleClickItem(sub.path, false)}
-                    >
-                      <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 1 }}>
-                        <Box sx={{ mr: 1, mt: '2px' }}>{sub.icon}</Box>
-                        <Box>
-                          <Typography variant="subtitle1">
-                            {sub.label}
-                          </Typography>
-                          {sub.subtitle && (
-                            <Typography 
-                              variant="caption" 
-                              sx={{ 
-                                display: 'block', 
-                                lineHeight: 1, 
-                                mt: 0.3,
-                                color: 'text.secondary',
-                                fontSize: '0.7rem'
-                              }}
-                            >
-                              {sub.subtitle}
-                            </Typography>
-                          )}
-                        </Box>
-                      </Box>
-                      <Divider />
-                      <Box sx={{ textAlign: 'center', py: 1 }}>
-                        <Typography variant="body2" sx={{ fontWeight: 500, color: isTrace ? (tData.overdue ? '#d32f2f' : (tData.status === 'warning' ? '#ed6c02' : '#2e7d32')) : '#1976d2' }}>
-                          {isTrace 
-                            ? tData.statusMsg 
-                            : (isFinance 
-                              ? 'Finanzmodul aktiv' 
-                              : (isWawi 
-                                ? `Status: ${wData.status}` 
-                                : (isRooms
-                                  ? 'Raumverwaltung aktiv'
-                                  : 'System bereit')))}
-                        </Typography>
-                      </Box>
-                      <Divider />
-                      {isTrace && (
-                        <Box sx={{ mt: 1 }}>
-                          <Chip label={`Überführt: ${tData.transferred} / ${tData.total}`} size="small" sx={{ mb: 1, width: '100%' }} />
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: '3px' }}>
-                            <Typography variant="caption">{env.temperature}°C</Typography>
-                            <Typography variant="caption">{env.humidity}%</Typography>
-                            <Typography variant="caption">CO₂ {tData.co2}</Typography>
-                            <Typography variant="caption">Staub {tData.dust}</Typography>
-                          </Box>
-                        </Box>
-                      )}
-                      {isFinance && (
-                        <Box sx={{ mt: 1 }}>
-                          <Typography variant="caption">Umsatz: {fData.revenue?.toLocaleString('de-DE')} €</Typography><br />
-                          <Typography variant="caption">Ausgaben: {fData.expenses?.toLocaleString('de-DE')} €</Typography><br />
-                          <Typography variant="caption">Gewinn: {fData.profit?.toLocaleString('de-DE')} €</Typography>
-                          <Box sx={{ mt: 1, textAlign: 'right' }}><Typography variant="caption">{fData.period}</Typography></Box>
-                        </Box>
-                      )}
-                      {isWawi && (
-                        <Box sx={{ mt: 1 }}>
-                          <Typography variant="caption">Anzahl: {wData.count}</Typography><br />
-                          <Typography variant="caption">Ausstehend: {wData.pending}</Typography><br />
-                          <Box sx={{ mt: 1, textAlign: 'right' }}>
-                            <Typography variant="caption">Letzte Aktualisierung: {wData.lastUpdate}</Typography>
-                          </Box>
-                        </Box>
-                      )}
-                      {isRooms && (
-                        <Box sx={{ mt: 1 }}>
-                          <Typography variant="caption">Raumverwaltungssystem</Typography><br />
-                          <Typography variant="caption">Zugriffsstatus: Aktiv</Typography><br />
-                          <Box sx={{ mt: 1, textAlign: 'right' }}>
-                            <Typography variant="caption">Letzte Aktualisierung: 27.04.2025</Typography>
-                          </Box>
-                        </Box>
-                      )}
-                    </Paper>
-                  </Grid>
-                );
-              })}
-            </Grid>
-          </Box>
-        </Collapse>
+        <TopbarDropdownMenu
+          key={item.id}
+          isOpen={openMenuIndex === i}
+          menuItem={item}
+          menuRef={openMenuIndex === i ? menuRef : null}
+          handleClickItem={handleClickItem}
+        />
       ))}
     </Box>
   );
