@@ -1,6 +1,6 @@
 // Dateiname: src/layout/TopbarDropdownMenu.jsx
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Collapse,
@@ -11,6 +11,7 @@ import {
   Divider
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
+import { useLocation } from 'react-router-dom';
 import { 
   traceData, 
   financeData, 
@@ -21,7 +22,15 @@ import {
 // Komponente für ein einzelnes Dropdown-Menü
 function TopbarDropdownMenu({ isOpen, menuItem, menuRef, handleClickItem }) {
   const theme = useTheme();
+  const location = useLocation();
   const [env] = useState({ temperature: 22.7, humidity: 60 });
+  
+  // Beim Routenwechsel sofort schließen
+  useEffect(() => {
+    // Wenn sich die Route ändert, schließen wir alle Menüs
+    const closeMenuEvent = new CustomEvent('closeAllMenus');
+    window.dispatchEvent(closeMenuEvent);
+  }, [location.pathname]);
   
   return (
     <Collapse in={isOpen} timeout="auto" unmountOnExit>
@@ -31,7 +40,9 @@ function TopbarDropdownMenu({ isOpen, menuItem, menuRef, handleClickItem }) {
           bgcolor: '#f4f4f4', 
           py: 4, 
           px: 8, 
-          boxShadow: 3 
+          boxShadow: 3,
+          position: 'relative',
+          zIndex: 1000
         }}
       >
         <Grid container spacing={3} justifyContent="center">

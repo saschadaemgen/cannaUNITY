@@ -1,6 +1,7 @@
 // frontend/src/apps/options/pages/OptionsDashboard.jsx
 import { useContext, useState, useEffect } from 'react'
 import { Grid, Box, useTheme, Snackbar, Alert } from '@mui/material'
+import { useLocation } from 'react-router-dom' // Hinzugefügt für die Überwachung von Pfadänderungen
 import DesignOptionCard from '../components/DesignOptionCard'
 import { ColorModeContext } from '../../../context/ColorModeContext'
 import api from '../../../utils/api'
@@ -8,6 +9,7 @@ import api from '../../../utils/api'
 export default function OptionsDashboard() {
   const colorMode = useContext(ColorModeContext)
   const theme = useTheme()
+  const location = useLocation() // Location-Objekt für Pfadverfolgung
   const [topbarTitle, setTopbarTitle] = useState('')
   const [titleStyle, setTitleStyle] = useState(null)
   const [designOptions, setDesignOptions] = useState(null)
@@ -16,6 +18,14 @@ export default function OptionsDashboard() {
   const [snackbarOpen, setSnackbarOpen] = useState(false)
   const [snackbarMessage, setSnackbarMessage] = useState('')
   const [snackbarSeverity, setSnackbarSeverity] = useState('success')
+
+  // 🔍 Lebenszyklus-Logging
+  useEffect(() => {
+    console.log('🟢 OptionsDashboard MOUNTED')
+    return () => {
+      console.log('🔴 OptionsDashboard UNMOUNTED')
+    }
+  }, [])
 
   // Lade aktuellen Titel und Style/Design-Optionen bei Seitenaufruf
   useEffect(() => {
@@ -27,17 +37,17 @@ export default function OptionsDashboard() {
         if (titleRes.data && titleRes.data.title) {
           setTopbarTitle(titleRes.data.title)
         }
-        
+
         // Versuche zuerst die neuen Design-Optionen zu laden
         try {
           const designRes = await api.get('/options/design-options/')
           if (designRes.data && designRes.data.options) {
             const loadedDesign = JSON.parse(designRes.data.options)
             setDesignOptions(loadedDesign)
-            
+
             // Speichere für den schnellen Zugriff in localStorage
-            localStorage.setItem('designOptions', JSON.stringify(loadedDesign));
-            
+            localStorage.setItem('designOptions', JSON.stringify(loadedDesign))
+
             // Konvertiere für die Abwärtskompatibilität zu titleStyle
             setTitleStyle({
               fontFamily: loadedDesign.titleFont || "'Roboto', sans-serif",
@@ -49,24 +59,21 @@ export default function OptionsDashboard() {
           }
         } catch (designError) {
           console.error('Erweiterte Design-Optionen nicht gefunden, versuche altes Format:', designError)
-          
+
           // Fallback: Versuche altes titleStyle-Format zu laden
           try {
             const styleRes = await api.get('/options/title-style/')
             if (styleRes.data && styleRes.data.style) {
               const oldStyle = JSON.parse(styleRes.data.style)
               setTitleStyle(oldStyle)
-              
+
               // Konvertiere altes Format zu neuem Design-Format
               const newDesignOptions = {
-                // Topbar-Titel Einstellungen
                 titleFont: oldStyle.fontFamily || "'Roboto', sans-serif",
                 titleWeight: oldStyle.fontWeight || 'bold',
                 titleStyle: oldStyle.fontStyle || 'normal',
                 titleDecoration: oldStyle.textDecoration || 'none',
                 titleColor: oldStyle.color || '#ffffff',
-                
-                // Standard-Werte für andere Optionen
                 topbarColor: 'success',
                 menuFont: "'Roboto', sans-serif",
                 menuWeight: 'normal',
@@ -84,21 +91,19 @@ export default function OptionsDashboard() {
                   showRooms: true,
                   showSecurity: true,
                 },
-                // Standardwerte für Animationen
                 animations: {
                   enabled: true,
                   type: 'slide',
                   duration: 500,
                 }
               }
-              
-              setDesignOptions(newDesignOptions);
-              
-              // Speichere für den schnellen Zugriff in localStorage
-              localStorage.setItem('designOptions', JSON.stringify(newDesignOptions));
+
+              setDesignOptions(newDesignOptions)
+              localStorage.setItem('designOptions', JSON.stringify(newDesignOptions))
             }
           } catch (styleError) {
             console.error('Auch alte Style-Optionen nicht gefunden:', styleError)
+
             // Fallback: Setze Standard-Werte
             setTitleStyle({
               fontFamily: "'Roboto', sans-serif",
@@ -107,7 +112,7 @@ export default function OptionsDashboard() {
               textDecoration: 'none',
               color: '#ffffff'
             })
-            
+
             const defaultDesignOptions = {
               titleFont: "'Roboto', sans-serif",
               titleWeight: 'bold',
@@ -131,18 +136,15 @@ export default function OptionsDashboard() {
                 showRooms: true,
                 showSecurity: true,
               },
-              // Standardwerte für Animationen
               animations: {
                 enabled: true,
                 type: 'slide',
                 duration: 500,
               }
-            };
-            
-            setDesignOptions(defaultDesignOptions);
-            
-            // Speichere für den schnellen Zugriff in localStorage
-            localStorage.setItem('designOptions', JSON.stringify(defaultDesignOptions));
+            }
+
+            setDesignOptions(defaultDesignOptions)
+            localStorage.setItem('designOptions', JSON.stringify(defaultDesignOptions))
           }
         }
       } catch (error) {
@@ -151,28 +153,30 @@ export default function OptionsDashboard() {
         setIsLoading(false)
       }
     }
+
     fetchData()
   }, [theme.palette.mode])
-  
-  // Speichern der Design-Optionen im neuen Format
+
+  // NEUE FUNKTION: Überwache Pfadänderungen und setze State zurück
+  useEffect(() => {
+    if (location.pathname !== '/options') {
+      setSnackbarOpen(false)
+    }
+  }, [location.pathname])
+
   const handleSaveDesign = async (newTitle, newDesignOptions) => {
     try {
-      console.log('Speichere folgende Design-Optionen:', newDesignOptions);
-      
-      // Speichere den Titel
+      console.log('Speichere folgende Design-Optionen:', newDesignOptions)
+
       await api.post('/options/update-title/', { title: newTitle })
       setTopbarTitle(newTitle)
-      
-      // Speichere die Design-Optionen im neuen Format
-      await api.post('/options/update-design-options/', { 
-        options: JSON.stringify(newDesignOptions) 
+
+      await api.post('/options/update-design-options/', {
+        options: JSON.stringify(newDesignOptions)
       })
       setDesignOptions(newDesignOptions)
-      
-      // Speichere für den schnellen Zugriff in localStorage
-      localStorage.setItem('designOptions', JSON.stringify(newDesignOptions));
-      
-      // Konvertiere für Abwärtskompatibilität auch zu titleStyle
+      localStorage.setItem('designOptions', JSON.stringify(newDesignOptions))
+
       const updatedStyle = {
         fontFamily: newDesignOptions.titleFont || titleStyle?.fontFamily,
         fontWeight: newDesignOptions.titleWeight || titleStyle?.fontWeight,
@@ -180,46 +184,41 @@ export default function OptionsDashboard() {
         textDecoration: newDesignOptions.titleDecoration || titleStyle?.textDecoration,
         color: newDesignOptions.titleColor || titleStyle?.color
       }
+
       setTitleStyle(updatedStyle)
-      
-      // Speichere auch im alten Format
-      await api.post('/options/update-title-style/', { 
-        style: JSON.stringify(updatedStyle) 
+
+      await api.post('/options/update-title-style/', {
+        style: JSON.stringify(updatedStyle)
       })
-      
+
       setSnackbarMessage('Design-Optionen erfolgreich gespeichert!')
       setSnackbarSeverity('success')
       setSnackbarOpen(true)
-      
-      // Löse die Events für beide Formate aus
-      // Altes Format
-      const titleChangedEvent = new CustomEvent('topbarTitleChanged', { 
+
+      const titleChangedEvent = new CustomEvent('topbarTitleChanged', {
         detail: {
           title: newTitle,
           style: updatedStyle
         }
       })
       window.dispatchEvent(titleChangedEvent)
-      
-      // Neues Format
-      const designChangedEvent = new CustomEvent('designChanged', { 
+
+      const designChangedEvent = new CustomEvent('designChanged', {
         detail: {
           title: newTitle,
           designOptions: newDesignOptions
         }
       })
       window.dispatchEvent(designChangedEvent)
-      
-      // Zusätzlich ein separates Event nur für die Animation auslösen, um sicherzustellen, 
-      // dass die Änderungen in allen Komponenten ankommen
+
       const animationChangedEvent = new CustomEvent('animationSettingsChanged', {
         detail: {
           animations: newDesignOptions.animations
         }
-      });
-      window.dispatchEvent(animationChangedEvent);
-      
-      console.log('Alle Events wurden ausgelöst, einschließlich animationSettingsChanged');
+      })
+      window.dispatchEvent(animationChangedEvent)
+
+      console.log('Alle Events wurden ausgelöst, einschließlich animationSettingsChanged')
     } catch (error) {
       console.error('Fehler beim Aktualisieren des Designs:', error)
       setSnackbarMessage('Fehler beim Speichern.')
@@ -227,12 +226,9 @@ export default function OptionsDashboard() {
       setSnackbarOpen(true)
     }
   }
-  
-  // Umschalten des Dark Mode
+
   const handleToggleDarkMode = (newDarkMode) => {
     colorMode.toggleColorMode()
-    
-    // Aktualisiere auch die Design-Optionen
     setDesignOptions(prev => ({
       ...prev,
       darkMode: newDarkMode
@@ -254,7 +250,6 @@ export default function OptionsDashboard() {
         />
       )}
 
-      {/* Snackbar für Erfolg oder Fehler */}
       <Snackbar
         open={snackbarOpen}
         autoHideDuration={3000}

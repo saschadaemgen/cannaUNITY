@@ -1,6 +1,7 @@
 // src/options/components/DesignOptionCard.jsx
 // Hauptkomponente - dient nun als Container für die Tabs und gemeinsames State-Management
 import React, { useState, useEffect } from 'react'
+import { useLocation } from 'react-router-dom' // Hinzugefügt
 import {
   Card,
   CardContent,
@@ -50,6 +51,7 @@ export default function DesignOptionCard({
   isDarkMode,
 }) {
   const theme = useTheme()
+  const location = useLocation() // Neu: Location-Hook hinzufügen
   
   // State für Designoptionen
   const [title, setTitle] = useState(value || 'cannaUNITY')
@@ -64,6 +66,12 @@ export default function DesignOptionCard({
   const [activeTab, setActiveTab] = useState(0)
   const [isChanged, setIsChanged] = useState(false)
   const [infoOpen, setInfoOpen] = useState(false)
+  
+  // NEU: Reagieren auf URL-Änderungen
+  useEffect(() => {
+    // Reset selectedTab oder andere interne States hier bei Pfadwechsel
+    setActiveTab(0) // Zurück zum ersten Tab, wenn sich der Pfad ändert
+  }, [location.pathname])
   
   // Aktualisiere den Titel und die Designoptionen, wenn sich die Props ändern
   useEffect(() => {
