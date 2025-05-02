@@ -9,17 +9,13 @@ import {
 
 // Menü-Vorschau Komponente mit interaktivem Floating Bar
 const DesignPreview = ({ title, design, theme }) => {
-  // State für interaktive Menü-Funktionalität
   const [hoveredItem, setHoveredItem] = useState(null);
-  const [selectedItem, setSelectedItem] = useState(1); // Standardmäßig zweites Element ausgewählt
-  
-  // Refs für Größen- und Positionsberechnungen
+  const [selectedItem, setSelectedItem] = useState(1);
   const menuItemsRef = useRef([]);
   const menuContainerRef = useRef(null);
   const [menuItemsWidth, setMenuItemsWidth] = useState([]);
   const [containerWidth, setContainerWidth] = useState(0);
 
-  // Filtere die sichtbaren Menüpunkte basierend auf den Sichtbarkeitseinstellungen
   const visibleMenuItems = [
     { id: 'showCommunity', label: 'Gemeinschaftsnetzwerk' },
     { id: 'showTrackTrace', label: 'Track & Trace' },
@@ -29,64 +25,41 @@ const DesignPreview = ({ title, design, theme }) => {
     { id: 'showSecurity', label: 'Sicherheit' },
   ].filter(item => design.menuVisibility && design.menuVisibility[item.id] !== false);
 
-  // Bestimme die tatsächliche Hintergrundfarbe basierend auf topbarColor
   const getBackgroundColor = () => {
-    if (design.darkMode) {
-      return '#121212'; // Feste Dunkelfarbe für Dark Mode
-    }
-    
-    // Wenn topbarColor ein Hexadezimalwert ist
-    if (design.topbarColor && design.topbarColor.startsWith('#')) {
-      return design.topbarColor;
-    }
-    
-    // Theme-basierte Farbe
-    if (design.topbarColor && theme.palette[design.topbarColor]?.main) {
-      return theme.palette[design.topbarColor].main;
-    }
-    
-    // Fallback zur Standard-Farbe
+    if (design.darkMode) return '#121212';
+    if (design.topbarColor && design.topbarColor.startsWith('#')) return design.topbarColor;
+    if (design.topbarColor && theme.palette[design.topbarColor]?.main) return theme.palette[design.topbarColor].main;
     return '#4caf50';
   };
 
-  // Aktualisiere die Messungen wenn sich die Menüpunkte ändern
   useEffect(() => {
-    // Wenn die Komponente gemounted ist und Refs verfügbar sind
     if (menuContainerRef.current && menuItemsRef.current.length > 0) {
-      // Berechne die Breite des Containers
       setContainerWidth(menuContainerRef.current.offsetWidth);
-      
-      // Berechne die Breiten und Positionen aller Menüpunkte
       const widths = menuItemsRef.current.map(item => 
         item ? {
           width: item.offsetWidth,
           left: item.offsetLeft
         } : null
       );
-      
       setMenuItemsWidth(widths);
     }
-  }, [visibleMenuItems, design.menuSpacing, design.showDividers, design.menuFont]);
+  }, [visibleMenuItems.length, design.menuSpacing, design.showDividers, design.menuFont]);
 
-  // Stelle sicher, dass die Refs aktualisiert werden, wenn sich die Menüpunkte ändern
   useEffect(() => {
-    // Aktualisiere die Refs
     menuItemsRef.current = menuItemsRef.current.slice(0, visibleMenuItems.length);
     while (menuItemsRef.current.length < visibleMenuItems.length) {
       menuItemsRef.current.push(null);
     }
-  }, [visibleMenuItems]);
+  }, [visibleMenuItems.length]);
 
-  // Berechne die exakte Position und Breite des Balkens
   const calculateBarStyle = () => {
     if (!design.floatingBar?.enabled || visibleMenuItems.length === 0) {
       return { opacity: 0 };
     }
-    
+
     const activeIndex = hoveredItem !== null ? hoveredItem : 
                          selectedItem < visibleMenuItems.length ? selectedItem : 0;
-    
-    // Wenn die Messungen noch nicht verfügbar sind
+
     if (menuItemsWidth.length === 0 || !menuItemsWidth[activeIndex]) {
       return {
         width: `${100 / visibleMenuItems.length}%`,
@@ -94,8 +67,7 @@ const DesignPreview = ({ title, design, theme }) => {
         opacity: 0.8
       };
     }
-    
-    // Exakte Positionierung basierend auf den Messungen
+
     return {
       width: `${menuItemsWidth[activeIndex].width}px`,
       left: `${menuItemsWidth[activeIndex].left}px`,
@@ -124,7 +96,6 @@ const DesignPreview = ({ title, design, theme }) => {
       }}
     >
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', width: '100%' }}>
-        {/* Titel */}
         <Typography 
           sx={{ 
             fontFamily: design.titleFont, 
@@ -136,8 +107,7 @@ const DesignPreview = ({ title, design, theme }) => {
         >
           {title || "cannaUNITY"}
         </Typography>
-        
-        {/* Menüpunkte */}
+
         <Box 
           ref={menuContainerRef}
           sx={{ 
@@ -145,7 +115,7 @@ const DesignPreview = ({ title, design, theme }) => {
             alignItems: 'center', 
             flexWrap: 'wrap',
             position: 'relative',
-            height: '44px' // Feste Höhe für konsistentere Balken-Positionierung
+            height: '44px'
           }}
         >
           {visibleMenuItems.map((item, index) => (
@@ -158,9 +128,9 @@ const DesignPreview = ({ title, design, theme }) => {
                     mx: 1, 
                     borderColor: design.menuColor,
                     opacity: 0.5,
-                    height: '20px', // Optimale Höhe für vertikale Zentrierung
-                    my: 'auto', // Vertikale Zentrierung durch automatischen Margin oben und unten
-                    alignSelf: 'center', // Zusätzliche Sicherstellung der vertikalen Zentrierung
+                    height: '20px',
+                    my: 'auto',
+                    alignSelf: 'center'
                   }} 
                 />
               )}
@@ -194,7 +164,6 @@ const DesignPreview = ({ title, design, theme }) => {
             </React.Fragment>
           ))}
 
-          {/* Integrierter Floating Bar in der Vorschau mit exakter Ausrichtung */}
           {design.floatingBar?.enabled && visibleMenuItems.length > 0 && (
             <Box
               sx={{

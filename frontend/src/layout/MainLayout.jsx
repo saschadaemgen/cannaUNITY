@@ -1,5 +1,6 @@
+// src/layout/MainLayout.jsx
 import { Box } from '@mui/material'
-import { Outlet } from 'react-router-dom'
+import { Outlet, useLocation } from 'react-router-dom'
 
 import Topbar from './Topbar'
 import Sidebar from './Sidebar'
@@ -7,6 +8,9 @@ import Footer from './Footer'
 import DateBar from './DateBar'
 
 function MainLayout() {
+  // Neu: useLocation hinzugefügt, um aktuellen Pfad zu bekommen
+  const location = useLocation();
+  
   return (
     <Box
       sx={{
@@ -34,7 +38,8 @@ function MainLayout() {
             borderLeft: (theme) => `1px solid ${theme.palette.divider}`,
           }}
         >
-          <Outlet />
+          {/* Neu: key-Attribut für Outlet hinzugefügt, um Neurendering bei Pfadwechsel zu erzwingen */}
+          <Outlet key={location.pathname} />
         </Box>
       </Box>
 
