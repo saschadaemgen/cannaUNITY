@@ -35,7 +35,11 @@ import FloweringPlantPage from '../apps/trackandtrace/pages/FloweringPlant/Flowe
 import CuttingPage from '../apps/trackandtrace/pages/Cutting/CuttingPage';
 import BloomingCuttingPlantPage from '../apps/trackandtrace/pages/BloomingCuttingPlant/BloomingCuttingPlantPage';
 import ProtectSensorPage from '../apps/unifi_protect/pages/ProtectSensorPage';
-
+import HarvestPage from '../apps/trackandtrace/pages/Harvest/HarvestPage';
+import DryingPage from '../apps/trackandtrace/pages/Drying/DryingPage';
+import ProcessingPage from '../apps/trackandtrace/pages/Processing/ProcessingPage';
+import LabTestingPage from '../apps/trackandtrace/pages/LabTesting/LabTestingPage';
+import PackagingPage from '../apps/trackandtrace/pages/Packaging/PackagingPage';
 
 export const router = createBrowserRouter([
   {
@@ -83,21 +87,24 @@ export const router = createBrowserRouter([
       { path: 'buchhaltung/jahresabschluss', element: <YearClosingList /> },
       { path: 'buchhaltung/jahresabschluss/:id/vorbereitung', element: <YearClosingPrep /> },
 
+      //Track and Trace
       { path: 'trace', element: <div>Track & Trace</div> },
       { path: 'trace/samen', element: <SeedPurchasePage /> },
       { path: 'trace/mutterpflanzen', element: <MotherPlantPage /> },
+      { path: 'trace/stecklinge', element: <CuttingPage /> },
       { path: 'trace/bluehpflanzen', element: <FloweringPlantPage /> },
       { path: 'trace/bluehpflanzen-aus-stecklingen', element: <BloomingCuttingPlantPage /> },
+      { path: 'trace/ernte', element: <HarvestPage /> },
+      { path: 'trace/trocknung', element: <DryingPage /> },
+      { path: 'trace/verarbeitung', element: <ProcessingPage /> },
+      { path: 'trace/laborkontrolle', element: <LabTestingPage /> },
+      { path: 'trace/verpackung', element: <PackagingPage /> },
 
-      { path: 'trace/stecklinge', element: <CuttingPage /> },
-
+      // Sicherheit
       { path: 'unifi-protect/sensoren', element: <ProtectSensorPage /> },
 
       // Optional: zukünftige Seiten
       { path: 'netzwerk', element: <div>Gemeinschaftsnetzwerk</div> },
-
-      
-
     ],
   },
 

@@ -8,20 +8,20 @@ from django.db.models import Q
 from .models import (
     SeedPurchase, MotherPlantBatch, MotherPlant, 
     FloweringPlantBatch, FloweringPlant, Cutting, CuttingBatch,
-    BloomingCuttingBatch, BloomingCuttingPlant  # Neue Modelle hinzugefügt
+    BloomingCuttingBatch, BloomingCuttingPlant, HarvestBatch, 
+    DryingBatch, ProcessingBatch, LabTestingBatch, PackagingBatch
 )
 from .serializers import (
     SeedPurchaseSerializer, MotherPlantBatchSerializer, 
     MotherPlantSerializer, FloweringPlantBatchSerializer,
     FloweringPlantSerializer, CuttingBatchSerializer, CuttingSerializer,
-    BloomingCuttingBatchSerializer, BloomingCuttingPlantSerializer  # Neue Serializer hinzugefügt
+    BloomingCuttingBatchSerializer, BloomingCuttingPlantSerializer, 
+    HarvestBatchSerializer, DryingBatchSerializer, ProcessingBatchSerializer,
+    LabTestingBatchSerializer, PackagingBatchSerializer
 )
 
-# api_views.py
-# Verbesserte Pagination-Klasse mit Debug-Ausgaben
-
 class StandardResultsSetPagination(pagination.PageNumberPagination):
-    page_size = 10  # Standard auf 15 setzen
+    page_size = 10
     page_size_query_param = 'page_size'
     max_page_size = 100
     
@@ -63,9 +63,6 @@ class StandardResultsSetPagination(pagination.PageNumberPagination):
         # Kein page_size-Parameter, verwende Standard
         print(f"Kein page_size-Parameter, verwende Standard: {self.page_size}")
         return self.page_size
-
-# Beispiel für die Anwendung in einem ViewSet
-# Hier ist ein Beispiel, wie man sicherstellt, dass die Pagination korrekt verwendet wird:
 
 class SeedPurchaseViewSet(viewsets.ModelViewSet):
     queryset = SeedPurchase.objects.all().order_by('-created_at')
@@ -572,9 +569,10 @@ class FloweringPlantBatchViewSet(viewsets.ModelViewSet):
         month = self.request.query_params.get('month', None)
         day = self.request.query_params.get('day', None)
         
-        # Neue Filter für aktive/vernichtete Pflanzen
+        # Filter für aktive/vernichtete/geerntete Pflanzen
         has_active = self.request.query_params.get('has_active', None)
         has_destroyed = self.request.query_params.get('has_destroyed', None)
+        has_harvested = self.request.query_params.get('has_harvested', None)
         
         if year:
             queryset = queryset.filter(created_at__year=year)
@@ -589,19 +587,44 @@ class FloweringPlantBatchViewSet(viewsets.ModelViewSet):
         
         # Filter für Batches mit vernichteten Pflanzen
         if has_destroyed == 'true':
-            queryset = queryset.filter(plants__is_destroyed=True).distinct()
+            queryset = queryset.filter(
+                plants__is_destroyed=True
+            ).exclude(
+                plants__destroy_reason__icontains="Zur Ernte konvertiert"
+            ).distinct()
             
-        # Berechne Anzahl für aktive und vernichtete Pflanzen
+        # Filter für Batches mit zu Ernte überführten Pflanzen
+        if has_harvested == 'true':
+            queryset = queryset.filter(
+                plants__is_destroyed=True,
+                plants__destroy_reason__icontains="Zur Ernte konvertiert"
+            ).distinct()
+            
+        # Berechne Anzahl für aktive, vernichtete und geerntete Pflanzen
         active_plants = 0
         destroyed_plants = 0
+        harvested_plants = 0
         
         for batch in queryset:
             active_plants += batch.plants.filter(is_destroyed=False).count()
-            destroyed_plants += batch.plants.filter(is_destroyed=True).count()
+            
+            # Zähle vernichtete Pflanzen (nicht zu Ernte überführt)
+            destroyed_plants += batch.plants.filter(
+                is_destroyed=True
+            ).exclude(
+                destroy_reason__icontains="Zur Ernte konvertiert"
+            ).count()
+            
+            # Zähle zu Ernte überführte Pflanzen
+            harvested_plants += batch.plants.filter(
+                is_destroyed=True,
+                destroy_reason__icontains="Zur Ernte konvertiert"
+            ).count()
         
         self.counts = {
             'active_count': active_plants,
-            'destroyed_count': destroyed_plants
+            'destroyed_count': destroyed_plants,
+            'harvested_count': harvested_plants
         }
         
         return queryset
@@ -610,7 +633,8 @@ class FloweringPlantBatchViewSet(viewsets.ModelViewSet):
         response = super().list(request, *args, **kwargs)
         response.data['counts'] = getattr(self, 'counts', {
             'active_count': 0,
-            'destroyed_count': 0
+            'destroyed_count': 0,
+            'harvested_count': 0
         })
         return response
     
@@ -618,11 +642,33 @@ class FloweringPlantBatchViewSet(viewsets.ModelViewSet):
     def plants(self, request, pk=None):
         batch = self.get_object()
         destroyed = request.query_params.get('destroyed', None)
+        converted_to_harvest = request.query_params.get('converted_to_harvest', None)
         
         plants = batch.plants.all()
-        if destroyed is not None:
+        
+        if converted_to_harvest is not None:
+            is_converted = converted_to_harvest.lower() == 'true'
+            if is_converted:
+                plants = plants.filter(
+                    is_destroyed=True,
+                    destroy_reason__icontains="Zur Ernte konvertiert"
+                )
+            else:
+                plants = plants.exclude(
+                    is_destroyed=True,
+                    destroy_reason__icontains="Zur Ernte konvertiert"
+                )
+        elif destroyed is not None:
             is_destroyed = destroyed.lower() == 'true'
-            plants = plants.filter(is_destroyed=is_destroyed)
+            
+            if is_destroyed:
+                # Vernichtete Pflanzen anzeigen, aber keine zur Ernte überführten
+                plants = plants.filter(is_destroyed=True).exclude(
+                    destroy_reason__icontains="Zur Ernte konvertiert"
+                )
+            else:
+                # Nur aktive Pflanzen anzeigen
+                plants = plants.filter(is_destroyed=False)
         
         paginator = StandardResultsSetPagination()
         page = paginator.paginate_queryset(plants, request)
@@ -676,35 +722,134 @@ class FloweringPlantBatchViewSet(viewsets.ModelViewSet):
             })
             
         elif count_type == 'destroyed':
-            # Zählung für vernichtete Pflanzen
+            # Zählung für vernichtete Pflanzen (ohne zu Ernte überführte)
+            destroyed_plants = FloweringPlant.objects.filter(
+                is_destroyed=True
+            ).exclude(
+                destroy_reason__icontains="Zur Ernte konvertiert"
+            )
+            
             batches_count = FloweringPlantBatch.objects.filter(
-                plants__is_destroyed=True
+                plants__in=destroyed_plants
             ).distinct().count()
-            plants_count = FloweringPlant.objects.filter(is_destroyed=True).count()
+            plants_count = destroyed_plants.count()
             
             return Response({
                 "batches_count": batches_count,
                 "plants_count": plants_count
             })
+            
+        elif count_type == 'harvested':
+            # Zählung für zu Ernte überführte Pflanzen
+            harvested_plants = FloweringPlant.objects.filter(
+                is_destroyed=True,
+                destroy_reason__icontains="Zur Ernte konvertiert"
+            )
+            
+            batches_count = FloweringPlantBatch.objects.filter(
+                plants__in=harvested_plants
+            ).distinct().count()
+            plants_count = harvested_plants.count()
+            
+            return Response({
+                "batches_count": batches_count,
+                "harvested_plants_count": plants_count
+            })
         
         else:
             # Wenn kein Typ angegeben ist, gib alle Zahlen zurück
+            active_plants = FloweringPlant.objects.filter(is_destroyed=False)
+            
+            destroyed_plants = FloweringPlant.objects.filter(
+                is_destroyed=True
+            ).exclude(
+                destroy_reason__icontains="Zur Ernte konvertiert"
+            )
+            
+            harvested_plants = FloweringPlant.objects.filter(
+                is_destroyed=True,
+                destroy_reason__icontains="Zur Ernte konvertiert"
+            )
+            
             active_batches = FloweringPlantBatch.objects.filter(
-                plants__is_destroyed=False
+                plants__in=active_plants
             ).distinct().count()
-            active_plants = FloweringPlant.objects.filter(is_destroyed=False).count()
             
             destroyed_batches = FloweringPlantBatch.objects.filter(
-                plants__is_destroyed=True
+                plants__in=destroyed_plants
             ).distinct().count()
-            destroyed_plants = FloweringPlant.objects.filter(is_destroyed=True).count()
+            
+            harvested_batches = FloweringPlantBatch.objects.filter(
+                plants__in=harvested_plants
+            ).distinct().count()
             
             return Response({
                 "active_batches_count": active_batches,
-                "active_plants_count": active_plants,
+                "active_plants_count": active_plants.count(),
                 "destroyed_batches_count": destroyed_batches,
-                "destroyed_plants_count": destroyed_plants
+                "destroyed_plants_count": destroyed_plants.count(),
+                "harvested_batches_count": harvested_batches,
+                "harvested_plants_count": harvested_plants.count()
             })
+            
+    @action(detail=True, methods=['post'])
+    def convert_to_harvest(self, request, pk=None):
+        """
+        Konvertiert ausgewählte Blühpflanzen zu einer Ernte.
+        """
+        batch = self.get_object()
+        weight = request.data.get('weight', 0)
+        notes = request.data.get('notes', '')
+        member_id = request.data.get('member_id', None)
+        room_id = request.data.get('room_id', None)
+        plant_ids = request.data.get('plant_ids', [])
+        
+        # Validierung
+        try:
+            weight = float(weight)
+            if weight <= 0:
+                return Response(
+                    {"error": "Das Gewicht muss größer als 0 sein"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        except (TypeError, ValueError):
+            return Response(
+                {"error": "Ungültiges Gewicht"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Erstelle Ernte-Batch
+        harvest_kwargs = {
+            'flowering_batch': batch,
+            'weight': weight,
+            'notes': notes
+        }
+        
+        # Hinzufügen von optionalen Feldern
+        if member_id:
+            harvest_kwargs['member_id'] = member_id
+        if room_id:
+            harvest_kwargs['room_id'] = room_id
+        
+        harvest = HarvestBatch.objects.create(**harvest_kwargs)
+        
+        # Optional: Markiere die verwendeten Pflanzen als geerntet
+        if plant_ids:
+            # Überprüfe, ob die Pflanzen zu diesem Batch gehören
+            plants = FloweringPlant.objects.filter(id__in=plant_ids, batch=batch)
+            
+            for plant in plants:
+                plant.is_destroyed = True
+                plant.destroy_reason = f"Zur Ernte konvertiert (Charge: {harvest.batch_number})"
+                plant.destroyed_at = timezone.now()
+                if member_id:
+                    plant.destroyed_by_id = member_id
+                plant.save()
+        
+        return Response({
+            "message": f"Ernte mit {weight}g wurde erstellt",
+            "harvest": HarvestBatchSerializer(harvest).data
+        })
 
 class CuttingBatchViewSet(viewsets.ModelViewSet):
     queryset = CuttingBatch.objects.all().order_by('-created_at')
@@ -1055,9 +1200,10 @@ class BloomingCuttingBatchViewSet(viewsets.ModelViewSet):
         month = self.request.query_params.get('month', None)
         day = self.request.query_params.get('day', None)
         
-        # Neue Filter für aktive/vernichtete Pflanzen
+        # Filter für aktive/vernichtete/geerntete Pflanzen
         has_active = self.request.query_params.get('has_active', None)
         has_destroyed = self.request.query_params.get('has_destroyed', None)
+        has_harvested = self.request.query_params.get('has_harvested', None)
         
         if year:
             queryset = queryset.filter(created_at__year=year)
@@ -1072,19 +1218,43 @@ class BloomingCuttingBatchViewSet(viewsets.ModelViewSet):
         
         # Filter für Batches mit vernichteten Pflanzen
         if has_destroyed == 'true':
-            queryset = queryset.filter(plants__is_destroyed=True).distinct()
+            queryset = queryset.filter(
+                plants__is_destroyed=True,
+                plants__destroy_reason__icontains="Vernichtet"
+            ).distinct()
             
-        # Berechne Anzahl für aktive und vernichtete Pflanzen
+        # Filter für Batches mit zu Ernte überführten Pflanzen
+        if has_harvested == 'true':
+            queryset = queryset.filter(
+                plants__is_destroyed=True,
+                plants__destroy_reason__icontains="Zur Ernte konvertiert"
+            ).distinct()
+            
+        # Berechne Anzahl für aktive, vernichtete und geerntete Pflanzen
         active_plants = 0
         destroyed_plants = 0
+        harvested_plants = 0
         
         for batch in queryset:
             active_plants += batch.plants.filter(is_destroyed=False).count()
-            destroyed_plants += batch.plants.filter(is_destroyed=True).count()
+            
+            # Zähle vernichtete Pflanzen (nicht zu Ernte überführt)
+            destroyed_plants += batch.plants.filter(
+                is_destroyed=True
+            ).exclude(
+                destroy_reason__icontains="Zur Ernte konvertiert"
+            ).count()
+            
+            # Zähle zu Ernte überführte Pflanzen
+            harvested_plants += batch.plants.filter(
+                is_destroyed=True,
+                destroy_reason__icontains="Zur Ernte konvertiert"
+            ).count()
         
         self.counts = {
             'active_count': active_plants,
-            'destroyed_count': destroyed_plants
+            'destroyed_count': destroyed_plants,
+            'harvested_count': harvested_plants
         }
         
         return queryset
@@ -1093,7 +1263,8 @@ class BloomingCuttingBatchViewSet(viewsets.ModelViewSet):
         response = super().list(request, *args, **kwargs)
         response.data['counts'] = getattr(self, 'counts', {
             'active_count': 0,
-            'destroyed_count': 0
+            'destroyed_count': 0,
+            'harvested_count': 0
         })
         return response
     
@@ -1101,11 +1272,33 @@ class BloomingCuttingBatchViewSet(viewsets.ModelViewSet):
     def plants(self, request, pk=None):
         batch = self.get_object()
         destroyed = request.query_params.get('destroyed', None)
+        converted_to_harvest = request.query_params.get('converted_to_harvest', None)
         
         plants = batch.plants.all()
-        if destroyed is not None:
+        
+        if converted_to_harvest is not None:
+            is_converted = converted_to_harvest.lower() == 'true'
+            if is_converted:
+                plants = plants.filter(
+                    is_destroyed=True,
+                    destroy_reason__icontains="Zur Ernte konvertiert"
+                )
+            else:
+                plants = plants.exclude(
+                    is_destroyed=True,
+                    destroy_reason__icontains="Zur Ernte konvertiert"
+                )
+        elif destroyed is not None:
             is_destroyed = destroyed.lower() == 'true'
-            plants = plants.filter(is_destroyed=is_destroyed)
+            
+            if is_destroyed:
+                # Vernichtete Pflanzen anzeigen, aber keine zur Ernte überführten
+                plants = plants.filter(is_destroyed=True).exclude(
+                    destroy_reason__icontains="Zur Ernte konvertiert"
+                )
+            else:
+                # Nur aktive Pflanzen anzeigen
+                plants = plants.filter(is_destroyed=False)
         
         paginator = StandardResultsSetPagination()
         page = paginator.paginate_queryset(plants, request)
@@ -1171,32 +1364,1275 @@ class BloomingCuttingBatchViewSet(viewsets.ModelViewSet):
             })
             
         elif count_type == 'destroyed':
-            # Zählung für vernichtete Pflanzen
+            # Zählung für vernichtete Pflanzen (ohne zu Ernte überführte)
+            destroyed_plants = BloomingCuttingPlant.objects.filter(
+                is_destroyed=True
+            ).exclude(
+                destroy_reason__icontains="Zur Ernte konvertiert"
+            )
+            
             batches_count = BloomingCuttingBatch.objects.filter(
-                plants__is_destroyed=True
+                plants__in=destroyed_plants
             ).distinct().count()
-            plants_count = BloomingCuttingPlant.objects.filter(is_destroyed=True).count()
+            plants_count = destroyed_plants.count()
             
             return Response({
                 "batches_count": batches_count,
                 "plants_count": plants_count
             })
+            
+        elif count_type == 'harvested':
+            # Zählung für zu Ernte überführte Pflanzen
+            harvested_plants = BloomingCuttingPlant.objects.filter(
+                is_destroyed=True,
+                destroy_reason__icontains="Zur Ernte konvertiert"
+            )
+            
+            batches_count = BloomingCuttingBatch.objects.filter(
+                plants__in=harvested_plants
+            ).distinct().count()
+            plants_count = harvested_plants.count()
+            
+            return Response({
+                "batches_count": batches_count,
+                "harvested_plants_count": plants_count
+            })
         
         else:
             # Wenn kein Typ angegeben ist, gib alle Zahlen zurück
+            active_plants = BloomingCuttingPlant.objects.filter(is_destroyed=False)
+            
+            destroyed_plants = BloomingCuttingPlant.objects.filter(
+                is_destroyed=True
+            ).exclude(
+                destroy_reason__icontains="Zur Ernte konvertiert"
+            )
+            
+            harvested_plants = BloomingCuttingPlant.objects.filter(
+                is_destroyed=True,
+                destroy_reason__icontains="Zur Ernte konvertiert"
+            )
+            
             active_batches = BloomingCuttingBatch.objects.filter(
-                plants__is_destroyed=False
+                plants__in=active_plants
             ).distinct().count()
-            active_plants = BloomingCuttingPlant.objects.filter(is_destroyed=False).count()
             
             destroyed_batches = BloomingCuttingBatch.objects.filter(
-                plants__is_destroyed=True
+                plants__in=destroyed_plants
             ).distinct().count()
-            destroyed_plants = BloomingCuttingPlant.objects.filter(is_destroyed=True).count()
+            
+            harvested_batches = BloomingCuttingBatch.objects.filter(
+                plants__in=harvested_plants
+            ).distinct().count()
             
             return Response({
                 "active_batches_count": active_batches,
-                "active_plants_count": active_plants,
+                "active_plants_count": active_plants.count(),
                 "destroyed_batches_count": destroyed_batches,
-                "destroyed_plants_count": destroyed_plants
+                "destroyed_plants_count": destroyed_plants.count(),
+                "harvested_batches_count": harvested_batches,
+                "harvested_plants_count": harvested_plants.count()
             })
+
+    @action(detail=True, methods=['post'])
+    def convert_to_harvest(self, request, pk=None):
+        """
+        Konvertiert ausgewählte Blühpflanzen aus Stecklingen zu einer Ernte.
+        """
+        batch = self.get_object()
+        weight = request.data.get('weight', 0)
+        notes = request.data.get('notes', '')
+        member_id = request.data.get('member_id', None)
+        room_id = request.data.get('room_id', None)
+        plant_ids = request.data.get('plant_ids', [])
+        
+        # Validierung
+        try:
+            weight = float(weight)
+            if weight <= 0:
+                return Response(
+                    {"error": "Das Gewicht muss größer als 0 sein"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        except (TypeError, ValueError):
+            return Response(
+                {"error": "Ungültiges Gewicht"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Erstelle Ernte-Batch
+        harvest_kwargs = {
+            'blooming_cutting_batch': batch,
+            'weight': weight,
+            'notes': notes
+        }
+        
+        # Hinzufügen von optionalen Feldern
+        if member_id:
+            harvest_kwargs['member_id'] = member_id
+        if room_id:
+            harvest_kwargs['room_id'] = room_id
+        
+        harvest = HarvestBatch.objects.create(**harvest_kwargs)
+        
+        # Optional: Markiere die verwendeten Pflanzen als geerntet
+        if plant_ids:
+            # Überprüfe, ob die Pflanzen zu diesem Batch gehören
+            plants = BloomingCuttingPlant.objects.filter(id__in=plant_ids, batch=batch)
+            
+            for plant in plants:
+                plant.is_destroyed = True
+                plant.destroy_reason = f"Zur Ernte konvertiert (Charge: {harvest.batch_number})"
+                plant.destroyed_at = timezone.now()
+                if member_id:
+                    plant.destroyed_by_id = member_id
+                plant.save()
+        
+        return Response({
+            "message": f"Ernte mit {weight}g wurde erstellt",
+            "harvest": HarvestBatchSerializer(harvest).data
+        })
+
+class HarvestBatchViewSet(viewsets.ModelViewSet):
+    queryset = HarvestBatch.objects.all().order_by('-created_at')
+    serializer_class = HarvestBatchSerializer
+    permission_classes = [IsAuthenticated]
+    pagination_class = StandardResultsSetPagination
+    
+    def get_queryset(self):
+        queryset = HarvestBatch.objects.all().order_by('-created_at')
+        
+        # Filtern nach Zeitraum
+        year = self.request.query_params.get('year', None)
+        month = self.request.query_params.get('month', None)
+        day = self.request.query_params.get('day', None)
+        
+        # Filtern nach Status (active, dried, destroyed)
+        status = self.request.query_params.get('status', None)
+        
+        # Der alte destroyed-Parameter wird weiterhin unterstützt, um Abwärtskompatibilität zu gewährleisten
+        destroyed = self.request.query_params.get('destroyed', None)
+        
+        if year:
+            queryset = queryset.filter(created_at__year=year)
+        if month:
+            queryset = queryset.filter(created_at__month=month)
+        if day:
+            queryset = queryset.filter(created_at__day=day)
+        
+        # Status-basierte Filterung
+        if status:
+            if status == 'active':
+                # Aktive Ernten: weder vernichtet noch zu Trocknung überführt
+                queryset = queryset.filter(is_destroyed=False, converted_to_drying=False)
+            elif status == 'dried':
+                # Zu Trocknung überführte Ernten
+                queryset = queryset.filter(converted_to_drying=True)
+            elif status == 'destroyed':
+                # Vernichtete Ernten
+                queryset = queryset.filter(is_destroyed=True)
+        # Fallback für Legacy-Support des destroyed-Parameters
+        elif destroyed is not None:
+            is_destroyed = destroyed.lower() == 'true'
+            queryset = queryset.filter(is_destroyed=is_destroyed)
+            
+        # Berechne Anzahl und Gewicht für alle Status-Typen
+        active_harvests = HarvestBatch.objects.filter(is_destroyed=False, converted_to_drying=False)
+        dried_harvests = HarvestBatch.objects.filter(converted_to_drying=True)
+        destroyed_harvests = HarvestBatch.objects.filter(is_destroyed=True)
+        
+        active_count = active_harvests.count()
+        dried_count = dried_harvests.count()
+        destroyed_count = destroyed_harvests.count()
+        
+        total_active_weight = active_harvests.aggregate(total=models.Sum('weight'))['total'] or 0
+        total_dried_weight = dried_harvests.aggregate(total=models.Sum('weight'))['total'] or 0
+        total_destroyed_weight = destroyed_harvests.aggregate(total=models.Sum('weight'))['total'] or 0
+        
+        self.counts = {
+            'active_count': active_count,
+            'dried_count': dried_count,
+            'destroyed_count': destroyed_count,
+            'total_active_weight': total_active_weight,
+            'total_dried_weight': total_dried_weight,
+            'total_destroyed_weight': total_destroyed_weight
+        }
+        
+        return queryset
+    
+    def list(self, request, *args, **kwargs):
+        response = super().list(request, *args, **kwargs)
+        response.data['counts'] = getattr(self, 'counts', {
+            'active_count': 0,
+            'dried_count': 0,
+            'destroyed_count': 0,
+            'total_active_weight': 0,
+            'total_dried_weight': 0,
+            'total_destroyed_weight': 0
+        })
+        return response
+    
+    @action(detail=False, methods=['get'])
+    def counts(self, request):
+        # Filtere nach verschiedenen Status
+        active_harvests = HarvestBatch.objects.filter(is_destroyed=False, converted_to_drying=False)
+        dried_harvests = HarvestBatch.objects.filter(converted_to_drying=True)
+        destroyed_harvests = HarvestBatch.objects.filter(is_destroyed=True)
+        
+        # Zähle Datensätze
+        active_count = active_harvests.count()
+        dried_count = dried_harvests.count()
+        destroyed_count = destroyed_harvests.count()
+        
+        # Berechne Gesamtgewichte
+        total_active_weight = active_harvests.aggregate(total=models.Sum('weight'))['total'] or 0
+        total_dried_weight = dried_harvests.aggregate(total=models.Sum('weight'))['total'] or 0
+        total_destroyed_weight = destroyed_harvests.aggregate(total=models.Sum('weight'))['total'] or 0
+        
+        return Response({
+            'active_count': active_count,
+            'dried_count': dried_count,
+            'destroyed_count': destroyed_count,
+            'total_active_weight': float(total_active_weight),
+            'total_dried_weight': float(total_dried_weight),
+            'total_destroyed_weight': float(total_destroyed_weight)
+        })
+    
+    @action(detail=True, methods=['post'])
+    def destroy_harvest(self, request, pk=None):
+        harvest = self.get_object()
+        reason = request.data.get('reason', '')
+        destroyed_by_id = request.data.get('destroyed_by_id', None)
+        
+        if not reason:
+            return Response(
+                {"error": "Ein Vernichtungsgrund ist erforderlich"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if not destroyed_by_id:
+            return Response(
+                {"error": "Ein verantwortliches Mitglied muss angegeben werden"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        harvest.is_destroyed = True
+        harvest.destroy_reason = reason
+        harvest.destroyed_at = timezone.now()
+        harvest.destroyed_by_id = destroyed_by_id
+        harvest.save()
+        
+        return Response({
+            "message": f"Ernte {harvest.batch_number} wurde vernichtet"
+        })
+    
+    @action(detail=True, methods=['post'])
+    def convert_to_drying(self, request, pk=None):
+        """
+        Konvertiert eine Ernte zu einer Trocknung.
+        """
+        harvest = self.get_object()
+        
+        # Prüfen, ob die Ernte bereits konvertiert wurde
+        if harvest.converted_to_drying:
+            return Response(
+                {"error": "Diese Ernte wurde bereits zu einer Trocknung konvertiert"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        # Prüfen, ob die Ernte bereits vernichtet wurde
+        if harvest.is_destroyed:
+            return Response(
+                {"error": "Vernichtete Ernten können nicht zu einer Trocknung konvertiert werden"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        final_weight = request.data.get('final_weight', 0)
+        notes = request.data.get('notes', '')
+        member_id = request.data.get('member_id', None)
+        room_id = request.data.get('room_id', None)
+        
+        # Validierung
+        try:
+            final_weight = float(final_weight)
+            if final_weight <= 0:
+                return Response(
+                    {"error": "Das Trockengewicht muss größer als 0 sein"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+                
+            # Prüfen, ob das Trockengewicht kleiner als das Erntegewicht ist
+            if final_weight >= float(harvest.weight):
+                return Response(
+                    {"error": "Das Trockengewicht muss kleiner als das Erntegewicht sein"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        except (TypeError, ValueError):
+            return Response(
+                {"error": "Ungültiges Gewicht"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Erstelle Trocknungs-Batch
+        drying_kwargs = {
+            'harvest_batch': harvest,
+            'initial_weight': harvest.weight,
+            'final_weight': final_weight,
+            'notes': notes
+        }
+        
+        # Hinzufügen von optionalen Feldern
+        if member_id:
+            drying_kwargs['member_id'] = member_id
+        if room_id:
+            drying_kwargs['room_id'] = room_id
+        
+        drying = DryingBatch.objects.create(**drying_kwargs)
+        
+        # Markiere die Ernte als zu Trocknung überführt
+        harvest.converted_to_drying = True
+        harvest.converted_to_drying_at = timezone.now()
+        harvest.drying_batch = drying  # Verknüpfe mit dem erstellten Trocknungsbatch
+        harvest.save()
+        
+        return Response({
+            "message": f"Trocknung mit {final_weight}g Trockengewicht wurde erstellt",
+            "drying": DryingBatchSerializer(drying).data
+        })
+    
+class DryingBatchViewSet(viewsets.ModelViewSet):
+    queryset = DryingBatch.objects.all().order_by('-created_at')
+    serializer_class = DryingBatchSerializer
+    permission_classes = [IsAuthenticated]
+    pagination_class = StandardResultsSetPagination
+    
+    def get_queryset(self):
+        queryset = DryingBatch.objects.all().order_by('-created_at')
+        
+        # Filtern nach Zeitraum
+        year = self.request.query_params.get('year', None)
+        month = self.request.query_params.get('month', None)
+        day = self.request.query_params.get('day', None)
+        
+        # Filter nach zerstört/nicht zerstört
+        destroyed = self.request.query_params.get('destroyed', None)
+        
+        if year:
+            queryset = queryset.filter(created_at__year=year)
+        if month:
+            queryset = queryset.filter(created_at__month=month)
+        if day:
+            queryset = queryset.filter(created_at__day=day)
+        
+        if destroyed is not None:
+            is_destroyed = destroyed.lower() == 'true'
+            queryset = queryset.filter(is_destroyed=is_destroyed)
+            
+        # Berechne Anzahl für aktive und vernichtete Trocknungen
+        active_count = queryset.filter(is_destroyed=False).count()
+        destroyed_count = queryset.filter(is_destroyed=True).count()
+        
+        # Berechne Gesamtgewicht für aktive und vernichtete Trocknungen
+        total_active_initial_weight = queryset.filter(is_destroyed=False).aggregate(total=models.Sum('initial_weight'))['total'] or 0
+        total_active_final_weight = queryset.filter(is_destroyed=False).aggregate(total=models.Sum('final_weight'))['total'] or 0
+        total_destroyed_initial_weight = queryset.filter(is_destroyed=True).aggregate(total=models.Sum('initial_weight'))['total'] or 0
+        total_destroyed_final_weight = queryset.filter(is_destroyed=True).aggregate(total=models.Sum('final_weight'))['total'] or 0
+        
+        self.counts = {
+            'active_count': active_count,
+            'destroyed_count': destroyed_count,
+            'total_active_initial_weight': total_active_initial_weight,
+            'total_active_final_weight': total_active_final_weight,
+            'total_destroyed_initial_weight': total_destroyed_initial_weight,
+            'total_destroyed_final_weight': total_destroyed_final_weight
+        }
+        
+        return queryset
+    
+    def list(self, request, *args, **kwargs):
+        response = super().list(request, *args, **kwargs)
+        response.data['counts'] = getattr(self, 'counts', {
+            'active_count': 0,
+            'destroyed_count': 0,
+            'total_active_initial_weight': 0,
+            'total_active_final_weight': 0,
+            'total_destroyed_initial_weight': 0,
+            'total_destroyed_final_weight': 0
+        })
+        return response
+    
+    @action(detail=False, methods=['get'])
+    def counts(self, request):
+        active_batches = DryingBatch.objects.filter(is_destroyed=False)
+        destroyed_batches = DryingBatch.objects.filter(is_destroyed=True)
+        
+        active_count = active_batches.count()
+        destroyed_count = destroyed_batches.count()
+        
+        total_active_initial_weight = active_batches.aggregate(total=models.Sum('initial_weight'))['total'] or 0
+        total_active_final_weight = active_batches.aggregate(total=models.Sum('final_weight'))['total'] or 0
+        total_destroyed_initial_weight = destroyed_batches.aggregate(total=models.Sum('initial_weight'))['total'] or 0
+        total_destroyed_final_weight = destroyed_batches.aggregate(total=models.Sum('final_weight'))['total'] or 0
+        
+        return Response({
+            'active_count': active_count,
+            'destroyed_count': destroyed_count,
+            'total_active_initial_weight': float(total_active_initial_weight),
+            'total_active_final_weight': float(total_active_final_weight),
+            'total_destroyed_initial_weight': float(total_destroyed_initial_weight),
+            'total_destroyed_final_weight': float(total_destroyed_final_weight)
+        })
+    
+    @action(detail=True, methods=['post'])
+    def destroy_drying(self, request, pk=None):
+        drying_batch = self.get_object()
+        reason = request.data.get('reason', '')
+        destroyed_by_id = request.data.get('destroyed_by_id', None)
+        
+        if not reason:
+            return Response(
+                {"error": "Ein Vernichtungsgrund ist erforderlich"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if not destroyed_by_id:
+            return Response(
+                {"error": "Ein verantwortliches Mitglied muss angegeben werden"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        drying_batch.is_destroyed = True
+        drying_batch.destroy_reason = reason
+        drying_batch.destroyed_at = timezone.now()
+        drying_batch.destroyed_by_id = destroyed_by_id
+        drying_batch.save()
+        
+        return Response({
+            "message": f"Trocknung {drying_batch.batch_number} wurde vernichtet"
+        })
+    
+    @action(detail=True, methods=['post'])
+    def convert_to_processing(self, request, pk=None):
+        """
+        Konvertiert eine Trocknung zu einer Verarbeitung (Marihuana oder Haschisch).
+        """
+        drying = self.get_object()
+        product_type = request.data.get('product_type', '')
+        output_weight = request.data.get('output_weight', 0)
+        notes = request.data.get('notes', '')
+        member_id = request.data.get('member_id', None)
+        room_id = request.data.get('room_id', None)
+        
+        # Validierung
+        if product_type not in ['marijuana', 'hashish']:
+            return Response(
+                {"error": "Bitte wählen Sie einen gültigen Produkttyp (marijuana, hashish)"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            output_weight = float(output_weight)
+            if output_weight <= 0:
+                return Response(
+                    {"error": "Das Produktgewicht muss größer als 0 sein"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+                
+            # Prüfen, ob das Produktgewicht kleiner als das Trockengewicht ist
+            if output_weight > float(drying.final_weight):
+                return Response(
+                    {"error": "Das Produktgewicht kann nicht größer als das Trockengewicht sein"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        except (TypeError, ValueError):
+            return Response(
+                {"error": "Ungültiges Gewicht"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Erstelle Verarbeitungs-Batch
+        processing_kwargs = {
+            'drying_batch': drying,
+            'product_type': product_type,
+            'input_weight': drying.final_weight,
+            'output_weight': output_weight,
+            'notes': notes
+        }
+        
+        # Hinzufügen von optionalen Feldern
+        if member_id:
+            processing_kwargs['member_id'] = member_id
+        if room_id:
+            processing_kwargs['room_id'] = room_id
+        
+        processing = ProcessingBatch.objects.create(**processing_kwargs)
+        
+        # Optional: Markiere die Trocknung als zu Verarbeitung überführt
+        drying.converted_to_processing = True
+        drying.converted_to_processing_at = timezone.now()
+        drying.processing_batch = processing
+        drying.save()
+        
+        product_name = "Marihuana" if product_type == "marijuana" else "Haschisch"
+        
+        return Response({
+            "message": f"{product_name} mit {output_weight}g wurde erstellt",
+            "processing": ProcessingBatchSerializer(processing).data
+        })
+    
+class ProcessingBatchViewSet(viewsets.ModelViewSet):
+    queryset = ProcessingBatch.objects.all().order_by('-created_at')
+    serializer_class = ProcessingBatchSerializer
+    permission_classes = [IsAuthenticated]
+    pagination_class = StandardResultsSetPagination
+    
+    def get_queryset(self):
+        queryset = ProcessingBatch.objects.all().order_by('-created_at')
+        
+        # Filtern nach Zeitraum
+        year = self.request.query_params.get('year', None)
+        month = self.request.query_params.get('month', None)
+        day = self.request.query_params.get('day', None)
+        
+        # Filter nach Produkt-Typ
+        product_type = self.request.query_params.get('product_type', None)
+        
+        # Filter nach zerstört/nicht zerstört
+        destroyed = self.request.query_params.get('destroyed', None)
+        
+        if year:
+            queryset = queryset.filter(created_at__year=year)
+        if month:
+            queryset = queryset.filter(created_at__month=month)
+        if day:
+            queryset = queryset.filter(created_at__day=day)
+        
+        if product_type:
+            queryset = queryset.filter(product_type=product_type)
+        
+        if destroyed is not None:
+            is_destroyed = destroyed.lower() == 'true'
+            queryset = queryset.filter(is_destroyed=is_destroyed)
+            
+        # Berechne Anzahl für aktive und vernichtete Verarbeitungen
+        active_count = queryset.filter(is_destroyed=False).count()
+        destroyed_count = queryset.filter(is_destroyed=True).count()
+        
+        # Berechne Gesamtgewicht für aktive und vernichtete Verarbeitungen
+        total_active_input_weight = queryset.filter(is_destroyed=False).aggregate(total=models.Sum('input_weight'))['total'] or 0
+        total_active_output_weight = queryset.filter(is_destroyed=False).aggregate(total=models.Sum('output_weight'))['total'] or 0
+        total_destroyed_input_weight = queryset.filter(is_destroyed=True).aggregate(total=models.Sum('input_weight'))['total'] or 0
+        total_destroyed_output_weight = queryset.filter(is_destroyed=True).aggregate(total=models.Sum('output_weight'))['total'] or 0
+        
+        # Berechne Anzahl und Gewicht nach Produkt-Typ
+        marijuana_count = queryset.filter(is_destroyed=False, product_type='marijuana').count()
+        hashish_count = queryset.filter(is_destroyed=False, product_type='hashish').count()
+        marijuana_weight = queryset.filter(is_destroyed=False, product_type='marijuana').aggregate(total=models.Sum('output_weight'))['total'] or 0
+        hashish_weight = queryset.filter(is_destroyed=False, product_type='hashish').aggregate(total=models.Sum('output_weight'))['total'] or 0
+        
+        self.counts = {
+            'active_count': active_count,
+            'destroyed_count': destroyed_count,
+            'total_active_input_weight': total_active_input_weight,
+            'total_active_output_weight': total_active_output_weight,
+            'total_destroyed_input_weight': total_destroyed_input_weight,
+            'total_destroyed_output_weight': total_destroyed_output_weight,
+            'marijuana_count': marijuana_count,
+            'hashish_count': hashish_count,
+            'marijuana_weight': marijuana_weight,
+            'hashish_weight': hashish_weight
+        }
+        
+        return queryset
+    
+    def list(self, request, *args, **kwargs):
+        response = super().list(request, *args, **kwargs)
+        response.data['counts'] = getattr(self, 'counts', {
+            'active_count': 0,
+            'destroyed_count': 0,
+            'total_active_input_weight': 0,
+            'total_active_output_weight': 0,
+            'total_destroyed_input_weight': 0,
+            'total_destroyed_output_weight': 0,
+            'marijuana_count': 0,
+            'hashish_count': 0,
+            'marijuana_weight': 0,
+            'hashish_weight': 0
+        })
+        return response
+    
+    @action(detail=False, methods=['get'])
+    def counts(self, request):
+        active_batches = ProcessingBatch.objects.filter(is_destroyed=False)
+        destroyed_batches = ProcessingBatch.objects.filter(is_destroyed=True)
+        
+        active_count = active_batches.count()
+        destroyed_count = destroyed_batches.count()
+        
+        total_active_input_weight = active_batches.aggregate(total=models.Sum('input_weight'))['total'] or 0
+        total_active_output_weight = active_batches.aggregate(total=models.Sum('output_weight'))['total'] or 0
+        total_destroyed_input_weight = destroyed_batches.aggregate(total=models.Sum('input_weight'))['total'] or 0
+        total_destroyed_output_weight = destroyed_batches.aggregate(total=models.Sum('output_weight'))['total'] or 0
+        
+        marijuana_count = active_batches.filter(product_type='marijuana').count()
+        hashish_count = active_batches.filter(product_type='hashish').count()
+        marijuana_weight = active_batches.filter(product_type='marijuana').aggregate(total=models.Sum('output_weight'))['total'] or 0
+        hashish_weight = active_batches.filter(product_type='hashish').aggregate(total=models.Sum('output_weight'))['total'] or 0
+        
+        return Response({
+            'active_count': active_count,
+            'destroyed_count': destroyed_count,
+            'total_active_input_weight': float(total_active_input_weight),
+            'total_active_output_weight': float(total_active_output_weight),
+            'total_destroyed_input_weight': float(total_destroyed_input_weight),
+            'total_destroyed_output_weight': float(total_destroyed_output_weight),
+            'marijuana_count': marijuana_count,
+            'hashish_count': hashish_count,
+            'marijuana_weight': float(marijuana_weight),
+            'hashish_weight': float(hashish_weight)
+        })
+    
+    @action(detail=True, methods=['post'])
+    def destroy_processing(self, request, pk=None):
+        processing_batch = self.get_object()
+        reason = request.data.get('reason', '')
+        destroyed_by_id = request.data.get('destroyed_by_id', None)
+        
+        if not reason:
+            return Response(
+                {"error": "Ein Vernichtungsgrund ist erforderlich"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if not destroyed_by_id:
+            return Response(
+                {"error": "Ein verantwortliches Mitglied muss angegeben werden"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        processing_batch.is_destroyed = True
+        processing_batch.destroy_reason = reason
+        processing_batch.destroyed_at = timezone.now()
+        processing_batch.destroyed_by_id = destroyed_by_id
+        processing_batch.save()
+        
+        return Response({
+            "message": f"Verarbeitung {processing_batch.batch_number} wurde vernichtet"
+        })
+    
+    @action(detail=True, methods=['post'])
+    def convert_to_labtesting(self, request, pk=None):
+        """
+        Konvertiert eine Verarbeitung zu einer Laborkontrolle.
+        """
+        processing = self.get_object()
+        
+        # Prüfen, ob die Verarbeitung bereits vernichtet wurde
+        if processing.is_destroyed:
+            return Response(
+                {"error": "Vernichtete Verarbeitungen können nicht zu Laborkontrollen konvertiert werden"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        input_weight = request.data.get('input_weight', processing.output_weight)
+        sample_weight = request.data.get('sample_weight', 0)
+        notes = request.data.get('notes', '')
+        member_id = request.data.get('member_id', None)
+        room_id = request.data.get('room_id', None)
+        
+        # Validierung
+        try:
+            input_weight = float(input_weight)
+            if input_weight <= 0:
+                return Response(
+                    {"error": "Das Inputgewicht muss größer als 0 sein"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+                
+            # Prüfen, ob das Inputgewicht kleiner oder gleich dem Output-Gewicht der Verarbeitung ist
+            if input_weight > float(processing.output_weight):
+                return Response(
+                    {"error": f"Das Inputgewicht kann nicht größer als das Output-Gewicht der Verarbeitung sein ({processing.output_weight}g)"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        except (TypeError, ValueError):
+            return Response(
+                {"error": "Ungültiges Inputgewicht"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        try:
+            sample_weight = float(sample_weight)
+            if sample_weight <= 0:
+                return Response(
+                    {"error": "Das Probengewicht muss größer als 0 sein"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+                
+            # Prüfen, ob das Probengewicht kleiner als das Inputgewicht ist
+            if sample_weight >= input_weight:
+                return Response(
+                    {"error": "Das Probengewicht muss kleiner als das Inputgewicht sein"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        except (TypeError, ValueError):
+            return Response(
+                {"error": "Ungültiges Probengewicht"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Erstelle Laborkontroll-Batch
+        lab_testing_kwargs = {
+            'processing_batch': processing,
+            'input_weight': input_weight,
+            'sample_weight': sample_weight,
+            'notes': notes
+        }
+        
+        # Hinzufügen von optionalen Feldern
+        if member_id:
+            lab_testing_kwargs['member_id'] = member_id
+        if room_id:
+            lab_testing_kwargs['room_id'] = room_id
+        
+        lab_testing = LabTestingBatch.objects.create(**lab_testing_kwargs)
+        
+        # Serialisierer mit angepasstem Kontext
+        serializer = LabTestingBatchSerializer(lab_testing)
+        
+        return Response({
+            "message": f"Laborkontrolle mit {input_weight}g und {sample_weight}g Probengewicht wurde erstellt",
+            "lab_testing": serializer.data
+        })
+    
+class LabTestingBatchViewSet(viewsets.ModelViewSet):
+    queryset = LabTestingBatch.objects.all().order_by('-created_at')
+    serializer_class = LabTestingBatchSerializer
+    permission_classes = [IsAuthenticated]
+    pagination_class = StandardResultsSetPagination
+    
+    def get_queryset(self):
+        queryset = LabTestingBatch.objects.all().order_by('-created_at')
+        
+        # Filtern nach Zeitraum
+        year = self.request.query_params.get('year', None)
+        month = self.request.query_params.get('month', None)
+        day = self.request.query_params.get('day', None)
+        
+        # Filter nach Produkt-Typ
+        product_type = self.request.query_params.get('product_type', None)
+        
+        # Filter nach Status
+        status = self.request.query_params.get('status', None)
+        
+        # Filter nach zerstört/nicht zerstört
+        destroyed = self.request.query_params.get('destroyed', None)
+        
+        # Filter nach zu Verpackung konvertiert
+        converted = self.request.query_params.get('converted', None)
+        
+        if year:
+            queryset = queryset.filter(created_at__year=year)
+        if month:
+            queryset = queryset.filter(created_at__month=month)
+        if day:
+            queryset = queryset.filter(created_at__day=day)
+        
+        if product_type:
+            queryset = queryset.filter(processing_batch__product_type=product_type)
+        
+        if status:
+            queryset = queryset.filter(status=status)
+        
+        if destroyed is not None:
+            is_destroyed = destroyed.lower() == 'true'
+            queryset = queryset.filter(is_destroyed=is_destroyed)
+            
+        if converted is not None:
+            is_converted = converted.lower() == 'true'
+            queryset = queryset.filter(converted_to_packaging=is_converted)
+            
+        # Berechne Anzahl für aktive und freigegebe Labortests
+        pending_count = queryset.filter(is_destroyed=False, status='pending').count()
+        passed_count = queryset.filter(is_destroyed=False, status='passed').count()
+        failed_count = queryset.filter(is_destroyed=False, status='failed').count()
+        destroyed_count = queryset.filter(is_destroyed=True).count()
+        
+        # Berechne Gesamtgewicht
+        total_pending_weight = queryset.filter(is_destroyed=False, status='pending').aggregate(total=models.Sum('input_weight'))['total'] or 0
+        total_passed_weight = queryset.filter(is_destroyed=False, status='passed').aggregate(total=models.Sum('input_weight'))['total'] or 0
+        total_failed_weight = queryset.filter(is_destroyed=False, status='failed').aggregate(total=models.Sum('input_weight'))['total'] or 0
+        total_destroyed_weight = queryset.filter(is_destroyed=True).aggregate(total=models.Sum('input_weight'))['total'] or 0
+        
+        # Berechne Anzahl und Gewicht nach Produkt-Typ
+        marijuana_count = queryset.filter(is_destroyed=False, processing_batch__product_type='marijuana').count()
+        hashish_count = queryset.filter(is_destroyed=False, processing_batch__product_type='hashish').count()
+        marijuana_weight = queryset.filter(is_destroyed=False, processing_batch__product_type='marijuana').aggregate(total=models.Sum('input_weight'))['total'] or 0
+        hashish_weight = queryset.filter(is_destroyed=False, processing_batch__product_type='hashish').aggregate(total=models.Sum('input_weight'))['total'] or 0
+        
+        self.counts = {
+            'pending_count': pending_count,
+            'passed_count': passed_count,
+            'failed_count': failed_count,
+            'destroyed_count': destroyed_count,
+            'total_pending_weight': total_pending_weight,
+            'total_passed_weight': total_passed_weight,
+            'total_failed_weight': total_failed_weight,
+            'total_destroyed_weight': total_destroyed_weight,
+            'marijuana_count': marijuana_count,
+            'hashish_count': hashish_count,
+            'marijuana_weight': marijuana_weight,
+            'hashish_weight': hashish_weight
+        }
+        
+        return queryset
+    
+    def list(self, request, *args, **kwargs):
+        response = super().list(request, *args, **kwargs)
+        response.data['counts'] = getattr(self, 'counts', {
+            'pending_count': 0,
+            'passed_count': 0,
+            'failed_count': 0,
+            'destroyed_count': 0,
+            'total_pending_weight': 0,
+            'total_passed_weight': 0,
+            'total_failed_weight': 0,
+            'total_destroyed_weight': 0,
+            'marijuana_count': 0,
+            'hashish_count': 0,
+            'marijuana_weight': 0,
+            'hashish_weight': 0
+        })
+        return response
+    
+    @action(detail=False, methods=['get'])
+    def counts(self, request):
+        pending_batches = LabTestingBatch.objects.filter(is_destroyed=False, status='pending')
+        passed_batches = LabTestingBatch.objects.filter(is_destroyed=False, status='passed')
+        failed_batches = LabTestingBatch.objects.filter(is_destroyed=False, status='failed')
+        destroyed_batches = LabTestingBatch.objects.filter(is_destroyed=True)
+        
+        pending_count = pending_batches.count()
+        passed_count = passed_batches.count()
+        failed_count = failed_batches.count()
+        destroyed_count = destroyed_batches.count()
+        
+        total_pending_weight = pending_batches.aggregate(total=models.Sum('input_weight'))['total'] or 0
+        total_passed_weight = passed_batches.aggregate(total=models.Sum('input_weight'))['total'] or 0
+        total_failed_weight = failed_batches.aggregate(total=models.Sum('input_weight'))['total'] or 0
+        total_destroyed_weight = destroyed_batches.aggregate(total=models.Sum('input_weight'))['total'] or 0
+        
+        # Nach Produkttyp
+        marijuana_batches = LabTestingBatch.objects.filter(is_destroyed=False, processing_batch__product_type='marijuana')
+        hashish_batches = LabTestingBatch.objects.filter(is_destroyed=False, processing_batch__product_type='hashish')
+        
+        marijuana_count = marijuana_batches.count()
+        hashish_count = hashish_batches.count()
+        
+        marijuana_weight = marijuana_batches.aggregate(total=models.Sum('input_weight'))['total'] or 0
+        hashish_weight = hashish_batches.aggregate(total=models.Sum('input_weight'))['total'] or 0
+        
+        return Response({
+            'pending_count': pending_count,
+            'passed_count': passed_count,
+            'failed_count': failed_count,
+            'destroyed_count': destroyed_count,
+            'total_pending_weight': float(total_pending_weight),
+            'total_passed_weight': float(total_passed_weight),
+            'total_failed_weight': float(total_failed_weight),
+            'total_destroyed_weight': float(total_destroyed_weight),
+            'marijuana_count': marijuana_count,
+            'hashish_count': hashish_count,
+            'marijuana_weight': float(marijuana_weight),
+            'hashish_weight': float(hashish_weight)
+        })
+    
+    @action(detail=True, methods=['post'])
+    def destroy_labtesting(self, request, pk=None):
+        labtesting_batch = self.get_object()
+        reason = request.data.get('reason', '')
+        destroyed_by_id = request.data.get('destroyed_by_id', None)
+        
+        if not reason:
+            return Response(
+                {"error": "Ein Vernichtungsgrund ist erforderlich"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if not destroyed_by_id:
+            return Response(
+                {"error": "Ein verantwortliches Mitglied muss angegeben werden"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        labtesting_batch.is_destroyed = True
+        labtesting_batch.destroy_reason = reason
+        labtesting_batch.destroyed_at = timezone.now()
+        labtesting_batch.destroyed_by_id = destroyed_by_id
+        labtesting_batch.save()
+        
+        return Response({
+            "message": f"Laborkontrolle {labtesting_batch.batch_number} wurde vernichtet"
+        })
+    
+    @action(detail=True, methods=['post'])
+    def update_lab_results(self, request, pk=None):
+        """
+        Aktualisiert die Laborergebnisse für einen Labortest.
+        """
+        lab_batch = self.get_object()
+        status_value = request.data.get('status', None)
+        thc_content = request.data.get('thc_content', None)
+        cbd_content = request.data.get('cbd_content', None)
+        lab_notes = request.data.get('lab_notes', '')
+        
+        # Validierung
+        if status_value not in ['pending', 'passed', 'failed']:
+            return Response(
+                {"error": "Ungültiger Status. Erlaubte Werte: pending, passed, failed"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            if thc_content is not None:
+                thc_content = float(thc_content)
+                if thc_content < 0 or thc_content > 100:
+                    return Response(
+                        {"error": "THC-Gehalt muss zwischen 0 und 100 Prozent liegen"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+        except (TypeError, ValueError):
+            return Response(
+                {"error": "Ungültiger THC-Gehalt"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        try:
+            if cbd_content is not None:
+                cbd_content = float(cbd_content)
+                if cbd_content < 0 or cbd_content > 100:
+                    return Response(
+                        {"error": "CBD-Gehalt muss zwischen 0 und 100 Prozent liegen"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+        except (TypeError, ValueError):
+            return Response(
+                {"error": "Ungültiger CBD-Gehalt"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Aktualisiere die Laborergebnisse
+        lab_batch.status = status_value
+        if thc_content is not None:
+            lab_batch.thc_content = thc_content
+        if cbd_content is not None:
+            lab_batch.cbd_content = cbd_content
+        if lab_notes:
+            lab_batch.lab_notes = lab_notes
+        
+        lab_batch.save()
+        
+        return Response({
+            "message": f"Laborergebnisse für {lab_batch.batch_number} wurden aktualisiert",
+            "batch": LabTestingBatchSerializer(lab_batch).data
+        })
+    
+    @action(detail=True, methods=['post'])
+    def convert_to_packaging(self, request, pk=None):
+        """
+        Konvertiert eine freigegebene Laborkontrolle zu einer Verpackung.
+        """
+        lab_batch = self.get_object()
+        
+        # Prüfen, ob die Laborkontrolle bereits konvertiert wurde
+        if lab_batch.converted_to_packaging:
+            return Response(
+                {"error": "Diese Laborkontrolle wurde bereits zu Verpackung konvertiert"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        # Prüfen, ob die Laborkontrolle bereits vernichtet wurde
+        if lab_batch.is_destroyed:
+            return Response(
+                {"error": "Vernichtete Laborkontrollen können nicht zu Verpackung konvertiert werden"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        # Prüfen, ob die Laborkontrolle freigegeben wurde
+        if lab_batch.status != 'passed':
+            return Response(
+                {"error": "Nur freigegebene Laborkontrollen können zu Verpackung konvertiert werden"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        total_weight = request.data.get('total_weight', 0)
+        unit_count = request.data.get('unit_count', 0)
+        unit_weight = request.data.get('unit_weight', 0)
+        notes = request.data.get('notes', '')
+        member_id = request.data.get('member_id', None)
+        room_id = request.data.get('room_id', None)
+        
+        # Validierung
+        try:
+            total_weight = float(total_weight)
+            if total_weight <= 0:
+                return Response(
+                    {"error": "Das Gesamtgewicht muss größer als 0 sein"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+                
+            # Prüfen, ob das Gesamtgewicht kleiner oder gleich dem verbleibenden Gewicht ist
+            remaining_weight = lab_batch.remaining_weight
+            if total_weight > remaining_weight:
+                return Response(
+                    {"error": f"Das Gesamtgewicht kann nicht größer als das verbleibende Gewicht sein ({remaining_weight}g)"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        except (TypeError, ValueError):
+            return Response(
+                {"error": "Ungültiges Gesamtgewicht"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        try:
+            unit_count = int(unit_count)
+            if unit_count <= 0:
+                return Response(
+                    {"error": "Die Anzahl der Einheiten muss größer als 0 sein"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        except (TypeError, ValueError):
+            return Response(
+                {"error": "Ungültige Anzahl der Einheiten"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        try:
+            unit_weight = float(unit_weight)
+            if unit_weight <= 0:
+                return Response(
+                    {"error": "Das Gewicht pro Einheit muss größer als 0 sein"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+                
+            # Prüfen, ob das Einheitsgewicht * Anzahl ungefähr dem Gesamtgewicht entspricht
+            calculated_total = unit_weight * unit_count
+            if abs(calculated_total - total_weight) > 0.1:
+                return Response(
+                    {"error": f"Gesamtgewicht ({total_weight}g) stimmt nicht mit Einheitsgewicht * Anzahl ({calculated_total}g) überein"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        except (TypeError, ValueError):
+            return Response(
+                {"error": "Ungültiges Gewicht pro Einheit"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Erstelle Verpackungs-Batch
+        packaging_kwargs = {
+            'lab_testing_batch': lab_batch,
+            'total_weight': total_weight,
+            'unit_count': unit_count,
+            'unit_weight': unit_weight,
+            'notes': notes
+        }
+        
+        # Hinzufügen von optionalen Feldern
+        if member_id:
+            packaging_kwargs['member_id'] = member_id
+        if room_id:
+            packaging_kwargs['room_id'] = room_id
+        
+        packaging = PackagingBatch.objects.create(**packaging_kwargs)
+        
+        # Markiere die Laborkontrolle als zu Verpackung überführt
+        lab_batch.converted_to_packaging = True
+        lab_batch.converted_to_packaging_at = timezone.now()
+        lab_batch.packaging_batch = packaging
+        lab_batch.save()
+        
+        # Verwende den angepassten Serializer
+        serializer = PackagingBatchSerializer(packaging)
+        
+        return Response({
+            "message": f"Verpackung mit {total_weight}g in {unit_count} Einheiten wurde erstellt",
+            "packaging": serializer.data
+        })
+
+class PackagingBatchViewSet(viewsets.ModelViewSet):
+    queryset = PackagingBatch.objects.all().order_by('-created_at')
+    serializer_class = PackagingBatchSerializer
+    permission_classes = [IsAuthenticated]
+    pagination_class = StandardResultsSetPagination
+    
+    def get_queryset(self):
+        queryset = PackagingBatch.objects.all().order_by('-created_at')
+        
+        # Filtern nach Zeitraum
+        year = self.request.query_params.get('year', None)
+        month = self.request.query_params.get('month', None)
+        day = self.request.query_params.get('day', None)
+        
+        # Filter nach Produkt-Typ
+        product_type = self.request.query_params.get('product_type', None)
+        
+        # Filter nach zerstört/nicht zerstört
+        destroyed = self.request.query_params.get('destroyed', None)
+        
+        if year:
+            queryset = queryset.filter(created_at__year=year)
+        if month:
+            queryset = queryset.filter(created_at__month=month)
+        if day:
+            queryset = queryset.filter(created_at__day=day)
+        
+        if product_type:
+            queryset = queryset.filter(lab_testing_batch__processing_batch__product_type=product_type)
+        
+        if destroyed is not None:
+            is_destroyed = destroyed.lower() == 'true'
+            queryset = queryset.filter(is_destroyed=is_destroyed)
+            
+        # Berechne Anzahl für aktive und vernichtete Verpackungen
+        active_count = queryset.filter(is_destroyed=False).count()
+        destroyed_count = queryset.filter(is_destroyed=True).count()
+        
+        # Berechne Gesamtgewicht und Einheiten
+        total_active_weight = queryset.filter(is_destroyed=False).aggregate(total=models.Sum('total_weight'))['total'] or 0
+        total_active_units = queryset.filter(is_destroyed=False).aggregate(total=models.Sum('unit_count'))['total'] or 0
+        total_destroyed_weight = queryset.filter(is_destroyed=True).aggregate(total=models.Sum('total_weight'))['total'] or 0
+        total_destroyed_units = queryset.filter(is_destroyed=True).aggregate(total=models.Sum('unit_count'))['total'] or 0
+        
+        # Berechne Anzahl und Gewicht nach Produkt-Typ
+        marijuana_count = queryset.filter(is_destroyed=False, lab_testing_batch__processing_batch__product_type='marijuana').count()
+        hashish_count = queryset.filter(is_destroyed=False, lab_testing_batch__processing_batch__product_type='hashish').count()
+        
+        marijuana_weight = queryset.filter(
+            is_destroyed=False, 
+            lab_testing_batch__processing_batch__product_type='marijuana'
+        ).aggregate(total=models.Sum('total_weight'))['total'] or 0
+        
+        hashish_weight = queryset.filter(
+            is_destroyed=False, 
+            lab_testing_batch__processing_batch__product_type='hashish'
+        ).aggregate(total=models.Sum('total_weight'))['total'] or 0
+        
+        marijuana_units = queryset.filter(
+            is_destroyed=False, 
+            lab_testing_batch__processing_batch__product_type='marijuana'
+        ).aggregate(total=models.Sum('unit_count'))['total'] or 0
+        
+        hashish_units = queryset.filter(
+            is_destroyed=False, 
+            lab_testing_batch__processing_batch__product_type='hashish'
+        ).aggregate(total=models.Sum('unit_count'))['total'] or 0
+        
+        self.counts = {
+            'active_count': active_count,
+            'destroyed_count': destroyed_count,
+            'total_active_weight': total_active_weight,
+            'total_active_units': total_active_units,
+            'total_destroyed_weight': total_destroyed_weight,
+            'total_destroyed_units': total_destroyed_units,
+            'marijuana_count': marijuana_count,
+            'hashish_count': hashish_count,
+            'marijuana_weight': marijuana_weight,
+            'hashish_weight': hashish_weight,
+            'marijuana_units': marijuana_units,
+            'hashish_units': hashish_units
+        }
+        
+        return queryset
+    
+    def list(self, request, *args, **kwargs):
+        response = super().list(request, *args, **kwargs)
+        response.data['counts'] = getattr(self, 'counts', {
+            'active_count': 0,
+            'destroyed_count': 0,
+            'total_active_weight': 0,
+            'total_active_units': 0,
+            'total_destroyed_weight': 0,
+            'total_destroyed_units': 0,
+            'marijuana_count': 0,
+            'hashish_count': 0,
+            'marijuana_weight': 0,
+            'hashish_weight': 0,
+            'marijuana_units': 0,
+            'hashish_units': 0
+        })
+        return response
+    
+    @action(detail=False, methods=['get'])
+    def counts(self, request):
+        active_batches = PackagingBatch.objects.filter(is_destroyed=False)
+        destroyed_batches = PackagingBatch.objects.filter(is_destroyed=True)
+        
+        active_count = active_batches.count()
+        destroyed_count = destroyed_batches.count()
+        
+        total_active_weight = active_batches.aggregate(total=models.Sum('total_weight'))['total'] or 0
+        total_active_units = active_batches.aggregate(total=models.Sum('unit_count'))['total'] or 0
+        total_destroyed_weight = destroyed_batches.aggregate(total=models.Sum('total_weight'))['total'] or 0
+        total_destroyed_units = destroyed_batches.aggregate(total=models.Sum('unit_count'))['total'] or 0
+        
+        # Nach Produkttyp
+        marijuana_batches = PackagingBatch.objects.filter(
+            is_destroyed=False, 
+            lab_testing_batch__processing_batch__product_type='marijuana'
+        )
+        hashish_batches = PackagingBatch.objects.filter(
+            is_destroyed=False, 
+            lab_testing_batch__processing_batch__product_type='hashish'
+        )
+        
+        marijuana_count = marijuana_batches.count()
+        hashish_count = hashish_batches.count()
+        
+        marijuana_weight = marijuana_batches.aggregate(total=models.Sum('total_weight'))['total'] or 0
+        hashish_weight = hashish_batches.aggregate(total=models.Sum('total_weight'))['total'] or 0
+        
+        marijuana_units = marijuana_batches.aggregate(total=models.Sum('unit_count'))['total'] or 0
+        hashish_units = hashish_batches.aggregate(total=models.Sum('unit_count'))['total'] or 0
+        
+        return Response({
+            'active_count': active_count,
+            'destroyed_count': destroyed_count,
+            'total_active_weight': float(total_active_weight),
+            'total_active_units': total_active_units,
+            'total_destroyed_weight': float(total_destroyed_weight),
+            'total_destroyed_units': total_destroyed_units,
+            'marijuana_count': marijuana_count,
+            'hashish_count': hashish_count,
+            'marijuana_weight': float(marijuana_weight),
+            'hashish_weight': float(hashish_weight),
+            'marijuana_units': marijuana_units,
+            'hashish_units': hashish_units
+        })
+    
+    @action(detail=True, methods=['post'])
+    def destroy_packaging(self, request, pk=None):
+        packaging_batch = self.get_object()
+        reason = request.data.get('reason', '')
+        destroyed_by_id = request.data.get('destroyed_by_id', None)
+        
+        if not reason:
+            return Response(
+                {"error": "Ein Vernichtungsgrund ist erforderlich"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if not destroyed_by_id:
+            return Response(
+                {"error": "Ein verantwortliches Mitglied muss angegeben werden"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        packaging_batch.is_destroyed = True
+        packaging_batch.destroy_reason = reason
+        packaging_batch.destroyed_at = timezone.now()
+        packaging_batch.destroyed_by_id = destroyed_by_id
+        packaging_batch.save()
+        
+        return Response({
+            "message": f"Verpackung {packaging_batch.batch_number} wurde vernichtet"
+        })

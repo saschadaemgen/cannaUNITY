@@ -2,12 +2,10 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .api_views import (
-    SeedPurchaseViewSet, 
-    MotherPlantBatchViewSet, 
-    MotherPlantViewSet,
-    FloweringPlantBatchViewSet, 
-    CuttingBatchViewSet,
-    BloomingCuttingBatchViewSet
+    SeedPurchaseViewSet, MotherPlantBatchViewSet, MotherPlantViewSet,
+    FloweringPlantBatchViewSet, CuttingBatchViewSet, BloomingCuttingBatchViewSet,
+    HarvestBatchViewSet, DryingBatchViewSet, ProcessingBatchViewSet, LabTestingBatchViewSet, 
+    PackagingBatchViewSet
 )
 
 router = DefaultRouter()
@@ -17,6 +15,11 @@ router.register(r'motherplants', MotherPlantViewSet, basename='motherplants')
 router.register(r'floweringbatches', FloweringPlantBatchViewSet, basename='floweringbatches')
 router.register(r'cuttingbatches', CuttingBatchViewSet, basename='cuttingbatches')
 router.register(r'bloomingcuttingbatches', BloomingCuttingBatchViewSet, basename='bloomingcuttingbatches')
+router.register(r'harvests', HarvestBatchViewSet, basename='harvests')
+router.register(r'drying', DryingBatchViewSet, basename='drying')
+router.register(r'processing', ProcessingBatchViewSet, basename='processing')
+router.register(r'labtesting', LabTestingBatchViewSet, basename='labtesting')
+router.register(r'packaging', PackagingBatchViewSet, basename='packaging')
 
 urlpatterns = [
     path('', include(router.urls)),

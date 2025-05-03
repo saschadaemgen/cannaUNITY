@@ -1,5 +1,6 @@
 // frontend/src/apps/trackandtrace/pages/BloomingCuttingPlant/components/BloomingCuttingPlantTable.jsx
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { 
   Box, Typography, Button, IconButton, Tooltip, Checkbox, 
   Table, TableContainer, TableHead, TableRow, TableCell, TableBody,
@@ -7,15 +8,18 @@ import {
 } from '@mui/material'
 import ScienceIcon from '@mui/icons-material/Science'
 import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment'
+import ScaleIcon from '@mui/icons-material/Scale'
+import api from '../../../../../utils/api'
 
 import TableHeader from '../../../components/common/TableHeader'
 import AccordionRow from '../../../components/common/AccordionRow'
 import DetailCards from '../../../components/common/DetailCards'
 import PaginationFooter from '../../../components/common/PaginationFooter'
 import LoadingIndicator from '../../../components/common/LoadingIndicator'
+import ConvertToHarvestDialog from '../../../components/dialogs/ConvertToHarvestDialog'
 
 /**
- * BloomingCuttingPlantTable Komponente für die Darstellung der Blühpflanzen-Tabelle
+ * BloomingCuttingPlantTable Komponente für die Darstellung der Blühpflanzen aus Stecklingen-Tabelle
  */
 const BloomingCuttingPlantTable = ({
   tabValue,
@@ -38,13 +42,119 @@ const BloomingCuttingPlantTable = ({
   togglePlantSelection,
   selectAllPlantsInBatch
 }) => {
+  const navigate = useNavigate();
+  const [openHarvestDialog, setOpenHarvestDialog] = useState(false);
+  const [batchForHarvest, setBatchForHarvest] = useState(null);
+  const [rooms, setRooms] = useState([]);
+  const [members, setMembers] = useState([]);
+  const [loadingOptions, setLoadingOptions] = useState(false);
+  const [harvestedPlants, setHarvestedPlants] = useState({});
+  const [harvestedPlantsCount, setHarvestedPlantsCount] = useState(0);
+
+  // Laden von Räumen und Mitgliedern für den Harvest-Dialog
+  useEffect(() => {
+    if (openHarvestDialog && (rooms.length === 0 || members.length === 0)) {
+      loadRoomsAndMembers();
+    }
+  }, [openHarvestDialog]);
+
+  // Funktion zum Laden von zu Ernte konvertierten Pflanzen
+  const loadHarvestedPlantsForBatch = async (batchId) => {
+    try {
+      // Pflanzen laden, die zur Ernte konvertiert wurden
+      const res = await api.get(`/trackandtrace/bloomingcuttingbatches/${batchId}/plants/?converted_to_harvest=true`);
+      
+      // In State speichern
+      setHarvestedPlants(prev => ({
+        ...prev,
+        [batchId]: res.data.results || []
+      }));
+      
+      // Gesamtzahl aktualisieren (für den Tab)
+      setHarvestedPlantsCount(prev => prev + (res.data.count || 0));
+      
+    } catch (error) {
+      console.error('Fehler beim Laden der geernteten Pflanzen:', error);
+      setHarvestedPlants(prev => ({
+        ...prev,
+        [batchId]: []
+      }));
+    }
+  };
+
+  const loadRoomsAndMembers = async () => {
+    setLoadingOptions(true);
+    try {
+      // Räume laden
+      const roomsResponse = await api.get('rooms/');
+      setRooms(roomsResponse.data.results || []);
+      
+      // Mitglieder laden
+      const membersResponse = await api.get('members/');
+      const formattedMembers = (membersResponse.data.results || []).map(member => ({
+        ...member,
+        display_name: member.display_name || `${member.first_name} ${member.last_name}`
+      }));
+      setMembers(formattedMembers);
+    } catch (error) {
+      console.error('Fehler beim Laden der Optionen:', error);
+    } finally {
+      setLoadingOptions(false);
+    }
+  };
+
+  // Funktion zum Öffnen des Ernte-Dialogs
+  const handleOpenHarvestDialog = (batch) => {
+    setBatchForHarvest(batch);
+    setOpenHarvestDialog(true);
+    
+    // Räume und Mitglieder laden, falls noch nicht geschehen
+    if (rooms.length === 0 || members.length === 0) {
+      loadRoomsAndMembers();
+    }
+  };
+
+  // Funktion zum Konvertieren zu Ernte
+  const handleConvertToHarvest = async (formData) => {
+    try {
+      // Stelle sicher, dass das Gewicht als Zahl übergeben wird
+      const apiData = {
+        ...formData,
+        weight: parseFloat(formData.weight),
+        plant_ids: selectedPlants[batchForHarvest.id] || []
+      };
+      
+      console.log("Sende Daten an API:", apiData);
+
+      const apiEndpoint = `/trackandtrace/bloomingcuttingbatches/${batchForHarvest.id}/convert_to_harvest/`;
+      const response = await api.post(apiEndpoint, apiData);
+      
+      console.log("API-Antwort:", response.data);
+      
+      // Dialog schließen
+      setOpenHarvestDialog(false);
+      setBatchForHarvest(null);
+      
+      // Erfolgsmeldung setzen für Weiterleitung zur Ernte-Seite
+      localStorage.setItem('showHarvestSuccess', 'true');
+      
+      // Zur Ernte-Seite navigieren
+      navigate('/trace/ernte');
+      
+    } catch (error) {
+      console.error('Fehler bei der Konvertierung zu Ernte:', error);
+      console.error('Fehlerdetails:', error.response?.data);
+      alert(error.response?.data?.error || 'Ein Fehler ist aufgetreten');
+    }
+  };
+
   // Spalten für den Tabellenkopf definieren
   const getHeaderColumns = () => {
     return [
       { label: 'Genetik', width: '15%', align: 'left' },
       { label: 'Charge-Nummer', width: '22%', align: 'left' },
       { label: 'Aktiv/Gesamt', width: '10%', align: 'center' },
-      { label: 'Vernichtet', width: '10%', align: 'left' },
+      { label: tabValue === 2 ? 'Geerntet' : 'Vernichtet', width: '10%', align: 'left' },
       { label: 'Kultiviert von', width: '15%', align: 'left' },
       { label: 'Raum', width: '15%', align: 'left' },
       { label: 'Erstellt am', width: '10%', align: 'left' },
@@ -60,7 +170,7 @@ const BloomingCuttingPlantTable = ({
         width: '15%',
         bold: true,
         icon: ScienceIcon,
-        iconColor: 'primary.main'
+        iconColor: tabValue === 0 ? 'primary.main' : (tabValue === 1 ? 'error.main' : 'success.main')
       },
       {
         content: batch.batch_number ? `${batch.batch_number}` : '',
@@ -74,9 +184,11 @@ const BloomingCuttingPlantTable = ({
         align: 'center'
       },
       {
-        content: `${batch.destroyed_plants_count} Pflanzen`,
+        content: tabValue === 2 ? 
+          `${harvestedPlants[batch.id]?.length || 0} Pflanzen` : 
+          `${batch.destroyed_plants_count} Pflanzen`,
         width: '10%',
-        color: batch.destroyed_plants_count > 0 ? 'error.main' : 'text.primary'
+        color: tabValue === 0 ? 'text.primary' : (tabValue === 1 ? 'error.main' : 'success.main')
       },
       {
         content: batch.member ? 
@@ -213,7 +325,7 @@ const BloomingCuttingPlantTable = ({
         </Box>
         
         <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1, color: 'rgba(0, 0, 0, 0.87)' }}>
-          Vernichtete Pflanzen:
+          {tabValue === 2 ? 'Zu Ernte überführte Pflanzen:' : 'Vernichtete Pflanzen:'}
         </Typography>
         <Box
           sx={{
@@ -224,12 +336,16 @@ const BloomingCuttingPlantTable = ({
             fontSize: '0.85rem',
             wordBreak: 'break-all',
             border: '1px solid rgba(0, 0, 0, 0.12)',
-            color: batch.destroyed_plants_count > 0 ? 'error.main' : 'rgba(0, 0, 0, 0.38)'
+            color: tabValue === 2 ? 'success.main' : 'error.main'
           }}
         >
-          {batch.destroyed_plants_count > 0 
-            ? `${batch.destroyed_plants_count} Pflanzen vernichtet` 
-            : "Keine vernichteten Pflanzen"}
+          {tabValue === 2 ? 
+            (harvestedPlants[batch.id]?.length > 0 
+              ? `${harvestedPlants[batch.id].length} Pflanzen zu Ernte überführt` 
+              : "Keine zu Ernte überführten Pflanzen") 
+            : (batch.destroyed_plants_count > 0 
+              ? `${batch.destroyed_plants_count} Pflanzen vernichtet` 
+              : "Keine vernichteten Pflanzen")}
         </Box>
       </Box>
     )
@@ -285,7 +401,7 @@ const BloomingCuttingPlantTable = ({
             mb: 3, 
             backgroundColor: 'white', 
             borderLeft: '4px solid',
-            borderColor: 'primary.main',
+            borderColor: tabValue === 0 ? 'primary.main' : (tabValue === 1 ? 'error.main' : 'success.main'),
             borderRadius: '4px',
             boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
           }}
@@ -295,7 +411,7 @@ const BloomingCuttingPlantTable = ({
           </Typography>
         </Box>
         
-        <DetailCards cards={cards} color="primary.main" />
+        <DetailCards cards={cards} color={tabValue === 0 ? 'primary.main' : (tabValue === 1 ? 'error.main' : 'success.main')} />
 
         {/* Je nach Tab die entsprechende Pflanzen-Tabelle anzeigen */}
         {tabValue === 0 ? (
@@ -323,15 +439,25 @@ const BloomingCuttingPlantTable = ({
                       />
                       
                       {selectedPlants[batch.id]?.length > 0 && (
-                        <Button 
-                          variant="contained" 
-                          color="error"
-                          onClick={() => onOpenDestroyDialog(batch)}
-                          startIcon={<LocalFireDepartmentIcon />}
-                          sx={{ ml: 2 }}
-                        >
-                          {selectedPlants[batch.id].length} Pflanzen vernichten
-                        </Button>
+                        <Box sx={{ display: 'flex', gap: 2 }}>
+                          <Button 
+                            variant="outlined" 
+                            color="error"
+                            onClick={() => onOpenDestroyDialog(batch)}
+                            startIcon={<LocalFireDepartmentIcon />}
+                          >
+                            {selectedPlants[batch.id].length} Pflanzen vernichten
+                          </Button>
+                          
+                          <Button 
+                            variant="contained" 
+                            color="success"
+                            onClick={() => handleOpenHarvestDialog(batch)}
+                            startIcon={<ScaleIcon />}
+                          >
+                            Zu Ernte konvertieren
+                          </Button>
+                        </Box>
                       )}
                     </Box>
                   )}
@@ -397,24 +523,46 @@ const BloomingCuttingPlantTable = ({
                                   : "-"}
                               </TableCell>
                               <TableCell align="right">
-                                <IconButton 
-                                  size="small" 
-                                  sx={{ 
-                                    color: 'white',
-                                    backgroundColor: 'error.main',
-                                    '&:hover': {
-                                      backgroundColor: 'error.dark'
-                                    },
-                                    width: '28px',
-                                    height: '28px'
-                                  }}
-                                  onClick={() => {
-                                    togglePlantSelection(batch.id, plant.id);
-                                    onOpenDestroyDialog(batch);
-                                  }}
-                                >
-                                  <LocalFireDepartmentIcon fontSize="small" />
-                                </IconButton>
+                                <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+                                  <IconButton 
+                                    size="small" 
+                                    sx={{ 
+                                      color: 'white',
+                                      backgroundColor: 'success.main',
+                                      '&:hover': {
+                                        backgroundColor: 'success.dark'
+                                      },
+                                      width: '28px',
+                                      height: '28px'
+                                    }}
+                                    onClick={() => {
+                                      togglePlantSelection(batch.id, plant.id);
+                                      handleOpenHarvestDialog(batch);
+                                    }}
+                                    title="Zu Ernte konvertieren"
+                                  >
+                                    <ScaleIcon fontSize="small" />
+                                  </IconButton>
+                                  <IconButton 
+                                    size="small" 
+                                    sx={{ 
+                                      color: 'white',
+                                      backgroundColor: 'error.main',
+                                      '&:hover': {
+                                        backgroundColor: 'error.dark'
+                                      },
+                                      width: '28px',
+                                      height: '28px'
+                                    }}
+                                    onClick={() => {
+                                      togglePlantSelection(batch.id, plant.id);
+                                      onOpenDestroyDialog(batch);
+                                    }}
+                                    title="Vernichten"
+                                  >
+                                    <LocalFireDepartmentIcon fontSize="small" />
+                                  </IconButton>
+                                </Box>
                               </TableCell>
                             </TableRow>
                           ))}
@@ -445,7 +593,7 @@ const BloomingCuttingPlantTable = ({
               <LoadingIndicator size={24} />
             )}
           </>
-        ) : (
+        ) : tabValue === 1 ? (
           // Tab 1: Vernichtete Pflanzen
           <>
             {destroyedBatchPlants[batch.id] ? (
@@ -522,6 +670,100 @@ const BloomingCuttingPlantTable = ({
               <LoadingIndicator size={24} />
             )}
           </>
+        ) : (
+          // Tab 2: Zu Ernte überführte Pflanzen
+          <>
+            {harvestedPlants[batch.id] ? (
+              <Box sx={{ width: '100%', mt: 2 }}>
+                <Typography variant="subtitle2" color="success" gutterBottom>
+                  Zu Ernte überführte Pflanzen
+                </Typography>
+                
+                {harvestedPlants[batch.id]?.length > 0 ? (
+                  <>
+                    <TableContainer component={Paper} elevation={1} sx={{ mb: 2 }}>
+                      <Table size="small">
+                        <TableHead>
+                          <TableRow sx={{ backgroundColor: 'success.main' }}>
+                            <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Charge-Nummer</TableCell>
+                            <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>UUID</TableCell>
+                            <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Überführt am</TableCell>
+                            <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Überführt durch</TableCell>
+                            <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Ernte-Charge</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {harvestedPlants[batch.id]?.map((plant, i) => (
+                            <TableRow 
+                              key={plant.id}
+                              sx={{ 
+                                backgroundColor: 'white',
+                                '&:nth-of-type(odd)': { backgroundColor: 'rgba(0, 0, 0, 0.02)' }
+                              }}
+                            >
+                              <TableCell>
+                                {plant.batch_number || `Pflanze ${i+1} (Nummer nicht verfügbar)`}
+                              </TableCell>
+                              <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
+                                {plant.id}
+                              </TableCell>
+                              <TableCell>
+                                {plant.destroyed_at ? new Date(plant.destroyed_at).toLocaleString('de-DE') : '-'}
+                              </TableCell>
+                              <TableCell>
+                                {plant.destroyed_by ? 
+                                  (plant.destroyed_by.display_name || `${plant.destroyed_by.first_name || ''} ${plant.destroyed_by.last_name || ''}`.trim()) 
+                                  : "-"}
+                              </TableCell>
+                              <TableCell>
+                                {plant.destroy_reason ? plant.destroy_reason.replace('Zur Ernte konvertiert (Charge: ', '').replace(')', '') : '-'}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  </>
+                ) : (
+                  <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 2 }}>
+                    Keine zu Ernte überführten Pflanzen in dieser Charge.
+                  </Typography>
+                )}
+              </Box>
+            ) : (
+              <LoadingIndicator size={24} />
+            )}
+          </>
+        )}
+
+        {/* Aktionsbuttons für den Batch (außerhalb der Tabellen) */}
+        {tabValue === 0 && batchPlants[batch.id]?.length > 0 && (
+          <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
+            {selectedPlants[batch.id]?.length === 0 && (
+              <>
+                <Button 
+                  variant="outlined" 
+                  color="error"
+                  onClick={() => selectAllPlantsInBatch(batch.id, true)}
+                  startIcon={<LocalFireDepartmentIcon />}
+                >
+                  Pflanzen zur Vernichtung auswählen
+                </Button>
+                
+                <Button 
+                  variant="contained" 
+                  color="success"
+                  onClick={() => {
+                    selectAllPlantsInBatch(batch.id, true);
+                    handleOpenHarvestDialog(batch);
+                  }}
+                  startIcon={<ScaleIcon />}
+                >
+                  Alle zu Ernte konvertieren
+                </Button>
+              </>
+            )}
+          </Box>
         )}
       </>
     )
@@ -538,7 +780,7 @@ const BloomingCuttingPlantTable = ({
             isExpanded={expandedBatchId === batch.id}
             onClick={() => onExpandBatch(batch.id)}
             columns={getRowColumns(batch)}
-            borderColor="primary.main"
+            borderColor={tabValue === 0 ? 'primary.main' : (tabValue === 1 ? 'error.main' : 'success.main')}
             expandIconPosition="end"  // Diese Eigenschaft ist entscheidend, um das Icon am Ende zu platzieren
           >
             {renderBatchDetails(batch)}
@@ -546,7 +788,11 @@ const BloomingCuttingPlantTable = ({
         ))
       ) : (
         <Typography align="center" sx={{ mt: 4, width: '100%' }}>
-          Keine Blühpflanzen aus Stecklingen vorhanden
+          {tabValue === 0 
+            ? 'Keine aktiven Blühpflanzen aus Stecklingen vorhanden' 
+            : (tabValue === 1 
+              ? 'Keine vernichteten Blühpflanzen aus Stecklingen vorhanden'
+              : 'Keine zu Ernte überführten Blühpflanzen aus Stecklingen vorhanden')}
         </Typography>
       )}
 
@@ -555,8 +801,26 @@ const BloomingCuttingPlantTable = ({
         totalPages={totalPages}
         onPageChange={onPageChange}
         hasData={data && data.length > 0}
-        emptyMessage="Keine Blühpflanzen aus Stecklingen vorhanden"
-        color="primary"
+        emptyMessage={tabValue === 0 
+          ? 'Keine aktiven Blühpflanzen aus Stecklingen vorhanden' 
+          : (tabValue === 1 
+            ? 'Keine vernichteten Blühpflanzen aus Stecklingen vorhanden'
+            : 'Keine zu Ernte überführten Blühpflanzen aus Stecklingen vorhanden')}
+        color={tabValue === 0 ? 'primary' : (tabValue === 1 ? 'error' : 'success')}
+      />
+
+      {/* Dialog für die Ernte-Konvertierung */}
+      <ConvertToHarvestDialog
+        open={openHarvestDialog}
+        onClose={() => setOpenHarvestDialog(false)}
+        onConvert={handleConvertToHarvest}
+        title="Blühpflanzen aus Stecklingen zu Ernte konvertieren"
+        sourceBatch={batchForHarvest}
+        sourceType="bloomingCutting"
+        members={members}
+        rooms={rooms}
+        selectedPlants={batchForHarvest ? (selectedPlants[batchForHarvest.id] || []) : []}
+        loadingOptions={loadingOptions}
       />
     </Box>
   )

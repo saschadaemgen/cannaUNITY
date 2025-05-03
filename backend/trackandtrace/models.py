@@ -312,3 +312,438 @@ class BloomingCuttingPlant(models.Model):
             self.batch_number = f"blooming-cutting:{today.strftime('%d:%m:%Y')}:{count:04d}"
         
         super().save(*args, **kwargs)
+
+class HarvestBatch(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    batch_number = models.CharField(max_length=50, unique=True, blank=True, null=True)
+    
+    # Mögliche Quellen für die Ernte (nur eine sollte gesetzt sein)
+    flowering_batch = models.ForeignKey(FloweringPlantBatch, on_delete=models.CASCADE, 
+                                        related_name='harvests', null=True, blank=True)
+    blooming_cutting_batch = models.ForeignKey(BloomingCuttingBatch, on_delete=models.CASCADE, 
+                                              related_name='harvests', null=True, blank=True)
+    
+    # Gewicht in Gramm
+    weight = models.DecimalField(max_digits=8, decimal_places=2)
+    
+    # Mitglieder- und Raumzuordnung
+    member = models.ForeignKey(Member, on_delete=models.SET_NULL, null=True, blank=True,
+                              related_name='harvests')
+    room = models.ForeignKey(Room, on_delete=models.SET_NULL, null=True, blank=True,
+                            related_name='harvests')
+    
+    notes = models.TextField(blank=True, null=True)
+    is_destroyed = models.BooleanField(default=False)
+    destroy_reason = models.TextField(blank=True, null=True)
+    destroyed_at = models.DateTimeField(blank=True, null=True)
+    destroyed_by = models.ForeignKey(Member, on_delete=models.SET_NULL, null=True, blank=True,
+                                    related_name='destroyed_harvests')
+    
+    # Neues Feld zur Kennzeichnung, dass diese Ernte zu einer Trocknung überführt wurde
+    converted_to_drying = models.BooleanField(default=False)
+    converted_to_drying_at = models.DateTimeField(blank=True, null=True)
+    drying_batch = models.ForeignKey('DryingBatch', on_delete=models.SET_NULL, 
+                                    related_name='source_harvest', null=True, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def save(self, *args, **kwargs):
+        # Generiere Batch-Nummer falls nicht vorhanden
+        if not self.batch_number:
+            today = timezone.now()
+            # Zähle Ernten, die heute erstellt wurden
+            count = HarvestBatch.objects.filter(
+                created_at__year=today.year,
+                created_at__month=today.month,
+                created_at__day=today.day
+            ).count() + 1
+            
+            # Generiere Batch-Nummer
+            self.batch_number = f"charge:harvest:{today.strftime('%d:%m:%Y')}:{count:04d}"
+        
+        super().save(*args, **kwargs)
+    
+    @property
+    def source_strain(self):
+        """Gibt die Genetik der Quelle zurück."""
+        if self.flowering_batch:
+            # Das korrekte Attribut ist seed_purchase.strain_name, nicht seed_strain
+            return self.flowering_batch.seed_purchase.strain_name
+        elif self.blooming_cutting_batch:
+            if (self.blooming_cutting_batch.cutting_batch and 
+                self.blooming_cutting_batch.cutting_batch.mother_batch and 
+                self.blooming_cutting_batch.cutting_batch.mother_batch.seed_purchase):
+                return self.blooming_cutting_batch.cutting_batch.mother_batch.seed_purchase.strain_name
+        return "Unbekannt"
+    
+    @property
+    def source_batch_number(self):
+        """Gibt die Batch-Nummer der Quelle zurück."""
+        if self.flowering_batch:
+            return self.flowering_batch.batch_number
+        elif self.blooming_cutting_batch:
+            return self.blooming_cutting_batch.batch_number
+        return None
+        
+    @property
+    def status(self):
+        """Gibt den Status der Ernte zurück: active, dried oder destroyed."""
+        if self.is_destroyed:
+            return 'destroyed'
+        elif self.converted_to_drying:
+            return 'dried'
+        else:
+            return 'active'
+    
+class DryingBatch(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    batch_number = models.CharField(max_length=50, unique=True, blank=True, null=True)
+    
+    # Quelle der Trocknung (Ernte)
+    harvest_batch = models.ForeignKey(HarvestBatch, on_delete=models.CASCADE, 
+                                     related_name='drying_batches')
+    
+    # Gewichte in Gramm
+    initial_weight = models.DecimalField(max_digits=8, decimal_places=2)  # Gewicht aus der Ernte
+    final_weight = models.DecimalField(max_digits=8, decimal_places=2)    # Trockengewicht
+    
+    # Mitglieder- und Raumzuordnung
+    member = models.ForeignKey(Member, on_delete=models.SET_NULL, null=True, blank=True,
+                              related_name='drying_batches')
+    room = models.ForeignKey(Room, on_delete=models.SET_NULL, null=True, blank=True,
+                            related_name='drying_batches')
+    
+    notes = models.TextField(blank=True, null=True)
+    is_destroyed = models.BooleanField(default=False)
+    destroy_reason = models.TextField(blank=True, null=True)
+    destroyed_at = models.DateTimeField(blank=True, null=True)
+    destroyed_by = models.ForeignKey(Member, on_delete=models.SET_NULL, null=True, blank=True,
+                                    related_name='destroyed_drying_batches')
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    converted_to_processing = models.BooleanField(default=False)
+    converted_to_processing_at = models.DateTimeField(blank=True, null=True)
+    processing_batch = models.ForeignKey('ProcessingBatch', on_delete=models.SET_NULL, 
+                                        related_name='source_drying', null=True, blank=True)
+    
+    def save(self, *args, **kwargs):
+        # Generiere Batch-Nummer falls nicht vorhanden
+        if not self.batch_number:
+            today = timezone.now()
+            # Zähle Trocknungen, die heute erstellt wurden
+            count = DryingBatch.objects.filter(
+                created_at__year=today.year,
+                created_at__month=today.month,
+                created_at__day=today.day
+            ).count() + 1
+            
+            # Generiere Batch-Nummer
+            self.batch_number = f"charge:drying:{today.strftime('%d:%m:%Y')}:{count:04d}"
+        
+        # Berechne Gewichtsverlust-Prozentsatz (kann später für Statistiken genutzt werden)
+        if not hasattr(self, 'weight_loss_percentage') and self.initial_weight and self.final_weight:
+            if float(self.initial_weight) > 0:
+                self.weight_loss_percentage = (1 - (float(self.final_weight) / float(self.initial_weight))) * 100
+            else:
+                self.weight_loss_percentage = 0
+        
+        super().save(*args, **kwargs)
+    
+    @property
+    def weight_loss(self):
+        """Gibt den absoluten Gewichtsverlust in Gramm zurück."""
+        if self.initial_weight and self.final_weight:
+            return float(self.initial_weight) - float(self.final_weight)
+        return 0
+    
+    @property
+    def weight_loss_percentage(self):
+        """Gibt den prozentualen Gewichtsverlust zurück."""
+        if self.initial_weight and self.final_weight and float(self.initial_weight) > 0:
+            return (1 - (float(self.final_weight) / float(self.initial_weight))) * 100
+        return 0
+    
+    @property
+    def source_strain(self):
+        """Gibt die Genetik der Quelle zurück."""
+        if self.harvest_batch:
+            return self.harvest_batch.source_strain
+        return "Unbekannt"
+    
+# Produkt-Typen als Choices
+PRODUCT_TYPE_CHOICES = [
+    ('marijuana', 'Marihuana'),
+    ('hashish', 'Haschisch'),
+    # Erweiterbar für zukünftige Produkte
+]
+
+class ProcessingBatch(models.Model):
+    """Modell für die Verarbeitung getrockneter Cannabis zu Endprodukten (Marihuana, Haschisch)"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    batch_number = models.CharField(max_length=50, unique=True, blank=True, null=True)
+    
+    # Quelle der Verarbeitung (Trocknung)
+    drying_batch = models.ForeignKey(DryingBatch, on_delete=models.CASCADE, 
+                                     related_name='processing_batches')
+    
+    # Typ des Produkts
+    product_type = models.CharField(max_length=20, choices=PRODUCT_TYPE_CHOICES)
+    
+    # Gewichte in Gramm
+    input_weight = models.DecimalField(max_digits=8, decimal_places=2)  # Gewicht aus der Trocknung
+    output_weight = models.DecimalField(max_digits=8, decimal_places=2)  # Gewicht des Endprodukts
+    
+    # Mitglieder- und Raumzuordnung
+    member = models.ForeignKey(Member, on_delete=models.SET_NULL, null=True, blank=True,
+                              related_name='processing_batches')
+    room = models.ForeignKey(Room, on_delete=models.SET_NULL, null=True, blank=True,
+                            related_name='processing_batches')
+    
+    notes = models.TextField(blank=True, null=True)
+    is_destroyed = models.BooleanField(default=False)
+    destroy_reason = models.TextField(blank=True, null=True)
+    destroyed_at = models.DateTimeField(blank=True, null=True)
+    destroyed_by = models.ForeignKey(Member, on_delete=models.SET_NULL, null=True, blank=True,
+                                    related_name='destroyed_processing_batches')
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def save(self, *args, **kwargs):
+        # Generiere Batch-Nummer falls nicht vorhanden
+        if not self.batch_number:
+            today = timezone.now()
+            # Erstelle ein Präfix basierend auf dem Produkttyp
+            prefix = "marijuana" if self.product_type == "marijuana" else "hashish"
+            
+            # Zähle Verarbeitungs-Batches dieses Typs, die heute erstellt wurden
+            count = ProcessingBatch.objects.filter(
+                created_at__year=today.year,
+                created_at__month=today.month,
+                created_at__day=today.day,
+                product_type=self.product_type
+            ).count() + 1
+            
+            # Generiere Batch-Nummer mit Produkttyp im Prefix
+            self.batch_number = f"charge:{prefix}:{today.strftime('%d:%m:%Y')}:{count:04d}"
+        
+        # Berechne Ausbeute-Prozentsatz
+        if not hasattr(self, 'yield_percentage') and self.input_weight and self.output_weight:
+            if float(self.input_weight) > 0:
+                self.yield_percentage = (float(self.output_weight) / float(self.input_weight)) * 100
+            else:
+                self.yield_percentage = 0
+        
+        super().save(*args, **kwargs)
+    
+    @property
+    def yield_percentage(self):
+        """Gibt den prozentualen Anteil des Outputs im Verhältnis zum Input zurück."""
+        if self.input_weight and self.output_weight and float(self.input_weight) > 0:
+            return (float(self.output_weight) / float(self.input_weight)) * 100
+        return 0
+    
+    @property
+    def waste_weight(self):
+        """Gibt das Gewicht des Abfalls/Verlusts in Gramm zurück."""
+        if self.input_weight and self.output_weight:
+            return float(self.input_weight) - float(self.output_weight)
+        return 0
+    
+    @property
+    def source_strain(self):
+        """Gibt die Genetik der Quelle zurück."""
+        if self.drying_batch:
+            return self.drying_batch.source_strain
+        return "Unbekannt"
+    
+    def __str__(self):
+        product_type_display = dict(PRODUCT_TYPE_CHOICES).get(self.product_type, self.product_type)
+        return f"{product_type_display} {self.batch_number} ({self.output_weight}g)"
+    
+# models.py (Erweiterung)
+
+# Nach der ProcessingBatch-Klasse hinzufügen:
+
+class LabTestingBatch(models.Model):
+    """Modell für die Laborkontrolle von verarbeiteten Cannabis-Produkten"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    batch_number = models.CharField(max_length=50, unique=True, blank=True, null=True)
+    
+    # Quelle der Laborkontrolle (Verarbeitung)
+    processing_batch = models.ForeignKey(ProcessingBatch, on_delete=models.CASCADE, 
+                                         related_name='lab_testing_batches')
+    
+    # Gewichte in Gramm
+    input_weight = models.DecimalField(max_digits=8, decimal_places=2)  # Gewicht aus der Verarbeitung
+    sample_weight = models.DecimalField(max_digits=8, decimal_places=2)  # Gewicht der Laborprobe
+    
+    # Status der Laborprobe
+    LAB_STATUS_CHOICES = [
+        ('pending', 'In Bearbeitung'),
+        ('passed', 'Freigegeben'),
+        ('failed', 'Nicht bestanden'),
+    ]
+    status = models.CharField(max_length=20, choices=LAB_STATUS_CHOICES, default='pending')
+    thc_content = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)  # THC-Gehalt in %
+    cbd_content = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)  # CBD-Gehalt in %
+    lab_notes = models.TextField(blank=True, null=True)  # Laborbericht
+    
+    # Mitglieder- und Raumzuordnung
+    member = models.ForeignKey(Member, on_delete=models.SET_NULL, null=True, blank=True,
+                              related_name='lab_testing_batches')
+    room = models.ForeignKey(Room, on_delete=models.SET_NULL, null=True, blank=True,
+                            related_name='lab_testing_batches')
+    
+    notes = models.TextField(blank=True, null=True)
+    is_destroyed = models.BooleanField(default=False)
+    destroy_reason = models.TextField(blank=True, null=True)
+    destroyed_at = models.DateTimeField(blank=True, null=True)
+    destroyed_by = models.ForeignKey(Member, on_delete=models.SET_NULL, null=True, blank=True,
+                                    related_name='destroyed_lab_testing_batches')
+    
+    # Felder für die Überführung zur Verpackung
+    converted_to_packaging = models.BooleanField(default=False)
+    converted_to_packaging_at = models.DateTimeField(blank=True, null=True)
+    packaging_batch = models.ForeignKey('PackagingBatch', on_delete=models.SET_NULL, 
+                                      related_name='source_lab_testing', null=True, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def save(self, *args, **kwargs):
+        # Generiere Batch-Nummer falls nicht vorhanden
+        if not self.batch_number:
+            today = timezone.now()
+            # Erstelle ein Präfix basierend auf dem Produkttyp der Quelle
+            prefix = "labtesting"
+            if self.processing_batch:
+                prefix = f"labtesting-{self.processing_batch.product_type}"
+            
+            # Zähle Laborkontroll-Batches, die heute erstellt wurden
+            count = LabTestingBatch.objects.filter(
+                created_at__year=today.year,
+                created_at__month=today.month,
+                created_at__day=today.day
+            ).count() + 1
+            
+            # Generiere Batch-Nummer mit Präfix
+            self.batch_number = f"charge:{prefix}:{today.strftime('%d:%m:%Y')}:{count:04d}"
+        
+        super().save(*args, **kwargs)
+    
+    @property
+    def remaining_weight(self):
+        """Gibt das verbleibende Gewicht nach Abzug der Laborprobe zurück."""
+        if self.input_weight and self.sample_weight:
+            return float(self.input_weight) - float(self.sample_weight)
+        return 0
+    
+    @property
+    def source_strain(self):
+        """Gibt die Genetik der Quelle zurück."""
+        if self.processing_batch:
+            return self.processing_batch.source_strain
+        return "Unbekannt"
+    
+    @property
+    def product_type(self):
+        """Gibt den Produkttyp der Quelle zurück."""
+        if self.processing_batch:
+            return self.processing_batch.product_type
+        return "Unbekannt"
+    
+    @property
+    def product_type_display(self):
+        """Gibt den formatierten Produkttyp der Quelle zurück."""
+        if self.processing_batch:
+            return self.processing_batch.product_type_display
+        return "Unbekannt"
+
+class PackagingBatch(models.Model):
+    """Modell für die Verpackung von freigegeben Produkten nach der Laborkontrolle"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    batch_number = models.CharField(max_length=50, unique=True, blank=True, null=True)
+    
+    # Quelle der Verpackung (Laborkontrolle)
+    lab_testing_batch = models.ForeignKey(LabTestingBatch, on_delete=models.CASCADE, 
+                                         related_name='packaging_batches')
+    
+    # Verpackungsinformationen
+    total_weight = models.DecimalField(max_digits=8, decimal_places=2)  # Gesamtgewicht
+    unit_count = models.PositiveIntegerField()  # Anzahl der Verpackungseinheiten
+    unit_weight = models.DecimalField(max_digits=6, decimal_places=2)  # Gewicht pro Einheit in Gramm
+    
+    # Mitglieder- und Raumzuordnung
+    member = models.ForeignKey(Member, on_delete=models.SET_NULL, null=True, blank=True,
+                              related_name='packaging_batches')
+    room = models.ForeignKey(Room, on_delete=models.SET_NULL, null=True, blank=True,
+                            related_name='packaging_batches')
+    
+    notes = models.TextField(blank=True, null=True)
+    is_destroyed = models.BooleanField(default=False)
+    destroy_reason = models.TextField(blank=True, null=True)
+    destroyed_at = models.DateTimeField(blank=True, null=True)
+    destroyed_by = models.ForeignKey(Member, on_delete=models.SET_NULL, null=True, blank=True,
+                                    related_name='destroyed_packaging_batches')
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def save(self, *args, **kwargs):
+        # Generiere Batch-Nummer falls nicht vorhanden
+        if not self.batch_number:
+            today = timezone.now()
+            # Erstelle ein Präfix basierend auf dem Produkttyp der Quelle
+            prefix = "packaging"
+            if self.lab_testing_batch and self.lab_testing_batch.processing_batch:
+                prefix = f"packaging-{self.lab_testing_batch.processing_batch.product_type}"
+            
+            # Zähle Verpackungs-Batches, die heute erstellt wurden
+            count = PackagingBatch.objects.filter(
+                created_at__year=today.year,
+                created_at__month=today.month,
+                created_at__day=today.day
+            ).count() + 1
+            
+            # Generiere Batch-Nummer mit Präfix
+            self.batch_number = f"charge:{prefix}:{today.strftime('%d:%m:%Y')}:{count:04d}"
+        
+        super().save(*args, **kwargs)
+    
+    @property
+    def source_strain(self):
+        """Gibt die Genetik der Quelle zurück."""
+        if self.lab_testing_batch:
+            return self.lab_testing_batch.source_strain
+        return "Unbekannt"
+    
+    @property
+    def product_type(self):
+        """Gibt den Produkttyp der Quelle zurück."""
+        if self.lab_testing_batch and self.lab_testing_batch.processing_batch:
+            return self.lab_testing_batch.processing_batch.product_type
+        return "Unbekannt"
+    
+    @property
+    def product_type_display(self):
+        """Gibt den formatierten Produkttyp der Quelle zurück."""
+        if self.lab_testing_batch and self.lab_testing_batch.processing_batch:
+            return self.lab_testing_batch.processing_batch.product_type_display
+        return "Unbekannt"
+    
+    @property
+    def thc_content(self):
+        """Gibt den THC-Gehalt aus der Laborprobe zurück."""
+        if self.lab_testing_batch:
+            return self.lab_testing_batch.thc_content
+        return None
+    
+    @property
+    def cbd_content(self):
+        """Gibt den CBD-Gehalt aus der Laborprobe zurück."""
+        if self.lab_testing_batch:
+            return self.lab_testing_batch.cbd_content
+        return None

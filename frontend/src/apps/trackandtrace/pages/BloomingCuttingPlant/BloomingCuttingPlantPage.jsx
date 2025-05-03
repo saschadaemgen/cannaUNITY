@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { Container, Box, Typography, Fade, Alert, Snackbar } from '@mui/material'
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
+import ScaleIcon from '@mui/icons-material/Scale'
 import api from '../../../../utils/api'
 
 // Gemeinsame Komponenten
@@ -21,12 +22,15 @@ export default function BloomingCuttingPlantPage() {
   const [expandedBatchId, setExpandedBatchId] = useState('')
   const [batchPlants, setBatchPlants] = useState({})
   const [destroyedBatchPlants, setDestroyedBatchPlants] = useState({})
+  const [harvestedBatchPlants, setHarvestedBatchPlants] = useState({})
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [plantsCurrentPage, setPlantsCurrentPage] = useState({})
   const [plantsTotalPages, setPlantsTotalPages] = useState({})
   const [destroyedPlantsCurrentPage, setDestroyedPlantsCurrentPage] = useState({})
   const [destroyedPlantsTotalPages, setDestroyedPlantsTotalPages] = useState({})
+  const [harvestedPlantsCurrentPage, setHarvestedPlantsCurrentPage] = useState({})
+  const [harvestedPlantsTotalPages, setHarvestedPlantsTotalPages] = useState({})
   const [tabValue, setTabValue] = useState(0)
   const [openDestroyDialog, setOpenDestroyDialog] = useState(false)
   const [destroyReason, setDestroyReason] = useState('')
@@ -45,6 +49,8 @@ export default function BloomingCuttingPlantPage() {
   const [activePlantsCount, setActivePlantsCount] = useState(0)
   const [destroyedBatchesCount, setDestroyedBatchesCount] = useState(0)
   const [destroyedPlantsCount, setDestroyedPlantsCount] = useState(0)
+  const [harvestedBatchesCount, setHarvestedBatchesCount] = useState(0)
+  const [harvestedPlantsCount, setHarvestedPlantsCount] = useState(0)
   
   // Mitglieder für Vernichtungen
   const [members, setMembers] = useState([])
@@ -68,19 +74,25 @@ export default function BloomingCuttingPlantPage() {
       const activeP = res.data.active_plants_count || 0;
       const destroyedB = res.data.destroyed_batches_count || 0;
       const destroyedP = res.data.destroyed_plants_count || 0;
+      const harvestedB = res.data.harvested_batches_count || 0;
+      const harvestedP = res.data.harvested_plants_count || 0;
       
       // Setze die State-Variablen
       setActiveBatchesCount(activeB);
       setActivePlantsCount(activeP);
       setDestroyedBatchesCount(destroyedB);
       setDestroyedPlantsCount(destroyedP);
+      setHarvestedBatchesCount(harvestedB);
+      setHarvestedPlantsCount(harvestedP);
       
       // Debug-Ausgabe nach dem Setzen
       console.log("GESETZTE ZÄHLER:", {
         activeBatches: activeB,
         activePlants: activeP,
         destroyedBatches: destroyedB,
-        destroyedPlants: destroyedP
+        destroyedPlants: destroyedP,
+        harvestedBatches: harvestedB,
+        harvestedPlants: harvestedP
       });
     } catch (error) {
       console.error('Fehler beim Laden der Tab-Zähler:', error);
@@ -105,6 +117,9 @@ export default function BloomingCuttingPlantPage() {
       } else if (tabValue === 1) {
         // Tab 1: Nur Batches mit vernichteten Pflanzen anzeigen
         url += '&has_destroyed=true';
+      } else if (tabValue === 2) {
+        // Tab 2: Nur Batches mit zu Ernte überführten Pflanzen anzeigen
+        url += '&has_harvested=true';
       }
       
       const res = await api.get(url);
@@ -123,23 +138,6 @@ export default function BloomingCuttingPlantPage() {
       setLoading(false)
     }
   }
-  
-  // Funktion zum Laden aller Zähler (für Tabs)
-  const loadAllCounts = async () => {
-    try {
-      // Lade Zähler für aktive Pflanzen
-      const activeRes = await api.get('/trackandtrace/bloomingcuttingbatches/counts/?type=active');
-      setActiveBatchesCount(activeRes.data.batches_count || 0);
-      setActivePlantsCount(activeRes.data.plants_count || 0);
-      
-      // Lade Zähler für vernichtete Pflanzen
-      const destroyedRes = await api.get('/trackandtrace/bloomingcuttingbatches/counts/?type=destroyed');
-      setDestroyedBatchesCount(destroyedRes.data.batches_count || 0);
-      setDestroyedPlantsCount(destroyedRes.data.plants_count || 0);
-    } catch (error) {
-      console.error('Fehler beim Laden der Zähler:', error);
-    }
-  };
   
   // Funktion zum Laden von Mitgliedern
   const loadMembers = async () => {
@@ -224,6 +222,7 @@ export default function BloomingCuttingPlantPage() {
     setExpandedBatchId('');
     setBatchPlants({});
     setDestroyedBatchPlants({});
+    setHarvestedBatchPlants({});
   }, [tabValue]);
 
   const handleTabChange = (event, newValue) => {
@@ -240,25 +239,25 @@ export default function BloomingCuttingPlantPage() {
       if (tabValue === 0) {
         // Im Tab "Aktive Pflanzen" nur aktive Pflanzen laden
         loadPlantsForBatch(batchId, 1)
-      } else {
+      } else if (tabValue === 1) {
         // Im Tab "Vernichtete Pflanzen" nur vernichtete Pflanzen laden
         loadDestroyedPlantsForBatch(batchId, 1)
+      } else if (tabValue === 2) {
+        // Im Tab "Zu Ernte überführt" nur geerntete Pflanzen laden
+        loadHarvestedPlantsForBatch(batchId, 1)
       }
     }
   }
 
   const loadPlantsForBatch = async (batchId, page = 1) => {
     try {
-      console.log("Loading plants for batch ID:", batchId);
-      // Immer aktive Pflanzen laden, unabhängig vom Tab
+      console.log("Loading active plants for batch ID:", batchId);
       const res = await api.get(`/trackandtrace/bloomingcuttingbatches/${batchId}/plants/?page=${page}&destroyed=false`)
       
       console.log('Geladene aktive Pflanzen für Batch:', res.data);
       
       // Speichern der Pflanzen für diesen Batch
-      // Stelle sicher, dass alle Felder korrekt formatiert sind
       const formattedPlants = (res.data.results || []).map(plant => {
-        console.log("Plant batch number:", plant.batch_number);
         return {
           ...plant,
           notes: plant.notes || '-',
@@ -299,7 +298,7 @@ export default function BloomingCuttingPlantPage() {
       console.error('Fehler beim Laden der Pflanzen:', error)
       console.error('Details:', error.response?.data || error.message)
       
-      // Bei Fehler leere Daten setzen, um Ladespinner zu beenden
+      // Bei Fehler leere Daten setzen
       setBatchPlants(prev => ({
         ...prev,
         [batchId]: []
@@ -315,7 +314,6 @@ export default function BloomingCuttingPlantPage() {
     }
   }
 
-  // Separate Funktion zum Laden vernichteter Pflanzen
   const loadDestroyedPlantsForBatch = async (batchId, page = 1) => {
     try {
       console.log("Loading destroyed plants for batch ID:", batchId);
@@ -375,6 +373,65 @@ export default function BloomingCuttingPlantPage() {
     }
   }
 
+  const loadHarvestedPlantsForBatch = async (batchId, page = 1) => {
+    try {
+      console.log("Loading harvested plants for batch ID:", batchId);
+      const res = await api.get(`/trackandtrace/bloomingcuttingbatches/${batchId}/plants/?page=${page}&converted_to_harvest=true`)
+      
+      console.log('Geladene geerntete Pflanzen für Batch:', res.data);
+      
+      // Speichern der geernteten Pflanzen für diesen Batch
+      const formattedPlants = (res.data.results || []).map(plant => {
+        return {
+          ...plant,
+          notes: plant.notes || '-',
+          destroy_reason: plant.destroy_reason || '-',
+          destroyed_by: plant.destroyed_by ? {
+            ...plant.destroyed_by,
+            display_name: plant.destroyed_by.display_name || 
+                          `${plant.destroyed_by.first_name || ''} ${plant.destroyed_by.last_name || ''}`.trim() || '-'
+          } : null
+        };
+      });
+      
+      setHarvestedBatchPlants(prev => ({
+        ...prev,
+        [batchId]: formattedPlants
+      }))
+      
+      // Speichern der aktuellen Seite für die geernteten Pflanzen dieses Batches
+      setHarvestedPlantsCurrentPage(prev => ({
+        ...prev,
+        [batchId]: page
+      }))
+      
+      // Berechne die Gesamtanzahl der Seiten für die geernteten Pflanzen
+      const total = res.data.count || 0
+      const pages = Math.ceil(total / 5) // pageSize ist 5, wie im Backend definiert
+      setHarvestedPlantsTotalPages(prev => ({
+        ...prev,
+        [batchId]: pages
+      }))
+    } catch (error) {
+      console.error('Fehler beim Laden der geernteten Pflanzen:', error)
+      console.error('Details:', error.response?.data || error.message)
+      
+      // Bei Fehler leere Daten setzen
+      setHarvestedBatchPlants(prev => ({
+        ...prev,
+        [batchId]: []
+      }))
+      setHarvestedPlantsCurrentPage(prev => ({
+        ...prev,
+        [batchId]: 1
+      }))
+      setHarvestedPlantsTotalPages(prev => ({
+        ...prev,
+        [batchId]: 1
+      }))
+    }
+  }
+
   const handlePageChange = (event, page) => {
     loadBloomingBatches(page)
   }
@@ -385,6 +442,10 @@ export default function BloomingCuttingPlantPage() {
 
   const handleDestroyedPlantsPageChange = (batchId, event, page) => {
     loadDestroyedPlantsForBatch(batchId, page)
+  }
+
+  const handleHarvestedPlantsPageChange = (batchId, event, page) => {
+    loadHarvestedPlantsForBatch(batchId, page)
   }
 
   // Aktualisierte handleOpenDestroyDialog Funktion
@@ -497,6 +558,15 @@ export default function BloomingCuttingPlantPage() {
           <Typography component="span" sx={{ mx: 0.3, color: 'error.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${destroyedPlantsCount})`}</Typography>
         </Box>
       )
+    },
+    { 
+      label: (
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <Typography component="span" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>ÜBERFÜHRT ZU ERNTE</Typography>
+          <Typography component="span" sx={{ mx: 0.3, color: 'success.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${harvestedPlantsCount})`}</Typography>
+          <ScaleIcon sx={{ mx: 0.3, fontSize: 16, color: 'success.main' }} />
+        </Box>
+      )
     }
   ];
 
@@ -549,7 +619,7 @@ export default function BloomingCuttingPlantPage() {
         tabValue={tabValue} 
         onTabChange={handleTabChange} 
         tabs={tabs}
-        color="primary"
+        color={tabValue === 0 ? 'primary' : (tabValue === 1 ? 'error' : 'success')}
         ariaLabel="Blühpflanzen aus Stecklingen Tabs"
       />
 
@@ -573,12 +643,16 @@ export default function BloomingCuttingPlantPage() {
               onPageChange={handlePageChange}
               batchPlants={batchPlants}
               destroyedBatchPlants={destroyedBatchPlants}
+              harvestedBatchPlants={harvestedBatchPlants}
               plantsCurrentPage={plantsCurrentPage}
               plantsTotalPages={plantsTotalPages}
               destroyedPlantsCurrentPage={destroyedPlantsCurrentPage}
               destroyedPlantsTotalPages={destroyedPlantsTotalPages}
+              harvestedPlantsCurrentPage={harvestedPlantsCurrentPage}
+              harvestedPlantsTotalPages={harvestedPlantsTotalPages}
               onPlantsPageChange={handlePlantsPageChange}
               onDestroyedPlantsPageChange={handleDestroyedPlantsPageChange}
+              onHarvestedPlantsPageChange={handleHarvestedPlantsPageChange}
               selectedPlants={selectedPlants}
               togglePlantSelection={togglePlantSelection}
               selectAllPlantsInBatch={selectAllPlantsInBatch}
@@ -601,12 +675,48 @@ export default function BloomingCuttingPlantPage() {
               onPageChange={handlePageChange}
               batchPlants={batchPlants}
               destroyedBatchPlants={destroyedBatchPlants}
+              harvestedBatchPlants={harvestedBatchPlants}
               plantsCurrentPage={plantsCurrentPage}
               plantsTotalPages={plantsTotalPages}
               destroyedPlantsCurrentPage={destroyedPlantsCurrentPage}
               destroyedPlantsTotalPages={destroyedPlantsTotalPages}
+              harvestedPlantsCurrentPage={harvestedPlantsCurrentPage}
+              harvestedPlantsTotalPages={harvestedPlantsTotalPages}
               onPlantsPageChange={handlePlantsPageChange}
               onDestroyedPlantsPageChange={handleDestroyedPlantsPageChange}
+              onHarvestedPlantsPageChange={handleHarvestedPlantsPageChange}
+              selectedPlants={selectedPlants}
+              togglePlantSelection={togglePlantSelection}
+              selectAllPlantsInBatch={selectAllPlantsInBatch}
+            />
+          </AnimatedTabPanel>
+          
+          <AnimatedTabPanel 
+            value={tabValue} 
+            index={2} 
+            direction="left"
+          >
+            <BloomingCuttingPlantTable 
+              tabValue={2}
+              data={bloomingBatches}
+              expandedBatchId={expandedBatchId}
+              onExpandBatch={handleAccordionChange}
+              onOpenDestroyDialog={handleOpenDestroyDialog}
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+              batchPlants={batchPlants}
+              destroyedBatchPlants={destroyedBatchPlants}
+              harvestedBatchPlants={harvestedBatchPlants}
+              plantsCurrentPage={plantsCurrentPage}
+              plantsTotalPages={plantsTotalPages}
+              destroyedPlantsCurrentPage={destroyedPlantsCurrentPage}
+              destroyedPlantsTotalPages={destroyedPlantsTotalPages}
+              harvestedPlantsCurrentPage={harvestedPlantsCurrentPage}
+              harvestedPlantsTotalPages={harvestedPlantsTotalPages}
+              onPlantsPageChange={handlePlantsPageChange}
+              onDestroyedPlantsPageChange={handleDestroyedPlantsPageChange}
+              onHarvestedPlantsPageChange={handleHarvestedPlantsPageChange}
               selectedPlants={selectedPlants}
               togglePlantSelection={togglePlantSelection}
               selectAllPlantsInBatch={selectAllPlantsInBatch}
