@@ -2278,13 +2278,16 @@ class LabTestingBatchViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def update_lab_results(self, request, pk=None):
         """
-        Aktualisiert die Laborergebnisse für einen Labortest.
+        Aktualisiert die Laborergebnisse für einen Labortest und
+        erstellt bei Bedarf einen separaten Vernichtungseintrag für die Probe.
         """
         lab_batch = self.get_object()
         status_value = request.data.get('status', None)
         thc_content = request.data.get('thc_content', None)
         cbd_content = request.data.get('cbd_content', None)
         lab_notes = request.data.get('lab_notes', '')
+        auto_destroy_sample = request.data.get('auto_destroy_sample', True)
+        member_id = request.data.get('member_id', lab_batch.member_id)
         
         # Validierung
         if status_value not in ['pending', 'passed', 'failed']:
@@ -2321,6 +2324,10 @@ class LabTestingBatchViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
+        # Überprüfen, ob der Status von pending auf passed/failed geändert wird
+        old_status = lab_batch.status
+        status_changed_to_final = old_status == 'pending' and status_value in ['passed', 'failed']
+        
         # Aktualisiere die Laborergebnisse
         lab_batch.status = status_value
         if thc_content is not None:
@@ -2330,10 +2337,58 @@ class LabTestingBatchViewSet(viewsets.ModelViewSet):
         if lab_notes:
             lab_batch.lab_notes = lab_notes
         
+        # Automatische Probenvernichtung nur bei Statuswechsel von pending zu passed/failed
+        if status_changed_to_final and auto_destroy_sample and lab_batch.sample_weight > 0:
+            try:
+                # Erstelle einen eigenen LabTestingBatch für die verbrauchte Probe
+                sample_batch = LabTestingBatch.objects.create(
+                    processing_batch=lab_batch.processing_batch,
+                    input_weight=lab_batch.sample_weight,  # Tatsächliche Probengröße
+                    sample_weight=0,  # Die Probe wird nicht weiter beprobt
+                    status=status_value,  # Gleicher Status wie der Haupttest für Konsistenz
+                    thc_content=thc_content,
+                    cbd_content=cbd_content,
+                    lab_notes=f"Laboranalyse-Ergebnisse von {lab_batch.batch_number}",
+                    member_id=member_id,
+                    room_id=lab_batch.room_id,
+                    notes=f"Laborprobe aus {lab_batch.batch_number}. Probe wurde zur Analyse verbraucht.",
+                    is_destroyed=True,
+                    destroy_reason=f"Laborprobe verbraucht durch Analyse (Original-Test: {lab_batch.batch_number})",
+                    destroyed_at=timezone.now(),
+                    destroyed_by_id=member_id
+                )
+                
+                # Ergänze die Notizen des ursprünglichen Batches mit Hinweis auf Probenvernichtung
+                additional_note = f"\nLaborprobe von {lab_batch.sample_weight}g wurde nach Analyse als vernichtet dokumentiert (ID: {sample_batch.id})."
+                if lab_batch.notes:
+                    lab_batch.notes += additional_note
+                else:
+                    lab_batch.notes = additional_note.strip()
+                
+                # Log für die Nachverfolgung
+                print(f"Laborprobe von {lab_batch.batch_number} wurde als vernichtet dokumentiert: {sample_batch.id}")
+                
+            except Exception as e:
+                # Fehler protokollieren, aber die Hauptoperation fortsetzen
+                error_msg = f"Fehler bei der Dokumentation der Probenvernichtung: {str(e)}"
+                print(error_msg)
+                
+                # Optional: Hinweis in den Notizen ergänzen
+                if lab_batch.notes:
+                    lab_batch.notes += f"\nFehler bei der Dokumentation der Probenvernichtung: {str(e)}"
+                else:
+                    lab_batch.notes = f"Fehler bei der Dokumentation der Probenvernichtung: {str(e)}"
+        
+        # Änderungen speichern
         lab_batch.save()
         
+        # Erfolgreiche Antwort
+        message = f"Laborergebnisse für {lab_batch.batch_number} wurden aktualisiert"
+        if status_changed_to_final and auto_destroy_sample and lab_batch.sample_weight > 0:
+            message += f". Probe von {lab_batch.sample_weight}g wurde als vernichtet dokumentiert."
+        
         return Response({
-            "message": f"Laborergebnisse für {lab_batch.batch_number} wurden aktualisiert",
+            "message": message,
             "batch": LabTestingBatchSerializer(lab_batch).data
         })
     
@@ -2341,6 +2396,7 @@ class LabTestingBatchViewSet(viewsets.ModelViewSet):
     def convert_to_packaging(self, request, pk=None):
         """
         Konvertiert eine freigegebene Laborkontrolle zu einer Verpackung.
+        Bei Bedarf wird die Restmenge automatisch als PackagingBatch vernichtet.
         """
         lab_batch = self.get_object()
         
@@ -2371,6 +2427,8 @@ class LabTestingBatchViewSet(viewsets.ModelViewSet):
         notes = request.data.get('notes', '')
         member_id = request.data.get('member_id', None)
         room_id = request.data.get('room_id', None)
+        remaining_weight = request.data.get('remaining_weight', 0)
+        auto_destroy_remainder = request.data.get('auto_destroy_remainder', False)
         
         # Validierung
         try:
@@ -2382,10 +2440,10 @@ class LabTestingBatchViewSet(viewsets.ModelViewSet):
                 )
                 
             # Prüfen, ob das Gesamtgewicht kleiner oder gleich dem verbleibenden Gewicht ist
-            remaining_weight = lab_batch.remaining_weight
-            if total_weight > remaining_weight:
+            available_weight = lab_batch.remaining_weight
+            if total_weight > available_weight:
                 return Response(
-                    {"error": f"Das Gesamtgewicht kann nicht größer als das verbleibende Gewicht sein ({remaining_weight}g)"},
+                    {"error": f"Das Gesamtgewicht kann nicht größer als das verbleibende Gewicht sein ({available_weight}g)"},
                     status=status.HTTP_400_BAD_REQUEST
                 )
         except (TypeError, ValueError):
@@ -2409,9 +2467,9 @@ class LabTestingBatchViewSet(viewsets.ModelViewSet):
             
         try:
             unit_weight = float(unit_weight)
-            if unit_weight <= 0:
+            if unit_weight < 5.0:  # Mindestgröße 5g
                 return Response(
-                    {"error": "Das Gewicht pro Einheit muss größer als 0 sein"},
+                    {"error": "Das Gewicht pro Einheit muss mindestens 5g betragen"},
                     status=status.HTTP_400_BAD_REQUEST
                 )
                 
@@ -2449,14 +2507,41 @@ class LabTestingBatchViewSet(viewsets.ModelViewSet):
         lab_batch.converted_to_packaging = True
         lab_batch.converted_to_packaging_at = timezone.now()
         lab_batch.packaging_batch = packaging
-        lab_batch.save()
         
-        # Verwende den angepassten Serializer
-        serializer = PackagingBatchSerializer(packaging)
+        # Wenn eine Restmenge übrig bleibt und auto_destroy_remainder aktiviert ist,
+        # erstelle einen zusätzlichen vernichteten PACKAGING-Batch für die Restmenge
+        if auto_destroy_remainder and remaining_weight and float(remaining_weight) > 0:
+            try:
+                remaining_weight = float(remaining_weight)
+                
+                # Erstelle ein neues PackagingBatch-Objekt für die Restmenge
+                remainder_batch = PackagingBatch.objects.create(
+                    lab_testing_batch=lab_batch,
+                    total_weight=remaining_weight,
+                    unit_count=1,  # Ein Paket, das direkt vernichtet wird
+                    unit_weight=remaining_weight,
+                    member_id=member_id,
+                    room_id=room_id,
+                    notes=f"Restmenge aus der Verpackung von {lab_batch.batch_number}. Automatisch zur Vernichtung markiert.",
+                    is_destroyed=True,
+                    destroy_reason=f"Automatische Vernichtung der Restmenge bei Verpackung von {lab_batch.batch_number}",
+                    destroyed_at=timezone.now(),
+                    destroyed_by_id=member_id
+                )
+                
+                # Ergänze die Notizen der Verpackung um einen Hinweis auf die vernichtete Restmenge
+                packaging.notes += f"\nRestmenge von {remaining_weight}g wurde automatisch als Verpackung vernichtet (ID: {remainder_batch.id})."
+                packaging.save()
+                
+            except Exception as e:
+                # Log den Fehler, aber lass die Hauptoperation weiterlaufen
+                print(f"Fehler bei der automatischen Vernichtung der Restmenge: {str(e)}")
+        
+        lab_batch.save()
         
         return Response({
             "message": f"Verpackung mit {total_weight}g in {unit_count} Einheiten wurde erstellt",
-            "packaging": serializer.data
+            "packaging": PackagingBatchSerializer(packaging).data
         })
 
 class PackagingBatchViewSet(viewsets.ModelViewSet):

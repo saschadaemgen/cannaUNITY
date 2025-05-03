@@ -105,6 +105,74 @@ const LabTestingTable = ({
     
     const statusDisplay = getStatusDisplay(labTesting.status);
     
+    // Für vernichtete Proben einen speziellen Hinweis anzeigen
+    if (labTesting.is_destroyed && labTesting.destroy_reason && labTesting.destroy_reason.includes("Verbrauch durch Laboranalyse")) {
+      return [
+        {
+          content: (
+            <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+              <Typography variant="caption" sx={{ color: 'error.main', fontStyle: 'italic' }}>
+                Verbrauchte Laborprobe
+              </Typography>
+              <Typography>{labTesting.source_strain || "Unbekannt"}</Typography>
+            </Box>
+          ),
+          width: '15%',
+          bold: true,
+          icon: ScienceIcon,
+          iconColor: 'error.main'
+        },
+        {
+          content: getProductTypeDisplay(labTesting),
+          width: '12%',
+          bold: true,
+          icon: productIcon,
+          iconColor: tabValue === 3 ? 'error.main' : productColor
+        },
+        {
+          content: labTesting.batch_number || '',
+          width: '18%',
+          fontFamily: 'monospace',
+          fontSize: '0.85rem'
+        },
+        {
+          content: `${parseFloat(labTesting.sample_weight).toLocaleString('de-DE')}g`,
+          width: '10%',
+          align: 'center'
+        },
+        {
+          content: `${(parseFloat(labTesting.input_weight) - parseFloat(labTesting.sample_weight)).toLocaleString('de-DE')}g`,
+          width: '10%',
+          align: 'center',
+          bold: true,
+          icon: SpeedIcon,
+          iconColor: 'error.main'
+        },
+        {
+          content: statusDisplay.content,
+          width: '10%',
+          align: 'center',
+          bold: true,
+          icon: statusDisplay.icon,
+          iconColor: statusDisplay.iconColor
+        },
+        {
+          content: labTesting.member ? 
+            (labTesting.member.display_name || `${labTesting.member.first_name} ${labTesting.member.last_name}`) 
+            : "Nicht zugewiesen",
+          width: '12%'
+        },
+        {
+          content: new Date(labTesting.created_at).toLocaleDateString('de-DE'),
+          width: '10%'
+        },
+        {
+          content: '',  // Platz für das Aufklapp-Symbol
+          width: '3%'
+        }
+      ];
+    }
+    
     return [
       {
         content: labTesting.source_strain || "Unbekannt",
@@ -291,7 +359,7 @@ const LabTestingTable = ({
         </Box>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
           <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)' }}>
-            Probengewicht:
+            Probengewicht (zur Analyse):
           </Typography>
           <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.87)' }}>
             {parseFloat(labTesting.sample_weight).toLocaleString('de-DE')}g
@@ -299,7 +367,7 @@ const LabTestingTable = ({
         </Box>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
           <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)' }}>
-            Verbleibendes Gewicht:
+            Verfügbares Gewicht (nach Probennahme):
           </Typography>
           <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.87)', fontWeight: 'bold' }}>
             {(parseFloat(labTesting.input_weight) - parseFloat(labTesting.sample_weight)).toLocaleString('de-DE')}g
@@ -313,7 +381,7 @@ const LabTestingTable = ({
             {labTesting.thc_content ? `${labTesting.thc_content}%` : "Nicht getestet"}
           </Typography>
         </Box>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
           <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)' }}>
             CBD-Gehalt:
           </Typography>
@@ -321,6 +389,26 @@ const LabTestingTable = ({
             {labTesting.cbd_content ? `${labTesting.cbd_content}%` : "Nicht getestet"}
           </Typography>
         </Box>
+        
+        {/* Nur für freigegebene oder nicht bestandene Tests anzeigen */}
+        {(labTesting.status === 'passed' || labTesting.status === 'failed') && (
+          <Box sx={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            mt: 1, 
+            p: 1, 
+            bgcolor: 'error.lighter', 
+            borderRadius: 1,
+            border: '1px dashed',
+            borderColor: 'error.main'
+          }}>
+            <LocalFireDepartmentIcon sx={{ mr: 1, fontSize: 16, color: 'error.main' }} />
+            <Typography variant="body2" sx={{ color: 'error.main' }}>
+              Die Laborprobe von {parseFloat(labTesting.sample_weight).toLocaleString('de-DE')}g wurde nach Abschluss der Tests automatisch als vernichtet dokumentiert.
+            </Typography>
+          </Box>
+        )}
+        
         {tabValue === 3 && labTesting.destroyed_by && (
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
             <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)' }}>

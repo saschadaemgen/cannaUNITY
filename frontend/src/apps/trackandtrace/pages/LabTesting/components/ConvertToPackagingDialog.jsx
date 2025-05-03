@@ -13,10 +13,14 @@ import {
   MenuItem,
   Typography,
   Box,
-  IconButton
+  IconButton,
+  FormHelperText,
+  Divider
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import InventoryIcon from '@mui/icons-material/Inventory';
+import InfoIcon from '@mui/icons-material/Info';
+import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment';
 
 const ConvertToPackagingDialog = ({
   open,
@@ -27,9 +31,19 @@ const ConvertToPackagingDialog = ({
   rooms,
   loadingOptions
 }) => {
+  // Standardoptionen für Verpackungsgrößen in Gramm
+  const packageSizeOptions = [
+    { value: 5, label: '5g Verpackungen' },
+    { value: 10, label: '10g Verpackungen' },
+    { value: 15, label: '15g Verpackungen' },
+    { value: 'custom', label: 'Individuelle Größe' }
+  ];
+
   const [totalWeight, setTotalWeight] = useState('');
+  const [packageSize, setPackageSize] = useState(5); // 5g als Standard
+  const [customPackageSize, setCustomPackageSize] = useState('');
   const [unitCount, setUnitCount] = useState('');
-  const [unitWeight, setUnitWeight] = useState('');
+  const [remainingWeight, setRemainingWeight] = useState(0);
   const [notes, setNotes] = useState('');
   const [memberId, setMemberId] = useState('');
   const [roomId, setRoomId] = useState('');
@@ -42,54 +56,120 @@ const ConvertToPackagingDialog = ({
   useEffect(() => {
     if (open && labTesting) {
       // Setze Standardwerte: Standardmäßig das gesamte verbleibende Gewicht konvertieren
-      const remainingWeight = parseFloat(labTesting.input_weight) - parseFloat(labTesting.sample_weight);
-      setTotalWeight(remainingWeight.toString());
+      const availableWeight = parseFloat(labTesting.input_weight) - parseFloat(labTesting.sample_weight);
+      setTotalWeight(availableWeight.toString());
       
-      // Standardwerte für Anzahl und Einheitsgewicht
-      setUnitCount('10');
-      setUnitWeight((remainingWeight / 10).toFixed(2));
+      // Standard-Verpackungsgröße auf 5g setzen
+      setPackageSize(5);
+      setCustomPackageSize('');
+      
+      // Berechne die Anzahl der Einheiten basierend auf der Standardgröße
+      const calculatedUnits = Math.floor(availableWeight / 5);
+      setUnitCount(calculatedUnits.toString());
+      
+      // Berechne Restmenge
+      const usedWeight = calculatedUnits * 5;
+      setRemainingWeight(Math.max(0, availableWeight - usedWeight).toFixed(2));
       
       // Zurücksetzen der anderen Felder
-      setNotes('');
+      setNotes(`Verpackung in 5g Einheiten. Verbleibende ${(availableWeight - usedWeight).toFixed(2)}g werden vorschriftsgemäß vernichtet.`);
       setMemberId('');
       setRoomId('');
       setError('');
       
       // Kalkulierte Werte aktualisieren
-      updateCalculatedTotal(remainingWeight, 10);
-      validateWeight(remainingWeight, remainingWeight);
+      setCalculatedTotal(usedWeight);
+      setIsWeightValid(true);
     }
   }, [open, labTesting]);
   
-  // Berechne das Gesamtgewicht basierend auf Einheitsgewicht * Anzahl
+  // Aktualisiere Berechnungen bei Änderung der Verpackungsgröße
   useEffect(() => {
-    if (unitWeight && unitCount) {
-      const weight = parseFloat(unitWeight) * parseInt(unitCount);
-      updateCalculatedTotal(weight, parseInt(unitCount));
+    if (packageSize !== 'custom' && totalWeight) {
+      const availableWeight = parseFloat(totalWeight);
+      if (!isNaN(availableWeight)) {
+        // Berechne maximale Anzahl ganzer Einheiten
+        const sizeValue = parseFloat(packageSize);
+        const maxUnits = Math.floor(availableWeight / sizeValue);
+        
+        setUnitCount(maxUnits.toString());
+        
+        // Berechne verwendetes Gewicht und Restmenge
+        const usedWeight = maxUnits * sizeValue;
+        setRemainingWeight((availableWeight - usedWeight).toFixed(2));
+        setCalculatedTotal(usedWeight);
+        
+        // Aktualisiere Notizen mit Standardtext
+        setNotes(`Verpackung in ${sizeValue}g Einheiten. Verbleibende ${(availableWeight - usedWeight).toFixed(2)}g werden vorschriftsgemäß vernichtet.`);
+        
+        setIsWeightValid(true);
+      }
     }
-  }, [unitWeight, unitCount]);
+  }, [packageSize, totalWeight]);
   
-  // Validiere, ob das Gesamtgewicht gültig ist
+  // Aktualisiere Berechnungen bei Änderung der individuellen Größe
   useEffect(() => {
-    if (labTesting && totalWeight) {
-      const remainingWeight = parseFloat(labTesting.input_weight) - parseFloat(labTesting.sample_weight);
-      validateWeight(parseFloat(totalWeight), remainingWeight);
+    if (packageSize === 'custom' && customPackageSize && totalWeight) {
+      const customSize = parseFloat(customPackageSize);
+      const availableWeight = parseFloat(totalWeight);
+      
+      if (!isNaN(customSize) && !isNaN(availableWeight) && customSize >= 5) {
+        // Berechne maximale Anzahl ganzer Einheiten
+        const maxUnits = Math.floor(availableWeight / customSize);
+        
+        setUnitCount(maxUnits.toString());
+        
+        // Berechne verwendetes Gewicht und Restmenge
+        const usedWeight = maxUnits * customSize;
+        setRemainingWeight((availableWeight - usedWeight).toFixed(2));
+        setCalculatedTotal(usedWeight);
+        
+        // Aktualisiere Notizen mit Standardtext
+        setNotes(`Verpackung in individuellen ${customSize}g Einheiten. Verbleibende ${(availableWeight - usedWeight).toFixed(2)}g werden vorschriftsgemäß vernichtet.`);
+        
+        setIsWeightValid(true);
+      } else {
+        setIsWeightValid(false);
+      }
     }
-  }, [totalWeight, labTesting]);
+  }, [customPackageSize, packageSize, totalWeight]);
   
-  const updateCalculatedTotal = (weight, count) => {
-    if (!isNaN(weight) && !isNaN(count) && count > 0) {
-      setCalculatedTotal(weight);
-    } else {
-      setCalculatedTotal(0);
+  // Aktualisiere Berechnungen bei Änderung der Einheitenzahl
+  useEffect(() => {
+    if (unitCount && totalWeight) {
+      const units = parseInt(unitCount);
+      const availableWeight = parseFloat(totalWeight);
+      
+      if (!isNaN(units) && !isNaN(availableWeight) && units > 0) {
+        const size = packageSize === 'custom' ? parseFloat(customPackageSize) : parseFloat(packageSize);
+        
+        if (!isNaN(size) && size >= 5) {
+          // Berechne verwendetes Gewicht und Restmenge
+          const usedWeight = units * size;
+          
+          if (usedWeight <= availableWeight) {
+            setRemainingWeight((availableWeight - usedWeight).toFixed(2));
+            setCalculatedTotal(usedWeight);
+            
+            // Aktualisiere Notizen
+            setNotes(`Verpackung in ${size}g Einheiten. Verbleibende ${(availableWeight - usedWeight).toFixed(2)}g werden vorschriftsgemäß vernichtet.`);
+            
+            setIsWeightValid(true);
+          } else {
+            setIsWeightValid(false);
+          }
+        }
+      }
     }
-  };
-  
-  const validateWeight = (weight, remainingWeight) => {
-    if (!isNaN(weight) && !isNaN(remainingWeight)) {
-      setIsWeightValid(weight > 0 && weight <= remainingWeight);
-    } else {
-      setIsWeightValid(false);
+  }, [unitCount, packageSize, customPackageSize, totalWeight]);
+
+  const handlePackageSizeChange = (event) => {
+    const newSize = event.target.value;
+    setPackageSize(newSize);
+    
+    // Wenn eine vordefinierte Größe gewählt wird, setze das individuelle Feld zurück
+    if (newSize !== 'custom') {
+      setCustomPackageSize('');
     }
   };
 
@@ -97,19 +177,22 @@ const ConvertToPackagingDialog = ({
     e.preventDefault();
     setError('');
     
+    // Ermittle die tatsächliche Verpackungsgröße
+    const actualPackageSize = packageSize === 'custom' ? parseFloat(customPackageSize) : parseFloat(packageSize);
+    
     // Validierung
     if (!totalWeight || parseFloat(totalWeight) <= 0) {
       setError('Bitte geben Sie ein gültiges Gesamtgewicht ein');
       return;
     }
     
-    if (!unitCount || parseInt(unitCount) <= 0) {
-      setError('Bitte geben Sie eine gültige Anzahl der Einheiten ein');
+    if (packageSize === 'custom' && (!customPackageSize || parseFloat(customPackageSize) < 5)) {
+      setError('Die individuelle Verpackungsgröße muss mindestens 5g betragen');
       return;
     }
     
-    if (!unitWeight || parseFloat(unitWeight) <= 0) {
-      setError('Bitte geben Sie ein gültiges Gewicht pro Einheit ein');
+    if (!unitCount || parseInt(unitCount) <= 0) {
+      setError('Die Anzahl der Einheiten muss größer als 0 sein');
       return;
     }
     
@@ -123,21 +206,16 @@ const ConvertToPackagingDialog = ({
       return;
     }
     
-    // Prüfen, ob das berechnete Gesamtgewicht mit dem eingegebenen übereinstimmt
-    const calculated = parseFloat(unitWeight) * parseInt(unitCount);
-    if (Math.abs(calculated - parseFloat(totalWeight)) > 0.1) {
-      setError(`Gesamtgewicht (${parseFloat(totalWeight).toFixed(2)}g) stimmt nicht mit Einheitsgewicht * Anzahl (${calculated.toFixed(2)}g) überein`);
-      return;
-    }
-    
     // Submit-Daten
     const formData = {
-      total_weight: parseFloat(totalWeight),
+      total_weight: calculatedTotal,
       unit_count: parseInt(unitCount),
-      unit_weight: parseFloat(unitWeight),
-      notes,
+      unit_weight: actualPackageSize,
+      notes: notes,
       member_id: memberId,
-      room_id: roomId
+      room_id: roomId,
+      remaining_weight: parseFloat(remainingWeight),
+      auto_destroy_remainder: true  // Automatische Vernichtung der Restmenge aktivieren
     };
     
     onConvert(formData);
@@ -180,15 +258,9 @@ const ConvertToPackagingDialog = ({
                   Produkttyp:
                 </Typography>
                 <Typography variant="body2">
-                  {labTesting.product_type_display || labTesting.product_type || "Unbekannt"}
-                </Typography>
-              </Box>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                  Charge-Nummer:
-                </Typography>
-                <Typography variant="body2">
-                  {labTesting.batch_number}
+                  {labTesting.product_type === 'marijuana' ? 'Marihuana' : 
+                   labTesting.product_type === 'hashish' ? 'Haschisch' : 
+                   labTesting.product_type || "Unbekannt"}
                 </Typography>
               </Box>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
@@ -211,7 +283,6 @@ const ConvertToPackagingDialog = ({
           )}
           
           <TextField
-            autoFocus
             margin="dense"
             id="total-weight"
             label="Gesamtgewicht (g)"
@@ -223,53 +294,117 @@ const ConvertToPackagingDialog = ({
             inputProps={{ min: 0.01, step: 0.01 }}
             variant="outlined"
             sx={{ mb: 2 }}
-            error={!isWeightValid && totalWeight !== ''}
-            helperText={!isWeightValid && totalWeight !== '' ? "Gewicht muss größer als 0 und kleiner gleich dem verfügbaren Gewicht sein" : ""}
+            disabled={true} // Das Gesamtgewicht ist fix vom Labor-Test
+            helperText="Gesamtgewicht aus der Laborkontrolle (kann nicht geändert werden)"
           />
           
-          <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
-            <TextField
-              margin="dense"
-              id="unit-count"
-              label="Anzahl der Einheiten"
-              type="number"
-              fullWidth
-              value={unitCount}
-              onChange={(e) => setUnitCount(e.target.value)}
-              required
-              inputProps={{ min: 1, step: 1 }}
-              variant="outlined"
-            />
-            
-            <TextField
-              margin="dense"
-              id="unit-weight"
-              label="Gewicht pro Einheit (g)"
-              type="number"
-              fullWidth
-              value={unitWeight}
-              onChange={(e) => setUnitWeight(e.target.value)}
-              required
-              inputProps={{ min: 0.01, step: 0.01 }}
-              variant="outlined"
-            />
-          </Box>
+          <FormControl fullWidth margin="dense" sx={{ mb: 2 }}>
+            <InputLabel id="package-size-label">Verpackungsgröße</InputLabel>
+            <Select
+              labelId="package-size-label"
+              id="package-size"
+              value={packageSize}
+              onChange={handlePackageSizeChange}
+              label="Verpackungsgröße"
+            >
+              {packageSizeOptions.map(option => (
+                <MenuItem key={option.value} value={option.value}>
+                  {option.label}
+                </MenuItem>
+              ))}
+            </Select>
+            <FormHelperText>
+              Wählen Sie eine Standardgröße oder "Individuelle Größe" (min. 5g)
+            </FormHelperText>
+          </FormControl>
           
-          {unitCount && unitWeight && (
-            <Box sx={{ mb: 2, p: 2, bgcolor: 'success.lighter', borderRadius: 1 }}>
-              <Typography variant="subtitle2" color="success.main" gutterBottom>
-                Berechnetes Gesamtgewicht
-              </Typography>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+          {packageSize === 'custom' && (
+            <TextField
+              margin="dense"
+              id="custom-package-size"
+              label="Individuelle Verpackungsgröße (g)"
+              type="number"
+              fullWidth
+              value={customPackageSize}
+              onChange={(e) => setCustomPackageSize(e.target.value)}
+              required
+              inputProps={{ min: 5, step: 0.1 }}
+              variant="outlined"
+              sx={{ mb: 2 }}
+              error={customPackageSize !== '' && parseFloat(customPackageSize) < 5}
+              helperText="Die Mindestgröße für Verpackungen beträgt 5g"
+            />
+          )}
+          
+          <TextField
+            margin="dense"
+            id="unit-count"
+            label="Anzahl der Einheiten"
+            type="number"
+            fullWidth
+            value={unitCount}
+            onChange={(e) => setUnitCount(e.target.value)}
+            required
+            inputProps={{ min: 1, step: 1 }}
+            variant="outlined"
+            sx={{ mb: 2 }}
+          />
+          
+          <Box sx={{ mb: 3, p: 2, bgcolor: 'info.lighter', borderRadius: 1 }}>
+            <Typography variant="subtitle2" color="info.main" sx={{ display: 'flex', alignItems: 'center' }}>
+              <InfoIcon sx={{ mr: 1, fontSize: 20 }} />
+              Berechnete Werte
+            </Typography>
+            
+            <Box sx={{ mt: 1 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
                 <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                  {parseInt(unitCount)} × {parseFloat(unitWeight).toFixed(2)}g =
+                  Verpackungsgröße:
                 </Typography>
+                <Typography variant="body2">
+                  {packageSize === 'custom' ? `${customPackageSize}g (individuell)` : `${packageSize}g (Standard)`}
+                </Typography>
+              </Box>
+              
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
                 <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                  Anzahl Einheiten:
+                </Typography>
+                <Typography variant="body2">
+                  {unitCount || '0'}
+                </Typography>
+              </Box>
+              
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                  Verpacktes Gewicht:
+                </Typography>
+                <Typography variant="body2">
                   {calculatedTotal.toFixed(2)}g
                 </Typography>
               </Box>
+              
+              <Divider sx={{ my: 1 }} />
+              
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
+                <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                  Restmenge (wird vernichtet):
+                </Typography>
+                <Typography variant="body2" sx={{ color: remainingWeight > 0 ? 'error.main' : 'inherit', fontWeight: 'bold' }}>
+                  {remainingWeight}g
+                </Typography>
+              </Box>
             </Box>
-          )}
+            
+            {remainingWeight > 0 && (
+              <Box sx={{ mt: 1, display: 'flex', alignItems: 'center' }}>
+                <LocalFireDepartmentIcon sx={{ mr: 1, fontSize: 16, color: 'error.main' }} />
+                <Typography variant="caption" color="error">
+                  Die Restmenge wird automatisch zur Vernichtung markiert
+                </Typography>
+              </Box>
+            )}
+          </Box>
           
           <FormControl fullWidth margin="dense" sx={{ mb: 2 }}>
             <InputLabel id="member-label">Verantwortliches Mitglied</InputLabel>
