@@ -5,7 +5,7 @@ from trackandtrace.models import (
     FloweringPlantBatch, FloweringPlant, 
     CuttingBatch, Cutting, BloomingCuttingBatch, BloomingCuttingPlant,
     HarvestBatch, DryingBatch, ProcessingBatch,
-    LabTestingBatch, PackagingBatch
+    LabTestingBatch, PackagingBatch, PackagingUnit  # PackagingUnit hinzugefügt
 )
 
 # Zuerst die Anzahl der Objekte zählen, die gelöscht werden
@@ -22,11 +22,16 @@ harvest_count = HarvestBatch.objects.count()
 drying_count = DryingBatch.objects.count()
 processing_count = ProcessingBatch.objects.count()
 labtesting_count = LabTestingBatch.objects.count()
+packaging_unit_count = PackagingUnit.objects.count()  # Neue Zeile
 packaging_count = PackagingBatch.objects.count()
 
 print("Lösche alle Track & Trace-Daten...\n")
 
 # Löschen der letzten Stufen zuerst aufgrund der Fremdschlüsselbeziehungen
+
+# Löschen aller Verpackungseinheiten (neue Zeile)
+packaging_unit_deleted, _ = PackagingUnit.objects.all().delete()
+print(f"✓ {packaging_unit_count} Verpackungseinheiten wurden gelöscht.")
 
 # Löschen aller Verpackungen
 packaging_deleted, _ = PackagingBatch.objects.all().delete()
@@ -86,6 +91,7 @@ print(f"✓ {seed_count} Sameneinträge wurden gelöscht.")
 
 # Gesamtzahl gelöschter Datensätze berechnen
 total_deleted = (
+    packaging_unit_deleted +  # Neue Zeile
     packaging_deleted + labtesting_deleted + processing_deleted + 
     drying_deleted + harvest_deleted + 
     blooming_cutting_plant_deleted + blooming_cutting_batch_deleted +

@@ -9,7 +9,7 @@ from .models import (
     SeedPurchase, MotherPlantBatch, MotherPlant, 
     FloweringPlantBatch, FloweringPlant, Cutting, CuttingBatch,
     BloomingCuttingBatch, BloomingCuttingPlant, HarvestBatch, 
-    DryingBatch, ProcessingBatch, LabTestingBatch, PackagingBatch
+    DryingBatch, ProcessingBatch, LabTestingBatch, PackagingBatch, PackagingUnit
 )
 from .serializers import (
     SeedPurchaseSerializer, MotherPlantBatchSerializer, 
@@ -17,7 +17,7 @@ from .serializers import (
     FloweringPlantSerializer, CuttingBatchSerializer, CuttingSerializer,
     BloomingCuttingBatchSerializer, BloomingCuttingPlantSerializer, 
     HarvestBatchSerializer, DryingBatchSerializer, ProcessingBatchSerializer,
-    LabTestingBatchSerializer, PackagingBatchSerializer
+    LabTestingBatchSerializer, PackagingBatchSerializer, PackagingUnitSerializer
 )
 
 class StandardResultsSetPagination(pagination.PageNumberPagination):
@@ -2720,4 +2720,204 @@ class PackagingBatchViewSet(viewsets.ModelViewSet):
         
         return Response({
             "message": f"Verpackung {packaging_batch.batch_number} wurde vernichtet"
+        })
+    
+    @action(detail=True, methods=['get'])
+    def units(self, request, pk=None):
+        batch = self.get_object()
+        destroyed = request.query_params.get('destroyed', None)
+        
+        units = batch.units.all()
+        if destroyed is not None:
+            is_destroyed = destroyed.lower() == 'true'
+            units = units.filter(is_destroyed=is_destroyed)
+        
+        paginator = StandardResultsSetPagination()
+        page = paginator.paginate_queryset(units, request)
+        
+        if page is not None:
+            serializer = PackagingUnitSerializer(page, many=True)
+            return paginator.get_paginated_response(serializer.data)
+        
+        serializer = PackagingUnitSerializer(units, many=True)
+        return Response(serializer.data)
+    
+@action(detail=True, methods=['post'])
+def convert_to_packaging(self, request, pk=None):
+    """
+    Erweiterte Version: Konvertiert eine freigegebene Laborkontrolle zu mehreren Verpackungen.
+    """
+    lab_batch = self.get_object()
+    
+    # Prüfen, ob die Laborkontrolle bereits konvertiert wurde
+    if lab_batch.converted_to_packaging:
+        return Response(
+            {"error": "Diese Laborkontrolle wurde bereits zu Verpackung konvertiert"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+        
+    # Prüfen, ob die Laborkontrolle bereits vernichtet wurde
+    if lab_batch.is_destroyed:
+        return Response(
+            {"error": "Vernichtete Laborkontrollen können nicht zu Verpackung konvertiert werden"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+        
+    # Prüfen, ob die Laborkontrolle freigegeben wurde
+    if lab_batch.status != 'passed':
+        return Response(
+            {"error": "Nur freigegebene Laborkontrollen können zu Verpackung konvertiert werden"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # Mehrere Verpackungen verarbeiten
+    packagings = request.data.get('packagings', [])
+    remaining_weight = float(request.data.get('remaining_weight', 0))
+    auto_destroy_remainder = request.data.get('auto_destroy_remainder', False)
+    member_id = request.data.get('member_id')
+    room_id = request.data.get('room_id')
+    notes = request.data.get('notes', '')
+    
+    if not member_id:
+        return Response(
+            {"error": "Ein verantwortliches Mitglied muss angegeben werden"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    if not room_id:
+        return Response(
+            {"error": "Ein Raum muss angegeben werden"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # Prüfen, ob Verpackungen angegeben wurden
+    if not packagings:
+        return Response(
+            {"error": "Es muss mindestens eine Verpackung erstellt werden"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # Verfügbares Gewicht berechnen
+    available_weight = float(lab_batch.input_weight) - float(lab_batch.sample_weight)
+    
+    # Gesamtgewicht der Verpackungen berechnen
+    total_packaging_weight = sum(float(pkg.get('total_weight', 0)) for pkg in packagings)
+    
+    # Prüfen, ob das Gesamtgewicht verfügbar ist
+    if total_packaging_weight > available_weight:
+        return Response(
+            {"error": f"Das Gesamtgewicht der Verpackungen überschreitet das verfügbare Gewicht"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    created_packagings = []
+    
+    # Verpackungen erstellen
+    for pkg_data in packagings:
+        unit_count = int(pkg_data.get('unit_count', 0))
+        unit_weight = float(pkg_data.get('unit_weight', 0))
+        total_weight = float(pkg_data.get('total_weight', 0))
+        pkg_notes = pkg_data.get('notes', notes)
+        
+        # Validierung
+        if unit_count <= 0 or unit_weight < 5 or total_weight <= 0:
+            continue
+        
+        # Erstelle Verpackungs-Batch
+        packaging_kwargs = {
+            'lab_testing_batch': lab_batch,
+            'total_weight': total_weight,
+            'unit_count': unit_count,
+            'unit_weight': unit_weight,
+            'notes': pkg_notes,
+            'member_id': member_id,
+            'room_id': room_id
+        }
+        
+        packaging = PackagingBatch.objects.create(**packaging_kwargs)
+        created_packagings.append(packaging)
+    
+    # Wenn keine Verpackungen erstellt wurden, gib einen Fehler zurück
+    if not created_packagings:
+        return Response(
+            {"error": "Es konnten keine gültigen Verpackungen erstellt werden"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # Markiere die Laborkontrolle als zu Verpackung überführt
+    lab_batch.converted_to_packaging = True
+    lab_batch.converted_to_packaging_at = timezone.now()
+    lab_batch.packaging_batch = created_packagings[0]  # Referenziere die erste Verpackung
+    
+    # Wenn eine Restmenge übrig bleibt und auto_destroy_remainder aktiviert ist,
+    # erstelle einen zusätzlichen vernichteten PACKAGING-Batch für die Restmenge
+    if auto_destroy_remainder and remaining_weight > 0:
+        try:
+            # Erstelle ein neues PackagingBatch-Objekt für die Restmenge
+            remainder_batch = PackagingBatch.objects.create(
+                lab_testing_batch=lab_batch,
+                total_weight=remaining_weight,
+                unit_count=1,  # Ein Paket, das direkt vernichtet wird
+                unit_weight=remaining_weight,
+                member_id=member_id,
+                room_id=room_id,
+                notes=f"Restmenge aus der Verpackung von {lab_batch.batch_number}. Automatisch zur Vernichtung markiert.",
+                is_destroyed=True,
+                destroy_reason=f"Automatische Vernichtung der Restmenge bei Verpackung von {lab_batch.batch_number}",
+                destroyed_at=timezone.now(),
+                destroyed_by_id=member_id
+            )
+            
+            # Ergänze die Notizen der Verpackungen um einen Hinweis auf die vernichtete Restmenge
+            for pkg in created_packagings:
+                pkg.notes += f"\nRestmenge von {remaining_weight}g wurde automatisch als Verpackung vernichtet (ID: {remainder_batch.id})."
+                pkg.save()
+            
+        except Exception as e:
+            # Log den Fehler, aber lass die Hauptoperation weiterlaufen
+            print(f"Fehler bei der automatischen Vernichtung der Restmenge: {str(e)}")
+    
+    lab_batch.save()
+    
+    # Serialisiere die erste Verpackung für die Antwort
+    serializer = PackagingBatchSerializer(created_packagings[0])
+    
+    return Response({
+        "message": f"{len(created_packagings)} Verpackungen mit insgesamt {total_packaging_weight}g wurden erstellt",
+        "packaging": serializer.data,
+        "created_count": len(created_packagings)
+    })
+
+class PackagingUnitViewSet(viewsets.ModelViewSet):
+    queryset = PackagingUnit.objects.all().order_by('-created_at')
+    serializer_class = PackagingUnitSerializer
+    permission_classes = [IsAuthenticated]
+    pagination_class = StandardResultsSetPagination
+    
+    @action(detail=True, methods=['post'])
+    def destroy_unit(self, request, pk=None):
+        unit = self.get_object()
+        reason = request.data.get('reason', '')
+        destroyed_by_id = request.data.get('destroyed_by_id', None)
+        
+        if not reason:
+            return Response(
+                {"error": "Ein Vernichtungsgrund ist erforderlich"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if not destroyed_by_id:
+            return Response(
+                {"error": "Ein verantwortliches Mitglied muss angegeben werden"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        unit.is_destroyed = True
+        unit.destroy_reason = reason
+        unit.destroyed_at = timezone.now()
+        unit.destroyed_by_id = destroyed_by_id
+        unit.save()
+        
+        return Response({
+            "message": f"Verpackungseinheit {unit.batch_number} wurde vernichtet"
         })

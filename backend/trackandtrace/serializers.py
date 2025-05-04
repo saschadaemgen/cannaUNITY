@@ -3,7 +3,8 @@ from .models import (
     SeedPurchase, MotherPlantBatch, MotherPlant, 
     FloweringPlantBatch, FloweringPlant, Cutting, CuttingBatch,
     BloomingCuttingBatch, BloomingCuttingPlant, HarvestBatch,
-    DryingBatch, ProcessingBatch, PRODUCT_TYPE_CHOICES, LabTestingBatch, PackagingBatch
+    DryingBatch, ProcessingBatch, PRODUCT_TYPE_CHOICES, LabTestingBatch, 
+    PackagingBatch, PackagingUnit
 )
 from members.models import Member
 from rooms.models import Room
@@ -775,3 +776,22 @@ class PackagingBatchSerializer(serializers.ModelSerializer):
     
     def get_cbd_content(self, obj):
         return obj.cbd_content
+    
+class PackagingUnitSerializer(serializers.ModelSerializer):
+    # Serializer für das Mitglied, das vernichtet hat
+    destroyed_by = MemberSerializer(read_only=True)
+    destroyed_by_id = serializers.PrimaryKeyRelatedField(
+        queryset=Member.objects.all(), 
+        source='destroyed_by',
+        write_only=True,
+        required=False,
+        allow_null=True
+    )
+    
+    class Meta:
+        model = PackagingUnit
+        fields = [
+            'id', 'batch_number', 'weight', 'notes', 
+            'is_destroyed', 'destroy_reason', 'destroyed_at',
+            'created_at', 'destroyed_by', 'destroyed_by_id'
+        ]

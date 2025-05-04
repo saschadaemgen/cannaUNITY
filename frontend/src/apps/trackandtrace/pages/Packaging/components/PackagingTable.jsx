@@ -1,6 +1,10 @@
 // frontend/src/apps/trackandtrace/pages/Packaging/components/PackagingTable.jsx
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { Box, Typography, Button, IconButton } from '@mui/material'
+import { 
+  Table, TableContainer, TableHead, TableRow, TableCell, TableBody,
+  Paper, Pagination, Checkbox, FormControlLabel
+} from '@mui/material'
 import SpeedIcon from '@mui/icons-material/Speed'
 import InventoryIcon from '@mui/icons-material/Inventory'
 import ScienceIcon from '@mui/icons-material/Science'
@@ -12,6 +16,8 @@ import TableHeader from '../../../components/common/TableHeader'
 import AccordionRow from '../../../components/common/AccordionRow'
 import DetailCards from '../../../components/common/DetailCards'
 import PaginationFooter from '../../../components/common/PaginationFooter'
+import LoadingIndicator from '../../../components/common/LoadingIndicator'
+import api from '../../../../../utils/api'
 
 /**
  * PackagingTable Komponente für die Darstellung der Verpackungs-Tabelle
@@ -26,6 +32,71 @@ const PackagingTable = ({
   totalPages,
   onPageChange
 }) => {
+  // Neue State-Variablen für Einheiten hinzufügen
+  const [packagingUnits, setPackagingUnits] = useState({});
+  const [unitsCurrentPage, setUnitsCurrentPage] = useState({});
+  const [unitsTotalPages, setUnitsTotalPages] = useState({});
+  const [loadingUnits, setLoadingUnits] = useState({});
+  
+  // Funktion zum Laden der Verpackungseinheiten
+  const loadUnitsForPackaging = async (packagingId, page = 1) => {
+    try {
+      setLoadingUnits(prev => ({ ...prev, [packagingId]: true }));
+      
+      console.log(`Lade Verpackungseinheiten für Batch ${packagingId}, Seite ${page}`);
+      const res = await api.get(`/trackandtrace/packaging/${packagingId}/units/?page=${page}&destroyed=false`);
+      
+      console.log('Geladene Verpackungseinheiten:', res.data);
+      
+      // Speichern der Einheiten
+      setPackagingUnits(prev => ({
+        ...prev,
+        [packagingId]: res.data.results || []
+      }));
+      
+      // Seiteninformationen speichern
+      setUnitsCurrentPage(prev => ({
+        ...prev,
+        [packagingId]: page
+      }));
+      
+      const total = res.data.count || 0;
+      const pages = Math.ceil(total / 10); // pageSize im Backend
+      setUnitsTotalPages(prev => ({
+        ...prev,
+        [packagingId]: pages
+      }));
+      
+    } catch (error) {
+      console.error('Fehler beim Laden der Verpackungseinheiten:', error);
+      // Bei Fehler leere Liste setzen
+      setPackagingUnits(prev => ({
+        ...prev,
+        [packagingId]: []
+      }));
+    } finally {
+      setLoadingUnits(prev => ({ ...prev, [packagingId]: false }));
+    }
+  };
+  
+  // Funktion zum Umblättern der Einheiten-Seiten
+  const handleUnitsPageChange = (packagingId, event, page) => {
+    loadUnitsForPackaging(packagingId, page);
+  };
+  
+  // Funktion zur Vernichtung einer Einheit
+  const handleDestroyUnit = (unit) => {
+    // Implementierung später - zunächst Platzhalter
+    console.log('Vernichte Einheit:', unit);
+  };
+
+  // UseEffect hinzufügen, um Einheiten beim Aufklappen eines Batches zu laden
+  useEffect(() => {
+    if (expandedPackagingId && tabValue !== 3) {
+      loadUnitsForPackaging(expandedPackagingId, 1);
+    }
+  }, [expandedPackagingId, tabValue]);
+
   // Hilfsfunktion zum Ermitteln des Produkttyps für die Anzeige
   const getProductTypeDisplay = (item) => {
     if (item.product_type_display) {
@@ -146,6 +217,101 @@ const PackagingTable = ({
         : "Unbekannt";
       return `Verpackung ${productType} ${packaging.batch_number} mit Genetik ${packaging.source_strain} wurde am ${destroyDate} von ${destroyer} vernichtet. Grund: ${packaging.destroy_reason || "Kein Grund angegeben"}. Gesamtgewicht: ${totalWeight}g, Anzahl Einheiten: ${unitCount}.`;
     }
+  };
+
+  // Neue Funktion zur Anzeige der Verpackungseinheiten-Tabelle
+  const renderUnitTable = (packaging) => {
+    const packagingId = packaging.id;
+    const isLoading = loadingUnits[packagingId];
+    const units = packagingUnits[packagingId] || [];
+    
+    return (
+      <Box sx={{ width: '100%', mt: 2, mb: 2 }}>
+        <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+          <Typography variant="subtitle2" color="secondary">
+            Verpackungseinheiten
+          </Typography>
+        </Box>
+        
+        {isLoading ? (
+          <LoadingIndicator size={24} />
+        ) : units.length > 0 ? (
+          <>
+            <TableContainer component={Paper} elevation={1} sx={{ mb: 2 }}>
+              <Table size="small">
+                <TableHead>
+                  <TableRow sx={{ backgroundColor: 'secondary.main' }}>
+                    <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Einheits-Nummer</TableCell>
+                    <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>UUID</TableCell>
+                    <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Gewicht</TableCell>
+                    <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Erstellt am</TableCell>
+                    <TableCell align="right" sx={{ color: 'white', fontWeight: 'bold' }}>Aktionen</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {units.map((unit, i) => (
+                    <TableRow 
+                      key={unit.id}
+                      sx={{ 
+                        backgroundColor: 'white',
+                        '&:nth-of-type(odd)': { backgroundColor: 'rgba(0, 0, 0, 0.02)' }
+                      }}
+                    >
+                      <TableCell>
+                        {unit.batch_number || `Einheit ${i+1}`}
+                      </TableCell>
+                      <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
+                        {unit.id}
+                      </TableCell>
+                      <TableCell>
+                        {parseFloat(unit.weight).toLocaleString('de-DE')}g
+                      </TableCell>
+                      <TableCell>
+                        {new Date(unit.created_at).toLocaleString('de-DE')}
+                      </TableCell>
+                      <TableCell align="right">
+                        <IconButton 
+                          size="small" 
+                          sx={{ 
+                            color: 'white',
+                            backgroundColor: 'error.main',
+                            '&:hover': {
+                              backgroundColor: 'error.dark'
+                            },
+                            width: '28px',
+                            height: '28px'
+                          }}
+                          onClick={() => handleDestroyUnit(unit)}
+                        >
+                          <LocalFireDepartmentIcon fontSize="small" />
+                        </IconButton>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+            
+            {/* Pagination für Einheiten */}
+            {unitsTotalPages[packagingId] > 1 && (
+              <Box display="flex" justifyContent="center" mt={2} width="100%">
+                <Pagination 
+                  count={unitsTotalPages[packagingId]} 
+                  page={unitsCurrentPage[packagingId] || 1} 
+                  onChange={(e, page) => handleUnitsPageChange(packagingId, e, page)}
+                  color="secondary"
+                  size="small"
+                />
+              </Box>
+            )}
+          </>
+        ) : (
+          <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 2 }}>
+            Keine Verpackungseinheiten verfügbar.
+          </Typography>
+        )}
+      </Box>
+    );
   };
 
   // Detailansicht für eine Verpackung rendern
@@ -393,6 +559,9 @@ const PackagingTable = ({
         </Box>
         
         <DetailCards cards={cards} color={cardColor} />
+        
+        {/* Neue Verpackungseinheiten-Tabelle einfügen, wenn nicht im "Vernichtet"-Tab */}
+        {tabValue !== 3 && renderUnitTable(packaging)}
 
         {/* Aktionsbereich für aktive Verpackungen */}
         {tabValue !== 3 && (

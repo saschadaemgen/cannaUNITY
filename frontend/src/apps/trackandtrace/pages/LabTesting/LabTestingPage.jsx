@@ -18,7 +18,7 @@ import AnimatedTabPanel from '../../components/common/AnimatedTabPanel'
 // Spezifische Komponenten
 import LabTestingTable from './components/LabTestingTable'
 import UpdateLabResultsDialog from './components/UpdateLabResultsDialog'
-import ConvertToPackagingDialog from './components/ConvertToPackagingDialog'
+import EnhancedConvertToPackagingDialog from './components/EnhancedConvertToPackagingDialog'
 
 export default function LabTestingPage() {
   const [labTestingBatches, setLabTestingBatches] = useState([])
@@ -259,7 +259,7 @@ export default function LabTestingPage() {
   const handleConvertToPackaging = async (formData) => {
     try {
       if (selectedLabTesting) {
-        await api.post(`/trackandtrace/labtesting/${selectedLabTesting.id}/convert_to_packaging/`, formData);
+        const response = await api.post(`/trackandtrace/labtesting/${selectedLabTesting.id}/convert_to_packaging/`, formData);
         
         setOpenConvertToPackagingDialog(false);
         setSelectedLabTesting(null);
@@ -269,7 +269,8 @@ export default function LabTestingPage() {
         loadTabCounts();
         
         // Erfolgsmeldung anzeigen
-        setSuccessMessage('Verpackung wurde erfolgreich erstellt!');
+        const createdCount = response.data.created_count || 1;
+        setSuccessMessage(`${createdCount} Verpackung${createdCount > 1 ? 'en wurden' : ' wurde'} erfolgreich erstellt!`);
         setShowSuccessAlert(true);
         
         // Erfolg im localStorage speichern für die Verpackungs-Seite
@@ -526,8 +527,8 @@ export default function LabTestingPage() {
         labTesting={selectedLabTesting}
       />
       
-      {/* Konvertierung zu Verpackung */}
-      <ConvertToPackagingDialog
+      {/* Konvertierung zu Verpackung - Erweiterte Version */}
+      <EnhancedConvertToPackagingDialog
         open={openConvertToPackagingDialog}
         onClose={() => setOpenConvertToPackagingDialog(false)}
         onConvert={handleConvertToPackaging}

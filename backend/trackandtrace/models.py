@@ -693,25 +693,36 @@ class PackagingBatch(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     
     def save(self, *args, **kwargs):
-        # Generiere Batch-Nummer falls nicht vorhanden
+        # Speichere zuerst den Status, bevor der erste save
+        creating = self.pk is None
+        
         if not self.batch_number:
             today = timezone.now()
-            # Erstelle ein Präfix basierend auf dem Produkttyp der Quelle
             prefix = "packaging"
             if self.lab_testing_batch and self.lab_testing_batch.processing_batch:
                 prefix = f"packaging-{self.lab_testing_batch.processing_batch.product_type}"
             
-            # Zähle Verpackungs-Batches, die heute erstellt wurden
             count = PackagingBatch.objects.filter(
                 created_at__year=today.year,
                 created_at__month=today.month,
                 created_at__day=today.day
             ).count() + 1
             
-            # Generiere Batch-Nummer mit Präfix
             self.batch_number = f"charge:{prefix}:{today.strftime('%d:%m:%Y')}:{count:04d}"
         
         super().save(*args, **kwargs)
+        
+        # Prüfe, ob Units existieren - wenn nicht, erstelle sie
+        if self.unit_count > 0 and not self.is_destroyed:
+            units_count = self.units.count()
+            if units_count == 0:
+                print(f"DEBUG: ERSTELLE UNITS - Anzahl: {self.unit_count}")
+                for _ in range(self.unit_count):
+                    PackagingUnit.objects.create(
+                        batch=self,
+                        weight=self.unit_weight,
+                        notes=f"Automatisch erstellt aus Batch {self.batch_number}"
+                    )
     
     @property
     def source_strain(self):
@@ -747,3 +758,46 @@ class PackagingBatch(models.Model):
         if self.lab_testing_batch:
             return self.lab_testing_batch.cbd_content
         return None
+    
+# models.py (neues Modell am Ende der Datei hinzufügen)
+
+class PackagingUnit(models.Model):
+    """Modell für individuelle Verpackungseinheiten innerhalb eines Verpackungs-Batches"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    batch = models.ForeignKey(PackagingBatch, related_name='units', on_delete=models.CASCADE)
+    batch_number = models.CharField(max_length=50, unique=True, blank=True, null=True)
+    weight = models.DecimalField(max_digits=6, decimal_places=2)  # Gewicht in Gramm
+    notes = models.TextField(blank=True, null=True)
+    
+    # Mitgliederzuordnung für Vernichtung
+    destroyed_by = models.ForeignKey(Member, on_delete=models.SET_NULL, null=True, blank=True,
+                                    related_name='destroyed_packaging_units')
+    
+    is_destroyed = models.BooleanField(default=False)
+    destroy_reason = models.TextField(blank=True, null=True)
+    destroyed_at = models.DateTimeField(blank=True, null=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def save(self, *args, **kwargs):
+        # Generiere Batch-Nummer falls nicht vorhanden
+        if not self.batch_number:
+            today = timezone.now()
+            # Zähle Verpackungseinheiten, die heute erstellt wurden
+            count = PackagingUnit.objects.filter(
+                created_at__year=today.year,
+                created_at__month=today.month,
+                created_at__day=today.day
+            ).count() + 1
+            
+            # Produkttyp aus dem übergeordneten Batch ermitteln
+            product_type_prefix = "pack"
+            if self.batch.lab_testing_batch and self.batch.lab_testing_batch.processing_batch:
+                product_type = self.batch.lab_testing_batch.processing_batch.product_type
+                product_type_prefix = f"pack-{product_type}"
+            
+            # Generiere Batch-Nummer
+            self.batch_number = f"unit:{product_type_prefix}:{today.strftime('%d:%m:%Y')}:{count:04d}"
+        
+        super().save(*args, **kwargs)
