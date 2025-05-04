@@ -160,6 +160,6 @@ cannaUNITY/
 
 ---
 
-## 📃 Lizenz
+## 📃 Lizenz & Hinweis zur Nutzung
 
-**cannaUNITY** ist ein freies Open-Source-Projekt unter der [MIT-Lizenz](LICENSE).
+**cannaUNITY** ist ein freies Open-Source-Projekt unter der MIT-Lizenz. Die aktuelle Version v0.6.18 (Pre-Alpha) dient ausschließlich der Mitentwicklung, dem Testen und der Konzeptvalidierung. Eine produktive Nutzung ist derzeit nicht vorgesehen. Die Software wird ohne Gewährleistung bereitgestellt. Die Nutzung erfolgt auf eigenes Risiko. Eine Haftung für Schäden oder Datenverluste wird ausgeschlossen!
