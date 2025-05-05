@@ -254,10 +254,10 @@ export default function PackagingPage() {
     { 
       label: (
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <Typography component="span" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>ALLE</Typography>
+          <Typography component="span" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>GESAMT</Typography>
           <Typography component="span" sx={{ mx: 0.3, color: 'secondary.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${activeCount})`}</Typography>
           <InventoryIcon sx={{ mx: 0.3, fontSize: 16, color: 'secondary.main' }} />
-          <Typography component="span" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>GESAMTGEWICHT</Typography>
+          <Typography component="span" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>GEWICHT</Typography>
           <Typography component="span" sx={{ mx: 0.3, color: 'secondary.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${activeWeight.toLocaleString('de-DE')}g)`}</Typography>
           <Typography component="span" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>EINHEITEN</Typography>
           <Typography component="span" sx={{ mx: 0.3, color: 'secondary.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${activeUnits})`}</Typography>

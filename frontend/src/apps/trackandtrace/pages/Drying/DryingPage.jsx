@@ -274,7 +274,7 @@ export default function DryingPage() {
     { 
       label: (
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <Typography component="span" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>AKTIVE TROCKNUNGEN</Typography>
+          <Typography component="span" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>AKTIVE</Typography>
           <Typography component="span" sx={{ mx: 0.3, color: 'info.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${activeCount})`}</Typography>
           <ScaleIcon sx={{ mx: 0.3, fontSize: 16, color: 'info.main' }} />
           <Typography component="span" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>FRISCHGEWICHT</Typography>
