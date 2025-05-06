@@ -620,12 +620,7 @@ const PackagingTable = ({
         totalPages={totalPages}
         onPageChange={onPageChange}
         hasData={data && data.length > 0}
-        emptyMessage={
-          tabValue === 0 ? 'Keine Verpackungen vorhanden' : 
-          tabValue === 1 ? 'Kein Marihuana vorhanden' : 
-          tabValue === 2 ? 'Kein Haschisch vorhanden' : 
-          'Keine vernichteten Verpackungen vorhanden'
-        }
+        emptyMessage=""
         color={tableColor}
       />
     </Box>

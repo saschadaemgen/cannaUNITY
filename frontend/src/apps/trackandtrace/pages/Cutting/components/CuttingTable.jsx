@@ -700,7 +700,7 @@ const CuttingTable = ({
         totalPages={totalPages}
         onPageChange={onPageChange}
         hasData={data && data.length > 0}
-        emptyMessage="Keine Stecklinge vorhanden"
+        emptyMessage=""
         color="primary"
       />
     </Box>

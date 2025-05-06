@@ -678,7 +678,7 @@ const FloweringPlantTable = ({
         totalPages={totalPages}
         onPageChange={onPageChange}
         hasData={data && data.length > 0}
-        emptyMessage="Keine Blühpflanzen vorhanden"
+        emptyMessage=""
         color="primary"
       />
 

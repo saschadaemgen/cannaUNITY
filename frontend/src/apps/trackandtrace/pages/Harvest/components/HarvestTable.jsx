@@ -350,7 +350,7 @@ const HarvestTable = ({
         totalPages={totalPages}
         onPageChange={onPageChange}
         hasData={data && data.length > 0}
-        emptyMessage={tabValue === 0 ? 'Keine aktiven Ernten vorhanden' : 'Keine vernichteten Ernten vorhanden'}
+        emptyMessage=""
         color={tabValue === 0 ? 'success' : 'error'}
       />
     </Box>

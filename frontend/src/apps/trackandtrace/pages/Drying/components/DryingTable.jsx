@@ -385,7 +385,7 @@ const DryingTable = ({
         totalPages={totalPages}
         onPageChange={onPageChange}
         hasData={data && data.length > 0}
-        emptyMessage={tabValue === 0 ? 'Keine aktiven Trocknungen vorhanden' : 'Keine vernichteten Trocknungen vorhanden'}
+        emptyMessage=""
         color={tabValue === 0 ? 'info' : 'error'}
       />
     </Box>

@@ -801,11 +801,7 @@ const BloomingCuttingPlantTable = ({
         totalPages={totalPages}
         onPageChange={onPageChange}
         hasData={data && data.length > 0}
-        emptyMessage={tabValue === 0 
-          ? 'Keine aktiven Blühpflanzen aus Stecklingen vorhanden' 
-          : (tabValue === 1 
-            ? 'Keine vernichteten Blühpflanzen aus Stecklingen vorhanden'
-            : 'Keine zu Ernte überführten Blühpflanzen aus Stecklingen vorhanden')}
+        emptyMessage=""
         color={tabValue === 0 ? 'primary' : (tabValue === 1 ? 'error' : 'success')}
       />
 

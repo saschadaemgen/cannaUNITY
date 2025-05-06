@@ -1,10 +1,7 @@
 // frontend/src/apps/trackandtrace/pages/Processing/ProcessingPage.jsx
 import { useState, useEffect } from 'react'
 import { Container, Box, Typography, Fade, Alert, Snackbar } from '@mui/material'
-import SpeedIcon from '@mui/icons-material/Speed'
-import LocalFloristIcon from '@mui/icons-material/LocalFlorist'
-import FilterDramaIcon from '@mui/icons-material/FilterDrama'
-import ScienceIcon from '@mui/icons-material/Science'
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
 import api from '../../../../utils/api'
 
 // Gemeinsame Komponenten
@@ -294,19 +291,19 @@ export default function ProcessingPage() {
       label: (
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
           <Typography component="span" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>ALLE PRODUKTE</Typography>
-          <Typography component="span" sx={{ mx: 0.3, color: 'secondary.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${activeCount})`}</Typography>
-          <SpeedIcon sx={{ mx: 0.3, fontSize: 16, color: 'secondary.main' }} />
+          <Typography component="span" sx={{ mx: 0.3, color: 'primary.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${activeCount})`}</Typography>
+          <ArrowForwardIcon sx={{ mx: 0.3, fontSize: 10, color: 'primary.main' }} />
           <Typography component="span" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>GESAMTGEWICHT</Typography>
-          <Typography component="span" sx={{ mx: 0.3, color: 'secondary.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${activeOutputWeight.toLocaleString('de-DE')}g)`}</Typography>
+          <Typography component="span" sx={{ mx: 0.3, color: 'primary.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${activeOutputWeight.toLocaleString('de-DE')}g)`}</Typography>
         </Box>
       ) 
     },
     { 
       label: (
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <LocalFloristIcon sx={{ mx: 0.3, fontSize: 16, color: 'success.main' }} />
           <Typography component="span" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>MARIHUANA</Typography>
           <Typography component="span" sx={{ mx: 0.3, color: 'success.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${marijuanaCount})`}</Typography>
+          <ArrowForwardIcon sx={{ mx: 0.3, fontSize: 10, color: 'success.main' }} />
           <Typography component="span" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>GEWICHT</Typography>
           <Typography component="span" sx={{ mx: 0.3, color: 'success.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${marijuanaWeight.toLocaleString('de-DE')}g)`}</Typography>
         </Box>
@@ -315,11 +312,11 @@ export default function ProcessingPage() {
     { 
       label: (
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <FilterDramaIcon sx={{ mx: 0.3, fontSize: 16, color: 'warning.main' }} />
           <Typography component="span" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>HASCHISCH</Typography>
-          <Typography component="span" sx={{ mx: 0.3, color: 'warning.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${hashishCount})`}</Typography>
+          <Typography component="span" sx={{ mx: 0.3, color: 'success.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${hashishCount})`}</Typography>
+          <ArrowForwardIcon sx={{ mx: 0.3, fontSize: 10, color: 'success.main' }} />
           <Typography component="span" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>GEWICHT</Typography>
-          <Typography component="span" sx={{ mx: 0.3, color: 'warning.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${hashishWeight.toLocaleString('de-DE')}g)`}</Typography>
+          <Typography component="span" sx={{ mx: 0.3, color: 'success.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${hashishWeight.toLocaleString('de-DE')}g)`}</Typography>
         </Box>
       )
     },
@@ -328,7 +325,7 @@ export default function ProcessingPage() {
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
           <Typography component="span" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>VERNICHTET</Typography>
           <Typography component="span" sx={{ mx: 0.3, color: 'error.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${destroyedCount})`}</Typography>
-          <SpeedIcon sx={{ mx: 0.3, fontSize: 16, color: 'error.main' }} />
+          <ArrowForwardIcon sx={{ mx: 0.3, fontSize: 10, color: 'error.main' }} />
           <Typography component="span" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>GEWICHT</Typography>
           <Typography component="span" sx={{ mx: 0.3, color: 'error.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${destroyedOutputWeight.toLocaleString('de-DE')}g)`}</Typography>
         </Box>
@@ -385,7 +382,7 @@ export default function ProcessingPage() {
         tabValue={tabValue} 
         onTabChange={handleTabChange} 
         tabs={tabs}
-        color={tabValue === 0 ? 'secondary' : (tabValue === 1 ? 'success' : (tabValue === 2 ? 'warning' : 'error'))}
+        color={tabValue === 0 ? 'primary' : (tabValue === 1 ? 'success' : (tabValue === 2 ? 'success' : 'error'))}
         ariaLabel="Verarbeitungs-Tabs"
       />
 

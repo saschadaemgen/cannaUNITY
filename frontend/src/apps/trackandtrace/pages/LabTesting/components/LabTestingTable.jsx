@@ -645,12 +645,7 @@ const LabTestingTable = ({
         totalPages={totalPages}
         onPageChange={onPageChange}
         hasData={data && data.length > 0}
-        emptyMessage={
-          tabValue === 0 ? 'Keine Laborkontrollen in Bearbeitung vorhanden' : 
-          tabValue === 1 ? 'Keine freigegebenen Laborkontrollen vorhanden' : 
-          tabValue === 2 ? 'Keine nicht bestandenen Laborkontrollen vorhanden' : 
-          'Keine vernichteten Laborkontrollen vorhanden'
-        }
+        emptyMessage=""
         color={tableColor}
       />
     </Box>

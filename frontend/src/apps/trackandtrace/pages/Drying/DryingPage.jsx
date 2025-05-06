@@ -2,10 +2,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Container, Box, Typography, Fade, Alert, Snackbar } from '@mui/material'
-import ScaleIcon from '@mui/icons-material/Scale'
-import AcUnitIcon from '@mui/icons-material/AcUnit'
-import SpeedIcon from '@mui/icons-material/Speed'
-import api from '../../../../utils/api'
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
+import api from '@/utils/api'
 
 // Gemeinsame Komponenten
 import PageHeader from '../../components/common/PageHeader'
@@ -275,13 +273,13 @@ export default function DryingPage() {
       label: (
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
           <Typography component="span" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>AKTIVE</Typography>
-          <Typography component="span" sx={{ mx: 0.3, color: 'info.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${activeCount})`}</Typography>
-          <ScaleIcon sx={{ mx: 0.3, fontSize: 16, color: 'info.main' }} />
+          <Typography component="span" sx={{ mx: 0.3, color: 'primary.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${activeCount})`}</Typography>
+          <ArrowForwardIcon sx={{ mx: 0.3, fontSize: 10, color: 'primary.main' }} />
           <Typography component="span" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>FRISCHGEWICHT</Typography>
-          <Typography component="span" sx={{ mx: 0.3, color: 'info.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${activeInitialWeight.toLocaleString('de-DE')}g)`}</Typography>
-          <AcUnitIcon sx={{ mx: 0.3, fontSize: 16, color: 'info.main' }} />
+          <Typography component="span" sx={{ mx: 0.3, color: 'primary.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${activeInitialWeight.toLocaleString('de-DE')}g)`}</Typography>
+          <ArrowForwardIcon sx={{ mx: 0.3, fontSize: 10, color: 'primary.main' }} />
           <Typography component="span" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>TROCKENGEWICHT</Typography>
-          <Typography component="span" sx={{ mx: 0.3, color: 'info.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${activeFinalWeight.toLocaleString('de-DE')}g)`}</Typography>
+          <Typography component="span" sx={{ mx: 0.3, color: 'primary.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${activeFinalWeight.toLocaleString('de-DE')}g)`}</Typography>
         </Box>
       ) 
     },
@@ -289,19 +287,19 @@ export default function DryingPage() {
       label: (
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
           <Typography component="span" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>ÜBERFÜHRT ZU VERARBEITUNG</Typography>
-          <Typography component="span" sx={{ mx: 0.3, color: 'secondary.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${processedCount})`}</Typography>
-          <SpeedIcon sx={{ mx: 0.3, fontSize: 16, color: 'secondary.main' }} />
+          <Typography component="span" sx={{ mx: 0.3, color: 'success.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${processedCount})`}</Typography>
+          <ArrowForwardIcon sx={{ mx: 0.3, fontSize: 10, color: 'success.main' }} />
           <Typography component="span" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>TROCKENGEWICHT</Typography>
-          <Typography component="span" sx={{ mx: 0.3, color: 'secondary.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${processedWeight.toLocaleString('de-DE')}g)`}</Typography>
+          <Typography component="span" sx={{ mx: 0.3, color: 'success.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${processedWeight.toLocaleString('de-DE')}g)`}</Typography>
         </Box>
       )
     },
     { 
       label: (
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <Typography component="span" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>VERNICHTETE TROCKNUNGEN</Typography>
+          <Typography component="span" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>VERNICHTET</Typography>
           <Typography component="span" sx={{ mx: 0.3, color: 'error.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${destroyedCount})`}</Typography>
-          <ScaleIcon sx={{ mx: 0.3, fontSize: 16, color: 'error.main' }} />
+          <ArrowForwardIcon sx={{ mx: 0.3, fontSize: 10, color: 'error.main' }} />
           <Typography component="span" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>TROCKENGEWICHT</Typography>
           <Typography component="span" sx={{ mx: 0.3, color: 'error.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${destroyedFinalWeight.toLocaleString('de-DE')}g)`}</Typography>
         </Box>
@@ -358,7 +356,7 @@ export default function DryingPage() {
         tabValue={tabValue} 
         onTabChange={handleTabChange} 
         tabs={tabs}
-        color={tabValue === 0 ? 'info' : (tabValue === 1 ? 'secondary' : 'error')}
+        color={tabValue === 0 ? 'primary' : (tabValue === 1 ? 'success' : 'error')}
         ariaLabel="Trocknungs-Tabs"
       />
 

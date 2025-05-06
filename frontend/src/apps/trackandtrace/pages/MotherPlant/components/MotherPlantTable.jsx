@@ -10,7 +10,7 @@ import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment'
 import ContentCutIcon from '@mui/icons-material/ContentCut'
 
 // API-Client importieren
-import api from '../../../../../utils/api'
+import api from '@/utils/api'
 
 import TableHeader from '../../../components/common/TableHeader'
 import AccordionRow from '../../../components/common/AccordionRow'
@@ -893,7 +893,7 @@ const MotherPlantTable = ({
         totalPages={totalPages}
         onPageChange={onPageChange}
         hasData={data && data.length > 0}
-        emptyMessage={tabValue === 1 ? 'Keine Stecklinge vorhanden' : 'Keine Mutterpflanzen vorhanden'}
+        emptyMessage=""
         color="primary"
       />
     </Box>

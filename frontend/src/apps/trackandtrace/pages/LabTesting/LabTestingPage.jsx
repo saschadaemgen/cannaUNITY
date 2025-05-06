@@ -3,9 +3,7 @@ import { useState, useEffect } from 'react'
 import { Container, Box, Typography, Fade, Alert, Snackbar } from '@mui/material'
 import SpeedIcon from '@mui/icons-material/Speed'
 import ScienceIcon from '@mui/icons-material/Science'
-import LocalFloristIcon from '@mui/icons-material/LocalFlorist'
-import FilterDramaIcon from '@mui/icons-material/FilterDrama'
-import api from '../../../../utils/api'
+import api from '@/utils/api'
 
 // Gemeinsame Komponenten
 import PageHeader from '../../components/common/PageHeader'

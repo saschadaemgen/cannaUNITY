@@ -444,12 +444,7 @@ const ProcessingTable = ({
         totalPages={totalPages}
         onPageChange={onPageChange}
         hasData={data && data.length > 0}
-        emptyMessage={
-          tabValue === 0 ? 'Keine Verarbeitungen vorhanden' : 
-          tabValue === 1 ? 'Kein Marihuana vorhanden' : 
-          tabValue === 2 ? 'Kein Haschisch vorhanden' : 
-          'Keine vernichteten Verarbeitungen vorhanden'
-        }
+        emptyMessage=""
         color={tableColor}
       />
     </Box>

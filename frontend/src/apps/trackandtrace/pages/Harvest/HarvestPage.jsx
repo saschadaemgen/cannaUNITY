@@ -2,9 +2,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Container, Box, Typography, Fade, Alert, Snackbar } from '@mui/material'
-import ScaleIcon from '@mui/icons-material/Scale'
-import AcUnitIcon from '@mui/icons-material/AcUnit' // Neues Icon für Trocknung
-import api from '../../../../utils/api'
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
+import api from '@/utils/api'
 
 // Gemeinsame Komponenten
 import PageHeader from '../../components/common/PageHeader'
@@ -271,7 +270,7 @@ export default function HarvestPage() {
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
           <Typography component="span" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>AKTIVE ERNTEN</Typography>
           <Typography component="span" sx={{ mx: 0.3, color: 'success.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${activeCount})`}</Typography>
-          <ScaleIcon sx={{ mx: 0.3, fontSize: 16, color: 'success.main' }} />
+          <ArrowForwardIcon sx={{ mx: 0.3, fontSize: 10, color: 'success.main' }} />
           <Typography component="span" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>GESAMTGEWICHT</Typography>
           <Typography component="span" sx={{ mx: 0.3, color: 'success.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${activeWeight.toLocaleString('de-DE')}g)`}</Typography>
         </Box>
@@ -281,10 +280,10 @@ export default function HarvestPage() {
       label: (
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
           <Typography component="span" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>ÜBERFÜHRT ZU TROCKNUNG</Typography>
-          <Typography component="span" sx={{ mx: 0.3, color: 'info.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${driedCount})`}</Typography>
-          <AcUnitIcon sx={{ mx: 0.3, fontSize: 16, color: 'info.main' }} />
+          <Typography component="span" sx={{ mx: 0.3, color: 'primary.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${driedCount})`}</Typography>
+          <ArrowForwardIcon sx={{ mx: 0.3, fontSize: 10, color: 'primary.main' }} />
           <Typography component="span" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>GESAMTGEWICHT</Typography>
-          <Typography component="span" sx={{ mx: 0.3, color: 'info.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${driedWeight.toLocaleString('de-DE')}g)`}</Typography>
+          <Typography component="span" sx={{ mx: 0.3, color: 'primary.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${driedWeight.toLocaleString('de-DE')}g)`}</Typography>
         </Box>
       )
     },
@@ -293,7 +292,7 @@ export default function HarvestPage() {
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
           <Typography component="span" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>VERNICHTETE ERNTEN</Typography>
           <Typography component="span" sx={{ mx: 0.3, color: 'error.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${destroyedCount})`}</Typography>
-          <ScaleIcon sx={{ mx: 0.3, fontSize: 16, color: 'error.main' }} />
+          <ArrowForwardIcon sx={{ mx: 0.3, fontSize: 10, color: 'error.main' }} />
           <Typography component="span" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>GESAMTGEWICHT</Typography>
           <Typography component="span" sx={{ mx: 0.3, color: 'error.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${destroyedWeight.toLocaleString('de-DE')}g)`}</Typography>
         </Box>
@@ -350,7 +349,7 @@ export default function HarvestPage() {
         tabValue={tabValue} 
         onTabChange={handleTabChange} 
         tabs={tabs}
-        color="success"
+        color={tabValue === 0 ? 'success' : (tabValue === 1 ? 'primary' : 'error')}
         ariaLabel="Ernte-Tabs"
       />
 

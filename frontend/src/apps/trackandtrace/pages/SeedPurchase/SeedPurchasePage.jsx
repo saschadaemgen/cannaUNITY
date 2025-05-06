@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { Container, Button, Box, Typography, Fade } from '@mui/material'
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
-import api from '../../../../utils/api'
+import api from '@/utils/api'
 
 // Gemeinsame Komponenten
 import PageHeader from '../../components/common/PageHeader'
@@ -586,7 +586,7 @@ export default function SeedPurchasePage() {
       <Fade in={true} timeout={800}>
         <Box>
           <PageHeader 
-            title="Samen-Verwaltung"
+            title="Track & Trace Verwaltung: Step 1 - (Samenbeschaffung)"
             showFilters={showFilters}
             setShowFilters={setShowFilters}
             actions={

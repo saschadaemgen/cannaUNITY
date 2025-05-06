@@ -15,7 +15,7 @@ import {
   Box,
   Typography
 } from '@mui/material'
-import api from '../../../../utils/api'
+import api from '@/utils/api'
 
 export default function SeedPurchaseForm({ open, onClose, onSuccess, initialData = {} }) {
   const [formData, setFormData] = useState({
