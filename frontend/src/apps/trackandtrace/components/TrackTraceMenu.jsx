@@ -56,11 +56,20 @@ const processSteps = [
     color: '#81c784' // Hellgrün
   },
   { 
-    label: 'Step 4 - Blühpflanzen', 
+    label: 'Step 4a - Blühpflanzen', 
+    subtitle: 'aus Samen',
     icon: <AcUnitIcon />, 
     pathOld: '/trace/bluehpflanzen',
     pathNew: '/trackandtrace/floweringplants',
     color: '#7b1fa2' // Lila (für Blüten)
+  },
+  { 
+    label: 'Step 4b - Blühpflanzen', 
+    subtitle: 'aus Stecklingen',
+    icon: <AcUnitIcon />, 
+    pathOld: '/trace/bluehpflanzen-aus-stecklingen',
+    pathNew: '/trackandtrace/floweringplants-from-cuttings',
+    color: '#9c27b0' // Helleres Lila
   },
   { 
     label: 'Step 5 - Ernte', 
@@ -172,7 +181,7 @@ export default function TrackTraceMenu() {
           sx={{
             position: 'relative',
             borderRadius: '8px',
-            height: '42px',
+            height: item.subtitle ? '48px' : '42px', // Etwas mehr Höhe für Menüpunkte mit Untertitel
             color: active ? item.color : theme.palette.text.primary,
             backgroundColor: active ? alpha(item.color, 0.1) : 'transparent',
             '&:hover': {
@@ -204,13 +213,31 @@ export default function TrackTraceMenu() {
           >
             {item.icon}
           </ListItemIcon>
-          <ListItemText 
-            primary={item.label} 
-            primaryTypographyProps={{ 
-              fontSize: '0.9rem',
-              fontWeight: active ? 600 : 400
-            }}
-          />
+          <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+            <ListItemText 
+              primary={item.label} 
+              disableTypography
+              sx={{
+                fontSize: '0.9rem',
+                fontWeight: active ? 600 : 400,
+                lineHeight: 1.2
+              }}
+            />
+            {item.subtitle && (
+              <Typography 
+                variant="caption" 
+                sx={{ 
+                  fontSize: '0.7rem', 
+                  color: active ? item.color : 'text.secondary',
+                  ml: 0,
+                  lineHeight: 1,
+                  mt: '-1px'
+                }}
+              >
+                {item.subtitle}
+              </Typography>
+            )}
+          </Box>
           {active && (
             <Box 
               sx={{ 

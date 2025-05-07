@@ -41,7 +41,7 @@ export default function ContextSidebar() {
   return (
     <Box
       sx={{
-        width: 240,
+        width: 280,
         bgcolor:
           theme.palette.mode === 'dark'
             ? theme.palette.grey[900]
