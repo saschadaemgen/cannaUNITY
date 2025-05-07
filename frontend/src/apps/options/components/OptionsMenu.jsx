@@ -1,4 +1,4 @@
-// src/apps/rooms/components/RoomMenu.jsx
+// src/apps/options/components/OptionsMenu.jsx
 import React from 'react'
 import {
   List,
@@ -17,103 +17,97 @@ import {
 import { NavLink, useLocation } from 'react-router-dom'
 
 // Hauptfunktionen
-import MeetingRoomIcon from '@mui/icons-material/MeetingRoom'
-import AddIcon from '@mui/icons-material/Add'
-import CategoryIcon from '@mui/icons-material/Category'
-import DashboardCustomizeIcon from '@mui/icons-material/DashboardCustomize'
-import CalendarMonthIcon from '@mui/icons-material/CalendarMonth'
-import DeviceThermostatIcon from '@mui/icons-material/DeviceThermostat'
+import SettingsIcon from '@mui/icons-material/Settings'
+import ColorLensIcon from '@mui/icons-material/ColorLens'
+import LanguageIcon from '@mui/icons-material/Language'
+import AccountCircleIcon from '@mui/icons-material/AccountCircle'
+import NotificationsIcon from '@mui/icons-material/Notifications'
+import DashboardIcon from '@mui/icons-material/Dashboard'
+import SecurityIcon from '@mui/icons-material/Security'
 
 // Admin-Tools
-import SettingsIcon from '@mui/icons-material/Settings'
-import PhotoCameraIcon from '@mui/icons-material/PhotoCamera'
-import ImportExportIcon from '@mui/icons-material/ImportExport'
-import InfoIcon from '@mui/icons-material/Info'
+import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings'
+import BackupIcon from '@mui/icons-material/Backup'
+import UploadFileIcon from '@mui/icons-material/UploadFile'
+import BuildIcon from '@mui/icons-material/Build'
 
 // Hauptfunktionen
 const mainFeatures = [
   {
-    label: 'Raumliste',
-    stepLabel: 'ROOM 1',
-    icon: <MeetingRoomIcon />,
-    path: '/rooms',
+    label: 'Übersicht',
+    stepLabel: 'OPTIONS 1',
+    icon: <DashboardIcon />,
+    path: '/options',
     color: '#3f51b5' // Indigo
   },
   {
-    label: 'Neuer Raum',
-    stepLabel: 'ROOM 2',
-    icon: <AddIcon />,
-    path: '/rooms/new',
-    color: '#4caf50' // Grün
-  },
-  {
-    label: 'Elemente-Bibliothek',
-    stepLabel: 'ROOM 3',
-    icon: <CategoryIcon />,
-    path: '/rooms/item-types',
-    color: '#ff9800', // Orange
-    subtitle: 'Verfügbare Objekte'
-  },
-  {
-    label: 'Neuer Elementtyp',
-    stepLabel: 'ROOM 4',
-    icon: <AddIcon />,
-    path: '/rooms/item-types/new',
-    color: '#ff5722' // Deep Orange
-  },
-  {
-    label: 'Raumdesigner',
-    stepLabel: 'ROOM 5',
-    icon: <DashboardCustomizeIcon />,
-    path: '/rooms/designer',
+    label: 'Design',
+    stepLabel: 'OPTIONS 2',
+    icon: <ColorLensIcon />,
+    path: '/options/design',
     color: '#9c27b0', // Lila
-    subtitle: 'Visuelle Gestaltung'
+    subtitle: 'Erscheinungsbild anpassen'
   },
   {
-    label: 'Raumbelegung',
-    stepLabel: 'ROOM 6',
-    icon: <CalendarMonthIcon />,
-    path: '/rooms/calendar',
+    label: 'Sprache',
+    stepLabel: 'OPTIONS 3',
+    icon: <LanguageIcon />,
+    path: '/options/language',
     color: '#2196f3' // Blau
   },
   {
-    label: 'Klima & Sensoren',
-    stepLabel: 'ROOM 7',
-    icon: <DeviceThermostatIcon />,
-    path: '/rooms/climate',
-    color: '#009688' // Türkis
+    label: 'Benutzerprofil',
+    stepLabel: 'OPTIONS 4',
+    icon: <AccountCircleIcon />,
+    path: '/options/profile',
+    color: '#4caf50', // Grün
+    subtitle: 'Persönliche Einstellungen'
+  },
+  {
+    label: 'Benachrichtigungen',
+    stepLabel: 'OPTIONS 5',
+    icon: <NotificationsIcon />,
+    path: '/options/notifications',
+    color: '#ff9800' // Orange
+  },
+  {
+    label: 'Sicherheit',
+    stepLabel: 'OPTIONS 6',
+    icon: <SecurityIcon />,
+    path: '/options/security',
+    color: '#f44336' // Rot
   }
 ]
 
 // Administrative Funktionen
 const adminFunctions = [
   {
-    label: 'Raumeinstellungen',
-    icon: <SettingsIcon />,
-    path: '/rooms/settings',
+    label: 'Administrator',
+    icon: <AdminPanelSettingsIcon />,
+    path: '/options/admin',
     color: '#607d8b' // Blaugrau
   },
   {
-    label: 'Raumaufnahmen',
-    icon: <PhotoCameraIcon />,
-    path: '/rooms/photos',
-    color: '#e91e63' // Pink
+    label: 'Backup & Wiederherstellung',
+    icon: <BackupIcon />,
+    path: '/options/backup',
+    color: '#00bcd4' // Türkis
   },
   {
     label: 'Import/Export',
-    icon: <ImportExportIcon />,
-    path: '/rooms/import-export',
-    color: '#673ab7' // Deep Purple
+    icon: <UploadFileIcon />,
+    path: '/options/import-export',
+    color: '#8bc34a' // Hellgrün
   },
   {
-    label: 'Raumstatus',
-    icon: <InfoIcon />,
-    path: '/rooms/status',
-    color: '#f44336' // Rot
+    label: 'Erweiterte Einstellungen',
+    icon: <BuildIcon />,
+    path: '/options/advanced',
+    color: '#795548' // Braun
   }
 ]
 
-export default function RoomMenu({ collapsed = false }) {
+export default function OptionsMenu({ collapsed = false }) {
   const theme = useTheme()
   const location = useLocation()
 
@@ -124,7 +118,7 @@ export default function RoomMenu({ collapsed = false }) {
   // Funktion zum Rendern eines Menüelements
   const renderMenuItem = (item, index) => {
     const active = isActive(item.path)
-    const itemColor = item.color || theme.palette.info.main
+    const itemColor = item.color || theme.palette.primary.main
     
     // Basis-Komponente für Listen-Items
     const menuItem = (
@@ -270,24 +264,25 @@ export default function RoomMenu({ collapsed = false }) {
           mx: 2, 
           mb: 2, 
           p: 1.5, 
-          background: alpha(theme.palette.info.main, 0.05),
+          background: alpha(theme.palette.primary.main, 0.05),
           borderRadius: '8px',
-          borderLeft: `4px solid ${theme.palette.info.main}`
+          borderLeft: `4px solid ${theme.palette.primary.main}`
         }}
       >
         <Typography 
           variant="subtitle1" 
-          color="info.main" 
+          color="primary" 
           sx={{ 
             fontWeight: 'bold', 
             display: 'flex', 
             alignItems: 'center'
           }}
         >
-          Raumverwaltung
+          <SettingsIcon sx={{ mr: 1, fontSize: '1.2rem' }} />
+          Einstellungen
         </Typography>
         <Typography variant="caption" color="text.secondary">
-          Räume, Elemente & Belegung
+          Konfiguration & Anpassungen
         </Typography>
       </Paper>
     )
@@ -307,8 +302,8 @@ export default function RoomMenu({ collapsed = false }) {
               px: 1.5,
               py: 0.5,
               borderRadius: '12px',
-              backgroundColor: alpha(theme.palette.info.main, 0.05),
-              border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,
+              backgroundColor: alpha(theme.palette.warning.main, 0.05),
+              border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`,
             }}
           >
             <Typography 
@@ -316,7 +311,7 @@ export default function RoomMenu({ collapsed = false }) {
               sx={{ 
                 fontSize: '0.7rem',
                 fontWeight: 'bold',
-                color: theme.palette.info.main,
+                color: theme.palette.warning.main,
                 textTransform: 'uppercase',
                 letterSpacing: '0.5px'
               }}
@@ -354,7 +349,7 @@ export default function RoomMenu({ collapsed = false }) {
             fontStyle: 'italic'
           }}
         >
-          Raumverwaltung v1.9
+          Einstellungen v2.3
         </Typography>
       </Box>
     )
