@@ -366,3 +366,70 @@ Wenn dieses Dokument beim Chat-Start geladen wird, kann ich direkt verstehen:
   django.setup()
   ```
 - Die automatische Integration in `apps.py` wurde entfernt, um doppelte Starts zu vermeiden.
+
+---
+
+## 🧱 Betrieb in der Produktion – Sicherheitskonzept
+
+Dieser Abschnitt beschreibt empfohlene Maßnahmen zur Absicherung des cannaUNITY-Systems beim Einsatz auf einem öffentlichen Server oder im produktiven Umfeld.
+
+### 🔒 1. Sicherheit auf Rootserver & Betriebssystemebene (Linux)
+
+**System-Härtung**
+- SSH-Zugriff ausschließlich mit Public-Key
+- Root-Login deaktivieren
+- Firewall (z. B. `ufw`) mit Whitelist für Web & SSH
+- Fail2Ban zum Schutz vor Brute-Force-Angriffen
+
+**Reverse Proxy**
+- Einsatz von **NGINX** oder **Traefik** vor Django/React
+- HTTPS via **Let's Encrypt / Certbot**
+- CORS, HSTS, CSP-Header definieren
+
+**Automatische Updates / Patch-Management**
+- `unattended-upgrades` oder zentrale Ansible-Skripte
+- Überwachung auf bekannte CVEs für Abhängigkeiten
+
+**Deployment & User Isolation**
+- Trennung von Systemusern für Dienste (z. B. `cannaunity-web`, `cannaunity-db`)
+- Nutzung von `systemd`-Services mit `PrivateTmp`, `ProtectSystem=strict`
+
+### ⚙️ 2. Django: Sicherheit & Absicherung der API
+
+- `DEBUG = False` und `ALLOWED_HOSTS` korrekt gesetzt
+- `SECRET_KEY` sicher gespeichert (z. B. in `.env` oder Vault)
+- Nutzung von **HTTPOnly- & Secure-Cookies** für Authentifizierungs-Token
+- Aktivierung von **CSRF-Schutz**, besonders bei API POST-Endpunkten
+- `SECURE_BROWSER_XSS_FILTER = True`, `SECURE_CONTENT_TYPE_NOSNIFF = True`
+- **Logging & Audit-Logs** für API-Zugriffe (z. B. mit `django-auditlog`)
+
+### 🎨 3. React/Vite: Sicherheit im Frontend
+
+- Kein Zugriff auf `.env`-Variablen mit sensiblen Inhalten im Frontend
+- Build-Version mit `vite build` erzeugen, Hashes aktiv
+- Public-Folder prüfen auf unerwünschte Dateien
+- Schutz vor XSS über kontrollierte Komponenten & `dangerouslySetInnerHTML` vermeiden
+- CSP-Header über NGINX erzwingen
+
+### 🧊 4. Datenbanksicherheit (PostgreSQL + Verschlüsselung)
+
+- **Festplattenverschlüsselung** auf Betriebssystemebene (`LUKS`, `dm-crypt`)
+- **SSL/TLS aktivieren** in PostgreSQL (`ssl = on`, Zertifikate einrichten)
+- **Rollenbasierte Zugriffssteuerung** (kein Public Access, least privilege)
+- Einsatz von `pgcrypto` für spaltenbasierte Verschlüsselung sensibler Felder:
+
+  ```sql
+  SELECT pgp_sym_encrypt('0123 456789', 'my_secret_key');
+  ```
+
+- **Key Management** über HashiCorp Vault, Azure Key Vault oder eigene Lösung
+- Zugriffsprotokollierung & Audit-Tools wie [`pgAudit`](https://www.pgaudit.org/)
+
+### 💡 Zusätzliche Empfehlungen
+
+- **Backups** regelmäßig & verschlüsselt (z. B. `borg`, `restic`)
+- **Monitoring & Alerting** (z. B. UptimeRobot, Netdata, Prometheus/Grafana)
+- **Zero-Trust-Netzwerkprinzip** (VPN, IP-Whitelisting, kein offenes Netz)
+- **Security-Review aller Django-Endpoints** vor Deployment
+
+> Hinweis: Diese Empfehlungen sind bewusst auf ein produktives Setup auf eigenem Rootserver abgestimmt. Für Cloud-Deployments (AWS, Azure, etc.) gelten abweichende Best Practices – inklusive VPC-Isolierung und IAM-Kontrollstrukturen.

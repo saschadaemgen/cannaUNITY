@@ -22,6 +22,10 @@ import AddIcon from '@mui/icons-material/Add';
 import DashboardCustomizeIcon from '@mui/icons-material/DashboardCustomize';
 import SecurityIcon from '@mui/icons-material/Security';
 import SensorsIcon from '@mui/icons-material/Sensors';
+import QrCode2Icon from '@mui/icons-material/QrCode2';
+import DescriptionIcon from '@mui/icons-material/Description';
+import DashboardIcon from '@mui/icons-material/Dashboard';
+import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
 
 // Definierte Menüstruktur mit allen Hauptmenüs und Untermenüs
 const TopbarMenuItems = [
@@ -108,6 +112,31 @@ const TopbarMenuItems = [
         path: '/trace/ausgabe', 
         icon: <ShoppingBasketIcon />,
         subtitle: 'überführt aus Verpackung'
+      },
+      // Neue Admin-Funktionen (ohne Trenner im Top-Menü)
+      { 
+        label: 'Produktscan', 
+        path: '/trace/produktscan', 
+        icon: <QrCode2Icon />,
+        subtitle: 'Rückverfolgung per QR/Barcode'
+      },
+      { 
+        label: 'Protokoll-Exporte', 
+        path: '/trace/protokolle', 
+        icon: <DescriptionIcon />,
+        subtitle: 'Berichte und Dokumentation'
+      },
+      { 
+        label: 'Monitoring', 
+        path: '/trace/monitoring', 
+        icon: <DashboardIcon />,
+        subtitle: 'Echtzeit-Überwachung'
+      },
+      { 
+        label: 'Compliance', 
+        path: '/trace/compliance', 
+        icon: <VerifiedUserIcon />,
+        subtitle: 'Behördliche Anforderungen'
       }
     ]
   },

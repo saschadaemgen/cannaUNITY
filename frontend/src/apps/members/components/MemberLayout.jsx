@@ -1,16 +1,16 @@
-// src/layout/MainLayout.jsx
+// frontend/src/apps/members/components/MemberLayout.jsx
 import { Box } from '@mui/material'
-import { Outlet, useLocation } from 'react-router-dom'
+import { Outlet } from 'react-router-dom'
 
-import Topbar from './Topbar'
-import ContextSidebar from './ContextSidebar'  // Die neue Sidebar importieren
-import Footer from './Footer'
-import DateBar from './DateBar'
+// Gemeinsame Layout-Komponenten
+import Topbar from '../../../layout/Topbar'
+import DateBar from '../../../layout/DateBar'
+import Footer from '../../../layout/Footer'
 
-function MainLayout() {
-  // useLocation bereits korrekt eingebunden
-  const location = useLocation();
-  
+// Spezifische Sidebar für Mitglieder
+import MemberSidebar from './MemberSidebar'
+
+function MemberLayout() {
   return (
     <Box
       sx={{
@@ -26,7 +26,7 @@ function MainLayout() {
       <DateBar />
 
       <Box sx={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-        <ContextSidebar />  {/* Hier wurde Sidebar durch ContextSidebar ersetzt */}
+        <MemberSidebar />
         <Box
           component="main"
           sx={{
@@ -38,8 +38,7 @@ function MainLayout() {
             borderLeft: (theme) => `1px solid ${theme.palette.divider}`,
           }}
         >
-          {/* key-Attribut für Outlet bleibt unverändert */}
-          <Outlet key={location.pathname} />
+          <Outlet />
         </Box>
       </Box>
 
@@ -48,4 +47,4 @@ function MainLayout() {
   )
 }
 
-export default MainLayout
+export default MemberLayout
