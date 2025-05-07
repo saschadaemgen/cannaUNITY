@@ -45,13 +45,14 @@ Jeder Verarbeitungsschritt ist dokumentiert und manipulationssicher protokollier
 
 1. **Einkauf** des Samens
 2. **Einpflanzung** – entweder zur Mutterpflanze oder direkt zur Blühpflanze
-3. **Wuchsbetreuung** – Zuweisung von Zuständigen mit Track&Trace
-4. **Ernte**
-5. **Trocknung**
-6. **Laborkontrolle**
-7. **Verarbeitung**
-8. **Produktausgabe** an Mitglieder (anonymisiert)
-9. **Vernichtung** (optional, wenn nötig)
+3. **Stecklingsbehandlung**
+4. **Wuchsbetreuung**
+5. **Ernte**
+6. **Trocknung**
+7. **Laborkontrolle**
+8. **Verarbeitung**
+9. **Produktausgabe** an Mitglieder (anonymisiert)
+10. **Vernichtung** (optional, wenn nötig)
 
 Jeder Schritt wird über die Mitarbeiterkonten per RFID/NFC bestätigt und in Echtzeit dokumentiert.
 
