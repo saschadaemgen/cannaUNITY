@@ -10,7 +10,7 @@ import {
   useTheme,
 } from '@mui/material'
 import { AssignmentInd, DoorFront, AccessTime } from '@mui/icons-material'
-import api from '../../../utils/api'
+import api from '@/utils/api'
 import EventTable from '../components/EventTable'
 
 const getCurrentYear = () => new Date().getFullYear()

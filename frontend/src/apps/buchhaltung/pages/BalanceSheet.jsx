@@ -4,7 +4,7 @@ import {
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   Paper, Grid
 } from '@mui/material'
-import axios from '../../../utils/api'
+import axios from '@/utils/api'
 
 export default function BalanceSheet() {
   const [data, setData] = useState(null)

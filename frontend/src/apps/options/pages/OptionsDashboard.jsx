@@ -4,7 +4,7 @@ import { Grid, Box, useTheme, Snackbar, Alert } from '@mui/material'
 import { useLocation } from 'react-router-dom' // Hinzugefügt für die Überwachung von Pfadänderungen
 import DesignOptionCard from '../components/DesignOptionCard'
 import { ColorModeContext } from '../../../context/ColorModeContext'
-import api from '../../../utils/api'
+import api from '@/utils/api'
 
 export default function OptionsDashboard() {
   const colorMode = useContext(ColorModeContext)

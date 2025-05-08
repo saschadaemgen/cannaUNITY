@@ -8,8 +8,7 @@ import {
 } from '@mui/material'
 import EighteenUpRatingIcon from '@mui/icons-material/EighteenUpRating';
 import TwentyOneUpIcon from '@mui/icons-material/NoAdultContent';
-import WorkIcon from '@mui/icons-material/Work';
-import api from '../../../utils/api'
+import api from '@/utils/api'
 
 // Neue Komponente importieren
 import ExternalIntegration from './ExternalIntegration';

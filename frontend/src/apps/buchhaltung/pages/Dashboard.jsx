@@ -6,7 +6,7 @@ import {
   Typography,
   Box
 } from '@mui/material'
-import axios from '../../../utils/api'
+import axios from '@/utils/api'
 import {
   Chart as ChartJS,
   LineElement,

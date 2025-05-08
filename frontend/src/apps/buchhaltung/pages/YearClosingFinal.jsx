@@ -5,7 +5,7 @@ import {
   Paper, Stepper, Step, StepLabel, StepContent
 } from '@mui/material'
 import { useParams, useNavigate } from 'react-router-dom'
-import axios from '../../../utils/api'
+import axios from '@/utils/api'
 
 export default function YearClosingFinal() {
   const { id } = useParams()

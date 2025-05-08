@@ -9,7 +9,7 @@ import {
   CardContent,
   Grid
 } from '@mui/material'
-import axios from '../../../utils/api'
+import axios from '@/utils/api'
 import { useNavigate, useParams } from 'react-router-dom'
 
 const kontoTypen = [

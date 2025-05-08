@@ -7,7 +7,7 @@ import {
 } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
 import { Add as AddIcon, PlayArrow as PlayIcon } from '@mui/icons-material'
-import axios from '../../../utils/api'
+import axios from '@/utils/api'
 
 export default function YearClosingList() {
   const navigate = useNavigate()

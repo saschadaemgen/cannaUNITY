@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Box, Typography, Card, CardContent, Alert, Button } from '@mui/material'
 import { useParams, useNavigate } from 'react-router-dom'
-import axios from '../../../utils/api'
+import axios from '@/utils/api'
 
 export default function YearClosingContinue() {
   const { id } = useParams()

@@ -5,7 +5,7 @@ import {
   Paper, Accordion, AccordionSummary, AccordionDetails
 } from '@mui/material'
 import { ExpandMore as ExpandMoreIcon } from '@mui/icons-material'
-import axios from '../../../utils/api'
+import axios from '@/utils/api'
 
 export default function ProfitLoss() {
   const [data, setData] = useState(null)

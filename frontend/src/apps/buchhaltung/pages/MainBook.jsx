@@ -5,7 +5,7 @@ import {
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper
 } from '@mui/material'
 import { ExpandMore as ExpandMoreIcon } from '@mui/icons-material'
-import axios from '../../../utils/api'
+import axios from '@/utils/api'
 
 export default function MainBook() {
   const [accounts, setAccounts] = useState([])

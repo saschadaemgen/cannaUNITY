@@ -4,7 +4,7 @@ import {
   TableRow, TableCell, TableBody, Chip, Alert, Button, Divider
 } from '@mui/material'
 import { useParams, useNavigate } from 'react-router-dom'
-import axios from '../../../utils/api'
+import axios from '@/utils/api'
 
 export default function BookingDetail() {
   const { id } = useParams()

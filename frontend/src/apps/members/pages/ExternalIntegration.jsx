@@ -19,7 +19,7 @@ import LockResetIcon from '@mui/icons-material/LockReset';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import InfoIcon from '@mui/icons-material/Info';
 import FingerprintIcon from '@mui/icons-material/Fingerprint';
-import api from '../../../utils/api';
+import api from '@/utils/api';
 
 /**
  * Komponente zur Verwaltung der externen Integrationen für ein Mitglied

@@ -8,7 +8,7 @@ import {
   ExpandMore, ExpandLess,
   Delete as DeleteIcon
 } from '@mui/icons-material'
-import axios from '../../../utils/api'
+import axios from '@/utils/api'
 
 export default function JournalList() {
   const [entries, setEntries] = useState([])

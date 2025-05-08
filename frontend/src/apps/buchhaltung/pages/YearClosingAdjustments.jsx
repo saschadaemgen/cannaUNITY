@@ -6,7 +6,7 @@ import {
 } from '@mui/material'
 import { Add as AddIcon, Delete as DeleteIcon, Check as CheckIcon } from '@mui/icons-material'
 import { useParams, useNavigate } from 'react-router-dom'
-import axios from '../../../utils/api'
+import axios from '@/utils/api'
 
 export default function YearClosingAdjustments() {
   const { id } = useParams()

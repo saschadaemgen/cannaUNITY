@@ -6,7 +6,7 @@ import {
 } from '@mui/material';
 import { Link } from 'react-router-dom';
 import AddIcon from '@mui/icons-material/Add';
-import api from '../../../utils/api';
+import api from '@/utils/api';
 
 // Komponenten importieren
 import MemberTable from '../components/MemberTable';

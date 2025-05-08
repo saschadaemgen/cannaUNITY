@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Box, Typography, Button, CircularProgress } from '@mui/material'
-import api from '../../../utils/api'
+import api from '@/utils/api'
 
 export default function MemberDelete() {
   const { id } = useParams()

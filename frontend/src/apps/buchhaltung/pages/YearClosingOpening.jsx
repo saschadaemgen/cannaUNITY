@@ -4,7 +4,7 @@ import {
   Dialog, DialogTitle, DialogContent, DialogActions
 } from '@mui/material'
 import { useParams, useNavigate } from 'react-router-dom'
-import axios from '../../../utils/api'
+import axios from '@/utils/api'
 
 export default function YearClosingOpening() {
   const { id } = useParams()

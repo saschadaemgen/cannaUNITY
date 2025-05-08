@@ -1,6 +1,6 @@
 import React from 'react'
 import { Box, Typography, Button, Alert } from '@mui/material'
-import axios from '../../../utils/api'
+import axios from '@/utils/api'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 

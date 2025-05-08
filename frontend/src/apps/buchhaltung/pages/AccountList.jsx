@@ -6,7 +6,7 @@ import {
 } from '@mui/material'
 import { Edit, Delete } from '@mui/icons-material'
 import { useNavigate } from 'react-router-dom'
-import axios from '../../../utils/api'
+import axios from '@/utils/api'
 
 export default function AccountList() {
   const navigate = useNavigate()
