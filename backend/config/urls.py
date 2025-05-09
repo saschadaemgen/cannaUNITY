@@ -1,7 +1,8 @@
 # config/urls.py
-
 from django.contrib import admin
 from django.urls import path, include, re_path
+from django.conf import settings
+from django.conf.urls.static import static
 from rest_framework.routers import DefaultRouter
 from rest_framework.authtoken.views import obtain_auth_token
 from interface.views import index_view
@@ -53,9 +54,20 @@ urlpatterns = [
     # 🌱 Track and Trace
     path('api/trackandtrace/', include('trackandtrace.urls')),
     path('api/', include('rooms.api_urls')),
+
+    # 🔑 WaWi
+    path('wawi/', include('wawi.api_urls')),
+    path('api/wawi/', include('wawi.api_urls')),
 ]
 
 # 🔁 Fallback für alle nicht-API-URLs → React SPA laden
 urlpatterns += [
     re_path(r'^(?!api|admin|static|media).*', index_view),
 ]
+
+# Medien-URLs einbinden
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+else:
+    # Auch in Produktion Medien-URLs bereitstellen (optional, wenn kein Webserver konfiguriert ist)
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

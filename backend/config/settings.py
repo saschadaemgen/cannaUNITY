@@ -35,6 +35,7 @@ INSTALLED_APPS = [
     'buchhaltung',
     'interface',
     'ha',
+    'wawi',
     'unifi_access',
     'unifi_protect',
     'trackandtrace',
@@ -136,11 +137,15 @@ TIME_ZONE = 'Europe/Berlin'
 USE_I18N = True
 USE_TZ = True
 
-# 📁 Statische Dateien
+
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, "static"),
 ]
+
+# 📁 Media Dateien
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # 🆔 Primärschlüssel-Typ
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

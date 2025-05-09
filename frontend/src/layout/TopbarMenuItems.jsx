@@ -146,8 +146,8 @@ const TopbarMenuItems = [
     icon: <StorefrontIcon />, 
     children: [
       { 
-        label: 'Samen-Verwaltung', 
-        path: '/trace/samen', 
+        label: 'Cannabis-Sorten', 
+        path: '/wawi/strains',
         icon: <GrassIcon />,
         subtitle: 'Verwaltung der Samenbestände'
       },

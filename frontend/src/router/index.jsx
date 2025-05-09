@@ -1,19 +1,26 @@
+// frontend/src/router/index.jsx
 import { createBrowserRouter } from 'react-router-dom'
 import MainLayout from '../layout/MainLayout'
 import Home from '../apps/members/pages/Home'
 import MemberList from '../apps/members/pages/MemberList'
-import RoomList from "../apps/rooms/pages/RoomList"
-import RoomDetail from "../apps/rooms/pages/RoomDetail"
-import RoomCreate from "../apps/rooms/pages/RoomCreate"
-import RoomEdit from "../apps/rooms/pages/RoomEdit"
-import RoomDelete from "../apps/rooms/pages/RoomDelete"
+import MemberCreate from '../apps/members/pages/MemberCreate'
+import MemberEdit from '../apps/members/pages/MemberEdit'
+import MemberDelete from '../apps/members/pages/MemberDelete'
+
+import RoomList from '../apps/rooms/pages/RoomList'
+import RoomDetail from '../apps/rooms/pages/RoomDetail'
+import RoomCreate from '../apps/rooms/pages/RoomCreate'
+import RoomEdit from '../apps/rooms/pages/RoomEdit'
+import RoomDelete from '../apps/rooms/pages/RoomDelete'
 import RoomItemTypeList from '../apps/rooms/pages/RoomItemTypeList'
 import RoomItemTypeCreate from '../apps/rooms/pages/RoomItemTypeCreate'
 import RoomItemTypeEdit from '../apps/rooms/pages/RoomItemTypeEdit'
 import RoomDesignerPage from '../apps/rooms/pages/RoomDesignerPage'
+
 import Login from '../pages/Login'
 import Dashboard from '../apps/unifi_access/pages/Dashboard'
 import OptionsDashboard from '../apps/options/pages/OptionsDashboard'
+
 import BuchhaltungDashboard from '../apps/buchhaltung/pages/Dashboard'
 import AccountList from '../apps/buchhaltung/pages/AccountList'
 import AccountForm from '../apps/buchhaltung/pages/AccountForm'
@@ -26,20 +33,22 @@ import ProfitLoss from '../apps/buchhaltung/pages/ProfitLoss'
 import BalanceSheet from '../apps/buchhaltung/pages/BalanceSheet'
 import YearClosingList from '../apps/buchhaltung/pages/YearClosingList'
 import YearClosingPrep from '../apps/buchhaltung/pages/YearClosingPrep'
-import MemberCreate from '../apps/members/pages/MemberCreate'
-import MemberEdit from '../apps/members/pages/MemberEdit'
-import MemberDelete from '../apps/members/pages/MemberDelete'
-import SeedPurchasePage from '../apps/trackandtrace/pages/SeedPurchase/SeedPurchasePage';
-import MotherPlantPage from '../apps/trackandtrace/pages/MotherPlant/MotherPlantPage';
-import FloweringPlantPage from '../apps/trackandtrace/pages/FloweringPlant/FloweringPlantPage';
-import CuttingPage from '../apps/trackandtrace/pages/Cutting/CuttingPage';
-import BloomingCuttingPlantPage from '../apps/trackandtrace/pages/BloomingCuttingPlant/BloomingCuttingPlantPage';
-import ProtectSensorPage from '../apps/unifi_protect/pages/ProtectSensorPage';
-import HarvestPage from '../apps/trackandtrace/pages/Harvest/HarvestPage';
-import DryingPage from '../apps/trackandtrace/pages/Drying/DryingPage';
-import ProcessingPage from '../apps/trackandtrace/pages/Processing/ProcessingPage';
-import LabTestingPage from '../apps/trackandtrace/pages/LabTesting/LabTestingPage';
-import PackagingPage from '../apps/trackandtrace/pages/Packaging/PackagingPage';
+
+import SeedPurchasePage from '../apps/trackandtrace/pages/SeedPurchase/SeedPurchasePage'
+import MotherPlantPage from '../apps/trackandtrace/pages/MotherPlant/MotherPlantPage'
+import FloweringPlantPage from '../apps/trackandtrace/pages/FloweringPlant/FloweringPlantPage'
+import CuttingPage from '../apps/trackandtrace/pages/Cutting/CuttingPage'
+import BloomingCuttingPlantPage from '../apps/trackandtrace/pages/BloomingCuttingPlant/BloomingCuttingPlantPage'
+import HarvestPage from '../apps/trackandtrace/pages/Harvest/HarvestPage'
+import DryingPage from '../apps/trackandtrace/pages/Drying/DryingPage'
+import ProcessingPage from '../apps/trackandtrace/pages/Processing/ProcessingPage'
+import LabTestingPage from '../apps/trackandtrace/pages/LabTesting/LabTestingPage'
+import PackagingPage from '../apps/trackandtrace/pages/Packaging/PackagingPage'
+
+import ProtectSensorPage from '../apps/unifi_protect/pages/ProtectSensorPage'
+
+// Neue Importe für Cannabis-Sortenverwaltung
+import StrainPage from '../apps/wawi/pages/Strain/StrainPage'
 
 export const router = createBrowserRouter([
   {
@@ -87,7 +96,7 @@ export const router = createBrowserRouter([
       { path: 'buchhaltung/jahresabschluss', element: <YearClosingList /> },
       { path: 'buchhaltung/jahresabschluss/:id/vorbereitung', element: <YearClosingPrep /> },
 
-      //Track and Trace
+      // Track and Trace
       { path: 'trace', element: <div>Track & Trace</div> },
       { path: 'trace/samen', element: <SeedPurchasePage /> },
       { path: 'trace/mutterpflanzen', element: <MotherPlantPage /> },
@@ -99,6 +108,9 @@ export const router = createBrowserRouter([
       { path: 'trace/verarbeitung', element: <ProcessingPage /> },
       { path: 'trace/laborkontrolle', element: <LabTestingPage /> },
       { path: 'trace/verpackung', element: <PackagingPage /> },
+
+      // WAWI - Cannabis-Sortenverwaltung
+      { path: 'wawi/strains', element: <StrainPage /> },
 
       // Sicherheit
       { path: 'unifi-protect/sensoren', element: <ProtectSensorPage /> },
