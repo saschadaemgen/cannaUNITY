@@ -14,7 +14,7 @@ import DestroyDialog from '@/components/dialogs/DestroyDialog'
 import AnimatedTabPanel from '@/components/common/AnimatedTabPanel'
 
 // Spezifische Komponenten
-import DryingTable from './components/DryingTable'
+import DryingTable from './DryingTable'
 import ConvertToProcessingDialog from '@/components/dialogs/ConvertToProcessingDialog'
 
 export default function DryingPage() {

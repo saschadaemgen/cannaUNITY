@@ -14,7 +14,7 @@ import DestroyDialog from '@/components/dialogs/DestroyDialog'
 import AnimatedTabPanel from '@/components/common/AnimatedTabPanel'
 
 // Spezifische Komponenten
-import HarvestTable from './components/HarvestTable'
+import HarvestTable from './HarvestTable'
 import ConvertToDryingDialog from '@/components/dialogs/ConvertToDryingDialog'
 
 export default function HarvestPage() {

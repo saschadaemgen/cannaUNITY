@@ -14,9 +14,9 @@ import DestroyDialog from '@/components/dialogs/DestroyDialog'
 import AnimatedTabPanel from '@/components/common/AnimatedTabPanel'
 
 // Spezifische Komponenten
-import LabTestingTable from './components/LabTestingTable'
-import UpdateLabResultsDialog from './components/UpdateLabResultsDialog'
-import EnhancedConvertToPackagingDialog from './components/EnhancedConvertToPackagingDialog'
+import LabTestingTable from './LabTestingTable'
+import UpdateLabResultsDialog from '@/components/dialogs/UpdateLabResultsDialog'
+import EnhancedConvertToPackagingDialog from '@/components/dialogs/EnhancedConvertToPackagingDialog'
 
 export default function LabTestingPage() {
   const [labTestingBatches, setLabTestingBatches] = useState([])

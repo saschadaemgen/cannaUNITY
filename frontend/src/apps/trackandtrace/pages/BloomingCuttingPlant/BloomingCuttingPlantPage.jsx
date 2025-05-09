@@ -13,7 +13,7 @@ import DestroyDialog from '@/components/dialogs/DestroyDialog'
 import AnimatedTabPanel from '@/components/common/AnimatedTabPanel'
 
 // Spezifische Komponenten
-import BloomingCuttingPlantTable from './components/BloomingCuttingPlantTable'
+import BloomingCuttingPlantTable from './BloomingCuttingPlantTable'
 
 export default function BloomingCuttingPlantPage() {
   const [bloomingBatches, setBloomingBatches] = useState([])

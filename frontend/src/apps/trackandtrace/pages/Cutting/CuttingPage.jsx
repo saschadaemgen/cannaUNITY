@@ -14,7 +14,7 @@ import AnimatedTabPanel from '@/components/common/AnimatedTabPanel'
 import ConvertToBlooming from '@/components/dialogs/ConvertToBlooming'
 
 // Spezifische Komponenten
-import CuttingTable from './components/CuttingTable'
+import CuttingTable from './CuttingTable'
 
 // Animations-Hook importieren
 import useAnimationSettings from '@/hooks/useAnimationSettings'
