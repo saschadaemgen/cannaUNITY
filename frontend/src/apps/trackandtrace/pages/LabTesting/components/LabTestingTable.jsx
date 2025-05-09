@@ -11,10 +11,10 @@ import LocalFloristIcon from '@mui/icons-material/LocalFlorist'
 import FilterDramaIcon from '@mui/icons-material/FilterDrama'
 import InventoryIcon from '@mui/icons-material/Inventory'
 
-import TableHeader from '../../../components/common/TableHeader'
-import AccordionRow from '../../../components/common/AccordionRow'
-import DetailCards from '../../../components/common/DetailCards'
-import PaginationFooter from '../../../components/common/PaginationFooter'
+import TableHeader from '@/components/common/TableHeader'
+import AccordionRow from '@/components/common/AccordionRow'
+import DetailCards from '@/components/common/DetailCards'
+import PaginationFooter from '@/components/common/PaginationFooter'
 
 /**
  * LabTestingTable Komponente für die Darstellung der Laborkontroll-Tabelle

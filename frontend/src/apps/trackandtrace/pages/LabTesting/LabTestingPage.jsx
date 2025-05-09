@@ -6,12 +6,12 @@ import ScienceIcon from '@mui/icons-material/Science'
 import api from '@/utils/api'
 
 // Gemeinsame Komponenten
-import PageHeader from '../../components/common/PageHeader'
-import FilterSection from '../../components/common/FilterSection'
-import TabsHeader from '../../components/common/TabsHeader'
-import LoadingIndicator from '../../components/common/LoadingIndicator'
-import DestroyDialog from '../../components/dialogs/DestroyDialog'
-import AnimatedTabPanel from '../../components/common/AnimatedTabPanel'
+import PageHeader from '@/components/common/PageHeader'
+import FilterSection from '@/components/common/FilterSection'
+import TabsHeader from '@/components/common/TabsHeader'
+import LoadingIndicator from '@/components/common/LoadingIndicator'
+import DestroyDialog from '@/components/dialogs/DestroyDialog'
+import AnimatedTabPanel from '@/components/common/AnimatedTabPanel'
 
 // Spezifische Komponenten
 import LabTestingTable from './components/LabTestingTable'

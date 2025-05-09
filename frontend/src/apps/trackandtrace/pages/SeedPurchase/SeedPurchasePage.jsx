@@ -5,22 +5,22 @@ import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
 import api from '@/utils/api'
 
 // Gemeinsame Komponenten
-import PageHeader from '../../components/common/PageHeader'
-import FilterSection from '../../components/common/FilterSection'
-import TabsHeader from '../../components/common/TabsHeader'
-import LoadingIndicator from '../../components/common/LoadingIndicator'
-import AnimatedTabPanel from '../../components/common/AnimatedTabPanel'
+import PageHeader from '@/components/common/PageHeader'
+import FilterSection from '@/components/common/FilterSection'
+import TabsHeader from '@/components/common/TabsHeader'
+import LoadingIndicator from '@/components/common/LoadingIndicator'
+import AnimatedTabPanel from '@/components/common/AnimatedTabPanel'
 
 // Dialog-Komponenten
 import SeedPurchaseForm from './SeedPurchaseForm'
-import ConvertDialog from '../../components/dialogs/ConvertDialog'
-import DestroyDialog from '../../components/dialogs/DestroyDialog'
+import ConvertDialog from '@/components/dialogs/ConvertDialog'
+import DestroyDialog from '@/components/dialogs/DestroyDialog'
 
 // Spezifische Komponenten
 import SeedTable from './components/SeedTable'
 
 // Animations-Hook importieren
-import useAnimationSettings from '../../../../hooks/useAnimationSettings'
+import useAnimationSettings from '@/hooks/useAnimationSettings'
 
 export default function SeedPurchasePage() {
   const [seeds, setSeeds] = useState([])

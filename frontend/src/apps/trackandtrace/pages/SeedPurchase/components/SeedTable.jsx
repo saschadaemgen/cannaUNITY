@@ -6,11 +6,10 @@ import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment'
 import SpaIcon from '@mui/icons-material/Spa'
 import LocalFloristIcon from '@mui/icons-material/LocalFlorist'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
-
-import TableHeader from '../../../components/common/TableHeader'
-import AccordionRow from '../../../components/common/AccordionRow'
-import DetailCards from '../../../components/common/DetailCards'
-import PaginationFooter from '../../../components/common/PaginationFooter'
+import TableHeader from '@/components/common/TableHeader'
+import AccordionRow from '@/components/common/AccordionRow'
+import DetailCards from '@/components/common/DetailCards'
+import PaginationFooter from '@/components/common/PaginationFooter'
 
 /**
  * SeedTable Komponente für die Darstellung der Samen-Tabelle
@@ -30,6 +29,7 @@ import PaginationFooter from '../../../components/common/PaginationFooter'
  * @param {Array} pageSizeOptions - Verfügbare Optionen für Einträge pro Seite
  * @param {number} totalCount - Gesamtanzahl der Einträge
  */
+
 const SeedTable = ({
   tabValue,
   data,

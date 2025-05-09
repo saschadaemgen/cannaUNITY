@@ -2,7 +2,7 @@
 import { Box, IconButton, Typography, Collapse } from '@mui/material'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import { useState, useEffect } from 'react'
-import useAnimationSettings from '../../../../hooks/useAnimationSettings'
+import useAnimationSettings from '@/hooks/useAnimationSettings'
 
 /**
  * AccordionRow Komponente für ausklappbare Tabellenzeilen mit Animation

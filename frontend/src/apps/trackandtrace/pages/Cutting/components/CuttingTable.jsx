@@ -10,11 +10,11 @@ import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment'
 import LocalFloristIcon from '@mui/icons-material/LocalFlorist' // Neues Icon für Blühpflanzen
 import { Link } from 'react-router-dom'
 
-import TableHeader from '../../../components/common/TableHeader'
-import AccordionRow from '../../../components/common/AccordionRow'
-import DetailCards from '../../../components/common/DetailCards'
-import PaginationFooter from '../../../components/common/PaginationFooter'
-import LoadingIndicator from '../../../components/common/LoadingIndicator'
+import TableHeader from '@/components/common/TableHeader'
+import AccordionRow from '@/components/common/AccordionRow'
+import DetailCards from '@/components/common/DetailCards'
+import PaginationFooter from '@/components/common/PaginationFooter'
+import LoadingIndicator from '@/components/common/LoadingIndicator'
 
 /**
  * CuttingTable Komponente für die Darstellung der Stecklinge-Tabelle

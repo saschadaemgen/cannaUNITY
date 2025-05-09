@@ -2,17 +2,16 @@
 import React from 'react'
 import { Box, Typography, Button, IconButton } from '@mui/material'
 import SpeedIcon from '@mui/icons-material/Speed'
-import ScaleIcon from '@mui/icons-material/Scale'
 import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment'
 import SeedIcon from '@mui/icons-material/Spa'
 import LocalFloristIcon from '@mui/icons-material/LocalFlorist'
 import FilterDramaIcon from '@mui/icons-material/FilterDrama'
 import ScienceIcon from '@mui/icons-material/Science' // Neuer Import für das Labor-Icon
 
-import TableHeader from '../../../components/common/TableHeader'
-import AccordionRow from '../../../components/common/AccordionRow'
-import DetailCards from '../../../components/common/DetailCards'
-import PaginationFooter from '../../../components/common/PaginationFooter'
+import TableHeader from '@/components/common/TableHeader'
+import AccordionRow from '@/components/common/AccordionRow'
+import DetailCards from '@/components/common/DetailCards'
+import PaginationFooter from '@/components/common/PaginationFooter'
 
 /**
  * ProcessingTable Komponente für die Darstellung der Verarbeitungs-Tabelle

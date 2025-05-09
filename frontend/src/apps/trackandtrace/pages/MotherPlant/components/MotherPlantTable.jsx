@@ -12,11 +12,11 @@ import ContentCutIcon from '@mui/icons-material/ContentCut'
 // API-Client importieren
 import api from '@/utils/api'
 
-import TableHeader from '../../../components/common/TableHeader'
-import AccordionRow from '../../../components/common/AccordionRow'
-import DetailCards from '../../../components/common/DetailCards'
-import PaginationFooter from '../../../components/common/PaginationFooter'
-import LoadingIndicator from '../../../components/common/LoadingIndicator'
+import TableHeader from '@/components/common/TableHeader'
+import AccordionRow from '@/components/common/AccordionRow'
+import DetailCards from '@/components/common/DetailCards'
+import PaginationFooter from '@/components/common/PaginationFooter'
+import LoadingIndicator from '@/components/common/LoadingIndicator'
 
 /**
  * MotherPlantTable Komponente für die Darstellung der Mutterpflanzen-Tabelle

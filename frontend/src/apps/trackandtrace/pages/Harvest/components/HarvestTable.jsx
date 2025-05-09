@@ -5,10 +5,10 @@ import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment'
 import SeedIcon from '@mui/icons-material/Spa'
 import AcUnitIcon from '@mui/icons-material/AcUnit'
 
-import TableHeader from '../../../components/common/TableHeader'
-import AccordionRow from '../../../components/common/AccordionRow'
-import DetailCards from '../../../components/common/DetailCards'
-import PaginationFooter from '../../../components/common/PaginationFooter'
+import TableHeader from '@/components/common/TableHeader'
+import AccordionRow from '@/components/common/AccordionRow'
+import DetailCards from '@/components/common/DetailCards'
+import PaginationFooter from '@/components/common/PaginationFooter'
 
 /**
  * HarvestTable Komponente für die Darstellung der Ernte-Tabelle

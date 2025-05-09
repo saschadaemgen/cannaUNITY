@@ -6,16 +6,16 @@ import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
 import api from '@/utils/api'
 
 // Gemeinsame Komponenten
-import PageHeader from '../../components/common/PageHeader'
-import FilterSection from '../../components/common/FilterSection'
-import TabsHeader from '../../components/common/TabsHeader'
-import LoadingIndicator from '../../components/common/LoadingIndicator'
-import DestroyDialog from '../../components/dialogs/DestroyDialog'
-import AnimatedTabPanel from '../../components/common/AnimatedTabPanel'
+import PageHeader from '@/components/common/PageHeader'
+import FilterSection from '@/components/common/FilterSection'
+import TabsHeader from '@/components/common/TabsHeader'
+import LoadingIndicator from '@/components/common/LoadingIndicator'
+import DestroyDialog from '@/components/dialogs/DestroyDialog'
+import AnimatedTabPanel from '@/components/common/AnimatedTabPanel'
 
 // Spezifische Komponenten
 import HarvestTable from './components/HarvestTable'
-import ConvertToDryingDialog from '../../components/dialogs/ConvertToDryingDialog'
+import ConvertToDryingDialog from '@/components/dialogs/ConvertToDryingDialog'
 
 export default function HarvestPage() {
   const navigate = useNavigate();

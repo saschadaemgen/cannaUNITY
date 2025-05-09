@@ -9,14 +9,14 @@ import {
 import ScienceIcon from '@mui/icons-material/Science'
 import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment'
 import ScaleIcon from '@mui/icons-material/Scale'
-import api from '../../../../../utils/api'
+import api from '@/utils/api'
 
-import TableHeader from '../../../components/common/TableHeader'
-import AccordionRow from '../../../components/common/AccordionRow'
-import DetailCards from '../../../components/common/DetailCards'
-import PaginationFooter from '../../../components/common/PaginationFooter'
-import LoadingIndicator from '../../../components/common/LoadingIndicator'
-import ConvertToHarvestDialog from '../../../components/dialogs/ConvertToHarvestDialog'
+import TableHeader from '@/components/common/TableHeader'
+import AccordionRow from '@/components/common/AccordionRow'
+import DetailCards from '@/components/common/DetailCards'
+import PaginationFooter from '@/components/common/PaginationFooter'
+import LoadingIndicator from '@/components/common/LoadingIndicator'
+import ConvertToHarvestDialog from '@/components/dialogs/ConvertToHarvestDialog'
 
 /**
  * BloomingCuttingPlantTable Komponente für die Darstellung der Blühpflanzen aus Stecklingen-Tabelle

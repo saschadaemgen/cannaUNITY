@@ -8,14 +8,14 @@ import {
 } from '@mui/material'
 import ScienceIcon from '@mui/icons-material/Science'
 import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment'
-import api from '../../../../../utils/api'
+import api from '@/utils/api'
 
-import TableHeader from '../../../components/common/TableHeader'
-import AccordionRow from '../../../components/common/AccordionRow'
-import DetailCards from '../../../components/common/DetailCards'
-import PaginationFooter from '../../../components/common/PaginationFooter'
-import LoadingIndicator from '../../../components/common/LoadingIndicator'
-import ConvertToHarvestDialog from '../../../components/dialogs/ConvertToHarvestDialog'
+import TableHeader from '@/components/common/TableHeader'
+import AccordionRow from '@/components/common/AccordionRow'
+import DetailCards from '@/components/common/DetailCards'
+import PaginationFooter from '@/components/common/PaginationFooter'
+import LoadingIndicator from '@/components/common/LoadingIndicator'
+import ConvertToHarvestDialog from '@/components/dialogs/ConvertToHarvestDialog'
 
 /**
  * FloweringPlantTable Komponente für die Darstellung der Blühpflanzen-Tabelle
