@@ -1,5 +1,9 @@
 // frontend/src/pages/Home.jsx
-import { Typography, Box, Grid } from '@mui/material'
+import { Typography, Box, Grid, Button, Divider } from '@mui/material'
+import { Link as RouterLink } from 'react-router-dom'
+import AddIcon from '@mui/icons-material/Add'
+import DescriptionIcon from '@mui/icons-material/Description'
+import GitHubIcon from '@mui/icons-material/GitHub'
 
 export default function Home() {
   return (
@@ -59,6 +63,21 @@ export default function Home() {
                 <strong>Grow-Controller:</strong> Steuerung des Anbaus mit Umweltüberwachung
               </Typography>
             </Box>
+            <Box component="li" sx={{ mb: 1 }}>
+              <Typography variant="body1">
+                <strong>Buchhaltung:</strong> Integriertes Warenwirtschafts- und Buchhaltungssystem
+              </Typography>
+            </Box>
+            <Box component="li" sx={{ mb: 1 }}>
+              <Typography variant="body1">
+                <strong>Vernichtungsmanagement:</strong> Dokumentierte und gesetzeskonforme Entsorgungsprozesse
+              </Typography>
+            </Box>
+            <Box component="li" sx={{ mb: 1 }}>
+              <Typography variant="body1">
+                <strong>Sicherheitssystem:</strong> KI-gestütztes Zutritts- und Überwachungssystem
+              </Typography>
+            </Box>
           </Box>
         </Grid>
 
@@ -94,9 +113,84 @@ export default function Home() {
                 <strong>Architektur:</strong> Modular mit API-first Ansatz für zukunftssichere Erweiterbarkeit
               </Typography>
             </Box>
+            <Box component="li" sx={{ mb: 1 }}>
+              <Typography variant="body1">
+                <strong>Integration:</strong> Nahtlose Anbindung an UniFi Access und UniFi Protect für Zutrittskontrolle und Videoüberwachung
+              </Typography>
+            </Box>
+            <Box component="li" sx={{ mb: 1 }}>
+              <Typography variant="body1">
+                <strong>Datensicherheit:</strong> Zero-Knowledge-Prinzip und sichere Trennung von personenbezogenen Daten
+              </Typography>
+            </Box>
+            <Box component="li" sx={{ mb: 1 }}>
+              <Typography variant="body1">
+                <strong>Kommunikation:</strong> WebSocket-Listener für Echtzeit-Events aus Home Assistant
+              </Typography>
+            </Box>
           </Box>
         </Grid>
       </Grid>
+
+      {/* Buttons (werden beim Scrollen sichtbar) */}
+      <Box sx={{ 
+        display: 'flex', 
+        gap: 2, 
+        mt: 6, 
+        mb: 3,
+        justifyContent: 'flex-start'
+      }}>
+                  <Button
+          variant="contained"
+          color="primary"
+          startIcon={<AddIcon />}
+          component="a"
+          href="https://cannaunity.de/"
+          target="_blank"
+          rel="noopener"
+          size="large"
+        >
+          ZUR WEBSITE
+        </Button>
+                  <Button
+          variant="outlined"
+          startIcon={<DescriptionIcon />}
+          component="a"
+          href="https://github.com/saschadaemgen/cannaUNITY/tree/main/Docs"
+          target="_blank"
+          rel="noopener"
+          size="large"
+        >
+          DOKUMENTATION
+        </Button>
+      </Box>
+
+      <Divider sx={{ mb: 3 }} />
+
+      {/* Footer-Informationen (werden beim Scrollen sichtbar) */}
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="body2" color="text.secondary" align="center" sx={{ mb: 1 }}>
+          Version 0.6.18 (Pre-Alpha) – Ein Open-Source-Projekt für Cannabis Social Clubs
+        </Typography>
+        
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', mb: 1 }}>
+          <GitHubIcon fontSize="small" sx={{ mr: 1 }} />
+          <Typography
+            variant="body2"
+            component="a"
+            href="https://github.com/saschadaemgen/cannaUNITY" 
+            target="_blank" 
+            rel="noopener"
+            sx={{ textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}
+          >
+            github.com/saschadaemgen/cannaUNITY
+          </Typography>
+        </Box>
+        
+        <Typography variant="body2" color="text.secondary" align="center">
+          Lizenz: MIT – Die Software wird ohne Gewährleistung bereitgestellt. Die Nutzung erfolgt auf eigenes Risiko.
+        </Typography>
+      </Box>
     </Box>
   )
 }
