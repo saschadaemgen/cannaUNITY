@@ -308,7 +308,7 @@ export default function StrainPage() {
                 color="success"
                 onClick={() => handleOpenForm(null)}
               >
-                NEUE SORTE
+                NEUE SORTE ANLEGEN
               </Button>
             }
           />

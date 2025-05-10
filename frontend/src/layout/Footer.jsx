@@ -1,9 +1,9 @@
 // src/layout/Footer.jsx
 import { Box, Typography, Button, useTheme } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
-import { logout } from '../utils/api'
+import { logout } from '@/utils/api'
 import { useEffect, useState } from 'react'
-import api from '../utils/api';
+import api from '@/utils/api';
 
 export default function Footer() {
   const theme = useTheme()
@@ -70,13 +70,13 @@ export default function Footer() {
   const getFooterTitle = () => {
     switch (footerMode) {
       case 'full':
-        return 'cannaUNITY v0.6.18'
+        return 'cannaUNITY (Pre-Alpha) Version 0.6.18'
       case 'title':
         return 'cannaUNITY'
       case 'none':
         return ''
       default:
-        return 'cannaUNITY v0.6.18'
+        return 'cannaUNITY (Pre-Alpha) Version 0.6.18'
     }
   }
 

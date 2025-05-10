@@ -8,7 +8,7 @@ import {
   Paper,
   Link,
 } from '@mui/material'
-import { login } from '../utils/api'
+import { login } from '@/utils/api'
 
 export default function Login() {
   const [username, setUsername] = useState('')
@@ -67,7 +67,7 @@ export default function Login() {
         >
           <form onSubmit={handleLogin}>
             <TextField
-              label="Benutzername"
+              label="Mitgliedsname"
               fullWidth
               margin="normal"
               value={username}
@@ -107,7 +107,7 @@ export default function Login() {
             textAlign="center"
           >
             Probleme beim Login?{' '}
-            <Link href="mailto:support@cannaunity.org">Support kontaktieren</Link>
+            <Link href="mailto:kontakt@cannaunity.de">Support kontaktieren</Link>
           </Typography>
         </Paper>
       </Box>
@@ -119,7 +119,7 @@ export default function Login() {
           color="text.secondary"
           sx={{ opacity: 0.7 }}
         >
-          ❤️ cannaUNITY Version 0.50.04
+          cannaUNITY (Pre-Alpha) Version 0.6.18
         </Typography>
       </Box>
 
