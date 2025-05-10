@@ -20,6 +20,9 @@ from .serializers import (
     LabTestingBatchSerializer, PackagingBatchSerializer, PackagingUnitSerializer
 )
 
+from wawi.models import CannabisStrain
+from wawi.serializers import CannabisStrainSerializer
+
 class StandardResultsSetPagination(pagination.PageNumberPagination):
     page_size = 10
     page_size_query_param = 'page_size'
@@ -33,56 +36,28 @@ class StandardResultsSetPagination(pagination.PageNumberPagination):
         # Versuche, den page_size-Parameter aus der Anfrage zu lesen
         page_size = request.query_params.get(self.page_size_query_param)
         
-        # Debug-Ausgaben
-        print(f"Erhaltener page_size-Parameter: {page_size}")
-        
         if page_size:
             try:
                 # Explizite Umwandlung in einen Integer
                 parsed_size = int(page_size)
-                print(f"Umgewandelter page_size: {parsed_size}")
-                
+
                 # Überprüfung auf gültige Größe
                 if parsed_size < 1:
-                    print(f"page_size zu klein, verwende Standard: {self.page_size}")
                     return self.page_size
                     
                 if self.max_page_size and parsed_size > self.max_page_size:
-                    print(f"page_size zu groß, verwende max: {self.max_page_size}")
                     return self.max_page_size
                     
                 # Gültiger Wert
-                print(f"Verwende page_size: {parsed_size}")
                 return parsed_size
                 
             except ValueError:
                 # Fehler bei der Umwandlung, verwende Standard
-                print(f"Fehler bei der Umwandlung, verwende Standard: {self.page_size}")
                 return self.page_size
         
         # Kein page_size-Parameter, verwende Standard
-        print(f"Kein page_size-Parameter, verwende Standard: {self.page_size}")
         return self.page_size
 
-class SeedPurchaseViewSet(viewsets.ModelViewSet):
-    queryset = SeedPurchase.objects.all().order_by('-created_at')
-    serializer_class = SeedPurchaseSerializer
-    permission_classes = [IsAuthenticated]
-    pagination_class = StandardResultsSetPagination
-    
-    def get_queryset(self):
-        queryset = SeedPurchase.objects.all().order_by('-created_at')
-        
-        # DEBUG: Zeige den Zustand der Pagination
-        # Dies sollte in der Konsole erscheinen, wenn die Liste der Samen abgerufen wird
-        print(f"Pagination in get_queryset: {self.pagination_class}")
-        print(f"Request query params: {self.request.query_params}")
-        print(f"page_size parameter: {self.request.query_params.get('page_size')}")
-        
-        # Rest der get_queryset-Methode bleibt unverändert
-        # ...
-        
-        return queryset
 
 class SeedPurchaseViewSet(viewsets.ModelViewSet):
     queryset = SeedPurchase.objects.all().order_by('-created_at')
@@ -348,6 +323,26 @@ class SeedPurchaseViewSet(viewsets.ModelViewSet):
             'destroyed_count': destroyed_count,
             'total_destroyed_seeds_quantity': total_destroyed_quantity
         })
+    
+    @action(detail=False, methods=['get'])
+    def strain_options(self, request):
+        """
+        Liefert eine Liste aller verfügbaren Cannabis-Sorten für die Dropdown-Auswahl
+        """
+        strains = CannabisStrain.objects.filter(is_active=True).order_by('name')
+        
+        # Einfacher Serializer für die Dropdown-Optionen
+        from rest_framework import serializers
+        class StrainOptionSerializer(serializers.ModelSerializer):
+            class Meta:
+                model = CannabisStrain
+                fields = ['id', 'name', 'breeder', 'thc_percentage_min', 'thc_percentage_max',
+                          'cbd_percentage_min', 'cbd_percentage_max', 'flowering_time_min', 
+                          'flowering_time_max', 'strain_type']
+        
+        serializer = StrainOptionSerializer(strains, many=True)
+        return Response(serializer.data)
+    
 
 class MotherPlantBatchViewSet(viewsets.ModelViewSet):
     queryset = MotherPlantBatch.objects.all().order_by('-created_at')
@@ -1044,9 +1039,7 @@ class CuttingBatchViewSet(viewsets.ModelViewSet):
         member_id = request.data.get('member_id', None)
         room_id = request.data.get('room_id', None)
         cutting_ids = request.data.get('cutting_ids', [])
-        
-        print(f"Converting cutting batch {pk} with data: {request.data}")
-        
+                
         # Filtere ungültige IDs heraus
         if cutting_ids and isinstance(cutting_ids, list):
             cutting_ids = [id for id in cutting_ids if id is not None]
@@ -1125,7 +1118,6 @@ class CuttingBatchViewSet(viewsets.ModelViewSet):
             })
         
         except Exception as e:
-            print(f"Error during conversion: {str(e)}")
             return Response(
                 {"error": f"Fehler bei der Konvertierung: {str(e)}"},
                 status=status.HTTP_400_BAD_REQUEST
@@ -2365,15 +2357,8 @@ class LabTestingBatchViewSet(viewsets.ModelViewSet):
                 else:
                     lab_batch.notes = additional_note.strip()
                 
-                # Log für die Nachverfolgung
-                print(f"Laborprobe von {lab_batch.batch_number} wurde als vernichtet dokumentiert: {sample_batch.id}")
-                
             except Exception as e:
-                # Fehler protokollieren, aber die Hauptoperation fortsetzen
-                error_msg = f"Fehler bei der Dokumentation der Probenvernichtung: {str(e)}"
-                print(error_msg)
-                
-                # Optional: Hinweis in den Notizen ergänzen
+                # Fehler in den Notizen vermerken
                 if lab_batch.notes:
                     lab_batch.notes += f"\nFehler bei der Dokumentation der Probenvernichtung: {str(e)}"
                 else:
@@ -2534,8 +2519,9 @@ class LabTestingBatchViewSet(viewsets.ModelViewSet):
                 packaging.save()
                 
             except Exception as e:
-                # Log den Fehler, aber lass die Hauptoperation weiterlaufen
-                print(f"Fehler bei der automatischen Vernichtung der Restmenge: {str(e)}")
+                    # Fehler wird abgefangen, Hauptoperation läuft weiter
+
+                pass
         
         lab_batch.save()
         
@@ -2742,151 +2728,6 @@ class PackagingBatchViewSet(viewsets.ModelViewSet):
         serializer = PackagingUnitSerializer(units, many=True)
         return Response(serializer.data)
     
-@action(detail=True, methods=['post'])
-def convert_to_packaging(self, request, pk=None):
-    """
-    Erweiterte Version: Konvertiert eine freigegebene Laborkontrolle zu mehreren Verpackungen.
-    """
-    lab_batch = self.get_object()
-    
-    # Prüfen, ob die Laborkontrolle bereits konvertiert wurde
-    if lab_batch.converted_to_packaging:
-        return Response(
-            {"error": "Diese Laborkontrolle wurde bereits zu Verpackung konvertiert"},
-            status=status.HTTP_400_BAD_REQUEST
-        )
-        
-    # Prüfen, ob die Laborkontrolle bereits vernichtet wurde
-    if lab_batch.is_destroyed:
-        return Response(
-            {"error": "Vernichtete Laborkontrollen können nicht zu Verpackung konvertiert werden"},
-            status=status.HTTP_400_BAD_REQUEST
-        )
-        
-    # Prüfen, ob die Laborkontrolle freigegeben wurde
-    if lab_batch.status != 'passed':
-        return Response(
-            {"error": "Nur freigegebene Laborkontrollen können zu Verpackung konvertiert werden"},
-            status=status.HTTP_400_BAD_REQUEST
-        )
-    
-    # Mehrere Verpackungen verarbeiten
-    packagings = request.data.get('packagings', [])
-    remaining_weight = float(request.data.get('remaining_weight', 0))
-    auto_destroy_remainder = request.data.get('auto_destroy_remainder', False)
-    member_id = request.data.get('member_id')
-    room_id = request.data.get('room_id')
-    notes = request.data.get('notes', '')
-    
-    if not member_id:
-        return Response(
-            {"error": "Ein verantwortliches Mitglied muss angegeben werden"},
-            status=status.HTTP_400_BAD_REQUEST
-        )
-    
-    if not room_id:
-        return Response(
-            {"error": "Ein Raum muss angegeben werden"},
-            status=status.HTTP_400_BAD_REQUEST
-        )
-    
-    # Prüfen, ob Verpackungen angegeben wurden
-    if not packagings:
-        return Response(
-            {"error": "Es muss mindestens eine Verpackung erstellt werden"},
-            status=status.HTTP_400_BAD_REQUEST
-        )
-    
-    # Verfügbares Gewicht berechnen
-    available_weight = float(lab_batch.input_weight) - float(lab_batch.sample_weight)
-    
-    # Gesamtgewicht der Verpackungen berechnen
-    total_packaging_weight = sum(float(pkg.get('total_weight', 0)) for pkg in packagings)
-    
-    # Prüfen, ob das Gesamtgewicht verfügbar ist
-    if total_packaging_weight > available_weight:
-        return Response(
-            {"error": f"Das Gesamtgewicht der Verpackungen überschreitet das verfügbare Gewicht"},
-            status=status.HTTP_400_BAD_REQUEST
-        )
-    
-    created_packagings = []
-    
-    # Verpackungen erstellen
-    for pkg_data in packagings:
-        unit_count = int(pkg_data.get('unit_count', 0))
-        unit_weight = float(pkg_data.get('unit_weight', 0))
-        total_weight = float(pkg_data.get('total_weight', 0))
-        pkg_notes = pkg_data.get('notes', notes)
-        
-        # Validierung
-        if unit_count <= 0 or unit_weight < 5 or total_weight <= 0:
-            continue
-        
-        # Erstelle Verpackungs-Batch
-        packaging_kwargs = {
-            'lab_testing_batch': lab_batch,
-            'total_weight': total_weight,
-            'unit_count': unit_count,
-            'unit_weight': unit_weight,
-            'notes': pkg_notes,
-            'member_id': member_id,
-            'room_id': room_id
-        }
-        
-        packaging = PackagingBatch.objects.create(**packaging_kwargs)
-        created_packagings.append(packaging)
-    
-    # Wenn keine Verpackungen erstellt wurden, gib einen Fehler zurück
-    if not created_packagings:
-        return Response(
-            {"error": "Es konnten keine gültigen Verpackungen erstellt werden"},
-            status=status.HTTP_400_BAD_REQUEST
-        )
-    
-    # Markiere die Laborkontrolle als zu Verpackung überführt
-    lab_batch.converted_to_packaging = True
-    lab_batch.converted_to_packaging_at = timezone.now()
-    lab_batch.packaging_batch = created_packagings[0]  # Referenziere die erste Verpackung
-    
-    # Wenn eine Restmenge übrig bleibt und auto_destroy_remainder aktiviert ist,
-    # erstelle einen zusätzlichen vernichteten PACKAGING-Batch für die Restmenge
-    if auto_destroy_remainder and remaining_weight > 0:
-        try:
-            # Erstelle ein neues PackagingBatch-Objekt für die Restmenge
-            remainder_batch = PackagingBatch.objects.create(
-                lab_testing_batch=lab_batch,
-                total_weight=remaining_weight,
-                unit_count=1,  # Ein Paket, das direkt vernichtet wird
-                unit_weight=remaining_weight,
-                member_id=member_id,
-                room_id=room_id,
-                notes=f"Restmenge aus der Verpackung von {lab_batch.batch_number}. Automatisch zur Vernichtung markiert.",
-                is_destroyed=True,
-                destroy_reason=f"Automatische Vernichtung der Restmenge bei Verpackung von {lab_batch.batch_number}",
-                destroyed_at=timezone.now(),
-                destroyed_by_id=member_id
-            )
-            
-            # Ergänze die Notizen der Verpackungen um einen Hinweis auf die vernichtete Restmenge
-            for pkg in created_packagings:
-                pkg.notes += f"\nRestmenge von {remaining_weight}g wurde automatisch als Verpackung vernichtet (ID: {remainder_batch.id})."
-                pkg.save()
-            
-        except Exception as e:
-            # Log den Fehler, aber lass die Hauptoperation weiterlaufen
-            print(f"Fehler bei der automatischen Vernichtung der Restmenge: {str(e)}")
-    
-    lab_batch.save()
-    
-    # Serialisiere die erste Verpackung für die Antwort
-    serializer = PackagingBatchSerializer(created_packagings[0])
-    
-    return Response({
-        "message": f"{len(created_packagings)} Verpackungen mit insgesamt {total_packaging_weight}g wurden erstellt",
-        "packaging": serializer.data,
-        "created_count": len(created_packagings)
-    })
 
 class PackagingUnitViewSet(viewsets.ModelViewSet):
     queryset = PackagingUnit.objects.all().order_by('-created_at')

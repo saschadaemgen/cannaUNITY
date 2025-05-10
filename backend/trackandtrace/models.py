@@ -3,6 +3,7 @@ from django.db import models
 from django.utils import timezone
 from members.models import Member
 from rooms.models import Room
+from wawi.models import CannabisStrain
 
 class SeedPurchase(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -18,7 +19,6 @@ class SeedPurchase(models.Model):
     
     # Mitgliederzuordnung für Vernichtung
     destroyed_by = models.ForeignKey(Member, on_delete=models.SET_NULL, null=True, blank=True, related_name='destroyed_seeds')
-    
     is_destroyed = models.BooleanField(default=False)
     destroy_reason = models.TextField(blank=True, null=True)
     destroyed_at = models.DateTimeField(blank=True, null=True)
@@ -27,7 +27,16 @@ class SeedPurchase(models.Model):
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    strain = models.ForeignKey(CannabisStrain, on_delete=models.SET_NULL, null=True, blank=True, related_name='seed_purchases')
     
+    thc_percentage_min = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    thc_percentage_max = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    cbd_percentage_min = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    cbd_percentage_max = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    flowering_time_min = models.IntegerField(null=True, blank=True)
+    flowering_time_max = models.IntegerField(null=True, blank=True)
+
     def save(self, *args, **kwargs):
         # Generiere Batch-Nummer falls nicht vorhanden
         if not self.batch_number:
@@ -41,6 +50,15 @@ class SeedPurchase(models.Model):
             
             # Generiere Batch-Nummer
             self.batch_number = f"charge:seed:{today.strftime('%d:%m:%Y')}:{count:04d}"
+
+        if self.strain and not self.id:  # Nur bei Neuanlage
+            self.strain_name = self.strain.name
+            self.thc_percentage_min = self.strain.thc_percentage_min
+            self.thc_percentage_max = self.strain.thc_percentage_max
+            self.cbd_percentage_min = self.strain.cbd_percentage_min
+            self.cbd_percentage_max = self.strain.cbd_percentage_max
+            self.flowering_time_min = self.strain.flowering_time_min
+            self.flowering_time_max = self.strain.flowering_time_max
         
         super().save(*args, **kwargs)
 

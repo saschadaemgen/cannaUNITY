@@ -8,6 +8,8 @@ from .models import (
 )
 from members.models import Member
 from rooms.models import Room
+from wawi.models import CannabisStrain
+from wawi.serializers import CannabisStrainSerializer
 
 class MemberSerializer(serializers.ModelSerializer):
     display_name = serializers.SerializerMethodField()
@@ -30,6 +32,14 @@ class SeedPurchaseSerializer(serializers.ModelSerializer):
     member_id = serializers.PrimaryKeyRelatedField(
         queryset=Member.objects.all(), 
         source='member',
+        write_only=True,
+        required=False,
+        allow_null=True
+    )
+    strain = CannabisStrainSerializer(read_only=True)
+    strain_id = serializers.PrimaryKeyRelatedField(
+        queryset=CannabisStrain.objects.all(), 
+        source='strain',
         write_only=True,
         required=False,
         allow_null=True
@@ -68,7 +78,9 @@ class SeedPurchaseSerializer(serializers.ModelSerializer):
             'is_destroyed', 'destroy_reason', 'destroyed_at', 'created_at',
             'member', 'member_id', 'room', 'room_id', 'destroyed_by', 'destroyed_by_id',
             'original_seed', 'mother_plant_count', 'flowering_plant_count', 
-            'destroyed_quantity'
+            'destroyed_quantity', 'strain', 'strain_id', 'thc_percentage_min', 
+            'thc_percentage_max', 'cbd_percentage_min', 'cbd_percentage_max',
+            'flowering_time_min', 'flowering_time_max'
         ]
     
     def get_mother_plant_count(self, obj):
