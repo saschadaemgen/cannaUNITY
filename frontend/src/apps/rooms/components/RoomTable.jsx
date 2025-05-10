@@ -12,10 +12,10 @@ import TableChartIcon from '@mui/icons-material/TableChart';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
-import AccordionRow from './common/AccordionRow';
-import TableHeader from './common/TableHeader';
-import PaginationFooter from './common/PaginationFooter';
-import DetailCards from './common/DetailCards';
+import AccordionRow from '@/components/common/AccordionRow';
+import TableHeader from '@/components/common/TableHeader';
+import PaginationFooter from '@/components/common/PaginationFooter';
+import DetailCards from '@/components/common/DetailCards';
 
 /**
  * RoomTable Komponente für die Darstellung der Raumliste mit Details

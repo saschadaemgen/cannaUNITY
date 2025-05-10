@@ -10,8 +10,8 @@ import axios from 'axios';
 
 // Komponenten importieren
 import RoomTable from '../components/RoomTable';
-import PageHeader from '../components/common/PageHeader';
-import LoadingIndicator from '../components/common/LoadingIndicator';
+import PageHeader from '@/components/common/PageHeader';
+import LoadingIndicator from '@/components/common/LoadingIndicator';
 
 const RoomList = () => {
   const [rooms, setRooms] = useState([]);

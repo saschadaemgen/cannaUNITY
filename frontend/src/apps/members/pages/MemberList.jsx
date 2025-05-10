@@ -10,8 +10,8 @@ import api from '@/utils/api';
 
 // Komponenten importieren
 import MemberTable from '../components/MemberTable';
-import PageHeader from '../components/common/PageHeader';
-import LoadingIndicator from '../components/common/LoadingIndicator';
+import PageHeader from '@/components/common/PageHeader';
+import LoadingIndicator from '@/components/common/LoadingIndicator';
 
 const MemberList = () => {
   const [members, setMembers] = useState([]);

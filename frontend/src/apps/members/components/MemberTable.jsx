@@ -24,10 +24,10 @@ import TransgenderIcon from '@mui/icons-material/Transgender';
 import WorkIcon from '@mui/icons-material/Work';
 import WorkOffIcon from '@mui/icons-material/WorkOff';
 
-import AccordionRow from './common/AccordionRow';
-import TableHeader from './common/TableHeader';
-import PaginationFooter from './common/PaginationFooter';
-import DetailCards from './common/DetailCards';
+import AccordionRow from '@/components/common//AccordionRow';
+import TableHeader from '@/components/common//TableHeader';
+import PaginationFooter from '@/components/common/PaginationFooter';
+import DetailCards from '@/components/common/DetailCards';
 
 /**
  * MemberTable Komponente für die Darstellung der Mitgliederliste mit Details
