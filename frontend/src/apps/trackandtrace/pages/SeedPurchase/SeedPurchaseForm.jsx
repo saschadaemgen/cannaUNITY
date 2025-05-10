@@ -372,7 +372,7 @@ export default function SeedPurchaseForm({ open, onClose, onSuccess, initialData
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>{initialData.id ? 'Samen bearbeiten' : 'Neuen Samen hinzufügen'}</DialogTitle>
+      <DialogTitle>{initialData.id ? 'Samen bearbeiten' : 'Neuen Samen einkaufen'}</DialogTitle>
       <DialogContent>
         {/* Hersteller-Auswahl mit Suchfunktion und "Neuen Hersteller anlegen" Option */}
         <Autocomplete
@@ -424,7 +424,7 @@ export default function SeedPurchaseForm({ open, onClose, onSuccess, initialData
           renderInput={(params) => (
             <TextField
               {...params}
-              label="Hersteller auswählen"
+              label="Hersteller auswählen, suchen oder neu erstellen"
               fullWidth
               margin="normal"
               InputProps={{
@@ -507,7 +507,7 @@ export default function SeedPurchaseForm({ open, onClose, onSuccess, initialData
           renderInput={(params) => (
             <TextField
               {...params}
-              label="Cannabis-Sorte auswählen"
+              label="Cannabis-Sorte auswählen, suchen oder neu erstellen"
               fullWidth
               margin="normal"
               required

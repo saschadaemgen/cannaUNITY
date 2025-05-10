@@ -1,7 +1,9 @@
 # wawi/models.py
 import uuid
+import os
 from django.db import models
 from django.utils import timezone
+from django.core.files.storage import default_storage
 from members.models import Member
 
 class CannabisStrain(models.Model):
@@ -353,6 +355,23 @@ class StrainImage(models.Model):
     
     def __str__(self):
         return f"Bild für {self.strain.name}"
+    
+    def save(self, *args, **kwargs):
+        # Wenn dieses Bild als Hauptbild markiert wird, alle anderen Bilder dieser Sorte zurücksetzen
+        if self.is_primary:
+            StrainImage.objects.filter(strain=self.strain, is_primary=True).update(is_primary=False)
+        super().save(*args, **kwargs)
+    
+    def delete(self, *args, **kwargs):
+        # Speichere den Pfad zum Bild, bevor es gelöscht wird
+        image_path = self.image.path if self.image else None
+        
+        # Lösche den Datensatz
+        super().delete(*args, **kwargs)
+        
+        # Lösche die Datei, wenn sie existiert
+        if image_path and os.path.exists(image_path):
+            os.remove(image_path)
     
     class Meta:
         verbose_name = "Sortenbild"

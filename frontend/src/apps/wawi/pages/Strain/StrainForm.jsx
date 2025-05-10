@@ -1,5 +1,5 @@
 // frontend/src/apps/wawi/pages/Strain/StrainForm.jsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -33,6 +33,7 @@ import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { styled } from '@mui/material/styles';
 import api from '@/utils/api';
+import { useDropzone } from 'react-dropzone';
 
 // Styled components
 const VisuallyHiddenInput = styled('input')({
@@ -52,6 +53,185 @@ const StyledRating = styled(Rating)({
     color: '#4caf50',
   },
 });
+
+// Benutzerdefinierter Slider mit Markierungen unter dem Slider
+const StyledSlider = styled(Slider)(({ theme }) => ({
+  '& .MuiSlider-markLabel': {
+    top: '26px', // Positioniere die Markierungen unter dem Slider
+    fontSize: '0.75rem',
+    fontWeight: theme.typography.fontWeightMedium,
+    color: theme.palette.text.secondary,
+    transform: 'none', // Verhindert Standard-Transformation
+    whiteSpace: 'nowrap',
+    '&[data-index="0"]': {
+      transform: 'translateX(0%)', // Linksbündig für erste Markierung
+    },
+    '&[data-index="1"]': {
+      transform: 'translateX(-50%)', // Mittig für mittlere Markierung
+    },
+    '&[data-index="2"]': {
+      transform: 'translateX(-100%)', // Rechtsbündig für letzte Markierung
+    }
+  },
+  '& .MuiSlider-track': {
+    height: 6
+  },
+  '& .MuiSlider-rail': {
+    height: 6
+  },
+  '& .MuiSlider-mark': {
+    height: 6,
+    width: 2
+  }
+}));
+
+// DropZone für Drag & Drop Bilder Upload
+const DropZone = styled(Box)(({ theme, isDragActive }) => ({
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: theme.spacing(4),
+  border: `2px dashed ${isDragActive ? theme.palette.primary.main : theme.palette.divider}`,
+  borderRadius: theme.shape.borderRadius,
+  cursor: 'pointer',
+  backgroundColor: isDragActive ? theme.palette.action.hover : 'transparent',
+  transition: 'all 0.2s ease-in-out',
+  '&:hover': {
+    backgroundColor: theme.palette.action.hover
+  }
+}));
+
+// ImageCard Komponente für einheitliche Darstellung der Bilder
+const ImageCard = ({ image, onRemove, onSetPrimary, onCaptionChange, isPrimary, isPending }) => {
+  const [caption, setCaption] = useState(image.caption || '');
+  const [isEditing, setIsEditing] = useState(false);
+  
+  // Caption-Änderungen mit Verzögerung übernehmen
+  const handleCaptionChange = (e) => {
+    setCaption(e.target.value);
+  };
+  
+  const handleCaptionSave = () => {
+    onCaptionChange(caption);
+    setIsEditing(false);
+  };
+  
+  return (
+    <Paper 
+      variant="outlined"
+      sx={{ 
+        overflow: 'hidden',
+        borderColor: isPrimary ? 'success.main' : 'divider',
+        borderWidth: isPrimary ? 2 : 1,
+        position: 'relative'
+      }}
+    >
+      <Box 
+        component="img"
+        src={isPending ? image.preview : image.image}
+        alt={image.caption || "Bild"}
+        sx={{ 
+          width: '100%',
+          height: '160px',
+          objectFit: 'cover',
+          display: 'block'
+        }}
+        onClick={() => setIsEditing(true)}
+      />
+      
+      {isPrimary && (
+        <Box 
+          sx={{ 
+            position: 'absolute',
+            top: 0,
+            right: 0,
+            bgcolor: 'success.main',
+            color: 'white',
+            py: 0.5,
+            px: 1,
+            borderBottomLeftRadius: 4,
+            fontSize: '0.75rem',
+            fontWeight: 'bold'
+          }}
+        >
+          Hauptbild
+        </Box>
+      )}
+      
+      {isPending && image.uploading && (
+        <Box 
+          sx={{ 
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'rgba(0,0,0,0.3)'
+          }}
+        >
+          <CircularProgress color="inherit" />
+        </Box>
+      )}
+      
+      <Box sx={{ p: 1.5 }}>
+        {isEditing ? (
+          <TextField
+            fullWidth
+            size="small"
+            value={caption}
+            onChange={handleCaptionChange}
+            placeholder="Bildunterschrift"
+            onBlur={handleCaptionSave}
+            onKeyPress={(e) => e.key === 'Enter' && handleCaptionSave()}
+            autoFocus
+            sx={{ mb: 1 }}
+          />
+        ) : (
+          <Typography 
+            variant="body2" 
+            sx={{ 
+              mb: 1.5, 
+              fontStyle: 'italic',
+              height: '40px',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              cursor: 'pointer'
+            }}
+            onClick={() => setIsEditing(true)}
+          >
+            {caption || <Box component="span" sx={{ color: 'text.disabled' }}>Klicken zum Hinzufügen einer Bildunterschrift</Box>}
+          </Typography>
+        )}
+        
+        <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+          <Button 
+            size="small" 
+            onClick={onSetPrimary} 
+            color="success"
+            disabled={isPrimary}
+            variant="text"
+          >
+            Als Hauptbild
+          </Button>
+          <IconButton 
+            color="error" 
+            onClick={onRemove}
+            size="small"
+          >
+            <DeleteIcon fontSize="small" />
+          </IconButton>
+        </Box>
+      </Box>
+    </Paper>
+  );
+};
 
 // Tab Panel Komponente
 function TabPanel(props) {
@@ -77,6 +257,8 @@ function TabPanel(props) {
 export default function StrainForm({ open, onClose, onSuccess, initialData = {}, members = [] }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const imageUploadRef = useRef(null);
+  const tempIdRef = useRef(`temp-${Date.now()}-${Math.floor(Math.random() * 1000)}`);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -122,6 +304,7 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
   const [loading, setLoading] = useState(false);
   const [imageLoading, setImageLoading] = useState(false);
   const [images, setImages] = useState([]);
+  const [pendingImages, setPendingImages] = useState([]);
   const [selectedImage, setSelectedImage] = useState(null);
   const [imageCaption, setImageCaption] = useState('');
   const [isPrimaryImage, setIsPrimaryImage] = useState(false);
@@ -135,6 +318,100 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
   const [formValid, setFormValid] = useState(false);
   const [errors, setErrors] = useState({});
   const [apiError, setApiError] = useState('');
+
+  // Drag & Drop-Funktionalität für den Bildupload
+  const onDrop = useCallback((acceptedFiles) => {
+    // Dateien in das richtige Format konvertieren und Vorschau-URLs erstellen
+    const newImages = acceptedFiles.map(file => ({
+      id: `local-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+      file: file,
+      preview: URL.createObjectURL(file),
+      caption: '',
+      is_primary: pendingImages.length === 0 && images.length === 0, // Erstes Bild automatisch als Hauptbild
+      uploading: false,
+      error: null
+    }));
+    
+    // Zur Liste der ausstehenden Bilder hinzufügen
+    setPendingImages(prev => [...prev, ...newImages]);
+  }, [pendingImages, images]);
+
+  // Hook für Drag & Drop-Funktionalität
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {'image/*': []},
+    multiple: true
+  });
+
+  // Bildunterschrift einer ausstehenden Datei aktualisieren
+  const handleUpdatePendingImageCaption = (imageId, newCaption) => {
+    setPendingImages(prev => 
+      prev.map(img => 
+        img.id === imageId ? { ...img, caption: newCaption } : img
+      )
+    );
+  };
+
+  // Bildunterschrift einer gespeicherten Datei aktualisieren (via API)
+  const handleUpdateImageCaption = async (imageId, newCaption) => {
+    if (!initialData.id) return;
+    
+    try {
+      // Lokalen Zustand aktualisieren
+      setImages(prev => 
+        prev.map(img => 
+          img.id === imageId ? { ...img, caption: newCaption } : img
+        )
+      );
+      
+      // API-Aufruf zum Aktualisieren auf dem Server
+      await api.patch(`/wawi/strains/${initialData.id}/update_image_caption/`, {
+        image_id: imageId,
+        caption: newCaption
+      });
+    } catch (error) {
+      console.error('Fehler beim Aktualisieren der Bildunterschrift:', error);
+      setApiError('Fehler beim Aktualisieren der Bildunterschrift');
+    }
+  };
+
+  // Hauptbild festlegen (für beide Bild-Typen)
+  const handleSetPrimaryImage = (imageId, type) => {
+    // Typ 'pending' für neue Bilder, 'saved' für bereits gespeicherte
+    if (type === 'pending') {
+      // Alle pendingImages aktualisieren
+      setPendingImages(prev => 
+        prev.map(img => ({ ...img, is_primary: img.id === imageId }))
+      );
+      
+      // Auch alle gespeicherten Bilder als nicht-primär markieren
+      setImages(prev => 
+        prev.map(img => ({ ...img, is_primary: false }))
+      );
+    } else if (type === 'saved' && initialData.id) {
+      // Lokalen Zustand aktualisieren
+      setImages(prev => 
+        prev.map(img => ({ ...img, is_primary: img.id === imageId }))
+      );
+      
+      // Auch alle pendingImages als nicht-primär markieren
+      setPendingImages(prev => 
+        prev.map(img => ({ ...img, is_primary: false }))
+      );
+      
+      // API-Aufruf für gespeicherte Bilder
+      (async () => {
+        try {
+          await api.patch(`/wawi/strains/${initialData.id}/set_primary_image/`, {
+            image_id: imageId
+          });
+        } catch (error) {
+          console.error('Fehler beim Setzen des Hauptbildes:', error);
+          setApiError('Fehler beim Setzen des Hauptbildes');
+        }
+      })();
+    }
+  };
 
   useEffect(() => {
     if (open) {
@@ -212,7 +489,9 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
           is_active: true
         });
         
+        // Beim Erstellen: Bilder zurücksetzen
         setImages([]);
+        setPendingImages([]);
       }
       
       // Lade verfügbare Terpene, Geschmacksrichtungen und Effekte
@@ -339,6 +618,14 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
     }));
   };
 
+  // Handler für direkte Wertänderung (für Slider-Komponente)
+  const handleDirectValueChange = (name, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
   const handleSliderChange = (name) => (e, newValue) => {
     setFormData(prev => ({
       ...prev,
@@ -360,6 +647,70 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
   const handleImageSelect = (e) => {
     if (e.target.files && e.target.files[0]) {
       setSelectedImage(e.target.files[0]);
+    }
+  };
+  
+  const handleAddPendingImage = () => {
+    if (!selectedImage) return;
+    
+    // Erstelle eine URL für die Vorschau
+    const imagePreviewUrl = URL.createObjectURL(selectedImage);
+    
+    // Füge das Bild zur Liste der ausstehenden Bilder hinzu
+    const newPendingImage = {
+      id: `pending-${Date.now()}-${pendingImages.length}`,
+      file: selectedImage,
+      preview: imagePreviewUrl,
+      caption: imageCaption,
+      is_primary: isPrimaryImage
+    };
+    
+    // Wenn dieses Bild als Hauptbild markiert ist, andere Hauptbilder zurücksetzen
+    if (isPrimaryImage) {
+      setPendingImages(prev => prev.map(img => ({
+        ...img,
+        is_primary: false
+      })));
+      
+      // Wenn wir einen bestehenden Datensatz bearbeiten, markiere auch dort die Hauptbilder als nicht primär
+      if (initialData.id) {
+        setImages(prev => prev.map(img => ({
+          ...img,
+          is_primary: false
+        })));
+      }
+    }
+    
+    setPendingImages(prev => [...prev, newPendingImage]);
+    
+    // Zurücksetzen
+    setSelectedImage(null);
+    setImageCaption('');
+    setIsPrimaryImage(false);
+    
+    // Input-Feld zurücksetzen
+    if (imageUploadRef.current) {
+      imageUploadRef.current.value = '';
+    }
+  };
+  
+  const handleRemovePendingImage = (imageId) => {
+    setPendingImages(prev => prev.filter(img => img.id !== imageId));
+  };
+  
+  const handleSetPrimaryPendingImage = (imageId) => {
+    // Setze alle Bilder auf nicht-primär
+    setPendingImages(prev => prev.map(img => ({
+      ...img,
+      is_primary: img.id === imageId
+    })));
+    
+    // Wenn wir einen bestehenden Datensatz bearbeiten, markiere auch dort die Hauptbilder als nicht primär
+    if (initialData.id) {
+      setImages(prev => prev.map(img => ({
+        ...img,
+        is_primary: false
+      })));
     }
   };
   
@@ -389,6 +740,11 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
       setImageCaption('');
       setIsPrimaryImage(false);
       
+      // Input-Feld zurücksetzen
+      if (imageUploadRef.current) {
+        imageUploadRef.current.value = '';
+      }
+      
     } catch (error) {
       console.error('Fehler beim Hochladen des Bildes:', error);
       setApiError('Fehler beim Hochladen des Bildes: ' + (error.response?.data?.error || 'Unbekannter Fehler'));
@@ -409,6 +765,31 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
       setApiError('Fehler beim Löschen des Bildes: ' + (error.response?.data?.error || 'Unbekannter Fehler'));
     }
   };
+  
+  const uploadPendingImages = async (strainId) => {
+    if (pendingImages.length === 0) return;
+    
+    const uploads = pendingImages.map(async (pendingImage) => {
+      const formData = new FormData();
+      formData.append('image', pendingImage.file);
+      formData.append('caption', pendingImage.caption || '');
+      formData.append('is_primary', pendingImage.is_primary ? 'true' : 'false');
+      
+      try {
+        await api.post(`/wawi/strains/${strainId}/upload_image/`, formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        });
+      } catch (error) {
+        console.error('Fehler beim Hochladen des Bildes:', error);
+        setApiError(prev => prev + '\nFehler beim Hochladen des Bildes: ' + pendingImage.file.name);
+      }
+    });
+    
+    await Promise.all(uploads);
+    setPendingImages([]);
+  };
 
   const handleSubmit = async () => {
     // Nochmals validieren
@@ -421,13 +802,21 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
     
     try {
       const data = { ...formData };
+      let strainId;
       
       // Bei Bearbeitung eines bestehenden Datensatzes
       if (initialData.id) {
-        await api.patch(`/wawi/strains/${initialData.id}/`, data);
+        const response = await api.patch(`/wawi/strains/${initialData.id}/`, data);
+        strainId = initialData.id;
       } else {
         // Bei Erstellung eines neuen Datensatzes
-        await api.post('/wawi/strains/', data);
+        const response = await api.post('/wawi/strains/', data);
+        strainId = response.data.id;
+      }
+      
+      // Ausstehende Bilder hochladen, wenn vorhanden
+      if (pendingImages.length > 0) {
+        await uploadPendingImages(strainId);
       }
       
       onSuccess();
@@ -441,19 +830,6 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
 
   // Berechne Sativa-Prozentsatz
   const sativaPercentage = 100 - formData.indica_percentage;
-
-  // Generiert ein Menü für einen Monat basierend auf min und max Werten
-  const generateRangeMenu = (min, max, step = 1) => {
-    const items = [];
-    for (let i = min; i <= max; i += step) {
-      items.push(
-        <MenuItem key={i} value={i}>
-          {i}
-        </MenuItem>
-      );
-    }
-    return items;
-  };
 
   return (
     <Dialog 
@@ -487,13 +863,13 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
             mb: 2
           }}
         >
-          <Tab label="Grunddaten" />
-          <Tab label="Wachstum" />
-          <Tab label="Cannabinoide & Terpene" />
-          <Tab label="Aroma & Wirkung" />
-          <Tab label="Beschreibungen" />
-          <Tab label="Bilder" />
-          <Tab label="Sonstiges" />
+          <Tab label="GRUNDDATEN" />
+          <Tab label="WACHSTUM" />
+          <Tab label="CANNABINOIDE & TERPENE" />
+          <Tab label="AROMA & WIRKUNG" />
+          <Tab label="BESCHREIBUNGEN" />
+          <Tab label="BILDER" />
+          <Tab label="SONSTIGES" />
         </Tabs>
       </Box>
       
@@ -552,22 +928,27 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
               />
             </Stack>
             
-            <Box>
+            {/* Verbesserter Indica/Sativa-Slider mit Markierungen unter dem Slider */}
+            <Box sx={{ width: '100%', mt: 2, mb: 4 }}>
               <Typography gutterBottom>
                 Indica/Sativa Verhältnis: {formData.indica_percentage}% Indica / {sativaPercentage}% Sativa
               </Typography>
-              <Slider
-                value={formData.indica_percentage}
-                onChange={handleSliderChange('indica_percentage')}
-                aria-labelledby="indica-percentage-slider"
-                valueLabelDisplay="auto"
-                valueLabelFormat={value => `${value}% Indica`}
-                marks={[
-                  { value: 0, label: '100% Sativa' },
-                  { value: 50, label: '50/50' },
-                  { value: 100, label: '100% Indica' }
-                ]}
-              />
+              
+              <Box sx={{ mt: 1, mb: 3, width: '100%' }}>
+                <StyledSlider
+                  value={formData.indica_percentage}
+                  onChange={handleSliderChange('indica_percentage')}
+                  aria-labelledby="indica-percentage-slider"
+                  valueLabelDisplay="auto"
+                  valueLabelFormat={value => `${value}% Indica`}
+                  marks={[
+                    { value: 0, label: '100% Sativa' },
+                    { value: 50, label: '50/50' },
+                    { value: 100, label: '100% Indica' }
+                  ]}
+                />
+              </Box>
+              
               {errors.indica_percentage && (
                 <FormHelperText error>{errors.indica_percentage}</FormHelperText>
               )}
@@ -634,170 +1015,264 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
         {/* Tab 2: Wachstum */}
         <TabPanel value={tabValue} index={1}>
           <Stack spacing={3}>
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="flex-start">
-              <Box sx={{ width: '100%' }}>
-                <Typography variant="subtitle1" gutterBottom>Blütezeit (Tage)</Typography>
-                <Stack direction="row" spacing={2}>
-                  <TextField
-                    label="Min. Tage"
-                    name="flowering_time_min"
-                    type="number"
-                    value={formData.flowering_time_min}
-                    onChange={handleChange}
-                    fullWidth
-                    inputProps={{ min: 30, max: 120 }}
-                    error={!!errors.flowering_time_min}
-                    helperText={errors.flowering_time_min}
-                  />
-                  <TextField
-                    label="Max. Tage"
-                    name="flowering_time_max"
-                    type="number"
-                    value={formData.flowering_time_max}
-                    onChange={handleChange}
-                    fullWidth
-                    inputProps={{ min: 30, max: 120 }}
-                    error={!!errors.flowering_time_max}
-                    helperText={errors.flowering_time_max}
-                  />
-                </Stack>
-              </Box>
-              
-              <FormControl fullWidth>
-                <InputLabel>Schwierigkeitsgrad</InputLabel>
-                <Select
-                  name="difficulty"
-                  value={formData.difficulty}
+            <Box sx={{ width: '100%', mb: 2 }}>
+              <Typography variant="subtitle1" gutterBottom>Blütezeit (Tage)</Typography>
+              <Stack direction="row" spacing={2} alignItems="center">
+                <TextField
+                  label="Minimum"
+                  name="flowering_time_min"
+                  type="number"
+                  value={formData.flowering_time_min}
                   onChange={handleChange}
-                  label="Schwierigkeitsgrad"
-                >
-                  <MenuItem value="beginner">Anfänger</MenuItem>
-                  <MenuItem value="intermediate">Mittel</MenuItem>
-                  <MenuItem value="advanced">Fortgeschritten</MenuItem>
-                  <MenuItem value="expert">Experte</MenuItem>
-                </Select>
-              </FormControl>
-            </Stack>
+                  size="small"
+                  sx={{ width: '120px' }}
+                  inputProps={{ min: 30, max: formData.flowering_time_max }}
+                  error={!!errors.flowering_time_min}
+                />
+                
+                <Slider
+                  value={[formData.flowering_time_min, formData.flowering_time_max]}
+                  onChange={(e, newValue) => {
+                    handleDirectValueChange('flowering_time_min', newValue[0]);
+                    handleDirectValueChange('flowering_time_max', newValue[1]);
+                  }}
+                  min={30}
+                  max={120}
+                  step={1}
+                  valueLabelDisplay="auto"
+                  valueLabelFormat={value => `${value} Tage`}
+                  sx={{ mx: 2, flexGrow: 1 }}
+                />
+                
+                <TextField
+                  label="Maximum"
+                  name="flowering_time_max"
+                  type="number"
+                  value={formData.flowering_time_max}
+                  onChange={handleChange}
+                  size="small"
+                  sx={{ width: '120px' }}
+                  inputProps={{ min: formData.flowering_time_min, max: 120 }}
+                  error={!!errors.flowering_time_max}
+                />
+              </Stack>
+              {(errors.flowering_time_min || errors.flowering_time_max) && (
+                <FormHelperText error>
+                  {errors.flowering_time_min || errors.flowering_time_max}
+                </FormHelperText>
+              )}
+            </Box>
+            
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <InputLabel>Schwierigkeitsgrad</InputLabel>
+              <Select
+                name="difficulty"
+                value={formData.difficulty}
+                onChange={handleChange}
+                label="Schwierigkeitsgrad"
+              >
+                <MenuItem value="beginner">Anfänger</MenuItem>
+                <MenuItem value="intermediate">Mittel</MenuItem>
+                <MenuItem value="advanced">Fortgeschritten</MenuItem>
+                <MenuItem value="expert">Experte</MenuItem>
+              </Select>
+            </FormControl>
             
             <Divider>Indoor-Wachstum</Divider>
             
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="flex-start">
-              <Box sx={{ width: '100%' }}>
-                <Typography variant="subtitle1" gutterBottom>Höhe Indoor (cm)</Typography>
-                <Stack direction="row" spacing={2}>
-                  <TextField
-                    label="Min. Höhe"
-                    name="height_indoor_min"
-                    type="number"
-                    value={formData.height_indoor_min}
-                    onChange={handleChange}
-                    fullWidth
-                    inputProps={{ min: 20, max: 400 }}
-                    error={!!errors.height_indoor_min}
-                    helperText={errors.height_indoor_min}
-                  />
-                  <TextField
-                    label="Max. Höhe"
-                    name="height_indoor_max"
-                    type="number"
-                    value={formData.height_indoor_max}
-                    onChange={handleChange}
-                    fullWidth
-                    inputProps={{ min: 20, max: 400 }}
-                    error={!!errors.height_indoor_max}
-                    helperText={errors.height_indoor_max}
-                  />
-                </Stack>
-              </Box>
-              
-              <Box sx={{ width: '100%' }}>
-                <Typography variant="subtitle1" gutterBottom>Ertrag Indoor (g/m²)</Typography>
-                <Stack direction="row" spacing={2}>
-                  <TextField
-                    label="Min. Ertrag"
-                    name="yield_indoor_min"
-                    type="number"
-                    value={formData.yield_indoor_min}
-                    onChange={handleChange}
-                    fullWidth
-                    inputProps={{ min: 50, max: 1000 }}
-                    error={!!errors.yield_indoor_min}
-                    helperText={errors.yield_indoor_min}
-                  />
-                  <TextField
-                    label="Max. Ertrag"
-                    name="yield_indoor_max"
-                    type="number"
-                    value={formData.yield_indoor_max}
-                    onChange={handleChange}
-                    fullWidth
-                    inputProps={{ min: 50, max: 1000 }}
-                    error={!!errors.yield_indoor_max}
-                    helperText={errors.yield_indoor_max}
-                  />
-                </Stack>
-              </Box>
-            </Stack>
+            <Box sx={{ width: '100%', mb: 2 }}>
+              <Typography variant="subtitle1" gutterBottom>Höhe Indoor (cm)</Typography>
+              <Stack direction="row" spacing={2} alignItems="center">
+                <TextField
+                  label="Minimum"
+                  name="height_indoor_min"
+                  type="number"
+                  value={formData.height_indoor_min}
+                  onChange={handleChange}
+                  size="small"
+                  sx={{ width: '120px' }}
+                  inputProps={{ min: 20, max: formData.height_indoor_max, step: 5 }}
+                  error={!!errors.height_indoor_min}
+                />
+                
+                <Slider
+                  value={[formData.height_indoor_min, formData.height_indoor_max]}
+                  onChange={(e, newValue) => {
+                    handleDirectValueChange('height_indoor_min', newValue[0]);
+                    handleDirectValueChange('height_indoor_max', newValue[1]);
+                  }}
+                  min={20}
+                  max={400}
+                  step={5}
+                  valueLabelDisplay="auto"
+                  valueLabelFormat={value => `${value} cm`}
+                  sx={{ mx: 2, flexGrow: 1 }}
+                />
+                
+                <TextField
+                  label="Maximum"
+                  name="height_indoor_max"
+                  type="number"
+                  value={formData.height_indoor_max}
+                  onChange={handleChange}
+                  size="small"
+                  sx={{ width: '120px' }}
+                  inputProps={{ min: formData.height_indoor_min, max: 400, step: 5 }}
+                  error={!!errors.height_indoor_max}
+                />
+              </Stack>
+              {(errors.height_indoor_min || errors.height_indoor_max) && (
+                <FormHelperText error>
+                  {errors.height_indoor_min || errors.height_indoor_max}
+                </FormHelperText>
+              )}
+            </Box>
+            
+            <Box sx={{ width: '100%', mb: 2 }}>
+              <Typography variant="subtitle1" gutterBottom>Ertrag Indoor (g/m²)</Typography>
+              <Stack direction="row" spacing={2} alignItems="center">
+                <TextField
+                  label="Minimum"
+                  name="yield_indoor_min"
+                  type="number"
+                  value={formData.yield_indoor_min}
+                  onChange={handleChange}
+                  size="small"
+                  sx={{ width: '120px' }}
+                  inputProps={{ min: 50, max: formData.yield_indoor_max, step: 10 }}
+                  error={!!errors.yield_indoor_min}
+                />
+                
+                <Slider
+                  value={[formData.yield_indoor_min, formData.yield_indoor_max]}
+                  onChange={(e, newValue) => {
+                    handleDirectValueChange('yield_indoor_min', newValue[0]);
+                    handleDirectValueChange('yield_indoor_max', newValue[1]);
+                  }}
+                  min={50}
+                  max={1000}
+                  step={10}
+                  valueLabelDisplay="auto"
+                  valueLabelFormat={value => `${value} g/m²`}
+                  sx={{ mx: 2, flexGrow: 1 }}
+                />
+                
+                <TextField
+                  label="Maximum"
+                  name="yield_indoor_max"
+                  type="number"
+                  value={formData.yield_indoor_max}
+                  onChange={handleChange}
+                  size="small"
+                  sx={{ width: '120px' }}
+                  inputProps={{ min: formData.yield_indoor_min, max: 1000, step: 10 }}
+                  error={!!errors.yield_indoor_max}
+                />
+              </Stack>
+              {(errors.yield_indoor_min || errors.yield_indoor_max) && (
+                <FormHelperText error>
+                  {errors.yield_indoor_min || errors.yield_indoor_max}
+                </FormHelperText>
+              )}
+            </Box>
             
             <Divider>Outdoor-Wachstum</Divider>
             
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="flex-start">
-              <Box sx={{ width: '100%' }}>
-                <Typography variant="subtitle1" gutterBottom>Höhe Outdoor (cm)</Typography>
-                <Stack direction="row" spacing={2}>
-                  <TextField
-                    label="Min. Höhe"
-                    name="height_outdoor_min"
-                    type="number"
-                    value={formData.height_outdoor_min || ''}
-                    onChange={handleChange}
-                    fullWidth
-                    inputProps={{ min: 50, max: 500 }}
-                    error={!!errors.height_outdoor_min}
-                    helperText={errors.height_outdoor_min}
-                  />
-                  <TextField
-                    label="Max. Höhe"
-                    name="height_outdoor_max"
-                    type="number"
-                    value={formData.height_outdoor_max || ''}
-                    onChange={handleChange}
-                    fullWidth
-                    inputProps={{ min: 50, max: 500 }}
-                    error={!!errors.height_outdoor_max}
-                    helperText={errors.height_outdoor_max}
-                  />
-                </Stack>
-              </Box>
-              
-              <Box sx={{ width: '100%' }}>
-                <Typography variant="subtitle1" gutterBottom>Ertrag Outdoor (g/Pflanze)</Typography>
-                <Stack direction="row" spacing={2}>
-                  <TextField
-                    label="Min. Ertrag"
-                    name="yield_outdoor_min"
-                    type="number"
-                    value={formData.yield_outdoor_min || ''}
-                    onChange={handleChange}
-                    fullWidth
-                    inputProps={{ min: 50, max: 2000 }}
-                    error={!!errors.yield_outdoor_min}
-                    helperText={errors.yield_outdoor_min}
-                  />
-                  <TextField
-                    label="Max. Ertrag"
-                    name="yield_outdoor_max"
-                    type="number"
-                    value={formData.yield_outdoor_max || ''}
-                    onChange={handleChange}
-                    fullWidth
-                    inputProps={{ min: 50, max: 2000 }}
-                    error={!!errors.yield_outdoor_max}
-                    helperText={errors.yield_outdoor_max}
-                  />
-                </Stack>
-              </Box>
-            </Stack>
+            <Box sx={{ width: '100%', mb: 2 }}>
+              <Typography variant="subtitle1" gutterBottom>Höhe Outdoor (cm)</Typography>
+              <Stack direction="row" spacing={2} alignItems="center">
+                <TextField
+                  label="Minimum"
+                  name="height_outdoor_min"
+                  type="number"
+                  value={formData.height_outdoor_min}
+                  onChange={handleChange}
+                  size="small"
+                  sx={{ width: '120px' }}
+                  inputProps={{ min: 50, max: formData.height_outdoor_max, step: 10 }}
+                  error={!!errors.height_outdoor_min}
+                />
+                
+                <Slider
+                  value={[formData.height_outdoor_min, formData.height_outdoor_max]}
+                  onChange={(e, newValue) => {
+                    handleDirectValueChange('height_outdoor_min', newValue[0]);
+                    handleDirectValueChange('height_outdoor_max', newValue[1]);
+                  }}
+                  min={50}
+                  max={500}
+                  step={10}
+                  valueLabelDisplay="auto"
+                  valueLabelFormat={value => `${value} cm`}
+                  sx={{ mx: 2, flexGrow: 1 }}
+                />
+                
+                <TextField
+                  label="Maximum"
+                  name="height_outdoor_max"
+                  type="number"
+                  value={formData.height_outdoor_max}
+                  onChange={handleChange}
+                  size="small"
+                  sx={{ width: '120px' }}
+                  inputProps={{ min: formData.height_outdoor_min, max: 500, step: 10 }}
+                  error={!!errors.height_outdoor_max}
+                />
+              </Stack>
+              {(errors.height_outdoor_min || errors.height_outdoor_max) && (
+                <FormHelperText error>
+                  {errors.height_outdoor_min || errors.height_outdoor_max}
+                </FormHelperText>
+              )}
+            </Box>
+            
+            <Box sx={{ width: '100%', mb: 2 }}>
+              <Typography variant="subtitle1" gutterBottom>Ertrag Outdoor (g/Pflanze)</Typography>
+              <Stack direction="row" spacing={2} alignItems="center">
+                <TextField
+                  label="Minimum"
+                  name="yield_outdoor_min"
+                  type="number"
+                  value={formData.yield_outdoor_min}
+                  onChange={handleChange}
+                  size="small"
+                  sx={{ width: '120px' }}
+                  inputProps={{ min: 50, max: formData.yield_outdoor_max, step: 50 }}
+                  error={!!errors.yield_outdoor_min}
+                />
+                
+                <Slider
+                  value={[formData.yield_outdoor_min, formData.yield_outdoor_max]}
+                  onChange={(e, newValue) => {
+                    handleDirectValueChange('yield_outdoor_min', newValue[0]);
+                    handleDirectValueChange('yield_outdoor_max', newValue[1]);
+                  }}
+                  min={50}
+                  max={2000}
+                  step={50}
+                  valueLabelDisplay="auto"
+                  valueLabelFormat={value => `${value} g/Pflanze`}
+                  sx={{ mx: 2, flexGrow: 1 }}
+                />
+                
+                <TextField
+                  label="Maximum"
+                  name="yield_outdoor_max"
+                  type="number"
+                  value={formData.yield_outdoor_max}
+                  onChange={handleChange}
+                  size="small"
+                  sx={{ width: '120px' }}
+                  inputProps={{ min: formData.yield_outdoor_min, max: 2000, step: 50 }}
+                  error={!!errors.yield_outdoor_max}
+                />
+              </Stack>
+              {(errors.yield_outdoor_min || errors.yield_outdoor_max) && (
+                <FormHelperText error>
+                  {errors.yield_outdoor_min || errors.yield_outdoor_max}
+                </FormHelperText>
+              )}
+            </Box>
             
             <Divider>Wachstumsumgebung</Divider>
             
@@ -886,63 +1361,101 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
           <Stack spacing={3}>
             <Divider>THC & CBD-Gehalt</Divider>
             
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="flex-start">
-              <Box sx={{ width: '100%' }}>
-                <Typography variant="subtitle1" gutterBottom>THC-Gehalt (%)</Typography>
-                <Stack direction="row" spacing={2}>
-                  <TextField
-                    label="Min. THC"
-                    name="thc_percentage_min"
-                    type="number"
-                    value={formData.thc_percentage_min}
-                    onChange={handleChange}
-                    fullWidth
-                    inputProps={{ min: 0, max: 35, step: 0.1 }}
-                    error={!!errors.thc_percentage_min}
-                    helperText={errors.thc_percentage_min}
-                  />
-                  <TextField
-                    label="Max. THC"
-                    name="thc_percentage_max"
-                    type="number"
-                    value={formData.thc_percentage_max}
-                    onChange={handleChange}
-                    fullWidth
-                    inputProps={{ min: 0, max: 35, step: 0.1 }}
-                    error={!!errors.thc_percentage_max}
-                    helperText={errors.thc_percentage_max}
-                  />
-                </Stack>
-              </Box>
-              
-              <Box sx={{ width: '100%' }}>
-                <Typography variant="subtitle1" gutterBottom>CBD-Gehalt (%)</Typography>
-                <Stack direction="row" spacing={2}>
-                  <TextField
-                    label="Min. CBD"
-                    name="cbd_percentage_min"
-                    type="number"
-                    value={formData.cbd_percentage_min}
-                    onChange={handleChange}
-                    fullWidth
-                    inputProps={{ min: 0, max: 25, step: 0.1 }}
-                    error={!!errors.cbd_percentage_min}
-                    helperText={errors.cbd_percentage_min}
-                  />
-                  <TextField
-                    label="Max. CBD"
-                    name="cbd_percentage_max"
-                    type="number"
-                    value={formData.cbd_percentage_max}
-                    onChange={handleChange}
-                    fullWidth
-                    inputProps={{ min: 0, max: 25, step: 0.1 }}
-                    error={!!errors.cbd_percentage_max}
-                    helperText={errors.cbd_percentage_max}
-                  />
-                </Stack>
-              </Box>
-            </Stack>
+            <Box sx={{ width: '100%', mb: 2 }}>
+              <Typography variant="subtitle1" gutterBottom>THC-Gehalt (%)</Typography>
+              <Stack direction="row" spacing={2} alignItems="center">
+                <TextField
+                  label="Minimum"
+                  name="thc_percentage_min"
+                  type="number"
+                  value={formData.thc_percentage_min}
+                  onChange={handleChange}
+                  size="small"
+                  sx={{ width: '120px' }}
+                  inputProps={{ min: 0, max: formData.thc_percentage_max, step: 0.1 }}
+                  error={!!errors.thc_percentage_min}
+                />
+                
+                <Slider
+                  value={[formData.thc_percentage_min, formData.thc_percentage_max]}
+                  onChange={(e, newValue) => {
+                    handleDirectValueChange('thc_percentage_min', newValue[0]);
+                    handleDirectValueChange('thc_percentage_max', newValue[1]);
+                  }}
+                  min={0}
+                  max={35}
+                  step={0.1}
+                  valueLabelDisplay="auto"
+                  valueLabelFormat={value => `${value}%`}
+                  sx={{ mx: 2, flexGrow: 1 }}
+                />
+                
+                <TextField
+                  label="Maximum"
+                  name="thc_percentage_max"
+                  type="number"
+                  value={formData.thc_percentage_max}
+                  onChange={handleChange}
+                  size="small"
+                  sx={{ width: '120px' }}
+                  inputProps={{ min: formData.thc_percentage_min, max: 35, step: 0.1 }}
+                  error={!!errors.thc_percentage_max}
+                />
+              </Stack>
+              {(errors.thc_percentage_min || errors.thc_percentage_max) && (
+                <FormHelperText error>
+                  {errors.thc_percentage_min || errors.thc_percentage_max}
+                </FormHelperText>
+              )}
+            </Box>
+            
+            <Box sx={{ width: '100%', mb: 2 }}>
+              <Typography variant="subtitle1" gutterBottom>CBD-Gehalt (%)</Typography>
+              <Stack direction="row" spacing={2} alignItems="center">
+                <TextField
+                  label="Minimum"
+                  name="cbd_percentage_min"
+                  type="number"
+                  value={formData.cbd_percentage_min}
+                  onChange={handleChange}
+                  size="small"
+                  sx={{ width: '120px' }}
+                  inputProps={{ min: 0, max: formData.cbd_percentage_max, step: 0.1 }}
+                  error={!!errors.cbd_percentage_min}
+                />
+                
+                <Slider
+                  value={[formData.cbd_percentage_min, formData.cbd_percentage_max]}
+                  onChange={(e, newValue) => {
+                    handleDirectValueChange('cbd_percentage_min', newValue[0]);
+                    handleDirectValueChange('cbd_percentage_max', newValue[1]);
+                  }}
+                  min={0}
+                  max={25}
+                  step={0.1}
+                  valueLabelDisplay="auto"
+                  valueLabelFormat={value => `${value}%`}
+                  sx={{ mx: 2, flexGrow: 1 }}
+                />
+                
+                <TextField
+                  label="Maximum"
+                  name="cbd_percentage_max"
+                  type="number"
+                  value={formData.cbd_percentage_max}
+                  onChange={handleChange}
+                  size="small"
+                  sx={{ width: '120px' }}
+                  inputProps={{ min: formData.cbd_percentage_min, max: 25, step: 0.1 }}
+                  error={!!errors.cbd_percentage_max}
+                />
+              </Stack>
+              {(errors.cbd_percentage_min || errors.cbd_percentage_max) && (
+                <FormHelperText error>
+                  {errors.cbd_percentage_min || errors.cbd_percentage_max}
+                </FormHelperText>
+              )}
+            </Box>
             
             <Divider>Terpenprofil</Divider>
             
@@ -1151,150 +1664,138 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
           </Stack>
         </TabPanel>
         
-        {/* Tab 6: Bilder */}
+        {/* Tab 6: Bilder mit optimiertem Drag & Drop-Upload */}
         <TabPanel value={tabValue} index={5}>
           <Stack spacing={3}>
-            {!initialData.id ? (
-              <Paper variant="outlined" sx={{ p: 3, textAlign: 'center' }}>
-                <Typography>
-                  Bitte speichern Sie zuerst die Sorte, bevor Sie Bilder hochladen können.
-                </Typography>
-              </Paper>
-            ) : (
-              <>
-                <Paper variant="outlined" sx={{ p: 3 }}>
-                  <Typography variant="subtitle1" gutterBottom fontWeight="medium">
-                    Neues Bild hochladen
-                  </Typography>
-                  
-                  <Stack spacing={2}>
-                    <Button
-                      component="label"
-                      variant="contained"
-                      startIcon={<CloudUploadIcon />}
-                      fullWidth
-                    >
-                      Bild auswählen
-                      <VisuallyHiddenInput 
-                        type="file" 
-                        accept="image/*"
-                        onChange={handleImageSelect}
-                      />
-                    </Button>
-                    
-                    {selectedImage && (
-                      <Typography variant="body2">
-                        Ausgewählt: {selectedImage.name}
-                      </Typography>
-                    )}
-                    
-                    <TextField
-                      label="Bildunterschrift"
-                      value={imageCaption}
-                      onChange={(e) => setImageCaption(e.target.value)}
-                      fullWidth
-                    />
-                    
-                    <FormControl fullWidth>
-                      <InputLabel>Hauptbild?</InputLabel>
-                      <Select
-                        value={isPrimaryImage ? 'true' : 'false'}
-                        onChange={(e) => setIsPrimaryImage(e.target.value === 'true')}
-                        label="Hauptbild?"
-                      >
-                        <MenuItem value="true">Ja (als Hauptbild setzen)</MenuItem>
-                        <MenuItem value="false">Nein</MenuItem>
-                      </Select>
-                    </FormControl>
-                    
-                    <Button
-                      variant="contained"
-                      color="primary"
-                      onClick={handleImageUpload}
-                      disabled={!selectedImage || imageLoading}
-                      fullWidth
-                    >
-                      {imageLoading ? <CircularProgress size={24} /> : 'Bild hochladen'}
-                    </Button>
-                  </Stack>
-                </Paper>
-                
-                <Paper variant="outlined" sx={{ p: 3 }}>
-                  <Typography variant="subtitle1" gutterBottom fontWeight="medium">
-                    Vorhandene Bilder ({images.length})
-                  </Typography>
-                  
-                  {images.length === 0 ? (
-                    <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', textAlign: 'center', py: 2 }}>
-                      Keine Bilder vorhanden
-                    </Typography>
+            {/* Drag & Drop Upload-Bereich */}
+            <Paper variant="outlined" sx={{ p: 3 }}>
+              <Typography variant="subtitle1" gutterBottom fontWeight="medium">
+                Bilder hochladen
+              </Typography>
+              
+              {/* Implementierung des Drag & Drop-Bereichs mit react-dropzone */}
+              <Box>
+                <DropZone {...getRootProps()} isDragActive={isDragActive}>
+                  <input {...getInputProps()} />
+                  <CloudUploadIcon sx={{ fontSize: 40, color: 'text.secondary', mb: 2 }} />
+                  {isDragActive ? (
+                    <Typography>Bilder hier ablegen...</Typography>
                   ) : (
-                    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: 'repeat(3, 1fr)' }, gap: 2 }}>
-                      {images.map((image) => (
-                        <Paper 
-                          key={image.id} 
-                          variant="outlined"
-                          sx={{ 
-                            overflow: 'hidden',
-                            borderColor: image.is_primary ? 'success.main' : 'divider',
-                            borderWidth: image.is_primary ? 2 : 1,
-                            position: 'relative'
-                          }}
-                        >
-                          <Box 
-                            component="img"
-                            src={image.image}
-                            alt={image.caption || "Sortenbild"}
-                            sx={{ 
-                              width: '100%',
-                              height: '160px',
-                              objectFit: 'cover',
-                              display: 'block'
-                            }}
-                          />
-                          
-                          {image.is_primary && (
-                            <Box 
-                              sx={{ 
-                                position: 'absolute',
-                                top: 0,
-                                right: 0,
-                                bgcolor: 'success.main',
-                                color: 'white',
-                                py: 0.5,
-                                px: 1,
-                                borderBottomLeftRadius: 4,
-                                fontSize: '0.75rem',
-                                fontWeight: 'bold'
-                              }}
-                            >
-                              Hauptbild
-                            </Box>
-                          )}
-                          
-                          <Box sx={{ p: 1.5 }}>
-                            {image.caption && (
-                              <Typography variant="body2" sx={{ mb: 1, fontStyle: 'italic' }}>
-                                {image.caption}
-                              </Typography>
-                            )}
-                            
-                            <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-                              <IconButton 
-                                color="error" 
-                                onClick={() => handleDeleteImage(image.id)}
-                                size="small"
-                              >
-                                <DeleteIcon fontSize="small" />
-                              </IconButton>
-                            </Box>
-                          </Box>
-                        </Paper>
-                      ))}
-                    </Box>
+                    <>
+                      <Typography>Bilder hier ablegen oder</Typography>
+                      <Button variant="contained" size="small" sx={{ mt: 1 }}>
+                        Dateien auswählen
+                      </Button>
+                    </>
                   )}
-                </Paper>
-              </>
+                </DropZone>
+              </Box>
+            </Paper>
+            
+            {/* Galerie mit hochgeladenen Bildern */}
+            {(pendingImages.length > 0 || images.length > 0) && (
+              <Paper variant="outlined" sx={{ p: 3 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                  <Typography variant="subtitle1" fontWeight="medium">
+                    Bilder ({pendingImages.length + images.length})
+                  </Typography>
+                  {pendingImages.length > 0 && (
+                    <Typography variant="caption" color="text.secondary">
+                      Änderungen werden beim Speichern übernommen
+                    </Typography>
+                  )}
+                </Box>
+                
+                <Box sx={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: 'repeat(3, 1fr)', lg: 'repeat(4, 1fr)' }, 
+                  gap: 2 
+                }}>
+                  {/* Ausstehende (neue) Bilder */}
+                  {pendingImages.map((image) => (
+                    <ImageCard
+                      key={image.id}
+                      image={image}
+                      onRemove={() => handleRemovePendingImage(image.id)}
+                      onSetPrimary={() => handleSetPrimaryPendingImage(image.id)}
+                      onCaptionChange={(caption) => {
+                        // Bildunterschrift aktualisieren
+                        setPendingImages(prev => 
+                          prev.map(img => 
+                            img.id === image.id ? { ...img, caption: caption } : img
+                          )
+                        );
+                      }}
+                      isPrimary={image.is_primary}
+                      isPending={true}
+                    />
+                  ))}
+                  
+                  {/* Bereits gespeicherte Bilder */}
+                  {images.map((image) => (
+                    <ImageCard
+                      key={image.id}
+                      image={image}
+                      onRemove={() => handleDeleteImage(image.id)}
+                      onSetPrimary={() => {
+                        // Setze das Bild als Hauptbild
+                        // Alle gespeicherten Bilder aktualisieren
+                        setImages(prev => 
+                          prev.map(img => ({ ...img, is_primary: img.id === image.id }))
+                        );
+                        
+                        // Alle ausstehenden Bilder als nicht-primär markieren
+                        setPendingImages(prev => 
+                          prev.map(img => ({ ...img, is_primary: false }))
+                        );
+                        
+                        // API-Aufruf zum Aktualisieren auf dem Server
+                        if (initialData.id) {
+                          (async () => {
+                            try {
+                              // Diese Funktion müsste in der API implementiert sein,
+                              // hier ist sie nur als Beispiel angegeben
+                              await api.patch(`/wawi/strains/${initialData.id}/set_primary_image/`, {
+                                image_id: image.id
+                              });
+                            } catch (error) {
+                              console.error('Fehler beim Setzen des Hauptbildes:', error);
+                              setApiError('Fehler beim Setzen des Hauptbildes');
+                            }
+                          })();
+                        }
+                      }}
+                      onCaptionChange={(caption) => {
+                        // Bildunterschrift aktualisieren
+                        setImages(prev => 
+                          prev.map(img => 
+                            img.id === image.id ? { ...img, caption: caption } : img
+                          )
+                        );
+                        
+                        // API-Aufruf zum Aktualisieren auf dem Server
+                        if (initialData.id) {
+                          (async () => {
+                            try {
+                              // Diese Funktion müsste in der API implementiert sein,
+                              // hier ist sie nur als Beispiel angegeben
+                              await api.patch(`/wawi/strains/${initialData.id}/update_image_caption/`, {
+                                image_id: image.id,
+                                caption: caption
+                              });
+                            } catch (error) {
+                              console.error('Fehler beim Aktualisieren der Bildunterschrift:', error);
+                              setApiError('Fehler beim Aktualisieren der Bildunterschrift');
+                            }
+                          })();
+                        }
+                      }}
+                      isPrimary={image.is_primary}
+                      isPending={false}
+                    />
+                  ))}
+                </Box>
+              </Paper>
             )}
           </Stack>
         </TabPanel>

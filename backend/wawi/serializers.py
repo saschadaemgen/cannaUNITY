@@ -1,4 +1,4 @@
-# wawi/serializers.py (korrigierte Version)
+# wawi/serializers.py
 from rest_framework import serializers
 from .models import CannabisStrain, StrainImage, StrainInventory
 from members.models import Member
@@ -19,6 +19,9 @@ class StrainInventorySerializer(serializers.ModelSerializer):
 
 
 class CannabisStrainSerializer(serializers.ModelSerializer):
+    # Temporäre ID für Bildverarbeitung
+    temp_id = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    
     # Serializer für Mitglieder
     member = MemberSerializer(read_only=True)
     member_id = serializers.PrimaryKeyRelatedField(
@@ -33,8 +36,7 @@ class CannabisStrainSerializer(serializers.ModelSerializer):
     images = StrainImageSerializer(many=True, read_only=True)
     inventory = StrainInventorySerializer(read_only=True)
     
-    # Berechnung des Sativa-Prozentsatzes - HIER IST DIE KORREKTUR:
-    # source entfernt, da es redundant ist
+    # Berechnung des Sativa-Prozentsatzes
     sativa_percentage = serializers.IntegerField(read_only=True)
     
     # Einfachere Felder für Listen (aus dem Frontend als komma-separierte Strings)
@@ -90,6 +92,7 @@ class CannabisStrainSerializer(serializers.ModelSerializer):
             'price_per_seed', 'seeds_per_pack',
             'member', 'member_id',
             'images', 'inventory',
-            'is_active', 'created_at', 'updated_at'
+            'is_active', 'created_at', 'updated_at',
+            'temp_id'  # Hinzugefügt für die Bildverarbeitung
         ]
         read_only_fields = ['id', 'batch_number', 'created_at', 'updated_at']

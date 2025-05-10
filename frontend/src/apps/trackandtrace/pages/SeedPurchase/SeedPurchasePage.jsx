@@ -599,7 +599,7 @@ export default function SeedPurchasePage() {
                     setOpenForm(true)
                   }}
                 >
-                  NEUER SAMEN
+                  NEUER SAMEN EINKAUF
                 </Button>
               )
             }
