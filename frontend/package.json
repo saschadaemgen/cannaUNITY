@@ -19,6 +19,7 @@
     "@mui/x-date-pickers": "^8.3.0",
     "axios": "^1.9.0",
     "date-fns": "^4.1.0",
+    "dayjs": "^1.11.13",
     "echarts": "^5.6.0",
     "echarts-for-react": "^3.0.2",
     "lucide-react": "^0.509.0",
