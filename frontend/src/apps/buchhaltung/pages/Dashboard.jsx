@@ -1,98 +1,100 @@
-import React, { useEffect, useState } from 'react'
+// src/apps/accounting/pages/Dashboard.jsx
+
+import React, { useEffect, useState } from 'react';
 import {
-  Grid,
+  Box,
+  Typography,
   Card,
   CardContent,
-  Typography,
-  Box
-} from '@mui/material'
-import axios from '@/utils/api'
-import {
-  Chart as ChartJS,
-  LineElement,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  Tooltip,
-  Legend
-} from 'chart.js'
-import { Line } from 'react-chartjs-2'
-
-ChartJS.register(LineElement, CategoryScale, LinearScale, PointElement, Tooltip, Legend)
+  Grid,
+  CircularProgress,
+  Alert,
+  Paper
+} from '@mui/material';
+import ReactECharts from 'echarts-for-react';
+import axios from '@/utils/api';
 
 const Dashboard = () => {
-  const [data, setData] = useState(null)
+  const [data, setData] = useState(null);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     axios.get('/buchhaltung/dashboard/')
       .then(res => setData(res.data))
       .catch(err => {
-        console.error('Fehler beim Laden der Dashboard-Daten:', err)
-      })
-  }, [])
+        console.error('Fehler beim Laden der Dashboard-Daten:', err);
+        setError('Daten konnten nicht geladen werden.');
+      });
+  }, []);
 
-  if (!data) return <p>Lade Daten…</p>
+  if (error) return <Alert severity="error">{error}</Alert>;
+  if (!data) return <Box textAlign="center" py={5}><CircularProgress /></Box>;
 
-  const chartData = {
-    labels: data.monthly_data.map(entry => entry.month),
-    datasets: [
+  const labels = data.monthly_data.map(entry => entry.month);
+  const einnahmen = data.monthly_data.map(entry => entry.income);
+  const ausgaben = data.monthly_data.map(entry => entry.expense);
+
+  const chartOption = {
+    tooltip: {
+      trigger: 'axis'
+    },
+    legend: {
+      data: ['Einnahmen', 'Ausgaben'],
+      top: 10,
+      textStyle: { fontWeight: 'bold' },
+      itemGap: 40,
+      left: 'center'
+    },
+    grid: {
+      left: '1.5%',
+      right: '1.5%',
+      bottom: 55,
+      top: 50,
+      containLabel: true
+    },
+    xAxis: {
+      type: 'category',
+      data: labels,
+      axisLabel: { rotate: 45 }
+    },
+    yAxis: {
+      type: 'value',
+      axisLabel: { formatter: '€ {value}' }
+    },
+    series: [
       {
-        label: 'Einnahmen (€)',
-        data: data.monthly_data.map(entry => entry.income),
-        borderColor: '#2e7d32',
-        backgroundColor: 'rgba(46,125,50,0.1)',
-        fill: true,
-        tension: 0.4
+        name: 'Einnahmen',
+        type: 'line',
+        smooth: true,
+        data: einnahmen,
+        areaStyle: { color: 'rgba(46, 125, 50, 0.15)' },
+        itemStyle: { color: '#2e7d32' },
+        lineStyle: { color: '#2e7d32' }
       },
       {
-        label: 'Ausgaben (€)',
-        data: data.monthly_data.map(entry => entry.expense),
-        borderColor: '#c62828',
-        backgroundColor: 'rgba(198,40,40,0.1)',
-        fill: true,
-        tension: 0.4
+        name: 'Ausgaben',
+        type: 'line',
+        smooth: true,
+        data: ausgaben,
+        areaStyle: { color: 'rgba(198, 40, 40, 0.15)' },
+        itemStyle: { color: '#c62828' },
+        lineStyle: { color: '#c62828' }
       }
     ]
-  }
-
-  const chartOptions = {
-    responsive: true,
-    plugins: {
-      legend: { position: 'bottom' }
-    },
-    scales: {
-      y: {
-        beginAtZero: true,
-        ticks: {
-          callback: val => `€ ${val.toLocaleString('de-DE')}`
-        }
-      }
-    }
-  }
+  };
 
   return (
-    <Box p={3}>
-      <Typography variant="h4" gutterBottom sx={{ color: '#009245', fontWeight: 'bold' }}>
+    <Box p={4}>
+      <Typography variant="h4" gutterBottom fontWeight="bold" color="primary">
         📊 Buchhaltungs-Dashboard
       </Typography>
 
-      {/* Chart ganz oben */}
-      <Grid container spacing={3} mb={2}>
-        <Grid item xs={12}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Finanzverlauf (Monatlich)
-              </Typography>
-              <Box sx={{ height: 400 }}>
-                <Line data={chartData} options={chartOptions} />
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
+      <Box my={4}>
+        <Paper elevation={3} sx={{ p: 2, borderRadius: 3 }}>
+          <ReactECharts option={chartOption} style={{ height: 400, width: '100%' }} />
+        </Paper>
+      </Box>
 
-      {/* Statistikkarten darunter */}
       <Grid container spacing={3}>
         <Grid item xs={12} md={4}>
           <Card sx={{ borderTop: '5px solid #2e7d32' }}>
@@ -120,7 +122,7 @@ const Dashboard = () => {
         </Grid>
       </Grid>
     </Box>
-  )
-}
+  );
+};
 
-export default Dashboard
+export default Dashboard;

@@ -10,7 +10,7 @@ import FavoriteIcon from '@mui/icons-material/Favorite';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import ClearIcon from '@mui/icons-material/Clear';
 import { FixedSizeList as VirtualList } from 'react-window';
-import { DateRangePicker } from '@mui/x-date-pickers-pro/DateRangePicker';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import Popover from '@mui/material/Popover';
@@ -32,7 +32,8 @@ const ProtectSensorPage = () => {
   const [expanded, setExpanded] = useState(null);
   const [history, setHistory] = useState({});
   const [timeRange, setTimeRange] = useState(1);
-  const [dateRange, setDateRange] = useState([null, null]);
+  const [startDate, setStartDate] = useState(null);
+  const [endDate, setEndDate] = useState(null);
   const [calendarAnchorEl, setCalendarAnchorEl] = useState(null);
   const [loading, setLoading] = useState(true);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -68,10 +69,7 @@ const ProtectSensorPage = () => {
       setLastUpdated(new Date());
       setLastHeartbeat(new Date());
       setLoading(false);
-      if (expanded) {
-        const expandedSensor = sensorArray.find(s => s.id === expanded);
-        if (expandedSensor) fetchHistory(expanded);
-      }
+      sensorArray.forEach(sensor => fetchHistory(sensor.id));
       return sensorArray;
     } catch (error) {
       console.error('Fehler beim Abrufen der Sensordaten:', error);
@@ -80,22 +78,17 @@ const ProtectSensorPage = () => {
       setLoading(false);
       return [];
     }
-  }, [expanded, getUniqueUrl, sensors]);
+  }, [getUniqueUrl]);
 
   const fetchHistory = useCallback(async (sensorId) => {
     if (!sensorId) return;
     try {
-      const cacheKey = `${sensorId}_${timeRange}`;
-      const now = Date.now();
-      const lastFetchTime = requestCacheRef.current[cacheKey] || 0;
-      if (now - lastFetchTime < 5000) return;
-      requestCacheRef.current[cacheKey] = now;
       setHistoryLoading(true);
 
       let url;
-      if (dateRange[0] && dateRange[1]) {
-        const start = dayjs(dateRange[0]).toISOString();
-        const end = dayjs(dateRange[1]).toISOString();
+      if (startDate && endDate) {
+        const start = dayjs(startDate).toISOString();
+        const end = dayjs(endDate).toISOString();
         url = getUniqueUrl(`/api/unifi_protect/sensors/${sensorId}/history/?start=${start}&end=${end}`);
       } else {
         url = getUniqueUrl(`/api/unifi_protect/sensors/${sensorId}/history/?days=${timeRange}`);
@@ -120,22 +113,26 @@ const ProtectSensorPage = () => {
       setShowError(true);
       setHistoryLoading(false);
     }
-  }, [timeRange, dateRange, getUniqueUrl]);
+  }, [timeRange, startDate, endDate, getUniqueUrl]);
 
   useEffect(() => {
     fetchSensors();
   }, [fetchSensors]);
 
+  useEffect(() => {
+    if (expanded) fetchHistory(expanded);
+  }, [timeRange, startDate, endDate]);
+
   const handleExpand = useCallback((sensorId) => {
     setExpanded(prevExpanded => {
       const newExpanded = prevExpanded === sensorId ? null : sensorId;
-      if (newExpanded) fetchHistory(sensorId);
       return newExpanded;
     });
-  }, [fetchHistory]);
+  }, []);
 
   const handleClearDateRange = () => {
-    setDateRange([null, null]);
+    setStartDate(null);
+    setEndDate(null);
   };
 
   const renderedSensors = useMemo(() => {
@@ -215,20 +212,20 @@ const ProtectSensorPage = () => {
               onClose={() => setCalendarAnchorEl(null)}
               anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
             >
-              <Box p={2}>
-                <DateRangePicker
-                  value={dateRange}
-                  onChange={setDateRange}
-                  localeText={{ start: 'Von', end: 'Bis' }}
-                  calendars={2}
-                  slotProps={{
-                    field: {
-                      clearable: true,
-                      onClear: handleClearDateRange,
-                    },
-                  }}
-                  enableAccessibleFieldDOMStructure={false}
+              <Box p={2} display="flex" flexDirection="column" gap={2}>
+                <DatePicker
+                  label="Von"
+                  value={startDate}
+                  onChange={setStartDate}
+                  slotProps={{ textField: { size: 'small' } }}
                 />
+                <DatePicker
+                  label="Bis"
+                  value={endDate}
+                  onChange={setEndDate}
+                  slotProps={{ textField: { size: 'small' } }}
+                />
+                <Button startIcon={<ClearIcon />} onClick={handleClearDateRange}>Zurücksetzen</Button>
               </Box>
             </Popover>
           </Box>
