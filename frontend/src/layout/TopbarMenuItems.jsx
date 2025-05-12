@@ -4,7 +4,6 @@ import React from 'react';
 import GroupsIcon from '@mui/icons-material/Groups';
 import TimelineIcon from '@mui/icons-material/Timeline';
 import PaymentsIcon from '@mui/icons-material/Payments';
-import MeetingRoomIcon from '@mui/icons-material/MeetingRoom';
 import VpnKeyIcon from '@mui/icons-material/VpnKey';
 import GrassIcon from '@mui/icons-material/Grass';
 import LocalFloristIcon from '@mui/icons-material/LocalFlorist';
@@ -26,6 +25,9 @@ import QrCode2Icon from '@mui/icons-material/QrCode2';
 import DescriptionIcon from '@mui/icons-material/Description';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
+import MonitorHeartIcon from '@mui/icons-material/MonitorHeart'; // Neues Icon für Grow Control
+import OpacityIcon from '@mui/icons-material/Opacity'; // Für Bewässerung
+import WbSunnyIcon from '@mui/icons-material/WbSunny'; // Für Lichtsteuerung
 
 // Definierte Menüstruktur mit allen Hauptmenüs und Untermenüs
 const TopbarMenuItems = [
@@ -215,14 +217,32 @@ const TopbarMenuItems = [
     ]
   },
   {
-    id: 'showRooms',
-    label: 'Raumverwaltung', 
-    icon: <MeetingRoomIcon />,
+    id: 'showGrowControl',
+    label: 'Grow Control', 
+    icon: <MonitorHeartIcon />,
     children: [
+      { 
+        label: 'Grow Controller', 
+        path: '/controllers', 
+        icon: <DashboardIcon />,
+        subtitle: 'Zentrale Steuerungsübersicht'
+      },
+      { 
+        label: 'Bewässerungssteuerung', 
+        path: '/controllers/irrigation', 
+        icon: <OpacityIcon />,
+        subtitle: 'Kontrolle der Wasserzufuhr und Bewässerungszyklen'
+      },
+      { 
+        label: 'Lichtsteuerung', 
+        path: '/controllers/lighting', 
+        icon: <WbSunnyIcon />,
+        subtitle: 'Management der Beleuchtungszyklen und -intensität'
+      },
       { 
         label: 'Raumliste', 
         path: '/rooms', 
-        icon: <MeetingRoomIcon />,
+        icon: <CategoryIcon />,
         subtitle: 'Übersicht aller verfügbaren Räume'
       },
       { 

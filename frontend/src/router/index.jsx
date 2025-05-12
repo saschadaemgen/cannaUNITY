@@ -16,11 +16,9 @@ import RoomItemTypeList from '@/apps/rooms/pages/RoomItemTypeList'
 import RoomItemTypeCreate from '@/apps/rooms/pages/RoomItemTypeCreate'
 import RoomItemTypeEdit from '@/apps/rooms/pages/RoomItemTypeEdit'
 import RoomDesignerPage from '@/apps/rooms/pages/RoomDesignerPage'
-
 import Login from '@/pages/Login'
 import Dashboard from '@/apps/unifi_access/pages/Dashboard'
 import OptionsDashboard from '@/apps/options/pages/OptionsDashboard'
-
 import BuchhaltungDashboard from '@/apps/buchhaltung/pages/Dashboard'
 import AccountList from '@/apps/buchhaltung/pages/AccountList'
 import AccountForm from '@/apps/buchhaltung/pages/AccountForm'
@@ -45,6 +43,12 @@ import LabTestingPage from '@/apps/trackandtrace/pages/LabTesting/LabTestingPage
 import PackagingPage from '@/apps/trackandtrace/pages/Packaging/PackagingPage'
 import ProtectSensorPage from '@/apps/unifi_protect/pages/ProtectSensorPage'
 import StrainPage from '@/apps/wawi/pages/Strain/StrainPage'
+import ControllerDashboard from '@/apps/controller/pages/Dashboard';
+import IrrigationControllerPage from '@/apps/controller/pages/Irrigation/IrrigationControllerPage';
+import LightControllerPage from '@/apps/controller/pages/Light/LightControllerPage';
+import MonitoringPage from '@/apps/controller/pages/Monitoring/MonitoringPage';
+import ControllerLogsPage from '@/apps/controller/pages/Logs/ControllerLogsPage';
+import MQTTTerminalPage from '@/apps/controller/pages/MQTTTerminal/MQTTTerminalPage';
 
 export const router = createBrowserRouter([
   {
@@ -107,6 +111,14 @@ export const router = createBrowserRouter([
 
       // WAWI - Cannabis-Sortenverwaltung
       { path: 'wawi/strains', element: <StrainPage /> },
+
+      { path: 'controllers', element: <ControllerDashboard /> },
+      { path: 'controllers/dashboard', element: <ControllerDashboard /> },
+      { path: 'controllers/irrigation', element: <IrrigationControllerPage /> },
+      { path: 'controllers/lighting', element: <LightControllerPage /> },
+      { path: 'controllers/monitoring', element: <MonitoringPage /> },
+      { path: 'controllers/logs', element: <ControllerLogsPage /> },
+      { path: 'controllers/mqtt', element: <MQTTTerminalPage /> },
 
       // Sicherheit
       { path: 'unifi-protect/sensoren', element: <ProtectSensorPage /> },

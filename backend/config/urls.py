@@ -58,6 +58,10 @@ urlpatterns = [
     # 🔑 WaWi
     path('wawi/', include('wawi.api_urls')),
     path('api/wawi/', include('wawi.api_urls')),
+
+    # 🌱 Grow Controller
+    path('controller/', include('controller.urls')),           # Für Port 8000 (Build Mode)
+    path('api/controller/', include('controller.api_urls')),   # Für Vite (Dev Mode)
 ]
 
 # 🔁 Fallback für alle nicht-API-URLs → React SPA laden
