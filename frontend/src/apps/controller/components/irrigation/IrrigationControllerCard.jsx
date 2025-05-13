@@ -8,6 +8,7 @@ import OpacityIcon from '@mui/icons-material/Opacity';
 import StopIcon from '@mui/icons-material/Stop';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
 import RoomIcon from '@mui/icons-material/Room';
@@ -21,13 +22,15 @@ import RoomIcon from '@mui/icons-material/Room';
  * @param {Function} props.onSelect - Callback bei Auswahl
  * @param {Function} props.onEmergencyStop - Callback für Notfall-Stopp
  * @param {Function} props.onEdit - Callback für Bearbeitung
+ * @param {Function} props.onDelete - Callback für Löschung
  */
 export default function IrrigationControllerCard({ 
   controller, 
   selected, 
   onSelect, 
   onEmergencyStop,
-  onEdit
+  onEdit,
+  onDelete
 }) {
   const theme = useTheme();
   
@@ -195,6 +198,20 @@ export default function IrrigationControllerCard({
             sx={{ mr: 1 }}
           >
             <EditIcon fontSize="small" />
+          </IconButton>
+        )}
+        
+        {onDelete && (
+          <IconButton 
+            size="small" 
+            color="error"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(controller);
+            }}
+            sx={{ mr: 1 }}
+          >
+            <DeleteIcon fontSize="small" />
           </IconButton>
         )}
         

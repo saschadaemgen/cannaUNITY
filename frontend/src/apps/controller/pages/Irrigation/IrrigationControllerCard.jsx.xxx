@@ -8,16 +8,29 @@ import OpacityIcon from '@mui/icons-material/Opacity';
 import StopIcon from '@mui/icons-material/Stop';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
 import RoomIcon from '@mui/icons-material/Room';
 
+/**
+ * Karte zur Darstellung eines Bewässerungscontrollers
+ * 
+ * @param {Object} props
+ * @param {Object} props.controller - Controller-Datensatz
+ * @param {boolean} props.selected - Ausgewählt-Status
+ * @param {Function} props.onSelect - Callback bei Auswahl
+ * @param {Function} props.onEmergencyStop - Callback für Notfall-Stopp
+ * @param {Function} props.onEdit - Callback für Bearbeitung
+ * @param {Function} props.onDelete - Callback für Löschung
+ */
 export default function IrrigationControllerCard({ 
   controller, 
   selected, 
   onSelect, 
   onEmergencyStop,
-  onEdit
+  onEdit,
+  onDelete
 }) {
   const theme = useTheme();
   
@@ -160,7 +173,7 @@ export default function IrrigationControllerCard({
           Gesamtverbrauch
         </Typography>
         <Typography variant="caption" fontWeight="medium">
-          {controller.total_volume_used.toFixed(1)} l
+          {parseFloat(controller.total_volume_used || 0).toFixed(1)} l
         </Typography>
       </Box>
       
@@ -185,6 +198,20 @@ export default function IrrigationControllerCard({
             sx={{ mr: 1 }}
           >
             <EditIcon fontSize="small" />
+          </IconButton>
+        )}
+        
+        {onDelete && (
+          <IconButton 
+            size="small" 
+            color="error"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(controller);
+            }}
+            sx={{ mr: 1 }}
+          >
+            <DeleteIcon fontSize="small" />
           </IconButton>
         )}
         

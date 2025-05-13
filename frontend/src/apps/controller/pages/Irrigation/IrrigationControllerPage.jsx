@@ -49,6 +49,10 @@ export default function IrrigationControllerPage() {
     room: 'all',
     type: 'all'
   });
+  // Neue Zustandsvariablen für Bearbeiten und Löschen
+  const [editingController, setEditingController] = useState(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [controllerToDelete, setControllerToDelete] = useState(null);
   
   // Daten laden
   const loadData = useCallback(async () => {
@@ -108,8 +112,42 @@ export default function IrrigationControllerPage() {
   
   // Formular für neuen Controller öffnen
   const handleOpenControllerForm = () => {
+    setEditingController(null); // Sicherstellen, dass wir keinen Controller editieren
     setOpenControllerForm(true);
     handleMenuClose();
+  };
+  
+  // Formular für Controller-Bearbeitung öffnen
+  const handleEditController = (controller) => {
+    setEditingController(controller);
+    setOpenControllerForm(true);
+  };
+  
+  // Controller-Löschung initiieren
+  const handleDeleteController = (controller) => {
+    setControllerToDelete(controller);
+    setDeleteConfirmOpen(true);
+  };
+  
+  // Controller-Löschung bestätigen und durchführen
+  const confirmDeleteController = async () => {
+    if (!controllerToDelete) return;
+    
+    try {
+      await api.delete(`/controller/irrigation/${controllerToDelete.id}/`);
+      // Nach erfolgreichem Löschen Daten neu laden
+      loadData();
+      // Dialog schließen
+      setDeleteConfirmOpen(false);
+      setControllerToDelete(null);
+      // Wenn der gelöschte Controller der aktuell ausgewählte war, Auswahl zurücksetzen
+      if (selectedControllerId === controllerToDelete.id) {
+        setSelectedControllerId(null);
+      }
+    } catch (error) {
+      console.error('Fehler beim Löschen des Controllers:', error);
+      // Hier könnte man eine Fehlermeldung anzeigen
+    }
   };
   
   // Formular für neuen Zeitplan öffnen
@@ -396,6 +434,8 @@ export default function IrrigationControllerPage() {
                         selected={controller.id === selectedControllerId}
                         onSelect={() => handleControllerSelect(controller.id)}
                         onEmergencyStop={() => handleEmergencyStop(controller.id, controller.emergency_stop)}
+                        onEdit={() => handleEditController(controller)}
+                        onDelete={() => handleDeleteController(controller)}
                       />
                     ))}
                   </Box>
@@ -818,12 +858,16 @@ export default function IrrigationControllerPage() {
       {openControllerForm && (
         <IrrigationForm 
           open={openControllerForm}
-          onClose={() => setOpenControllerForm(false)}
+          onClose={() => {
+            setOpenControllerForm(false);
+            setEditingController(null);
+          }}
           onSuccess={() => {
             setOpenControllerForm(false);
+            setEditingController(null);
             loadData();
           }}
-          editController={null}
+          editController={editingController}
         />
       )}
       
@@ -839,6 +883,27 @@ export default function IrrigationControllerPage() {
           editSchedule={null}
         />
       )}
+      
+      {/* Dialog für Löschbestätigung */}
+      <Dialog open={deleteConfirmOpen} onClose={() => setDeleteConfirmOpen(false)}>
+        <DialogTitle>Controller löschen</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Sind Sie sicher, dass Sie den Controller "{controllerToDelete?.name}" löschen möchten?
+            Diese Aktion kann nicht rückgängig gemacht werden.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteConfirmOpen(false)}>Abbrechen</Button>
+          <Button 
+            onClick={confirmDeleteController} 
+            color="error" 
+            variant="contained"
+          >
+            Löschen
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 }
