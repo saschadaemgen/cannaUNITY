@@ -45,6 +45,61 @@ const TopbarMenuItems = [
     ]
   },
   {
+    id: 'showGrowControl',
+    label: 'Grow Control', 
+    icon: <MonitorHeartIcon />,
+    children: [
+      { 
+        label: 'Grow Controller', 
+        path: '/controllers', 
+        icon: <DashboardIcon />,
+        subtitle: 'Zentrale Steuerungsübersicht'
+      },
+      { 
+        label: 'Bewässerungssteuerung', 
+        path: '/controllers/irrigation', 
+        icon: <OpacityIcon />,
+        subtitle: 'Kontrolle der Wasserzufuhr und Bewässerungszyklen'
+      },
+      { 
+        label: 'Lichtsteuerung', 
+        path: '/controllers/lighting', 
+        icon: <WbSunnyIcon />,
+        subtitle: 'Management der Beleuchtungszyklen und -intensität'
+      },
+      { 
+        label: 'Raumliste', 
+        path: '/rooms', 
+        icon: <CategoryIcon />,
+        subtitle: 'Übersicht aller verfügbaren Räume'
+      },
+      { 
+        label: 'Neuer Raum', 
+        path: '/rooms/new', 
+        icon: <AddIcon />,
+        subtitle: 'Erstellung eines neuen Raumes'
+      },
+      { 
+        label: 'Elemente-Bibliothek', 
+        path: '/rooms/item-types', 
+        icon: <CategoryIcon />,
+        subtitle: 'Verwaltung der Raumelemente'
+      },
+      { 
+        label: 'Neuer Elementtyp', 
+        path: '/rooms/item-types/new', 
+        icon: <AddIcon />,
+        subtitle: 'Hinzufügen neuer Elementtypen'
+      },
+      { 
+        label: 'Raumdesigner', 
+        path: '/rooms', 
+        icon: <DashboardCustomizeIcon />, 
+        subtitle: 'Wähle zuerst einen Raum aus der Liste' 
+      }
+    ]
+  },
+  {
     id: 'showTrackTrace', 
     label: 'Track & Trace', 
     icon: <TimelineIcon />, 
@@ -143,6 +198,25 @@ const TopbarMenuItems = [
     ]
   },
   {
+    id: 'showSecurity', 
+    label: 'Sicherheit', 
+    icon: <VpnKeyIcon />,
+    children: [
+      { 
+        label: 'Zugangskontrolle', 
+        path: '/unifi-access/dashboard', 
+        icon: <SecurityIcon />,
+        subtitle: 'Zugriffsverwaltung und Protokollierung'
+      },
+      { 
+        label: 'Sensoren', 
+        path: '/unifi-protect/sensoren', 
+        icon: <SensorsIcon />,
+        subtitle: 'Sensorüberwachung und Statusberichte'
+      }
+    ]
+  },
+  {
     id: 'showWawi',
     label: 'WaWi', 
     icon: <StorefrontIcon />, 
@@ -213,80 +287,6 @@ const TopbarMenuItems = [
         path: '/buchhaltung/jahresabschluss', 
         icon: <TimelineIcon />,
         subtitle: 'Erstellung des Jahresabschlusses'
-      }
-    ]
-  },
-  {
-    id: 'showGrowControl',
-    label: 'Grow Control', 
-    icon: <MonitorHeartIcon />,
-    children: [
-      { 
-        label: 'Grow Controller', 
-        path: '/controllers', 
-        icon: <DashboardIcon />,
-        subtitle: 'Zentrale Steuerungsübersicht'
-      },
-      { 
-        label: 'Bewässerungssteuerung', 
-        path: '/controllers/irrigation', 
-        icon: <OpacityIcon />,
-        subtitle: 'Kontrolle der Wasserzufuhr und Bewässerungszyklen'
-      },
-      { 
-        label: 'Lichtsteuerung', 
-        path: '/controllers/lighting', 
-        icon: <WbSunnyIcon />,
-        subtitle: 'Management der Beleuchtungszyklen und -intensität'
-      },
-      { 
-        label: 'Raumliste', 
-        path: '/rooms', 
-        icon: <CategoryIcon />,
-        subtitle: 'Übersicht aller verfügbaren Räume'
-      },
-      { 
-        label: 'Neuer Raum', 
-        path: '/rooms/new', 
-        icon: <AddIcon />,
-        subtitle: 'Erstellung eines neuen Raumes'
-      },
-      { 
-        label: 'Elemente-Bibliothek', 
-        path: '/rooms/item-types', 
-        icon: <CategoryIcon />,
-        subtitle: 'Verwaltung der Raumelemente'
-      },
-      { 
-        label: 'Neuer Elementtyp', 
-        path: '/rooms/item-types/new', 
-        icon: <AddIcon />,
-        subtitle: 'Hinzufügen neuer Elementtypen'
-      },
-      { 
-        label: 'Raumdesigner', 
-        path: '/rooms', 
-        icon: <DashboardCustomizeIcon />, 
-        subtitle: 'Wähle zuerst einen Raum aus der Liste' 
-      }
-    ]
-  },
-  {
-    id: 'showSecurity', 
-    label: 'Sicherheit', 
-    icon: <VpnKeyIcon />,
-    children: [
-      { 
-        label: 'Zugangskontrolle', 
-        path: '/unifi-access/dashboard', 
-        icon: <SecurityIcon />,
-        subtitle: 'Zugriffsverwaltung und Protokollierung'
-      },
-      { 
-        label: 'Sensoren', 
-        path: '/unifi-protect/sensoren', 
-        icon: <SensorsIcon />,
-        subtitle: 'Sensorüberwachung und Statusberichte'
       }
     ]
   }
