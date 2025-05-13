@@ -170,7 +170,7 @@ export default function IrrigationControllerCard({
           Gesamtverbrauch
         </Typography>
         <Typography variant="caption" fontWeight="medium">
-          {controller.total_volume_used?.toFixed(1) || "0.0"} l
+          {parseFloat(controller.total_volume_used || 0).toFixed(1)} l
         </Typography>
       </Box>
       

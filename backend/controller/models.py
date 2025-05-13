@@ -163,6 +163,7 @@ class IrrigationController(BaseController):
         """Ermittelt den aktuellen/nächsten Zeitplan"""
         now = timezone.now()
         current_day = now.weekday()  # 0-6 (Montag bis Sonntag)
+        next_schedule = None 
         
         # Abhängig vom Schedule-Typ unterschiedliche Abfragen
         if self.schedule_type == 'daily':

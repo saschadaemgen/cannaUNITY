@@ -5,13 +5,14 @@ import {
   TextField, Button, FormControl, InputLabel, Select,
   MenuItem, FormControlLabel, Switch, Typography, Box,
   InputAdornment, CircularProgress, Alert, Divider,
-  Grid, useTheme, alpha
+  Grid, useTheme, alpha, Avatar
 } from '@mui/material';
 import OpacityIcon from '@mui/icons-material/Opacity';
 import DeviceThermostatIcon from '@mui/icons-material/DeviceThermostat';
 import WaterDropIcon from '@mui/icons-material/WaterDrop';
 import SettingsIcon from '@mui/icons-material/Settings';
 import PlaceIcon from '@mui/icons-material/Place';
+import PersonIcon from '@mui/icons-material/Person';
 import api from '@/utils/api';
 
 /**
@@ -34,6 +35,7 @@ export default function IrrigationForm({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [rooms, setRooms] = useState([]);
+  const [members, setMembers] = useState([]);
   
   // Formularstatus initialisieren
   const [formData, setFormData] = useState({
@@ -41,6 +43,7 @@ export default function IrrigationForm({
     description: '',
     is_active: true,
     room_id: '',
+    created_by_id: '',
     pump_type: 'drip',
     water_source: '',
     flow_rate: 1.0,
@@ -49,19 +52,24 @@ export default function IrrigationForm({
     sensor_feedback_enabled: false
   });
   
-  // Verfügbare Räume laden
+  // Verfügbare Räume und Members laden
   useEffect(() => {
-    const fetchRooms = async () => {
+    const fetchData = async () => {
       try {
-        const res = await api.get('/api/rooms/');
-        setRooms(res.data.results || []);
+        // Räume laden
+        const roomsRes = await api.get('/rooms/');
+        setRooms(roomsRes.data.results || []);
+        
+        // Members laden
+        const membersRes = await api.get('/members/');
+        setMembers(membersRes.data.results || []);
       } catch (error) {
-        console.error('Fehler beim Laden der Räume:', error);
-        setError('Räume konnten nicht geladen werden.');
+        console.error('Fehler beim Laden der Daten:', error);
+        setError('Daten konnten nicht geladen werden.');
       }
     };
     
-    fetchRooms();
+    fetchData();
   }, []);
   
   // Wenn ein Controller zum Bearbeiten übergeben wird, Formulardaten setzen
@@ -72,6 +80,7 @@ export default function IrrigationForm({
         description: editController.description || '',
         is_active: editController.is_active ?? true,
         room_id: editController.room?.id || '',
+        created_by_id: editController.created_by?.id || '',
         pump_type: editController.pump_type || 'drip',
         water_source: editController.water_source || '',
         flow_rate: editController.flow_rate || 1.0,
@@ -86,6 +95,7 @@ export default function IrrigationForm({
         description: '',
         is_active: true,
         room_id: '',
+        created_by_id: '',
         pump_type: 'drip',
         water_source: '',
         flow_rate: 1.0,
@@ -136,9 +146,9 @@ export default function IrrigationForm({
       // API-Call zum Erstellen oder Aktualisieren
       let response;
       if (isEditMode) {
-        response = await api.patch(`/api/controller/irrigation/${editController.id}/`, apiData);
+        response = await api.patch(`/controller/irrigation/${editController.id}/`, apiData);
       } else {
-        response = await api.post('/api/controller/irrigation/', apiData);
+        response = await api.post('/controller/irrigation/', apiData);
       }
       
       // Erfolg signalisieren und Dialog schließen
@@ -218,16 +228,53 @@ export default function IrrigationForm({
             </FormControl>
           </Grid>
           
-          <Grid item xs={12}>
-            <TextField
-              name="description"
-              label="Beschreibung"
-              value={formData.description}
-              onChange={handleChange}
-              fullWidth
-              multiline
-              rows={2}
-            />
+          <Grid item xs={12} md={6}>
+            <FormControl fullWidth>
+              <InputLabel>Verantwortliches Mitglied</InputLabel>
+              <Select
+                name="created_by_id"
+                value={formData.created_by_id}
+                onChange={handleChange}
+                label="Verantwortliches Mitglied"
+                startAdornment={
+                  formData.created_by_id ? (
+                    <Avatar
+                      sx={{ 
+                        width: 24, 
+                        height: 24, 
+                        mr: 1,
+                        fontSize: '0.75rem',
+                        bgcolor: theme.palette.primary.main
+                      }}
+                    >
+                      {members.find(m => m.id === formData.created_by_id)?.first_name?.charAt(0) || '?'}
+                    </Avatar>
+                  ) : null
+                }
+              >
+                <MenuItem value="">
+                  <em>Kein verantwortliches Mitglied</em>
+                </MenuItem>
+                {members.map(member => (
+                  <MenuItem key={member.id} value={member.id}>
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <Avatar 
+                        sx={{ 
+                          width: 24, 
+                          height: 24, 
+                          mr: 1,
+                          fontSize: '0.75rem',
+                          bgcolor: theme.palette.primary.main
+                        }}
+                      >
+                        {member.first_name?.charAt(0) || '?'}
+                      </Avatar>
+                      {member.first_name} {member.last_name}
+                    </Box>
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
           </Grid>
           
           <Grid item xs={12} md={6}>
@@ -241,6 +288,18 @@ export default function IrrigationForm({
                 />
               }
               label="Controller aktiv"
+            />
+          </Grid>
+          
+          <Grid item xs={12}>
+            <TextField
+              name="description"
+              label="Beschreibung"
+              value={formData.description}
+              onChange={handleChange}
+              fullWidth
+              multiline
+              rows={2}
             />
           </Grid>
           

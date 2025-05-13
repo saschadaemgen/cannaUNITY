@@ -32,27 +32,27 @@ export default function Dashboard() {
       setLoading(true);
       try {
         // Bewässerungsstatistiken abrufen
-        const irrigationRes = await api.get('/api/controller/irrigation/dashboard_data/');
+        const irrigationRes = await api.get('/controller/irrigation/dashboard_data/');
         setIrrigationStats(irrigationRes.data);
         
         // Lichtstatistiken abrufen
-        const lightRes = await api.get('/api/controller/light/dashboard_data/');
+        const lightRes = await api.get('/controller/light/dashboard_data/');
         setLightingStats(lightRes.data);
         
         // Wasserverbrauch der letzten 7 Tage
-        const waterRes = await api.get('/api/controller/resource-usage/summary/?days=7&resource_type=water');
+        const waterRes = await api.get('/controller/resource-usage/summary/?days=7&resource_type=water');
         setWaterUsage(waterRes.data?.daily_usage?.water || []);
         
         // Stromverbrauch der letzten 7 Tage
-        const energyRes = await api.get('/api/controller/resource-usage/summary/?days=7&resource_type=electricity');
+        const energyRes = await api.get('/controller/resource-usage/summary/?days=7&resource_type=electricity');
         setEnergyUsage(energyRes.data?.daily_usage?.electricity || []);
         
         // Aktuelle Alarme
-        const logsRes = await api.get('/api/controller/logs/?success=false&limit=5');
+        const logsRes = await api.get('/controller/logs/?success=false&limit=5');
         setRecentAlerts(logsRes.data.results || []);
         
         // Aktive Controller abrufen
-        const controllersRes = await api.get('/api/controller/irrigation/?is_active=true');
+        const controllersRes = await api.get('/controller/irrigation/?is_active=true');
         setActiveControllers(controllersRes.data.results || []);
         
       } catch (error) {

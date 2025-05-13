@@ -40,12 +40,25 @@ class IrrigationControllerViewSet(viewsets.ModelViewSet):
     pagination_class = StandardResultsSetPagination
     
     def perform_create(self, serializer):
-        # Benutzer als Ersteller speichern
-        serializer.save(created_by=self.request.user)
-    
+        # Wenn kein created_by_id im Request ist, versuchen wir, den User zu einem Member zuzuordnen
+        if 'created_by_id' not in self.request.data:
+            try:
+                from members.models import Member
+                member = Member.objects.get(email=self.request.user.email)
+                serializer.save(created_by=member)
+            except Member.DoesNotExist:
+                # Falls kein Member gefunden wird, ohne created_by speichern
+                serializer.save()
+        else:
+            # Wenn created_by_id im Request ist, überlassen wir die Auflösung dem Serializer
+            serializer.save()
+
     def perform_update(self, serializer):
-        # Benutzer als letzten Bearbeiter speichern
-        serializer.save(last_modified_by=self.request.user)
+        # Analog für Updates
+        if 'created_by_id' not in self.request.data:
+            serializer.save(last_modified_by=self.request.user)
+        else:
+            serializer.save()
     
     @action(detail=True, methods=['post'])
     def manual_irrigation(self, request, pk=None):
@@ -417,12 +430,10 @@ class LightControllerViewSet(viewsets.ModelViewSet):
     pagination_class = StandardResultsSetPagination
     
     def perform_create(self, serializer):
-        # Benutzer als Ersteller speichern
-        serializer.save(created_by=self.request.user)
-    
+        serializer.save()
+
     def perform_update(self, serializer):
-        # Benutzer als letzten Bearbeiter speichern
-        serializer.save(last_modified_by=self.request.user)
+        serializer.save()
     
     @action(detail=True, methods=['post'])
     def manual_light_control(self, request, pk=None):

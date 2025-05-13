@@ -55,7 +55,7 @@ export default function IrrigationControllerPage() {
     setLoading(true);
     try {
       // Controller laden
-      const res = await api.get('/api/controller/irrigation/');
+      const res = await api.get('/controller/irrigation/');
       setControllers(res.data.results || []);
       
       // Ersten Controller auswählen, wenn noch keiner ausgewählt ist
@@ -65,8 +65,8 @@ export default function IrrigationControllerPage() {
       
       // Zeitpläne für den ausgewählten Controller laden
       if (selectedControllerId) {
-        const schedulesRes = await api.get(`/api/controller/irrigation-schedules/?controller_id=${selectedControllerId}`);
-        setSchedules(schedulesRes.data || []);
+        const schedulesRes = await api.get(`/controller/irrigation-schedules/?controller_id=${selectedControllerId}`);
+        setSchedules(schedulesRes.data.results || []);
       }
     } catch (error) {
       console.error('Fehler beim Laden der Bewässerungscontroller:', error);
@@ -129,7 +129,7 @@ export default function IrrigationControllerPage() {
     if (!selectedControllerId) return;
     
     try {
-      await api.post(`/api/controller/irrigation/${selectedControllerId}/manual_irrigation/`, manualIrrigationData);
+      await api.post(`/controller/irrigation/${selectedControllerId}/manual_irrigation/`, manualIrrigationData);
       // Erfolgsmeldung anzeigen oder Daten neu laden
       loadData();
     } catch (error) {
@@ -142,7 +142,7 @@ export default function IrrigationControllerPage() {
   // Notfall-Stopp aktivieren/deaktivieren
   const handleEmergencyStop = async (controllerId, currentStatus) => {
     try {
-      await api.post(`/api/controller/irrigation/${controllerId}/emergency_stop/`, {
+      await api.post(`/controller/irrigation/${controllerId}/emergency_stop/`, {
         status: !currentStatus
       });
       // Controller-Daten neu laden
@@ -454,7 +454,7 @@ export default function IrrigationControllerPage() {
                                 
                                 <Chip 
                                   icon={<SpeedIcon fontSize="small" />} 
-                                  label={`${selectedController.flow_rate} l/min`}
+                                  label={`${parseFloat(selectedController.flow_rate || 0).toFixed(1)} l/min`}
                                   size="small"
                                   color="info"
                                   variant="outlined"
@@ -516,14 +516,14 @@ export default function IrrigationControllerPage() {
                                   
                                   <Box>
                                     <Typography variant="body2" color="text.secondary">Durchflussrate</Typography>
-                                    <Typography variant="body1">{selectedController.flow_rate} l/min</Typography>
+                                    <Typography variant="body1">{parseFloat(selectedController.flow_rate || 0).toFixed(1)} l/min</Typography>
                                   </Box>
                                   
                                   <Box>
                                     <Typography variant="body2" color="text.secondary">Max pro Tag</Typography>
                                     <Typography variant="body1">
                                       {selectedController.max_volume_per_day ? 
-                                        `${selectedController.max_volume_per_day} l` : 
+                                        `${parseFloat(selectedController.max_volume_per_day || 0).toFixed(1)} l` : 
                                         "Unbegrenzt"}
                                     </Typography>
                                   </Box>
@@ -535,7 +535,7 @@ export default function IrrigationControllerPage() {
                                   
                                   <Box>
                                     <Typography variant="body2" color="text.secondary">Gesamtverbrauch</Typography>
-                                    <Typography variant="body1">{selectedController.total_volume_used.toFixed(1)} l</Typography>
+                                    <Typography variant="body1">{parseFloat(selectedController.total_volume_used || 0).toFixed(1)} l</Typography>
                                   </Box>
                                   
                                   <Box>
@@ -619,7 +619,7 @@ export default function IrrigationControllerPage() {
                                             </Typography>
                                           </Box>
                                           <Chip 
-                                            label={`${schedule.duration} min, ${schedule.intensity}%`}
+                                            label={`${parseFloat(schedule.duration || 0)} min, ${parseFloat(schedule.intensity || 0)}%`}
                                             size="small"
                                             variant="outlined"
                                             color={schedule.is_active ? "primary" : "default"}
@@ -797,7 +797,7 @@ export default function IrrigationControllerPage() {
             <Box sx={{ mt: 3, p: 2, bgcolor: alpha(theme.palette.primary.main, 0.05), borderRadius: 1 }}>
               <Typography variant="subtitle2" gutterBottom>Zusammenfassung</Typography>
               <Typography variant="body2">
-                {selectedController && `${manualIrrigationData.duration} Minuten mit ${manualIrrigationData.intensity}% Intensität entspricht etwa ${((selectedController.flow_rate * manualIrrigationData.duration * manualIrrigationData.intensity) / 100).toFixed(1)} Liter Wasser.`}
+                {selectedController && `${manualIrrigationData.duration} Minuten mit ${manualIrrigationData.intensity}% Intensität entspricht etwa ${((parseFloat(selectedController.flow_rate || 0) * manualIrrigationData.duration * manualIrrigationData.intensity) / 100).toFixed(1)} Liter Wasser.`}
               </Typography>
             </Box>
           </Box>

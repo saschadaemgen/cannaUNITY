@@ -54,7 +54,7 @@ export default function ScheduleForm({
       
       try {
         // Controller-Details laden
-        const controllerRes = await api.get(`/api/controller/irrigation/${controllerId}/`);
+        const controllerRes = await api.get(`/controller/irrigation/${controllerId}/`);
         setController(controllerRes.data);
         
         // Formularwerte setzen, wenn ein Zeitplan bearbeitet wird
@@ -149,10 +149,10 @@ export default function ScheduleForm({
       
       if (editSchedule) {
         // Zeitplan aktualisieren
-        response = await api.put(`/api/controller/irrigation-schedules/${editSchedule.id}/`, submitData);
+        response = await api.put(`/controller/irrigation-schedules/${editSchedule.id}/`, submitData);
       } else {
         // Neuen Zeitplan erstellen
-        response = await api.post(`/api/controller/irrigation-schedules/?controller_id=${controllerId}`, submitData);
+        response = await api.post(`/controller/irrigation-schedules/?controller_id=${controllerId}`, submitData);
       }
       
       // Erfolg-Callback aufrufen

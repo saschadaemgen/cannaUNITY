@@ -64,16 +64,16 @@ export default function MonitoringPage() {
       const endDate = format(dateRange.end, 'yyyy-MM-dd');
       
       // Wasserverbrauch
-      const waterRes = await api.get(`/api/controller/resource-usage/summary/?resource_type=water&start_date=${startDate}&end_date=${endDate}`);
+      const waterRes = await api.get(`/controller/resource-usage/summary/?resource_type=water&start_date=${startDate}&end_date=${endDate}`);
       
       // Stromverbrauch
-      const electricityRes = await api.get(`/api/controller/resource-usage/summary/?resource_type=electricity&start_date=${startDate}&end_date=${endDate}`);
+      const electricityRes = await api.get(`/controller/resource-usage/summary/?resource_type=electricity&start_date=${startDate}&end_date=${endDate}`);
       
       // Nährstoffverbrauch
-      const nutrientRes = await api.get(`/api/controller/resource-usage/summary/?resource_type=nutrient&start_date=${startDate}&end_date=${endDate}`);
+      const nutrientRes = await api.get(`/controller/resource-usage/summary/?resource_type=nutrient&start_date=${startDate}&end_date=${endDate}`);
       
       // CO2-Verbrauch
-      const co2Res = await api.get(`/api/controller/resource-usage/summary/?resource_type=co2&start_date=${startDate}&end_date=${endDate}`);
+      const co2Res = await api.get(`/controller/resource-usage/summary/?resource_type=co2&start_date=${startDate}&end_date=${endDate}`);
       
       // Daten zusammenführen
       setResourceData({
@@ -84,8 +84,8 @@ export default function MonitoringPage() {
       });
       
       // Controller-Informationen laden
-      const irrigationRes = await api.get('/api/controller/irrigation/');
-      const lightRes = await api.get('/api/controller/light/');
+      const irrigationRes = await api.get('/controller/irrigation/');
+      const lightRes = await api.get('/controller/light/');
       
       setControllers({
         irrigation: irrigationRes.data.results || [],

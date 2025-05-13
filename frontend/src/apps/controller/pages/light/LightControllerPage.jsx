@@ -61,7 +61,7 @@ export default function LightControllerPage() {
     setLoading(true);
     try {
       // Controller laden
-      const res = await api.get('/api/controller/light/');
+      const res = await api.get('/controller/light/');
       setControllers(res.data.results || []);
       
       // Ersten Controller auswählen, wenn noch keiner ausgewählt ist
@@ -71,7 +71,7 @@ export default function LightControllerPage() {
       
       // Zeitpläne für den ausgewählten Controller laden
       if (selectedControllerId) {
-        const schedulesRes = await api.get(`/api/controller/light-schedules/?controller_id=${selectedControllerId}`);
+        const schedulesRes = await api.get(`/controller/light-schedules/?controller_id=${selectedControllerId}`);
         setSchedules(schedulesRes.data || []);
       }
     } catch (error) {
@@ -135,7 +135,7 @@ export default function LightControllerPage() {
     if (!selectedControllerId) return;
     
     try {
-      await api.post(`/api/controller/light/${selectedControllerId}/manual_light_control/`, manualLightData);
+      await api.post(`/controller/light/${selectedControllerId}/manual_light_control/`, manualLightData);
       // Erfolgsmeldung anzeigen oder Daten neu laden
       loadData();
     } catch (error) {
@@ -148,7 +148,7 @@ export default function LightControllerPage() {
   // Notfall-Aus aktivieren/deaktivieren
   const handleEmergencyOff = async (controllerId, currentStatus) => {
     try {
-      await api.post(`/api/controller/light/${controllerId}/emergency_off/`, {
+      await api.post(`/controller/light/${controllerId}/emergency_off/`, {
         status: !currentStatus
       });
       // Controller-Daten neu laden
@@ -161,7 +161,7 @@ export default function LightControllerPage() {
   // Tag im Zyklus erhöhen
   const handleAdvanceCycleDay = async (controllerId) => {
     try {
-      await api.post(`/api/controller/light/${controllerId}/advance_cycle_day/`);
+      await api.post(`/controller/light/${controllerId}/advance_cycle_day/`);
       // Controller-Daten neu laden
       loadData();
     } catch (error) {

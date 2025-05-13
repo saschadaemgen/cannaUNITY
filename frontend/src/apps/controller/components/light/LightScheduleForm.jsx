@@ -73,7 +73,7 @@ export default function LightScheduleForm({
       
       try {
         // Controller-Details laden
-        const controllerRes = await api.get(`/api/controller/light/${controllerId}/`);
+        const controllerRes = await api.get(`/controller/light/${controllerId}/`);
         setController(controllerRes.data);
         
         // Wenn ein Zeitplan bearbeitet wird
@@ -86,7 +86,7 @@ export default function LightScheduleForm({
           
           // Zeitpunkte laden
           if (editSchedule.id) {
-            const pointsRes = await api.get(`/api/controller/light-schedule-points/?schedule_id=${editSchedule.id}`);
+            const pointsRes = await api.get(`/controller/light-schedule-points/?schedule_id=${editSchedule.id}`);
             setTimePoints(pointsRes.data || []);
           } else if (editSchedule.points) {
             setTimePoints(editSchedule.points);
@@ -313,10 +313,10 @@ export default function LightScheduleForm({
       
       if (editSchedule && editSchedule.id) {
         // Zeitplan aktualisieren
-        scheduleResponse = await api.put(`/api/controller/light-schedules/${editSchedule.id}/`, scheduleData);
+        scheduleResponse = await api.put(`/controller/light-schedules/${editSchedule.id}/`, scheduleData);
       } else {
         // Neuen Zeitplan erstellen
-        scheduleResponse = await api.post(`/api/controller/light-schedules/?controller_id=${controllerId}`, scheduleData);
+        scheduleResponse = await api.post(`/controller/light-schedules/?controller_id=${controllerId}`, scheduleData);
       }
       
       const scheduleId = scheduleResponse.data.id;
@@ -324,7 +324,7 @@ export default function LightScheduleForm({
       // Alle Zeitpunkte für diesen Zeitplan löschen und neu erstellen
       if (editSchedule && editSchedule.id) {
         // Bestehende Zeitpunkte löschen
-        await api.delete(`/api/controller/light-schedule-points/?schedule_id=${scheduleId}`);
+        await api.delete(`/controller/light-schedule-points/?schedule_id=${scheduleId}`);
       }
       
       // Neue Zeitpunkte erstellen
@@ -340,7 +340,7 @@ export default function LightScheduleForm({
           }))
         };
         
-        await api.post('/api/controller/light-schedule-points/bulk_create/', pointsData);
+        await api.post('/controller/light-schedule-points/bulk_create/', pointsData);
       }
       
       // Erfolg-Callback aufrufen
