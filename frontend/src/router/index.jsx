@@ -40,10 +40,8 @@ import HarvestPage from '@/apps/trackandtrace/pages/Harvest/HarvestPage'
 import DryingPage from '@/apps/trackandtrace/pages/Drying/DryingPage'
 import ProcessingPage from '@/apps/trackandtrace/pages/Processing/ProcessingPage'
 import LabTestingPage from '@/apps/trackandtrace/pages/LabTesting/LabTestingPage'
-
 import PackagingPage from '@/apps/trackandtrace/pages/Packaging/PackagingPage'
 import ProductDistributionPage from '@/apps/trackandtrace/pages/ProductDistribution/ProductDistributionPage';
-
 import ProtectSensorPage from '@/apps/unifi_protect/pages/ProtectSensorPage'
 import StrainPage from '@/apps/wawi/pages/Strain/StrainPage'
 import ControllerDashboard from '@/apps/controller/pages/Dashboard';
