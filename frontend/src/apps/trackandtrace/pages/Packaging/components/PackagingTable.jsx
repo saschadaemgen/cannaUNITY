@@ -161,9 +161,6 @@ const PackagingTable = ({
           <Box sx={{ 
             maxWidth: '100%', 
             paddingRight: '8px',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap'  
           }}>
             <Typography 
               variant="body2" 
@@ -171,11 +168,9 @@ const PackagingTable = ({
               fontSize="0.7rem" 
               sx={{ 
                 display: 'block', 
-                pt: '3px', // 3 Pixel nach unten verschieben
+                pt: '3px',
                 lineHeight: 1.2,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap'
+                wordBreak: 'break-word' // Ermöglicht Umbrüche bei längeren Chargen-Nummern
               }}
             >
               {packaging.batch_number || ''}
@@ -202,7 +197,7 @@ const PackagingTable = ({
             )}
           </Box>
         ),
-        width: '20%' // Größere Breite für vollständige Anzeige
+        width: '20%' // Die Breite beibehalten
       },
       {
         content: `${parseFloat(packaging.total_weight).toLocaleString('de-DE')}g`,
