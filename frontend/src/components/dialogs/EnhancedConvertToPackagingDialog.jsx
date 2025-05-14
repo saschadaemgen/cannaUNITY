@@ -338,7 +338,7 @@ const EnhancedConvertToPackagingDialog = ({
     
     debugLog('Gültige Verpackungen:', validPackagings);
     
-    // Berechne Gesamtgewicht
+    // Berechne Gesamtgewicht aller Verpackungen
     const calculatedTotalWeight = validPackagings.reduce((sum, line) => 
       sum + (parseFloat(line.totalWeight) || 0), 0);
     
@@ -377,44 +377,26 @@ const EnhancedConvertToPackagingDialog = ({
       return {
         unit_count: unitCount,
         unit_weight: unitSize,
-        total_weight: totalWeight,
-        member_id: memberId,
-        room_id: roomId,
-        notes: `${notes} Einheitsgröße: ${unitSize}g`
+        total_weight: totalWeight
       };
     });
     
-    // Erstelle das Gesamtobjekt für die API
+    // Erstelle das Gesamtobjekt für die API - WICHTIG: Verwende immer die packagings-Property
     const formData = {
       packagings: packagingRequests,
       remaining_weight: parseFloat(remainingWeight) || 0,
       auto_destroy_remainder: true,
       member_id: memberId,
       room_id: roomId,
-      notes: notes
+      notes: notes,
+      // WICHTIG: Füge zusätzlich Gesamtgewicht für ältere API-Versionen hinzu
+      total_weight: calculatedTotalWeight
     };
     
     debugLog('API-Anfragedaten:', formData);
     
-    // Fallback für ältere API: Ein einzelnes Packaging-Objekt, wenn die API keine Arrays unterstützt
-    if (validPackagings.length === 1) {
-      const singlePackaging = packagingRequests[0];
-      // Erweitere formData um die Felder des einzelnen Packaging
-      const fallbackData = {
-        ...formData,
-        total_weight: singlePackaging.total_weight,
-        unit_count: singlePackaging.unit_count,
-        unit_weight: singlePackaging.unit_weight
-      };
-      
-      debugLog('Fallback-Daten für ältere API:', fallbackData);
-      
-      // API-Aufruf mit Callback
-      onConvert(fallbackData);
-    } else {
-      // API-Aufruf mit Callback
-      onConvert(formData);
-    }
+    // API-Aufruf mit Callback
+    onConvert(formData);
   };
 
   return (

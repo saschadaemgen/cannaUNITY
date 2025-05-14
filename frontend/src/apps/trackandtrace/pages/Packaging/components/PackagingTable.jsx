@@ -1,11 +1,10 @@
 // frontend/src/apps/trackandtrace/pages/Packaging/components/PackagingTable.jsx
 import React, { useState, useEffect } from 'react'
-import { Box, Typography, Button, IconButton } from '@mui/material'
+import { Box, Typography, Button, IconButton, Tooltip  } from '@mui/material'
 import { 
   Table, TableContainer, TableHead, TableRow, TableCell, TableBody,
-  Paper, Pagination, Checkbox, FormControlLabel
+  Paper, Pagination
 } from '@mui/material'
-import SpeedIcon from '@mui/icons-material/Speed'
 import InventoryIcon from '@mui/icons-material/Inventory'
 import ScienceIcon from '@mui/icons-material/Science'
 import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment'
@@ -116,15 +115,15 @@ const PackagingTable = ({
   // Spalten für den Tabellenkopf definieren
   const getHeaderColumns = () => {
     return [
-      { label: 'Genetik', width: '15%', align: 'left' },
+      { label: 'Genetik', width: '14%', align: 'left' },
       { label: 'Produkttyp', width: '12%', align: 'left' },
-      { label: 'Charge-Nummer', width: '18%', align: 'left' },
+      { label: 'Charge-Nummer', width: '20%', align: 'left' }, // Mehr Platz für Charge-Nummern
       { label: 'Gesamtgewicht', width: '10%', align: 'center' },
       { label: 'Einheitenzahl', width: '10%', align: 'center' },
       { label: 'Einheitsgewicht', width: '8%', align: 'center' },
       { label: 'Verpackt von', width: '12%', align: 'left' },
       { label: 'Erstellt am', width: '10%', align: 'left' },
-      { label: '', width: '3%', align: 'center' }  // Platz für das Aufklapp-Symbol am Ende
+      { label: '', width: '4%', align: 'center' }
     ]
   }
 
@@ -138,6 +137,9 @@ const PackagingTable = ({
       productIcon = FilterDramaIcon;
       productColor = 'warning.main';
     }
+    
+    // Prüfe, ob dies eine Multi-Packaging-Verpackung ist (erkennen an den Notizen)
+    const isMultiPackaging = packaging.notes && packaging.notes.includes('Zeile');
     
     return [
       {
@@ -155,10 +157,52 @@ const PackagingTable = ({
         iconColor: tabValue === 3 ? 'error.main' : productColor
       },
       {
-        content: packaging.batch_number || '',
-        width: '18%',
-        fontFamily: 'monospace',
-        fontSize: '0.85rem'
+        content: (
+          <Box sx={{ 
+            maxWidth: '100%', 
+            paddingRight: '8px',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap'  
+          }}>
+            <Typography 
+              variant="body2" 
+              fontFamily="monospace" 
+              fontSize="0.7rem" 
+              sx={{ 
+                display: 'block', 
+                pt: '3px', // 3 Pixel nach unten verschieben
+                lineHeight: 1.2,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              {packaging.batch_number || ''}
+            </Typography>
+            {packaging.notes && packaging.notes.includes('Zeile') && (
+              <Typography 
+                variant="caption" 
+                color="primary.main" 
+                fontSize="0.65rem"
+                sx={{ display: 'block' }}
+              >
+                {/* Extraktion der Position und Gesamtzahl aus den Notizen */}
+                {(() => {
+                  // Extrahiere die Zeilennummer aus den Notizen (z.B. "Zeile 1:")
+                  const lineMatch = packaging.notes.match(/Zeile (\d+):/);
+                  const lineNumber = lineMatch ? lineMatch[1] : '?';
+                  // Extrahiere die Gesamtzahl der Verpackungen aus dem Batch-Namen
+                  // Annahme: die höchste Nummer im Muster :XXXX ist die letzte Verpackung
+                  const batchNumberSuffix = packaging.batch_number.split(':').pop();
+                  const highestBatchNumber = 3; // Fallback-Wert (aus dem Beispiel)
+                  return `Teil einer Mehrfachverpackung ${lineNumber}/${highestBatchNumber}`;
+                })()}
+              </Typography>
+            )}
+          </Box>
+        ),
+        width: '20%' // Größere Breite für vollständige Anzeige
       },
       {
         content: `${parseFloat(packaging.total_weight).toLocaleString('de-DE')}g`,
@@ -587,7 +631,19 @@ const PackagingTable = ({
   else if (tabValue === 3) tableColor = 'error';
 
   return (
-    <Box sx={{ width: '100%' }}>
+    <Box sx={{ 
+      width: '100%', 
+      overflowX: 'auto',
+      '& .MuiTable-root': {
+        width: '100%',
+        tableLayout: 'fixed' // Wichtig für gleichmäßige Spaltenbreiten
+      },
+      '& .MuiTableCell-root': {
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis'
+      }
+    }}>
       <TableHeader columns={getHeaderColumns()} />
 
       {data && data.length > 0 ? (

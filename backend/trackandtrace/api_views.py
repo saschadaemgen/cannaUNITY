@@ -2380,130 +2380,115 @@ class LabTestingBatchViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def convert_to_packaging(self, request, pk=None):
         """
-        Konvertiert eine freigegebene Laborkontrolle zu einer Verpackung.
-        Bei Bedarf wird die Restmenge automatisch als PackagingBatch vernichtet.
+        Konvertiert eine freigegebene Laborkontrolle zu mehreren Verpackungen.
+        Unterstützt sowohl Einzelverpackungen als auch mehrere Verpackungslinien.
         """
         lab_batch = self.get_object()
         
-        # Prüfen, ob die Laborkontrolle bereits konvertiert wurde
+        # Prüfungen für Laborkontrolle bleiben unverändert
         if lab_batch.converted_to_packaging:
             return Response(
                 {"error": "Diese Laborkontrolle wurde bereits zu Verpackung konvertiert"},
                 status=status.HTTP_400_BAD_REQUEST
             )
-            
-        # Prüfen, ob die Laborkontrolle bereits vernichtet wurde
+                
         if lab_batch.is_destroyed:
             return Response(
                 {"error": "Vernichtete Laborkontrollen können nicht zu Verpackung konvertiert werden"},
                 status=status.HTTP_400_BAD_REQUEST
             )
-            
-        # Prüfen, ob die Laborkontrolle freigegeben wurde
+                
         if lab_batch.status != 'passed':
             return Response(
                 {"error": "Nur freigegebene Laborkontrollen können zu Verpackung konvertiert werden"},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        total_weight = request.data.get('total_weight', 0)
-        unit_count = request.data.get('unit_count', 0)
-        unit_weight = request.data.get('unit_weight', 0)
+        # Gemeinsame Felder für alle Verpackungen
+        member_id = request.data.get('member_id')
+        room_id = request.data.get('room_id')
         notes = request.data.get('notes', '')
-        member_id = request.data.get('member_id', None)
-        room_id = request.data.get('room_id', None)
-        remaining_weight = request.data.get('remaining_weight', 0)
+        remaining_weight = float(request.data.get('remaining_weight', 0) or 0)
         auto_destroy_remainder = request.data.get('auto_destroy_remainder', False)
         
-        # Validierung
-        try:
-            total_weight = float(total_weight)
-            if total_weight <= 0:
-                return Response(
-                    {"error": "Das Gesamtgewicht muss größer als 0 sein"},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-                
-            # Prüfen, ob das Gesamtgewicht kleiner oder gleich dem verbleibenden Gewicht ist
+        # Überprüfen, ob es sich um eine Multi-Packaging-Anfrage handelt
+        if 'packagings' in request.data and isinstance(request.data['packagings'], list):
+            # Multi-Packaging-Verarbeitung
+            packagings = request.data['packagings']
+            created_packagings = []
+            total_weight_used = 0
+            
+            # Einzelne Verpackungen validieren und erstellen
+            for idx, packaging_data in enumerate(packagings):
+                try:
+                    unit_count = int(packaging_data.get('unit_count', 0))
+                    unit_weight = float(packaging_data.get('unit_weight', 0))
+                    total_line_weight = float(packaging_data.get('total_weight', 0))
+                    
+                    # Validierung für diese Verpackungslinie
+                    if unit_count <= 0:
+                        return Response(
+                            {"error": f"Die Anzahl der Einheiten in Zeile {idx+1} muss größer als 0 sein"},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                        
+                    if unit_weight < 5.0:
+                        return Response(
+                            {"error": f"Das Gewicht pro Einheit in Zeile {idx+1} muss mindestens 5g betragen"},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                    
+                    # Prüfen, ob Gesamtgewicht korrekt berechnet wurde
+                    calculated_weight = unit_count * unit_weight
+                    if abs(calculated_weight - total_line_weight) > 0.1:
+                        return Response(
+                            {"error": f"Inkonsistentes Gesamtgewicht in Zeile {idx+1}: {total_line_weight}g ≠ {unit_count} × {unit_weight}g"},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                    
+                    # Erstelle die Verpackung für diese Linie
+                    packaging = PackagingBatch.objects.create(
+                        lab_testing_batch=lab_batch,
+                        total_weight=total_line_weight,
+                        unit_count=unit_count,
+                        unit_weight=unit_weight,
+                        member_id=member_id,
+                        room_id=room_id,
+                        notes=f"{notes} - Zeile {idx+1} von {len(packagings)}: {unit_count}× {unit_weight}g"
+                    )
+                    
+                    created_packagings.append(packaging)
+                    total_weight_used += total_line_weight
+                    
+                except (ValueError, TypeError) as e:
+                    return Response(
+                        {"error": f"Fehler in Zeile {idx+1}: {str(e)}"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            
+            # Prüfen, ob das verarbeitete Gesamtgewicht gültig ist
             available_weight = lab_batch.remaining_weight
-            if total_weight > available_weight:
+            if total_weight_used > available_weight:
+                # Löschen der bereits erstellten Verpackungen, um Dateninkonsistenzen zu vermeiden
+                for packaging in created_packagings:
+                    packaging.delete()
+                    
                 return Response(
-                    {"error": f"Das Gesamtgewicht kann nicht größer als das verbleibende Gewicht sein ({available_weight}g)"},
+                    {"error": f"Gesamtgewicht aller Verpackungslinien ({total_weight_used}g) überschreitet das verfügbare Gewicht ({available_weight}g)"},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-        except (TypeError, ValueError):
-            return Response(
-                {"error": "Ungültiges Gesamtgewicht"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
             
-        try:
-            unit_count = int(unit_count)
-            if unit_count <= 0:
-                return Response(
-                    {"error": "Die Anzahl der Einheiten muss größer als 0 sein"},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-        except (TypeError, ValueError):
-            return Response(
-                {"error": "Ungültige Anzahl der Einheiten"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            # Markiere Laborcharge als zu Verpackung konvertiert
+            lab_batch.converted_to_packaging = True
+            lab_batch.converted_to_packaging_at = timezone.now()
+            lab_batch.save()
             
-        try:
-            unit_weight = float(unit_weight)
-            if unit_weight < 5.0:  # Mindestgröße 5g
-                return Response(
-                    {"error": "Das Gewicht pro Einheit muss mindestens 5g betragen"},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-                
-            # Prüfen, ob das Einheitsgewicht * Anzahl ungefähr dem Gesamtgewicht entspricht
-            calculated_total = unit_weight * unit_count
-            if abs(calculated_total - total_weight) > 0.1:
-                return Response(
-                    {"error": f"Gesamtgewicht ({total_weight}g) stimmt nicht mit Einheitsgewicht * Anzahl ({calculated_total}g) überein"},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-        except (TypeError, ValueError):
-            return Response(
-                {"error": "Ungültiges Gewicht pro Einheit"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        # Erstelle Verpackungs-Batch
-        packaging_kwargs = {
-            'lab_testing_batch': lab_batch,
-            'total_weight': total_weight,
-            'unit_count': unit_count,
-            'unit_weight': unit_weight,
-            'notes': notes
-        }
-        
-        # Hinzufügen von optionalen Feldern
-        if member_id:
-            packaging_kwargs['member_id'] = member_id
-        if room_id:
-            packaging_kwargs['room_id'] = room_id
-        
-        packaging = PackagingBatch.objects.create(**packaging_kwargs)
-        
-        # Markiere die Laborkontrolle als zu Verpackung überführt
-        lab_batch.converted_to_packaging = True
-        lab_batch.converted_to_packaging_at = timezone.now()
-        lab_batch.packaging_batch = packaging
-        
-        # Wenn eine Restmenge übrig bleibt und auto_destroy_remainder aktiviert ist,
-        # erstelle einen zusätzlichen vernichteten PACKAGING-Batch für die Restmenge
-        if auto_destroy_remainder and remaining_weight and float(remaining_weight) > 0:
-            try:
-                remaining_weight = float(remaining_weight)
-                
-                # Erstelle ein neues PackagingBatch-Objekt für die Restmenge
-                remainder_batch = PackagingBatch.objects.create(
+            # Erstelle Restbetrag als vernichtete Verpackung, wenn gewünscht
+            if auto_destroy_remainder and remaining_weight > 0:
+                PackagingBatch.objects.create(
                     lab_testing_batch=lab_batch,
                     total_weight=remaining_weight,
-                    unit_count=1,  # Ein Paket, das direkt vernichtet wird
+                    unit_count=1,
                     unit_weight=remaining_weight,
                     member_id=member_id,
                     room_id=room_id,
@@ -2513,22 +2498,48 @@ class LabTestingBatchViewSet(viewsets.ModelViewSet):
                     destroyed_at=timezone.now(),
                     destroyed_by_id=member_id
                 )
+            
+            # Erfolgsmeldung mit Zusammenfassung
+            return Response({
+                "message": f"{len(created_packagings)} Verpackungsbatches mit insgesamt {total_weight_used}g wurden erstellt",
+                "packagings": [PackagingBatchSerializer(pkg).data for pkg in created_packagings]
+            })
+            
+        else:
+            # Fallback für Einzelverpackung (bestehender Code, leicht angepasst)
+            total_weight = float(request.data.get('total_weight', 0) or 0)
+            unit_count = int(request.data.get('unit_count', 0) or 0)
+            unit_weight = float(request.data.get('unit_weight', 0) or 0)
+            
+            # Validierungen für Einzelverpackung
+            if total_weight <= 0:
+                return Response(
+                    {"error": "Das Gesamtgewicht muss größer als 0 sein"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
                 
-                # Ergänze die Notizen der Verpackung um einen Hinweis auf die vernichtete Restmenge
-                packaging.notes += f"\nRestmenge von {remaining_weight}g wurde automatisch als Verpackung vernichtet (ID: {remainder_batch.id})."
-                packaging.save()
+            if unit_count <= 0:
+                return Response(
+                    {"error": "Die Anzahl der Einheiten muss größer als 0 sein"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
                 
-            except Exception as e:
-                    # Fehler wird abgefangen, Hauptoperation läuft weiter
-
-                pass
-        
-        lab_batch.save()
-        
-        return Response({
-            "message": f"Verpackung mit {total_weight}g in {unit_count} Einheiten wurde erstellt",
-            "packaging": PackagingBatchSerializer(packaging).data
-        })
+            if unit_weight < 5.0:
+                return Response(
+                    {"error": "Das Gewicht pro Einheit muss mindestens 5g betragen"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+                
+            # Erstelle die Einzelverpackung
+            packaging = PackagingBatch.objects.create(
+                lab_testing_batch=lab_batch,
+                total_weight=total_weight,
+                unit_count=unit_count,
+                unit_weight=unit_weight,
+                member_id=member_id,
+                room_id=room_id,
+                notes=notes
+            )
 
 class PackagingBatchViewSet(viewsets.ModelViewSet):
     queryset = PackagingBatch.objects.all().order_by('-created_at')

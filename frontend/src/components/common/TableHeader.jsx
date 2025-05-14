@@ -8,8 +8,8 @@ import { Paper, Table, TableHead, TableRow, TableCell } from '@mui/material'
  */
 const TableHeader = ({ columns }) => {
   return (
-    <Paper elevation={1} sx={{ mb: 1.5, borderRadius: '4px', overflow: 'hidden' }}>
-      <Table size="small">
+    <Paper elevation={1} sx={{ mb: 1.5, borderRadius: '4px', overflow: 'hidden', width: '100%' /* Explizite volle Breite */ }}>
+      <Table size="small" sx={{ width: '100%', tableLayout: 'fixed' }}>
         <TableHead>
           <TableRow sx={{ 
             height: '48px',

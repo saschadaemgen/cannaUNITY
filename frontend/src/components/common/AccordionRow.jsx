@@ -105,8 +105,8 @@ const AccordionRow = ({
               width: column.width || 'auto',
               px: 1.5,
               overflow: 'hidden',
-              flexShrink: 0,
-              textAlign: column.align || 'left',
+              whiteSpace: 'nowrap',
+              textOverflow: 'ellipsis',
               height: '100%'
             }}
           >
