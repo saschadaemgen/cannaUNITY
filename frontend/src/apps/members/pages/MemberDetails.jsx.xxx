@@ -1,6 +1,6 @@
-
 import React from 'react'
-import { Box, Typography, Collapse } from '@mui/material'
+import { Box, Typography, Collapse, Divider } from '@mui/material'
+import MemberDistributionHistory from '../components/MemberDistributionHistory'
 
 export default function MemberDetails({ member, open }) {
   return (
@@ -21,6 +21,11 @@ export default function MemberDetails({ member, open }) {
         {member.warnings && (
           <Typography variant="body2" color="error" gutterBottom>Verwarnungen: {member.warnings}</Typography>
         )}
+        
+        {/* Produktausgabehistorie hinzufügen */}
+        <Divider sx={{ my: 2 }} />
+        
+        <MemberDistributionHistory memberId={member.id} />
       </Box>
     </Collapse>
   )

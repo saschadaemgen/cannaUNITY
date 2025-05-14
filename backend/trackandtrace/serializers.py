@@ -4,7 +4,7 @@ from .models import (
     FloweringPlantBatch, FloweringPlant, Cutting, CuttingBatch,
     BloomingCuttingBatch, BloomingCuttingPlant, HarvestBatch,
     DryingBatch, ProcessingBatch, PRODUCT_TYPE_CHOICES, LabTestingBatch, 
-    PackagingBatch, PackagingUnit
+    PackagingBatch, PackagingUnit, ProductDistribution
 )
 from members.models import Member
 from rooms.models import Room
@@ -807,3 +807,53 @@ class PackagingUnitSerializer(serializers.ModelSerializer):
             'is_destroyed', 'destroy_reason', 'destroyed_at',
             'created_at', 'destroyed_by', 'destroyed_by_id'
         ]
+
+class ProductDistributionSerializer(serializers.ModelSerializer):
+    # Einfache Darstellung der Verpackungseinheiten
+    packaging_units = PackagingUnitSerializer(many=True, read_only=True)
+    packaging_unit_ids = serializers.PrimaryKeyRelatedField(
+        queryset=PackagingUnit.objects.filter(is_destroyed=False),
+        source='packaging_units',
+        write_only=True,
+        many=True
+    )
+    
+    # Serializers für Distributor und Empfänger
+    distributor = MemberSerializer(read_only=True)
+    distributor_id = serializers.PrimaryKeyRelatedField(
+        queryset=Member.objects.all(),
+        source='distributor',
+        write_only=True
+    )
+    
+    recipient = MemberSerializer(read_only=True)
+    recipient_id = serializers.PrimaryKeyRelatedField(
+        queryset=Member.objects.all(),
+        source='recipient',
+        write_only=True
+    )
+    
+    # Berechnete Felder
+    total_weight = serializers.SerializerMethodField()
+    product_type_summary = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = ProductDistribution
+        fields = [
+            'id', 'batch_number', 'packaging_units', 'packaging_unit_ids',
+            'distributor', 'distributor_id', 'recipient', 'recipient_id',
+            'distribution_date', 'notes', 'created_at', 'updated_at',
+            'total_weight', 'product_type_summary'
+        ]
+    
+    def get_total_weight(self, obj):
+        return obj.total_weight
+    
+    def get_product_type_summary(self, obj):
+        types = obj.product_types
+        result = []
+        for product_type, weight in types.items():
+            display_type = "Marihuana" if product_type == "marijuana" else (
+                "Haschisch" if product_type == "hashish" else product_type)
+            result.append({"type": display_type, "weight": weight})
+        return result

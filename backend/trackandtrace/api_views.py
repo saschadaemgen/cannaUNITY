@@ -9,7 +9,7 @@ from .models import (
     SeedPurchase, MotherPlantBatch, MotherPlant, 
     FloweringPlantBatch, FloweringPlant, Cutting, CuttingBatch,
     BloomingCuttingBatch, BloomingCuttingPlant, HarvestBatch, 
-    DryingBatch, ProcessingBatch, LabTestingBatch, PackagingBatch, PackagingUnit
+    DryingBatch, ProcessingBatch, LabTestingBatch, PackagingBatch, PackagingUnit, ProductDistribution
 )
 from .serializers import (
     SeedPurchaseSerializer, MotherPlantBatchSerializer, 
@@ -17,7 +17,8 @@ from .serializers import (
     FloweringPlantSerializer, CuttingBatchSerializer, CuttingSerializer,
     BloomingCuttingBatchSerializer, BloomingCuttingPlantSerializer, 
     HarvestBatchSerializer, DryingBatchSerializer, ProcessingBatchSerializer,
-    LabTestingBatchSerializer, PackagingBatchSerializer, PackagingUnitSerializer
+    LabTestingBatchSerializer, PackagingBatchSerializer, PackagingUnitSerializer, 
+    ProductDistributionSerializer
 )
 
 from wawi.models import CannabisStrain
@@ -2773,3 +2774,111 @@ class PackagingUnitViewSet(viewsets.ModelViewSet):
         return Response({
             "message": f"Verpackungseinheit {unit.batch_number} wurde vernichtet"
         })
+    
+class ProductDistributionViewSet(viewsets.ModelViewSet):
+    queryset = ProductDistribution.objects.all().order_by('-distribution_date')
+    serializer_class = ProductDistributionSerializer
+    permission_classes = [IsAuthenticated]
+    pagination_class = StandardResultsSetPagination
+    
+    def get_queryset(self):
+        queryset = ProductDistribution.objects.all().order_by('-distribution_date')
+        
+        # Filter nach Empfänger-Mitglied
+        recipient_id = self.request.query_params.get('recipient_id', None)
+        if recipient_id:
+            queryset = queryset.filter(recipient_id=recipient_id)
+        
+        # Filter nach Mitarbeiter (Distributor)
+        distributor_id = self.request.query_params.get('distributor_id', None)
+        if distributor_id:
+            queryset = queryset.filter(distributor_id=distributor_id)
+            
+        # Zeitraum-Filter
+        year = self.request.query_params.get('year', None)
+        month = self.request.query_params.get('month', None)
+        day = self.request.query_params.get('day', None)
+        
+        if year:
+            queryset = queryset.filter(distribution_date__year=year)
+        if month:
+            queryset = queryset.filter(distribution_date__month=month)
+        if day:
+            queryset = queryset.filter(distribution_date__day=day)
+            
+        return queryset
+    
+    @action(detail=False, methods=['get'])
+    def member_summary(self, request):
+        """
+        Liefert eine Zusammenfassung der Produktauslieferungen für ein bestimmtes Mitglied.
+        """
+        member_id = request.query_params.get('member_id')
+        if not member_id:
+            return Response(
+                {"error": "Mitglieds-ID ist erforderlich"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        # Summen für beide Rollen (Empfänger und Ausgebender) abrufen
+        received = ProductDistribution.objects.filter(recipient_id=member_id)
+        distributed = ProductDistribution.objects.filter(distributor_id=member_id)
+        
+        # Zeitliche Begrenzung (z.B. letzte 30 Tage für Details)
+        thirty_days_ago = timezone.now() - timezone.timedelta(days=30)
+        
+        # Zusammenfassungen erstellen
+        summary = {
+            'received': {
+                'total_count': received.count(),
+                'recent_count': received.filter(distribution_date__gte=thirty_days_ago).count(),
+                'total_weight': sum(dist.total_weight for dist in received),
+                'recent_distributions': ProductDistributionSerializer(
+                    received.filter(distribution_date__gte=thirty_days_ago),
+                    many=True
+                ).data
+            },
+            'distributed': {
+                'total_count': distributed.count(),
+                'recent_count': distributed.filter(distribution_date__gte=thirty_days_ago).count(),
+                'total_weight': sum(dist.total_weight for dist in distributed),
+                'recent_distributions': ProductDistributionSerializer(
+                    distributed.filter(distribution_date__gte=thirty_days_ago),
+                    many=True
+                ).data if request.user.groups.filter(name__in=['teamleiter', 'admin']).exists() else []
+            }
+        }
+        
+        return Response(summary)
+    
+    @action(detail=False, methods=['get'])
+    def available_units(self, request):
+        """
+        Liefert alle verfügbaren (nicht vernichteten, nicht ausgegebenen) Verpackungseinheiten.
+        """
+        # Einheiten, die noch nicht ausgegeben wurden
+        units = PackagingUnit.objects.filter(
+            is_destroyed=False,                # Nicht vernichtet
+        ).exclude(
+            distributions__isnull=False        # Nicht bereits ausgegeben
+        )
+        
+        # Optional: Filter nach Produkttyp
+        product_type = request.query_params.get('product_type')
+        if product_type:
+            units = units.filter(batch__lab_testing_batch__processing_batch__product_type=product_type)
+            
+        # Optional: Filter nach maximaler THC-Konzentration (für jüngere Mitglieder)
+        max_thc = request.query_params.get('max_thc')
+        if max_thc:
+            try:
+                max_thc_value = float(max_thc)
+                units = units.filter(
+                    Q(batch__lab_testing_batch__thc_content__lte=max_thc_value) | 
+                    Q(batch__lab_testing_batch__thc_content__isnull=True)
+                )
+            except ValueError:
+                pass
+                
+        serializer = PackagingUnitSerializer(units, many=True)
+        return Response(serializer.data)

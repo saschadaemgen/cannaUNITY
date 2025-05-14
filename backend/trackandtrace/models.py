@@ -819,3 +819,50 @@ class PackagingUnit(models.Model):
             self.batch_number = f"unit:{product_type_prefix}:{today.strftime('%d:%m:%Y')}:{count:04d}"
         
         super().save(*args, **kwargs)
+
+class ProductDistribution(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    batch_number = models.CharField(max_length=50, unique=True, blank=True, null=True)
+    
+    # Verknüpfung zu verteilten Verpackungseinheiten
+    packaging_units = models.ManyToManyField(PackagingUnit, related_name='distributions')
+    
+    # Mitarbeiter und Empfänger
+    distributor = models.ForeignKey(Member, on_delete=models.SET_NULL, null=True, 
+                                    related_name='distributed_products')
+    recipient = models.ForeignKey(Member, on_delete=models.SET_NULL, null=True, 
+                                  related_name='received_products')
+    
+    # Ausgabeinformationen
+    distribution_date = models.DateTimeField(default=timezone.now)
+    notes = models.TextField(blank=True, null=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def save(self, *args, **kwargs):
+        if not self.batch_number:
+            today = timezone.now()
+            count = ProductDistribution.objects.filter(
+                created_at__year=today.year,
+                created_at__month=today.month,
+                created_at__day=today.day
+            ).count() + 1
+            
+            self.batch_number = f"distro:{today.strftime('%d:%m:%Y')}:{count:04d}"
+        
+        super().save(*args, **kwargs)
+    
+    @property
+    def total_weight(self):
+        """Berechnet das Gesamtgewicht aller verteilten Verpackungseinheiten."""
+        return sum(float(unit.weight) for unit in self.packaging_units.all())
+    
+    @property
+    def product_types(self):
+        """Gibt eine Zusammenfassung der Produkttypen zurück."""
+        types = {}
+        for unit in self.packaging_units.all():
+            product_type = unit.batch.product_type if unit.batch else "Unbekannt"
+            types[product_type] = types.get(product_type, 0) + float(unit.weight)
+        return types

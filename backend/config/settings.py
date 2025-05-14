@@ -35,6 +35,7 @@ INSTALLED_APPS = [
     'buchhaltung',
     'interface',
     'controller',
+    'logocore',
     'ha',
     'wawi',
     'unifi_access',

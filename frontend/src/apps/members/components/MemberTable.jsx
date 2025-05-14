@@ -28,6 +28,7 @@ import AccordionRow from '@/components/common//AccordionRow';
 import TableHeader from '@/components/common//TableHeader';
 import PaginationFooter from '@/components/common/PaginationFooter';
 import DetailCards from '@/components/common/DetailCards';
+import MemberDistributionHistory from './MemberDistributionHistory';
 
 /**
  * MemberTable Komponente für die Darstellung der Mitgliederliste mit Details
@@ -727,6 +728,24 @@ const MemberTable = ({
             />
           </Box>
         )}
+
+        {/* Produkthistorie hinzufügen */}
+        <Box mt={3}>
+          <DetailCards
+            cards={[
+              {
+                title: 'Cannabis-Produkthistorie',
+                content: (
+                  <Box>
+                    {/* MemberDistributionHistory-Komponente einbinden */}
+                    <MemberDistributionHistory memberId={member.id} />
+                  </Box>
+                )
+              }
+            ]}
+            color="primary.main"
+          />
+        </Box>
 
         {/* Aktionsbereich mit ausreichend Abstand zu den Karten darüber */}
         <Box sx={{ display: 'flex', gap: 2, mt: 4, mb: 1 }}>

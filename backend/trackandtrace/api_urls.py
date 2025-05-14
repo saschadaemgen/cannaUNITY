@@ -5,7 +5,7 @@ from .api_views import (
     SeedPurchaseViewSet, MotherPlantBatchViewSet, MotherPlantViewSet,
     FloweringPlantBatchViewSet, CuttingBatchViewSet, BloomingCuttingBatchViewSet,
     HarvestBatchViewSet, DryingBatchViewSet, ProcessingBatchViewSet, LabTestingBatchViewSet, 
-    PackagingBatchViewSet, PackagingUnitViewSet
+    PackagingBatchViewSet, PackagingUnitViewSet, ProductDistributionViewSet
 )
 
 router = DefaultRouter()
@@ -21,6 +21,7 @@ router.register(r'processing', ProcessingBatchViewSet, basename='processing')
 router.register(r'labtesting', LabTestingBatchViewSet, basename='labtesting')
 router.register(r'packaging', PackagingBatchViewSet, basename='packaging')
 router.register(r'packaging-units', PackagingUnitViewSet, basename='packaging-units')
+router.register(r'distributions', ProductDistributionViewSet, basename='distributions')
 
 urlpatterns = [
     path('', include(router.urls)),
