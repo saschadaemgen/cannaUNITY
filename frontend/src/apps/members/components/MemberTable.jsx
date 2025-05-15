@@ -425,6 +425,28 @@ const MemberTable = ({
           </Typography>
         </Box>
 
+        {/* Cannabis-Produkthistorie - jetzt direkt nach der Activity Stream Message */}
+        <Box mb={3}>
+          <DetailCards
+            cards={[
+              {
+                title: 'Cannabis-Produkthistorie',
+                content: (
+                  <Box>
+                    {/* MemberDistributionHistory-Komponente einbinden */}
+                    <MemberDistributionHistory 
+                      memberId={member.id}
+                      memberAge={age}
+                      memberBirthDate={member.birthdate}
+                    />
+                  </Box>
+                )
+              }
+            ]}
+            color="primary.main"
+          />
+        </Box>
+
         {/* Mitgliedsdetails mit DetailCards */}
         <DetailCards 
           cards={[
@@ -728,24 +750,6 @@ const MemberTable = ({
             />
           </Box>
         )}
-
-        {/* Produkthistorie hinzufügen */}
-        <Box mt={3}>
-          <DetailCards
-            cards={[
-              {
-                title: 'Cannabis-Produkthistorie',
-                content: (
-                  <Box>
-                    {/* MemberDistributionHistory-Komponente einbinden */}
-                    <MemberDistributionHistory memberId={member.id} />
-                  </Box>
-                )
-              }
-            ]}
-            color="primary.main"
-          />
-        </Box>
 
         {/* Aktionsbereich mit ausreichend Abstand zu den Karten darüber */}
         <Box sx={{ display: 'flex', gap: 2, mt: 4, mb: 1 }}>

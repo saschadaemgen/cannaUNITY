@@ -6,27 +6,24 @@ import {
   TableHead, TableRow, Accordion, AccordionSummary, 
   AccordionDetails, Tab, Tabs, useTheme, alpha,
   Card, CardContent, Grid, IconButton, MenuItem,
-  Select, FormControl, InputLabel, LinearProgress,
-  Tooltip, Stack, Menu
+  LinearProgress, Tooltip, Stack, Menu
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import LocalFloristIcon from '@mui/icons-material/LocalFlorist';
 import FilterDramaIcon from '@mui/icons-material/FilterDrama';
 import InventoryIcon from '@mui/icons-material/Inventory';
-import DateRangeIcon from '@mui/icons-material/DateRange';
 import ScaleIcon from '@mui/icons-material/Scale';
 import TimelineIcon from '@mui/icons-material/Timeline';
 import TableChartIcon from '@mui/icons-material/TableChart';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-import NotificationsIcon from '@mui/icons-material/Notifications';
 import ScheduleIcon from '@mui/icons-material/Schedule';
-import ReportProblemIcon from '@mui/icons-material/ReportProblem';
-import WarningIcon from '@mui/icons-material/Warning';
 import KeyboardArrowLeftIcon from '@mui/icons-material/KeyboardArrowLeft';
 import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import GppGoodIcon from '@mui/icons-material/GppGood';
 import FingerprintIcon from '@mui/icons-material/Fingerprint';
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
+import TodayIcon from '@mui/icons-material/Today';
 import ReactECharts from 'echarts-for-react';
 import api from '@/utils/api';
 
@@ -128,6 +125,16 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate }) => 
       'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'
     ];
     return monthNames[monthIndex];
+  };
+
+  // Hilfsfunktion zur Darstellung des heutigen Tages
+  const getTodayFormatted = () => {
+    const today = new Date();
+    return today.toLocaleDateString('de-DE', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
   };
   
   // Handler für die Monatsnavigation
@@ -707,878 +714,870 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate }) => 
   }
   
   return (
-    <Box sx={{ mt: 3 }}>
-      <Card sx={{ 
-        mb: 4, 
-        borderRadius: 2, 
-        boxShadow: theme.shadows[3],
-        background: `linear-gradient(120deg, ${theme.palette.background.paper} 0%, ${alpha(theme.palette.primary.lighter || theme.palette.primary.light, 0.1)} 100%)`
-      }}>
-        <CardContent>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-            <Typography variant="h5" sx={{ 
-              fontWeight: 600, 
-              position: 'relative',
-              '&::after': {
-                content: '""',
-                position: 'absolute',
-                bottom: -8,
-                left: 0,
-                width: 40,
-                height: 4,
-                backgroundColor: theme.palette.primary.main,
-                borderRadius: 2
-              }
-            }}>
-              Cannabis-Ausgabehistorie für {getMonthName(selectedMonth)} {selectedYear}
-            </Typography>
-            
-            {/* Altersbezogene Limits-Anzeige */}
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <Tooltip title={
-                <Box>
-                  <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1 }}>
-                    Altersbezogene Limits:
-                  </Typography>
-                  <Typography variant="body2">
-                    • Maximal {limits.daily}g pro Tag
-                  </Typography>
-                  <Typography variant="body2">
-                    • Maximal {limits.monthly}g pro Monat
-                  </Typography>
-                  {limits.maxThc && (
-                    <Typography variant="body2">
-                      • THC-Gehalt maximal {limits.maxThc}%
-                    </Typography>
-                  )}
-                </Box>
-              }>
-                <Box sx={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  border: `1px solid ${limits.category === 'young-adult' ? theme.palette.warning.main : theme.palette.primary.main}`,
-                  borderRadius: 1,
-                  px: 1,
-                  py: 0.5,
-                  mr: 2
-                }}>
-                  <FingerprintIcon 
-                    sx={{ 
-                      mr: 0.5, 
-                      color: limits.category === 'young-adult' ? theme.palette.warning.main : theme.palette.primary.main 
-                    }} 
-                    fontSize="small" 
-                  />
-                  <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                    {limits.category === 'young-adult' ? 'U21-Limits' : 'Erwachsenen-Limits'}
-                  </Typography>
-                  <HelpOutlineIcon sx={{ ml: 0.5, fontSize: '0.875rem', color: 'text.secondary' }} />
-                </Box>
-              </Tooltip>
-            </Box>
-          </Box>
-          
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 3, mb: 1 }}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
-              Zeitraum
-            </Typography>
-            
-            {/* Monats- und Jahresauswahl */}
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <IconButton 
-                onClick={handlePreviousMonth}
-                size="small"
-                sx={{ mr: 1 }}
-              >
-                <KeyboardArrowLeftIcon />
-              </IconButton>
+    <div className="member-distribution-history">
+      <Box sx={{ mt: 3 }}>
+        <Card sx={{ 
+          mb: 4, 
+          borderRadius: 2, 
+          boxShadow: theme.shadows[3],
+          background: `linear-gradient(120deg, ${theme.palette.background.paper} 0%, ${alpha(theme.palette.primary.lighter || theme.palette.primary.light, 0.1)} 100%)`
+        }}>
+          <CardContent>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Typography variant="h5" sx={{ 
+                fontWeight: 600
+              }}>
+                Cannabis-Ausgabehistorie für {getMonthName(selectedMonth)} {selectedYear}
+              </Typography>
               
-              <Button 
-                variant="outlined" 
-                onClick={handleMonthMenuOpen}
-                endIcon={<ExpandMoreIcon />}
-                size="small"
-              >
-                {getMonthName(selectedMonth)} {selectedYear}
-              </Button>
-              
-              <Menu
-                anchorEl={anchorEl}
-                open={Boolean(anchorEl)}
-                onClose={handleMonthMenuClose}
-                PaperProps={{
-                  style: {
-                    maxHeight: 300,
-                    width: 200,
-                  },
-                }}
-              >
-                {getYearMonthOptions().map((option) => (
-                  <MenuItem
-                    key={`${option.year}-${option.month}`}
-                    onClick={() => handleMonthYearSelect(option.year, option.month)}
-                    selected={selectedYear === option.year && selectedMonth === option.month}
-                  >
-                    {getMonthName(option.month)} {option.year}
-                  </MenuItem>
-                ))}
-              </Menu>
-              
-              <IconButton 
-                onClick={handleNextMonth}
-                size="small"
-                sx={{ ml: 1 }}
-                disabled={selectedMonth === new Date().getMonth() && selectedYear === new Date().getFullYear()}
-              >
-                <KeyboardArrowRightIcon />
-              </IconButton>
-            </Box>
-          </Box>
-          
-          {/* Zusammenfassung mit Limitanzeigen - symmetrisches Layout mit grünem Farbschema */}
-          <Grid container spacing={2} sx={{ mt: 1 }}>
-            {/* Karte 1: Ausgaben */}
-            <Grid item xs={12} sm={6} md={4}>
-              <Paper 
-                elevation={0} 
-                sx={{ 
-                  p: 2, 
-                  height: '100%',
-                  borderRadius: 2,
-                  border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`,
-                  background: alpha(theme.palette.success.light, 0.05)
-                }}
-              >
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                  <InventoryIcon sx={{ mr: 1, color: theme.palette.success.main }} />
-                  <Typography variant="subtitle2">Ausgaben</Typography>
-                </Box>
-                <Typography variant="h4" sx={{ fontWeight: 600, color: theme.palette.success.dark }}>
-                  {distributionData.received.total_count || 0}
-                </Typography>
-                <Typography variant="body2" color="textSecondary">
-                  insgesamt im {getMonthName(selectedMonth)}
-                </Typography>
-              </Paper>
-            </Grid>
-            
-            {/* Karte 2: Gesamtgewicht */}
-            <Grid item xs={12} sm={6} md={4}>
-              <Paper 
-                elevation={0} 
-                sx={{ 
-                  p: 2, 
-                  height: '100%',
-                  borderRadius: 2,
-                  border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`,
-                  background: alpha(theme.palette.success.light, 0.05)
-                }}
-              >
-                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                    <ScaleIcon sx={{ mr: 1, color: theme.palette.success.main }} />
-                    <Typography variant="subtitle2">Gesamtgewicht</Typography>
-                  </Box>
-                  {distributionData.consumption && (
-                    <Tooltip title={`Monatslimit: ${distributionData.consumption.monthlyLimit}g`}>
-                      <Chip 
-                        size="small" 
-                        label={`${distributionData.consumption.monthlyPercentage.toFixed(0)}%`}
+              {/* Monats- und Jahresauswahl - Wird neben Erwachsenen-Limits verschoben */}
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                {/* Altersbezogene Limits-Anzeige */}
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <Tooltip title={
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1 }}>
+                        Altersbezogene Limits:
+                      </Typography>
+                      <Typography variant="body2">
+                        • Maximal {limits.daily}g pro Tag
+                      </Typography>
+                      <Typography variant="body2">
+                        • Maximal {limits.monthly}g pro Monat
+                      </Typography>
+                      {limits.maxThc && (
+                        <Typography variant="body2">
+                          • THC-Gehalt maximal {limits.maxThc}%
+                        </Typography>
+                      )}
+                    </Box>
+                  }>
+                    <Box sx={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      border: `1px solid ${limits.category === 'young-adult' ? theme.palette.warning.main : theme.palette.primary.main}`,
+                      borderRadius: 1,
+                      px: 1,
+                      py: 0.5,
+                      mr: 2
+                    }}>
+                      <FingerprintIcon 
                         sx={{ 
-                          height: 20, 
-                          fontSize: '0.7rem',
-                          bgcolor: distributionData.consumption.monthlyPercentage > 90 ? alpha(theme.palette.error.main, 0.1) : alpha(theme.palette.success.light, 0.2),
-                          color: distributionData.consumption.monthlyPercentage > 90 ? theme.palette.error.main : theme.palette.success.dark
-                        }}
+                          mr: 0.5, 
+                          color: limits.category === 'young-adult' ? theme.palette.warning.main : theme.palette.primary.main 
+                        }} 
+                        fontSize="small" 
                       />
-                    </Tooltip>
-                  )}
+                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                        {limits.category === 'young-adult' ? 'U21-Limits' : 'Erwachsenen-Limits'}
+                      </Typography>
+                      <HelpOutlineIcon sx={{ ml: 0.5, fontSize: '0.875rem', color: 'text.secondary' }} />
+                    </Box>
+                  </Tooltip>
                 </Box>
-                <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
-                  <Typography variant="h4" sx={{ fontWeight: 600, color: theme.palette.success.dark }}>
-                    {distributionData.received.total_weight ? distributionData.received.total_weight.toFixed(1) : '0.0'}g
-                  </Typography>
-                  {distributionData.consumption && (
-                    <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
-                      /{distributionData.consumption.monthlyLimit}g
-                    </Typography>
-                  )}
+
+                {/* Monats- und Jahresauswahl - jetzt direkt nach Erwachsenen-Limits */}
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <IconButton 
+                    onClick={handlePreviousMonth}
+                    size="small"
+                    sx={{ mr: 1 }}
+                  >
+                    <KeyboardArrowLeftIcon />
+                  </IconButton>
+                  
+                  <Button 
+                    variant="outlined" 
+                    onClick={handleMonthMenuOpen}
+                    endIcon={<ExpandMoreIcon />}
+                    size="small"
+                  >
+                    {getMonthName(selectedMonth)} {selectedYear}
+                  </Button>
+                  
+                  <Menu
+                    anchorEl={anchorEl}
+                    open={Boolean(anchorEl)}
+                    onClose={handleMonthMenuClose}
+                    PaperProps={{
+                      style: {
+                        maxHeight: 300,
+                        width: 200,
+                      },
+                    }}
+                  >
+                    {getYearMonthOptions().map((option) => (
+                      <MenuItem
+                        key={`${option.year}-${option.month}`}
+                        onClick={() => handleMonthYearSelect(option.year, option.month)}
+                        selected={selectedYear === option.year && selectedMonth === option.month}
+                      >
+                        {getMonthName(option.month)} {option.year}
+                      </MenuItem>
+                    ))}
+                  </Menu>
+                  
+                  <IconButton 
+                    onClick={handleNextMonth}
+                    size="small"
+                    sx={{ ml: 1 }}
+                    disabled={selectedMonth === new Date().getMonth() && selectedYear === new Date().getFullYear()}
+                  >
+                    <KeyboardArrowRightIcon />
+                  </IconButton>
                 </Box>
-                {distributionData.consumption && (
-                  <Box sx={{ mt: 1.5, mb: 0.5 }}>
-                    <LinearProgress 
-                      variant="determinate" 
-                      value={distributionData.consumption.monthlyPercentage}
-                      sx={{ 
-                        height: 8, 
-                        borderRadius: 1,
-                        backgroundColor: alpha(theme.palette.success.light, 0.2),
-                        '& .MuiLinearProgress-bar': {
-                          backgroundColor: distributionData.consumption.monthlyPercentage > 90 
-                            ? theme.palette.error.main 
-                            : theme.palette.success.main
-                        }
-                      }}
-                    />
-                  </Box>
-                )}
-              </Paper>
-            </Grid>
+              </Box>
+            </Box>
             
-            {/* Karte 3: Marihuana */}
-            <Grid item xs={12} sm={6} md={4}>
-              <Paper 
-                elevation={0} 
-                sx={{ 
-                  p: 2, 
-                  height: '100%',
-                  borderRadius: 2,
-                  border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`,
-                  background: alpha(theme.palette.success.light, 0.05)
-                }}
-              >
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                  <LocalFloristIcon sx={{ mr: 1, color: theme.palette.success.main }} />
-                  <Typography variant="subtitle2">Marihuana</Typography>
-                </Box>
-                <Typography variant="h4" sx={{ fontWeight: 600, color: theme.palette.success.dark }}>
-                  {(() => {
-                    // Suche nach Marihuana in der Produktzusammenfassung
+            {/* Neues moderneres Karten-Layout mit exakt gleicher Breite */}
+            <Box sx={{ 
+              display: 'flex',
+              width: '100%',
+              mb: 3,
+              overflow: 'hidden'
+            }}>
+              {/* Gemeinsame Kartenformat-Funktion */}
+              {[
+                // Karte 1: Ausgaben (Erste Position)
+                {
+                  icon: <InventoryIcon />,
+                  title: "Ausgaben",
+                  value: distributionData.received.total_count || 0,
+                  unit: "",
+                  color: theme.palette.success.main,
+                  infoText: `insgesamt im ${getMonthName(selectedMonth)}`
+                },
+                
+                // Karte 2: Heutiges Limit (Zweite Position)
+                {
+                  icon: <ScheduleIcon />,
+                  title: "Tageslimit",
+                  value: distributionData.consumption ? distributionData.consumption.today.toFixed(1) : '0.0',
+                  unit: "g",
+                  maxValue: distributionData.consumption?.dailyLimit,
+                  color: theme.palette.success.main,
+                  percentage: distributionData.consumption?.dailyPercentage || 0,
+                  remaining: distributionData.consumption?.remainingDaily || 0,
+                  progressColor: distributionData.consumption?.dailyPercentage > 90 ? theme.palette.error.main : theme.palette.success.main
+                },
+                
+                // Karte 3: Monatslimit (Dritte Position)
+                {
+                  icon: <ScaleIcon />,
+                  title: "Monatslimit",
+                  value: distributionData.received.total_weight ? distributionData.received.total_weight.toFixed(1) : '0.0',
+                  unit: "g",
+                  maxValue: distributionData.consumption?.monthlyLimit,
+                  color: theme.palette.success.main,
+                  percentage: distributionData.consumption?.monthlyPercentage || 0,
+                  remaining: distributionData.consumption?.remainingMonthly || 0,
+                  progressColor: distributionData.consumption?.monthlyPercentage > 90 ? theme.palette.error.main : theme.palette.success.main
+                },
+                
+                // Karte 4: Marihuana 
+                {
+                  icon: <LocalFloristIcon />,
+                  title: "Marihuana",
+                  value: (() => {
                     if (distributionData.received.product_summary) {
-                      const marijuanaSummary = distributionData.received.product_summary.find(
-                        p => p.type === PRODUCT_TYPES.MARIJUANA
-                      );
+                      const marijuanaSummary = distributionData.received.product_summary.find(p => p.type === PRODUCT_TYPES.MARIJUANA);
                       return marijuanaSummary ? marijuanaSummary.weight.toFixed(1) : '0.0';
                     }
                     return '0.0';
-                  })()}g
-                </Typography>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 0.5 }}>
-                  <Typography variant="body2" color="textSecondary">
-                    ({(() => {
-                      // Einheiten für Marihuana
-                      if (distributionData.received.product_summary) {
-                        const marijuanaSummary = distributionData.received.product_summary.find(
-                          p => p.type === PRODUCT_TYPES.MARIJUANA
-                        );
-                        return marijuanaSummary ? (marijuanaSummary.unit_count || 0) : 0;
-                      }
-                      return 0;
-                    })()} Einheiten)
-                  </Typography>
-                  
-                  {/* THC-Begrenzung für junge Erwachsene */}
-                  {limits.maxThc && (
-                    <Tooltip title={`THC-Gehalt begrenzt auf ${limits.maxThc}%`}>
-                      <Chip 
-                        size="small" 
-                        label={`max ${limits.maxThc}% THC`}
-                        sx={{ 
-                          height: 20, 
-                          fontSize: '0.6rem',
-                          bgcolor: alpha(theme.palette.success.light, 0.2),
-                          color: theme.palette.success.dark
-                        }}
-                      />
-                    </Tooltip>
-                  )}
-                </Box>
-              </Paper>
-            </Grid>
-            
-            {/* Karte 4: Haschisch */}
-            <Grid item xs={12} sm={6} md={4}>
-              <Paper 
-                elevation={0} 
-                sx={{ 
-                  p: 2, 
-                  height: '100%',
-                  borderRadius: 2,
-                  border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`,
-                  background: alpha(theme.palette.success.light, 0.05)
-                }}
-              >
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                  <FilterDramaIcon sx={{ mr: 1, color: theme.palette.success.main }} />
-                  <Typography variant="subtitle2">Haschisch</Typography>
-                </Box>
-                <Typography variant="h4" sx={{ fontWeight: 600, color: theme.palette.success.dark }}>
-                  {(() => {
-                    // Suche nach Haschisch in der Produktzusammenfassung
+                  })(),
+                  unit: "g",
+                  color: theme.palette.success.main,
+                  infoText: (() => {
                     if (distributionData.received.product_summary) {
-                      const hashishSummary = distributionData.received.product_summary.find(
-                        p => p.type === PRODUCT_TYPES.HASHISH
-                      );
+                      const marijuanaSummary = distributionData.received.product_summary.find(p => p.type === PRODUCT_TYPES.MARIJUANA);
+                      return `${marijuanaSummary ? (marijuanaSummary.unit_count || 0) : 0} Einheiten`;
+                    }
+                    return "0 Einheiten";
+                  })(),
+                  badge: limits.maxThc ? `max ${limits.maxThc}% THC` : null
+                },
+                
+                // Karte 5: Haschisch - jetzt auch in Grün
+                {
+                  icon: <FilterDramaIcon />,
+                  title: "Haschisch",
+                  value: (() => {
+                    if (distributionData.received.product_summary) {
+                      const hashishSummary = distributionData.received.product_summary.find(p => p.type === PRODUCT_TYPES.HASHISH);
                       return hashishSummary ? hashishSummary.weight.toFixed(1) : '0.0';
                     }
                     return '0.0';
-                  })()}g
-                </Typography>
-                <Typography variant="body2" color="textSecondary">
-                  ({(() => {
-                    // Einheiten für Haschisch
+                  })(),
+                  unit: "g",
+                  color: theme.palette.success.main,
+                  infoText: (() => {
                     if (distributionData.received.product_summary) {
-                      const hashishSummary = distributionData.received.product_summary.find(
-                        p => p.type === PRODUCT_TYPES.HASHISH
-                      );
-                      return hashishSummary ? (hashishSummary.unit_count || 0) : 0;
+                      const hashishSummary = distributionData.received.product_summary.find(p => p.type === PRODUCT_TYPES.HASHISH);
+                      return `${hashishSummary ? (hashishSummary.unit_count || 0) : 0} Einheiten`;
                     }
-                    return 0;
-                  })()} Einheiten)
-                </Typography>
-              </Paper>
-            </Grid>
-            
-            {/* Karte 5: Tageslimit */}
-            <Grid item xs={12} sm={6} md={4}>
-              <Paper 
-                elevation={0} 
-                sx={{ 
-                  p: 2, 
-                  height: '100%',
-                  borderRadius: 2,
-                  border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`,
-                  background: alpha(theme.palette.success.light, 0.05)
-                }}
-              >
-                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                    <ScheduleIcon sx={{ mr: 1, color: theme.palette.success.main }} />
-                    <Typography variant="subtitle2">Heutiges Limit</Typography>
-                  </Box>
-                  {distributionData.consumption && (
-                    <Tooltip title={`Tageslimit: ${distributionData.consumption.dailyLimit}g`}>
-                      <Chip 
-                        size="small" 
-                        label={`${distributionData.consumption.dailyPercentage.toFixed(0)}%`}
-                        sx={{ 
-                          height: 20, 
-                          fontSize: '0.7rem',
-                          bgcolor: distributionData.consumption.dailyPercentage > 90 ? alpha(theme.palette.error.main, 0.1) : alpha(theme.palette.success.light, 0.2),
-                          color: distributionData.consumption.dailyPercentage > 90 ? theme.palette.error.main : theme.palette.success.dark
-                        }}
-                      />
-                    </Tooltip>
-                  )}
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
-                  <Typography variant="h4" sx={{ fontWeight: 600, color: theme.palette.success.dark }}>
-                    {distributionData.consumption ? distributionData.consumption.today.toFixed(1) : '0.0'}g
-                  </Typography>
-                  {distributionData.consumption && (
-                    <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
-                      /{distributionData.consumption.dailyLimit}g
-                    </Typography>
-                  )}
-                </Box>
-                {distributionData.consumption && (
-                  <Box sx={{ mt: 1.5, mb: 0.5 }}>
-                    <LinearProgress 
-                      variant="determinate" 
-                      value={distributionData.consumption.dailyPercentage}
-                      sx={{ 
-                        height: 8, 
-                        borderRadius: 1,
-                        backgroundColor: alpha(theme.palette.success.light, 0.2),
-                        '& .MuiLinearProgress-bar': {
-                          backgroundColor: distributionData.consumption.dailyPercentage > 90 
-                            ? theme.palette.error.main 
-                            : theme.palette.success.main
-                        }
-                      }}
-                    />
-                  </Box>
-                )}
-                <Typography variant="body2" color="textSecondary">
-                  {distributionData.consumption && distributionData.consumption.remainingDaily > 0 ? 
-                    `Noch ${distributionData.consumption.remainingDaily.toFixed(1)}g heute verfügbar` : 
-                    'Tageslimit erreicht'}
-                </Typography>
-              </Paper>
-            </Grid>
-            
-            {/* Karte 6: Alterslimits */}
-            <Grid item xs={12} sm={6} md={4}>
-              <Paper 
-                elevation={0} 
-                sx={{ 
-                  p: 2, 
-                  height: '100%',
-                  borderRadius: 2,
-                  border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`,
-                  background: alpha(theme.palette.success.light, 0.05)
-                }}
-              >
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                  <FingerprintIcon sx={{ mr: 1, color: theme.palette.success.main }} />
-                  <Typography variant="subtitle2">Altersbezogene Limits</Typography>
-                </Box>
-                <Typography variant="h6" sx={{ fontWeight: 600, color: theme.palette.success.dark, mb: 1 }}>
-                  {limits.category === 'young-adult' ? 'U21-Limits' : 'Ü21-Limits'}
-                </Typography>
+                    return "0 Einheiten";
+                  })()
+                },
                 
-                <Stack spacing={0.5}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="body2">Tägliche Ausgabe:</Typography>
-                    <Typography variant="body2" fontWeight={500}>{limits.daily}g</Typography>
-                  </Box>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="body2">Monatliche Ausgabe:</Typography>
-                    <Typography variant="body2" fontWeight={500}>{limits.monthly}g</Typography>
-                  </Box>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="body2">Max. THC-Gehalt:</Typography>
-                    <Typography variant="body2" fontWeight={500}>
-                      {limits.maxThc ? `${limits.maxThc}%` : 'Keine Begrenzung'}
-                    </Typography>
-                  </Box>
-                </Stack>
-              </Paper>
-            </Grid>
-          </Grid>
-        </CardContent>
-      </Card>
-      
-      {/* Tabs für Konsumverlauf und Details */}
-      <Box sx={{ mb: 2, borderBottom: 1, borderColor: 'divider' }}>
-        <Tabs 
-          value={activeTab} 
-          onChange={(_, newValue) => setActiveTab(newValue)}
-          textColor="primary"
-          indicatorColor="primary"
-        >
-          <Tab 
-            icon={<TimelineIcon sx={{ mr: 1 }} />} 
-            label="Konsumverlauf" 
-            iconPosition="start"
-            sx={{ fontWeight: activeTab === 0 ? 600 : 400 }}
-          />
-          <Tab 
-            icon={<TableChartIcon sx={{ mr: 1 }} />} 
-            label="Detaillierte Ausgaben" 
-            iconPosition="start"
-            sx={{ fontWeight: activeTab === 1 ? 600 : 400 }}
-          />
-        </Tabs>
-      </Box>
-      
-      {/* Konsumverlauf Tab */}
-      {activeTab === 0 && (
-        <Box>
-          {/* Hinweis auf Tageslimit */}
-          {distributionData.consumption && (
-            <Card sx={{ p: 2, mb: 3, borderRadius: 2, display: 'flex', alignItems: 'center' }}>
-              <GppGoodIcon sx={{ color: 
-                distributionData.consumption.dailyPercentage > 90 
-                  ? theme.palette.error.main 
-                  : distributionData.consumption.dailyPercentage > 70 
-                    ? theme.palette.warning.main 
-                    : theme.palette.success.main, 
-                mr: 2 
-              }} />
-              <Box sx={{ flexGrow: 1 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
-                  <Typography variant="subtitle2">Tagesbezug: {distributionData.consumption.today.toFixed(1)}g von {distributionData.consumption.dailyLimit}g</Typography>
-                  <Typography variant="caption" sx={{ 
-                    color: distributionData.consumption.dailyPercentage > 90 
-                      ? theme.palette.error.main 
-                      : 'text.secondary' 
-                  }}>
-                    {distributionData.consumption.remainingDaily.toFixed(1)}g verbleibend
-                  </Typography>
-                </Box>
-                <LinearProgress 
-                  variant="determinate" 
-                  value={distributionData.consumption.dailyPercentage}
+                // Karte 6: Alterslimits - mit speziellem Format für Tages- und Monatslimit
+                {
+                  icon: <FingerprintIcon />,
+                  title: limits.category === 'young-adult' ? 'U21-Limits' : 'Ü21-Limits',
+                  value: calculateMemberAge,
+                  unit: "Jahre",
+                  color: limits.category === 'young-adult' ? theme.palette.warning.main : theme.palette.primary.main,
+                  additionalInfo: {
+                    dailyLimit: limits.daily,
+                    monthlyLimit: limits.monthly,
+                    thcInfo: limits.category === 'young-adult' ? `Max. THC: ${limits.maxThc}%` : 'Keine THC-Begrenzung'
+                  },
+                  // Leerer infoText, da wir ein eigenes Format verwenden
+                  infoText: ""
+                }
+              ].map((card, index) => (
+                <Box 
+                  key={index}
                   sx={{ 
-                    height: 6, 
-                    borderRadius: 1,
-                    backgroundColor: alpha(theme.palette.info.main, 0.1),
-                    '& .MuiLinearProgress-bar': {
-                      backgroundColor: distributionData.consumption.dailyPercentage > 90 
-                        ? theme.palette.error.main 
-                        : distributionData.consumption.dailyPercentage > 70
-                          ? theme.palette.warning.main
-                          : theme.palette.success.main
-                    }
-                  }}
-                />
-              </Box>
-            </Card>
-          )}
-          
-          {/* ECharts Diagramm */}
-          <Card sx={{ p: 2, mb: 3, borderRadius: 2 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
-                Grafischer Konsumverlauf
-              </Typography>
-              
-              <Tooltip title="Die Balken zeigen die täglichen Ausgaben, die Linie den kumulativen Monatskonsum. Die gestrichelte Linie markiert das Monatslimit.">
-                <InfoOutlinedIcon sx={{ color: 'text.secondary', fontSize: '1.1rem' }} />
-              </Tooltip>
-            </Box>
-            
-            {echartsOptions && consumptionTableData.length > 0 ? (
-              <Box sx={{ height: 400 }}>
-                <ReactECharts 
-                  option={echartsOptions} 
-                  style={{ height: '100%', width: '100%' }}
-                  opts={{ renderer: 'canvas' }}
-                />
-              </Box>
-            ) : (
-              <Typography variant="body2" color="textSecondary" align="center" sx={{ py: 10 }}>
-                Nicht genügend Daten für die Visualisierung vorhanden
-              </Typography>
-            )}
-          </Card>
-          
-          {/* Tabellarischer Konsumverlauf */}
-          <Card sx={{ mb: 3, borderRadius: 2 }}>
-            <TableContainer>
-              <Table size="small">
-                <TableHead>
-                  <TableRow sx={{ backgroundColor: alpha(theme.palette.primary.main, 0.05) }}>
-                    <TableCell>Datum</TableCell>
-                    <TableCell>Chargennummer</TableCell>
-                    <TableCell>Marihuana</TableCell>
-                    <TableCell>Haschisch</TableCell>
-                    <TableCell align="right">Gesamtgewicht</TableCell>
-                    <TableCell align="right">Tageslimit</TableCell>
-                    <TableCell>Ausgegeben von</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {consumptionTableData.length > 0 ? (
-                    consumptionTableData.map((item) => {
-                      // Berechne Tagesgesamtgewicht für den Limitprozentsatz
-                      const dayWeight = Object.values(item.productSummary).reduce(
-                        (total, product) => total + (product?.weight || 0), 
-                        0
-                      );
-                      const dayLimitPercentage = Math.min(100, (dayWeight / limits.daily) * 100);
-                      
-                      return (
-                        <TableRow key={item.id} hover>
-                          <TableCell>{item.dateFormatted}</TableCell>
-                          <TableCell>{item.batchNumber}</TableCell>
-                          <TableCell>
-                            {item.productSummary[PRODUCT_TYPES.MARIJUANA] && 
-                             item.productSummary[PRODUCT_TYPES.MARIJUANA].weight > 0 ? (
-                              <Box>
-                                <Typography variant="body2">
-                                  {item.productSummary[PRODUCT_TYPES.MARIJUANA].weight.toFixed(2)}g
-                                </Typography>
-                                <Typography variant="caption" color="textSecondary">
-                                  THC: {item.productSummary[PRODUCT_TYPES.MARIJUANA].thcDisplay}
-                                </Typography>
-                              </Box>
-                            ) : (
-                              '-'
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            {item.productSummary[PRODUCT_TYPES.HASHISH] && 
-                             item.productSummary[PRODUCT_TYPES.HASHISH].weight > 0 ? (
-                              <Box>
-                                <Typography variant="body2">
-                                  {item.productSummary[PRODUCT_TYPES.HASHISH].weight.toFixed(2)}g
-                                </Typography>
-                                <Typography variant="caption" color="textSecondary">
-                                  THC: {item.productSummary[PRODUCT_TYPES.HASHISH].thcDisplay}
-                                </Typography>
-                              </Box>
-                            ) : (
-                              '-'
-                            )}
-                          </TableCell>
-                          <TableCell align="right" sx={{ fontWeight: 500 }}>
-                            {item.totalWeight.toFixed(2)}g
-                          </TableCell>
-                          <TableCell align="right">
-                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 1 }}>
-                              <Typography variant="body2">
-                                {dayWeight.toFixed(1)}/{limits.daily}g
-                              </Typography>
-                              <Chip 
-                                size="small"
-                                label={`${dayLimitPercentage.toFixed(0)}%`}
-                                sx={{ 
-                                  height: 20, 
-                                  fontSize: '0.7rem',
-                                  minWidth: 40,
-                                  bgcolor: dayLimitPercentage > 90 
-                                    ? alpha(theme.palette.error.main, 0.1)
-                                    : dayLimitPercentage > 70
-                                      ? alpha(theme.palette.warning.main, 0.1)
-                                      : alpha(theme.palette.success.main, 0.1),
-                                  color: dayLimitPercentage > 90 
-                                    ? theme.palette.error.main
-                                    : dayLimitPercentage > 70
-                                      ? theme.palette.warning.main
-                                      : theme.palette.success.main
-                                }}
-                              />
-                            </Box>
-                          </TableCell>
-                          <TableCell>{item.distributor}</TableCell>
-                        </TableRow>
-                      );
-                    })
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={7} align="center">
-                        <Typography variant="body2" color="textSecondary" sx={{ py: 3 }}>
-                          Keine Ausgabedaten im gewählten Zeitraum
-                        </Typography>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </Card>
-        </Box>
-      )}
-      
-      {/* Detaillierte Ausgaben Tab */}
-      {activeTab === 1 && (
-        <Box>
-          <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 500, mb: 2 }}>
-            Detaillierte Einzelausgaben
-          </Typography>
-          
-          {distributionData.received.recent_distributions && distributionData.received.recent_distributions.length > 0 ? (
-            <Box>
-              {distributionData.received.recent_distributions.map((distribution) => (
-                <Accordion 
-                  key={distribution.id} 
-                  sx={{ 
-                    mb: 2, 
-                    borderRadius: '8px !important',
-                    overflow: 'hidden',
-                    '&:before': { display: 'none' },
-                    boxShadow: theme.shadows[2]
+                    width: `${100/6}%`,
+                    px: 0.5 // Reduzierter seitlicher Abstand für gleichmäßige Breite
                   }}
                 >
-                  <AccordionSummary 
-                    expandIcon={<ExpandMoreIcon />}
-                    sx={{ 
-                      backgroundColor: alpha(theme.palette.primary.main, 0.03),
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      p: 1.5, // Reduziertes Padding für gleichmäßige Breite
+                      height: '100%',
+                      borderRadius: 2,
+                      border: `1px solid ${alpha(card.color || theme.palette.success.main, 0.2)}`,
+                      background: `linear-gradient(145deg, ${alpha(card.color || theme.palette.success.main, 0.02)} 0%, ${alpha(card.color || theme.palette.success.main, 0.08)} 100%)`,
+                      display: 'flex',
+                      flexDirection: 'column',
                       '&:hover': {
-                        backgroundColor: alpha(theme.palette.primary.main, 0.05)
+                        boxShadow: `0 0 8px ${alpha(card.color || theme.palette.success.main, 0.3)}`,
+                        transition: 'all 0.3s ease'
                       }
                     }}
                   >
-                    <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                          Ausgabe vom {formatDate(distribution.distribution_date)}
-                        </Typography>
-                        <Chip 
-                          label={`${distribution.total_weight.toFixed(2)}g`}
-                          size="small"
+                    {/* Kartenkopf */}
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <Box 
                           sx={{ 
-                            fontWeight: 600,
-                            bgcolor: alpha(theme.palette.primary.main, 0.1),
-                            color: theme.palette.primary.main
+                            mr: 1, 
+                            color: card.color || theme.palette.success.main,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: 28,
+                            height: 28,
+                            borderRadius: '50%',
+                            bgcolor: alpha(card.color || theme.palette.success.main, 0.1)
                           }}
-                        />
+                        >
+                          {React.cloneElement(card.icon, { fontSize: 'small' })}
+                        </Box>
+                        <Typography 
+                          variant="subtitle2" 
+                          noWrap 
+                          sx={{ 
+                            fontSize: '0.8rem',
+                            fontWeight: 600
+                          }}
+                        >
+                          {card.title}
+                        </Typography>
                       </Box>
-                      <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
-                        {/* Verwende product_type_summary, falls vorhanden, sonst erstelle es */}
-                        {(distribution.product_type_summary || []).map((product, idx) => {
-                          if (!product || !product.type || product.weight <= 0) return null;
-                          
-                          const isMarijuana = product.type === PRODUCT_TYPES.MARIJUANA;
-                          const ProductIcon = isMarijuana ? LocalFloristIcon : FilterDramaIcon;
-                          const color = isMarijuana ? theme.palette.success.main : theme.palette.warning.main;
-                          
-                          return (
-                            <Chip
-                              key={idx}
-                              size="small"
-                              icon={<ProductIcon style={{ color }} />}
-                              label={`${product.type}: ${product.weight.toFixed(2)}g`}
-                              sx={{ 
-                                fontSize: '0.75rem', 
-                                height: '24px',
-                                backgroundColor: alpha(color, 0.1),
-                                color: color,
-                                '& .MuiChip-label': { px: 1 },
-                                '& .MuiChip-icon': { ml: 0.5 }
+                      
+                      {/* Badge falls vorhanden */}
+                      {card.badge && (
+                        <Tooltip title={`THC-Gehalt begrenzt auf ${limits.maxThc}%`}>
+                          <Chip
+                            size="small"
+                            label={card.badge}
+                            sx={{
+                              height: 16,
+                              fontSize: '0.6rem',
+                              bgcolor: alpha(card.color || theme.palette.success.main, 0.1),
+                              color: card.color || theme.palette.success.main
+                            }}
+                          />
+                        </Tooltip>
+                      )}
+                      
+                      {/* Prozentanzeige falls vorhanden */}
+                      {card.percentage && (
+                        <Tooltip title={`${card.title}: ${card.percentage.toFixed(0)}% genutzt`}>
+                          <Chip
+                            size="small"
+                            label={`${card.percentage.toFixed(0)}%`}
+                            sx={{
+                              height: 16,
+                              fontSize: '0.6rem',
+                              bgcolor: alpha(card.progressColor || theme.palette.success.main, 0.1),
+                              color: card.progressColor || theme.palette.success.main
+                            }}
+                          />
+                        </Tooltip>
+                      )}
+                    </Box>
+                    
+                    {/* Karteninhalt mit Speziallayout für Alterslimits */}
+                    {card.additionalInfo ? (
+                      <>
+                        {/* Standardformat für Wertanzeigen */}
+                        <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5, mt: 0.5 }}>
+                          <Typography variant="h4" sx={{ fontWeight: 700, color: card.color || theme.palette.success.dark, fontSize: '1.7rem' }}>
+                            {card.value}
+                          </Typography>
+                          {card.unit && (
+                            <Typography variant="body2" sx={{ color: alpha(theme.palette.text.primary, 0.7) }}>
+                              {card.unit}
+                            </Typography>
+                          )}
+                        </Box>
+                        
+                        {/* Tageslimit und Monatslimit direkt unter dem Alter nebeneinander */}
+                        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 0.5 }}>
+                          <Typography variant="subtitle2" sx={{ fontSize: '0.9rem', color: card.color || theme.palette.success.dark }}>
+                            {card.additionalInfo.dailyLimit}g/Tag
+                          </Typography>
+                          <Typography variant="subtitle2" sx={{ fontSize: '0.9rem', color: card.color || theme.palette.success.dark, ml: 2 }}>
+                            {card.additionalInfo.monthlyLimit}g/Monat
+                          </Typography>
+                        </Box>
+                        
+                        {/* THC-Info am unteren Rand */}
+                        <Box sx={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          mt: 'auto', 
+                          pt: 0.5,
+                          borderTop: `1px dashed ${alpha(theme.palette.text.disabled, 0.2)}`
+                        }}>
+                          <Typography 
+                            variant="body2" 
+                            color="textSecondary" 
+                            noWrap 
+                            sx={{ 
+                              fontSize: '0.7rem',
+                              width: '100%',
+                              textAlign: 'center'
+                            }}
+                          >
+                            {card.additionalInfo.thcInfo}
+                          </Typography>
+                        </Box>
+                      </>
+                    ) : (
+                      <>
+                        {/* Standardformat für Wertanzeigen */}
+                        <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5, mt: 0.5 }}>
+                          <Typography variant="h4" sx={{ fontWeight: 700, color: card.color || theme.palette.success.dark, fontSize: '1.7rem' }}>
+                            {card.value}
+                          </Typography>
+                          {card.unit && (
+                            <Typography variant="body2" sx={{ color: alpha(theme.palette.text.primary, 0.7) }}>
+                              {card.unit}
+                            </Typography>
+                          )}
+                          {card.maxValue && (
+                            <Typography variant="body2" sx={{ color: alpha(theme.palette.text.primary, 0.4), fontSize: '0.75rem' }}>
+                              /{card.maxValue}{card.unit}
+                            </Typography>
+                          )}
+                        </Box>
+                        
+                        {/* Fortschrittsbalken falls vorhanden */}
+                        {card.percentage && (
+                          <Box sx={{ my: 1 }}>
+                            <LinearProgress
+                              variant="determinate"
+                              value={Math.min(100, card.percentage)}
+                              sx={{
+                                height: 6,
+                                borderRadius: 1,
+                                backgroundColor: alpha(card.color || theme.palette.success.main, 0.1),
+                                '& .MuiLinearProgress-bar': {
+                                  backgroundColor: card.progressColor || card.color || theme.palette.success.main
+                                }
                               }}
                             />
-                          );
-                        })}
-                      </Box>
-                    </Box>
-                  </AccordionSummary>
-                  <AccordionDetails sx={{ p: 3 }}>
-                    <Grid container spacing={2} sx={{ mb: 2 }}>
-                      <Grid item xs={12} md={4}>
-                        <Paper variant="outlined" sx={{ p: 2, height: '100%', borderRadius: 2 }}>
-                          <Typography variant="body2" gutterBottom sx={{ color: 'text.secondary' }}>
-                            Chargennummer
-                          </Typography>
-                          <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                            {distribution.batch_number}
-                          </Typography>
-                        </Paper>
-                      </Grid>
-                      
-                      <Grid item xs={12} md={4}>
-                        <Paper variant="outlined" sx={{ p: 2, height: '100%', borderRadius: 2 }}>
-                          <Typography variant="body2" gutterBottom sx={{ color: 'text.secondary' }}>
-                            Ausgegeben von
-                          </Typography>
-                          <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                            {distribution.distributor?.display_name || `${distribution.distributor?.first_name || ''} ${distribution.distributor?.last_name || ''}`}
-                          </Typography>
-                        </Paper>
-                      </Grid>
-                      
-                      <Grid item xs={12} md={4}>
-                        <Paper variant="outlined" sx={{ p: 2, height: '100%', borderRadius: 2 }}>
-                          <Typography variant="body2" gutterBottom sx={{ color: 'text.secondary' }}>
-                            Bemerkungen
-                          </Typography>
-                          <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                            {distribution.notes || 'Keine Bemerkungen'}
-                          </Typography>
-                        </Paper>
-                      </Grid>
-                    </Grid>
-                    
-                    <Typography variant="subtitle2" gutterBottom sx={{ mt: 3, mb: 2 }}>
-                      Erhaltene Verpackungseinheiten
-                    </Typography>
-                    
-                    <TableContainer component={Paper} variant="outlined" sx={{ mb: 1, borderRadius: 2 }}>
-                      <Table size="small">
-                        <TableHead>
-                          <TableRow sx={{ backgroundColor: alpha(theme.palette.primary.main, 0.05) }}>
-                            <TableCell>Einheits-Nr.</TableCell>
-                            <TableCell>Produkttyp</TableCell>
-                            <TableCell align="right">Gewicht</TableCell>
-                            <TableCell>THC-Gehalt</TableCell>
-                            <TableCell>CBD-Gehalt</TableCell>
-                            <TableCell>Sorte</TableCell>
-                          </TableRow>
-                        </TableHead>
-                        <TableBody>
-                          {(distribution.packaging_units || []).length > 0 ? (
-                            distribution.packaging_units.map((unit) => {
-                              // Bestimme den Produkttyp für die Anzeige
-                              const productType = determineProductType(unit);
-                              const isMarijuana = productType === 'marijuana';
-                              const displayType = isMarijuana ? PRODUCT_TYPES.MARIJUANA : PRODUCT_TYPES.HASHISH;
-                              
-                              // Versuch, THC- und CBD-Gehalt zu extrahieren
-                              let thcContent = 'k.A.';
-                              let cbdContent = 'k.A.';
-                              let strain = 'k.A.';
-                              
-                              try {
-                                // THC-Gehalt aus verschiedenen Quellen versuchen zu extrahieren
-                                if (unit.batch && unit.batch.thc_content) {
-                                  thcContent = `${unit.batch.thc_content}%`;
-                                } else if (unit.batch && unit.batch.lab_testing_batch && unit.batch.lab_testing_batch.thc_content) {
-                                  thcContent = `${unit.batch.lab_testing_batch.thc_content}%`;
-                                }
-                                
-                                // CBD-Gehalt
-                                if (unit.batch && unit.batch.cbd_content) {
-                                  cbdContent = `${unit.batch.cbd_content}%`;
-                                } else if (unit.batch && unit.batch.lab_testing_batch && unit.batch.lab_testing_batch.cbd_content) {
-                                  cbdContent = `${unit.batch.lab_testing_batch.cbd_content}%`;
-                                }
-                                
-                                // Sorte/Strain
-                                if (unit.batch && unit.batch.source_strain) {
-                                  strain = unit.batch.source_strain;
-                                }
-                              } catch (e) {
-                                // Ignorieren von Fehlern bei der Datenextraktion
-                              }
-                              
-                              return (
-                                <TableRow key={unit.id} hover>
-                                  <TableCell>{unit.batch_number}</TableCell>
-                                  <TableCell>
-                                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                      {isMarijuana ? (
-                                        <LocalFloristIcon fontSize="small" color="success" sx={{ mr: 0.5 }} />
-                                      ) : (
-                                        <FilterDramaIcon fontSize="small" color="warning" sx={{ mr: 0.5 }} />
-                                      )}
-                                      {displayType}
-                                    </Box>
-                                  </TableCell>
-                                  <TableCell align="right">{parseFloat(unit.weight).toFixed(2)}g</TableCell>
-                                  <TableCell>
-                                    {thcContent !== 'k.A.' ? (
-                                      <Chip 
-                                        size="small" 
-                                        label={thcContent}
-                                        sx={{ 
-                                          height: 20, 
-                                          fontSize: '0.7rem',
-                                          backgroundColor: alpha(theme.palette.primary.main, 0.1),
-                                          color: theme.palette.primary.main
-                                        }} 
-                                      />
-                                    ) : (
-                                      'k.A.'
-                                    )}
-                                  </TableCell>
-                                  <TableCell>
-                                    {cbdContent !== 'k.A.' ? (
-                                      <Chip 
-                                        size="small" 
-                                        label={cbdContent}
-                                        sx={{ 
-                                          height: 20, 
-                                          fontSize: '0.7rem',
-                                          backgroundColor: alpha(theme.palette.info.main, 0.1),
-                                          color: theme.palette.info.main
-                                        }} 
-                                      />
-                                    ) : (
-                                      'k.A.'
-                                    )}
-                                  </TableCell>
-                                  <TableCell>{strain}</TableCell>
-                                </TableRow>
-                              );
-                            })
-                          ) : (
-                            <TableRow>
-                              <TableCell colSpan={6} align="center">
-                                <Typography variant="body2" color="textSecondary" sx={{ py: 2 }}>
-                                  Keine Verpackungseinheiten verfügbar
-                                </Typography>
-                              </TableCell>
-                            </TableRow>
-                          )}
-                        </TableBody>
-                      </Table>
-                    </TableContainer>
-                  </AccordionDetails>
-                </Accordion>
+                          </Box>
+                        )}
+                        
+                        {/* Informationstext */}
+                        {(card.infoText || card.remaining !== undefined) && (
+                          <Box sx={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            mt: 'auto', 
+                            pt: 0.5,
+                            borderTop: `1px dashed ${alpha(theme.palette.text.disabled, 0.2)}`
+                          }}>
+                            <Typography 
+                              variant="body2" 
+                              color="textSecondary" 
+                              noWrap 
+                              sx={{ 
+                                fontSize: '0.7rem',
+                                width: '100%',
+                                textAlign: 'center'
+                              }}
+                            >
+                              {card.infoText || (card.remaining !== undefined ? `Noch ${card.remaining.toFixed(1)}${card.unit} verfügbar` : '')}
+                            </Typography>
+                          </Box>
+                        )}
+                      </>
+                    )}
+                  </Paper>
+                </Box>
               ))}
             </Box>
-          ) : (
-            <Card sx={{ p: 3, mb: 3, textAlign: 'center', borderRadius: 2 }}>
-              <Typography variant="body2" color="textSecondary">
-                Keine Produktausgaben im gewählten Zeitraum
-              </Typography>
-            </Card>
-          )}
+          </CardContent>
+        </Card>
+        
+        {/* Tabs für Konsumverlauf und Details */}
+        <Box sx={{ mb: 2, borderBottom: 1, borderColor: 'divider' }}>
+          <Tabs 
+            value={activeTab} 
+            onChange={(_, newValue) => setActiveTab(newValue)}
+            textColor="primary"
+            indicatorColor="primary"
+          >
+            <Tab 
+              icon={<TimelineIcon sx={{ mr: 1 }} />} 
+              label="Konsumverlauf" 
+              iconPosition="start"
+              sx={{ fontWeight: activeTab === 0 ? 600 : 400 }}
+            />
+            <Tab 
+              icon={<TableChartIcon sx={{ mr: 1 }} />} 
+              label="Detaillierte Ausgaben" 
+              iconPosition="start"
+              sx={{ fontWeight: activeTab === 1 ? 600 : 400 }}
+            />
+          </Tabs>
         </Box>
-      )}
-    </Box>
+        
+        {/* Konsumverlauf Tab */}
+        {activeTab === 0 && (
+          <Box>
+            {/* Hinweis auf Tageslimit */}
+            {distributionData.consumption && (
+              <Card sx={{ p: 2, mb: 3, borderRadius: 2, display: 'flex', alignItems: 'center' }}>
+                <GppGoodIcon sx={{ color: 
+                  distributionData.consumption.dailyPercentage > 90 
+                    ? theme.palette.error.main 
+                    : distributionData.consumption.dailyPercentage > 70 
+                      ? theme.palette.warning.main 
+                      : theme.palette.success.main, 
+                  mr: 2 
+                }} />
+                <Box sx={{ flexGrow: 1 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                    <Typography variant="subtitle2">Tagesbezug: {distributionData.consumption.today.toFixed(1)}g von {distributionData.consumption.dailyLimit}g</Typography>
+                    <Typography variant="caption" sx={{ 
+                      color: distributionData.consumption.dailyPercentage > 90 
+                        ? theme.palette.error.main 
+                        : 'text.secondary' 
+                    }}>
+                      {distributionData.consumption.remainingDaily.toFixed(1)}g verbleibend
+                    </Typography>
+                  </Box>
+                  <LinearProgress 
+                    variant="determinate" 
+                    value={distributionData.consumption.dailyPercentage}
+                    sx={{ 
+                      height: 6, 
+                      borderRadius: 1,
+                      backgroundColor: alpha(theme.palette.info.main, 0.1),
+                      '& .MuiLinearProgress-bar': {
+                        backgroundColor: distributionData.consumption.dailyPercentage > 90 
+                          ? theme.palette.error.main 
+                          : distributionData.consumption.dailyPercentage > 70
+                            ? theme.palette.warning.main
+                            : theme.palette.success.main
+                      }
+                    }}
+                  />
+                </Box>
+              </Card>
+            )}
+            
+            {/* ECharts Diagramm */}
+            <Card sx={{ p: 2, mb: 3, borderRadius: 2 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
+                  Grafischer Konsumverlauf
+                </Typography>
+                
+                <Tooltip title="Die Balken zeigen die täglichen Ausgaben, die Linie den kumulativen Monatskonsum. Die gestrichelte Linie markiert das Monatslimit.">
+                  <InfoOutlinedIcon sx={{ color: 'text.secondary', fontSize: '1.1rem' }} />
+                </Tooltip>
+              </Box>
+              
+              {echartsOptions && consumptionTableData.length > 0 ? (
+                <Box sx={{ height: 400 }}>
+                  <ReactECharts 
+                    option={echartsOptions} 
+                    style={{ height: '100%', width: '100%' }}
+                    opts={{ renderer: 'canvas' }}
+                  />
+                </Box>
+              ) : (
+                <Typography variant="body2" color="textSecondary" align="center" sx={{ py: 10 }}>
+                  Nicht genügend Daten für die Visualisierung vorhanden
+                </Typography>
+              )}
+            </Card>
+            
+            {/* Tabellarischer Konsumverlauf */}
+            <Card sx={{ mb: 3, borderRadius: 2 }}>
+              <TableContainer>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow sx={{ backgroundColor: alpha(theme.palette.primary.main, 0.05) }}>
+                      <TableCell>Datum</TableCell>
+                      <TableCell>Chargennummer</TableCell>
+                      <TableCell>Marihuana</TableCell>
+                      <TableCell>Haschisch</TableCell>
+                      <TableCell align="right">Gesamtgewicht</TableCell>
+                      <TableCell align="right">Tageslimit</TableCell>
+                      <TableCell>Ausgegeben von</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {consumptionTableData.length > 0 ? (
+                      consumptionTableData.map((item) => {
+                        // Berechne Tagesgesamtgewicht für den Limitprozentsatz
+                        const dayWeight = Object.values(item.productSummary).reduce(
+                          (total, product) => total + (product?.weight || 0), 
+                          0
+                        );
+                        const dayLimitPercentage = Math.min(100, (dayWeight / limits.daily) * 100);
+                        
+                        return (
+                          <TableRow key={item.id} hover>
+                            <TableCell>{item.dateFormatted}</TableCell>
+                            <TableCell>{item.batchNumber}</TableCell>
+                            <TableCell>
+                              {item.productSummary[PRODUCT_TYPES.MARIJUANA] && 
+                               item.productSummary[PRODUCT_TYPES.MARIJUANA].weight > 0 ? (
+                                <Box>
+                                  <Typography variant="body2">
+                                    {item.productSummary[PRODUCT_TYPES.MARIJUANA].weight.toFixed(2)}g
+                                  </Typography>
+                                  <Typography variant="caption" color="textSecondary">
+                                    THC: {item.productSummary[PRODUCT_TYPES.MARIJUANA].thcDisplay}
+                                  </Typography>
+                                </Box>
+                              ) : (
+                                '-'
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {item.productSummary[PRODUCT_TYPES.HASHISH] && 
+                               item.productSummary[PRODUCT_TYPES.HASHISH].weight > 0 ? (
+                                <Box>
+                                  <Typography variant="body2">
+                                    {item.productSummary[PRODUCT_TYPES.HASHISH].weight.toFixed(2)}g
+                                  </Typography>
+                                  <Typography variant="caption" color="textSecondary">
+                                    THC: {item.productSummary[PRODUCT_TYPES.HASHISH].thcDisplay}
+                                  </Typography>
+                                </Box>
+                              ) : (
+                                '-'
+                              )}
+                            </TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 500 }}>
+                              {item.totalWeight.toFixed(2)}g
+                            </TableCell>
+                            <TableCell align="right">
+                              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 1 }}>
+                                <Typography variant="body2">
+                                  {dayWeight.toFixed(1)}/{limits.daily}g
+                                </Typography>
+                                <Chip 
+                                  size="small"
+                                  label={`${dayLimitPercentage.toFixed(0)}%`}
+                                  sx={{ 
+                                    height: 20, 
+                                    fontSize: '0.7rem',
+                                    minWidth: 40,
+                                    bgcolor: dayLimitPercentage > 90 
+                                      ? alpha(theme.palette.error.main, 0.1)
+                                      : dayLimitPercentage > 70
+                                        ? alpha(theme.palette.warning.main, 0.1)
+                                        : alpha(theme.palette.success.main, 0.1),
+                                    color: dayLimitPercentage > 90 
+                                      ? theme.palette.error.main
+                                      : dayLimitPercentage > 70
+                                        ? theme.palette.warning.main
+                                        : theme.palette.success.main
+                                  }}
+                                />
+                              </Box>
+                            </TableCell>
+                            <TableCell>{item.distributor}</TableCell>
+                          </TableRow>
+                        );
+                      })
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={7} align="center">
+                          <Typography variant="body2" color="textSecondary" sx={{ py: 3 }}>
+                            Keine Ausgabedaten im gewählten Zeitraum
+                          </Typography>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Card>
+          </Box>
+        )}
+        
+        {/* Detaillierte Ausgaben Tab - Code unverändert */}
+        {activeTab === 1 && (
+          <Box>
+            <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 500, mb: 2 }}>
+              Detaillierte Einzelausgaben
+            </Typography>
+            
+            {distributionData.received.recent_distributions && distributionData.received.recent_distributions.length > 0 ? (
+              <Box>
+                {distributionData.received.recent_distributions.map((distribution) => (
+                  <Accordion 
+                    key={distribution.id} 
+                    sx={{ 
+                      mb: 2, 
+                      borderRadius: '8px !important',
+                      overflow: 'hidden',
+                      '&:before': { display: 'none' },
+                      boxShadow: theme.shadows[2]
+                    }}
+                  >
+                    <AccordionSummary 
+                      expandIcon={<ExpandMoreIcon />}
+                      sx={{ 
+                        backgroundColor: alpha(theme.palette.primary.main, 0.03),
+                        '&:hover': {
+                          backgroundColor: alpha(theme.palette.primary.main, 0.05)
+                        }
+                      }}
+                    >
+                      <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                            Ausgabe vom {formatDate(distribution.distribution_date)}
+                          </Typography>
+                          <Chip 
+                            label={`${distribution.total_weight.toFixed(2)}g`}
+                            size="small"
+                            sx={{ 
+                              fontWeight: 600,
+                              bgcolor: alpha(theme.palette.primary.main, 0.1),
+                              color: theme.palette.primary.main
+                            }}
+                          />
+                        </Box>
+                        <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+                          {/* Verwende product_type_summary, falls vorhanden, sonst erstelle es */}
+                          {(distribution.product_type_summary || []).map((product, idx) => {
+                            if (!product || !product.type || product.weight <= 0) return null;
+                            
+                            const isMarijuana = product.type === PRODUCT_TYPES.MARIJUANA;
+                            const ProductIcon = isMarijuana ? LocalFloristIcon : FilterDramaIcon;
+                            const color = isMarijuana ? theme.palette.success.main : theme.palette.warning.main;
+                            
+                            return (
+                              <Chip
+                                key={idx}
+                                size="small"
+                                icon={<ProductIcon style={{ color }} />}
+                                label={`${product.type}: ${product.weight.toFixed(2)}g`}
+                                sx={{ 
+                                  fontSize: '0.75rem', 
+                                  height: '24px',
+                                  backgroundColor: alpha(color, 0.1),
+                                  color: color,
+                                  '& .MuiChip-label': { px: 1 },
+                                  '& .MuiChip-icon': { ml: 0.5 }
+                                }}
+                              />
+                            );
+                          })}
+                        </Box>
+                      </Box>
+                    </AccordionSummary>
+                    <AccordionDetails sx={{ p: 3 }}>
+                      <Grid container spacing={2} sx={{ mb: 2 }}>
+                        <Grid item xs={12} md={4}>
+                          <Paper variant="outlined" sx={{ p: 2, height: '100%', borderRadius: 2 }}>
+                            <Typography variant="body2" gutterBottom sx={{ color: 'text.secondary' }}>
+                              Chargennummer
+                            </Typography>
+                            <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                              {distribution.batch_number}
+                            </Typography>
+                          </Paper>
+                        </Grid>
+                        
+                        <Grid item xs={12} md={4}>
+                          <Paper variant="outlined" sx={{ p: 2, height: '100%', borderRadius: 2 }}>
+                            <Typography variant="body2" gutterBottom sx={{ color: 'text.secondary' }}>
+                              Ausgegeben von
+                            </Typography>
+                            <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                              {distribution.distributor?.display_name || `${distribution.distributor?.first_name || ''} ${distribution.distributor?.last_name || ''}`}
+                            </Typography>
+                          </Paper>
+                        </Grid>
+                        
+                        <Grid item xs={12} md={4}>
+                          <Paper variant="outlined" sx={{ p: 2, height: '100%', borderRadius: 2 }}>
+                            <Typography variant="body2" gutterBottom sx={{ color: 'text.secondary' }}>
+                              Bemerkungen
+                            </Typography>
+                            <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                              {distribution.notes || 'Keine Bemerkungen'}
+                            </Typography>
+                          </Paper>
+                        </Grid>
+                      </Grid>
+                      
+                      <Typography variant="subtitle2" gutterBottom sx={{ mt: 3, mb: 2 }}>
+                        Erhaltene Verpackungseinheiten
+                      </Typography>
+                      
+                      <TableContainer component={Paper} variant="outlined" sx={{ mb: 1, borderRadius: 2 }}>
+                        <Table size="small">
+                          <TableHead>
+                            <TableRow sx={{ backgroundColor: alpha(theme.palette.primary.main, 0.05) }}>
+                              <TableCell>Einheits-Nr.</TableCell>
+                              <TableCell>Produkttyp</TableCell>
+                              <TableCell align="right">Gewicht</TableCell>
+                              <TableCell>THC-Gehalt</TableCell>
+                              <TableCell>CBD-Gehalt</TableCell>
+                              <TableCell>Sorte</TableCell>
+                            </TableRow>
+                          </TableHead>
+                          <TableBody>
+                            {(distribution.packaging_units || []).length > 0 ? (
+                              distribution.packaging_units.map((unit) => {
+                                // Bestimme den Produkttyp für die Anzeige
+                                const productType = determineProductType(unit);
+                                const isMarijuana = productType === 'marijuana';
+                                const displayType = isMarijuana ? PRODUCT_TYPES.MARIJUANA : PRODUCT_TYPES.HASHISH;
+                                
+                                // Versuch, THC- und CBD-Gehalt zu extrahieren
+                                let thcContent = 'k.A.';
+                                let cbdContent = 'k.A.';
+                                let strain = 'k.A.';
+                                
+                                try {
+                                  // THC-Gehalt aus verschiedenen Quellen versuchen zu extrahieren
+                                  if (unit.batch && unit.batch.thc_content) {
+                                    thcContent = `${unit.batch.thc_content}%`;
+                                  } else if (unit.batch && unit.batch.lab_testing_batch && unit.batch.lab_testing_batch.thc_content) {
+                                    thcContent = `${unit.batch.lab_testing_batch.thc_content}%`;
+                                  }
+                                  
+                                  // CBD-Gehalt
+                                  if (unit.batch && unit.batch.cbd_content) {
+                                    cbdContent = `${unit.batch.cbd_content}%`;
+                                  } else if (unit.batch && unit.batch.lab_testing_batch && unit.batch.lab_testing_batch.cbd_content) {
+                                    cbdContent = `${unit.batch.lab_testing_batch.cbd_content}%`;
+                                  }
+                                  
+                                  // Sorte/Strain
+                                  if (unit.batch && unit.batch.source_strain) {
+                                    strain = unit.batch.source_strain;
+                                  }
+                                } catch (e) {
+                                  // Ignorieren von Fehlern bei der Datenextraktion
+                                }
+                                
+                                return (
+                                  <TableRow key={unit.id} hover>
+                                    <TableCell>{unit.batch_number}</TableCell>
+                                    <TableCell>
+                                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                        {isMarijuana ? (
+                                          <LocalFloristIcon fontSize="small" color="success" sx={{ mr: 0.5 }} />
+                                        ) : (
+                                          <FilterDramaIcon fontSize="small" color="warning" sx={{ mr: 0.5 }} />
+                                        )}
+                                        {displayType}
+                                      </Box>
+                                    </TableCell>
+                                    <TableCell align="right">{parseFloat(unit.weight).toFixed(2)}g</TableCell>
+                                    <TableCell>
+                                      {thcContent !== 'k.A.' ? (
+                                        <Chip 
+                                          size="small" 
+                                          label={thcContent}
+                                          sx={{ 
+                                            height: 20, 
+                                            fontSize: '0.7rem',
+                                            backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                                            color: theme.palette.primary.main
+                                          }} 
+                                        />
+                                      ) : (
+                                        'k.A.'
+                                      )}
+                                    </TableCell>
+                                    <TableCell>
+                                      {cbdContent !== 'k.A.' ? (
+                                        <Chip 
+                                          size="small" 
+                                          label={cbdContent}
+                                          sx={{ 
+                                            height: 20, 
+                                            fontSize: '0.7rem',
+                                            backgroundColor: alpha(theme.palette.info.main, 0.1),
+                                            color: theme.palette.info.main
+                                          }} 
+                                        />
+                                      ) : (
+                                        'k.A.'
+                                      )}
+                                    </TableCell>
+                                    <TableCell>{strain}</TableCell>
+                                  </TableRow>
+                                );
+                              })
+                            ) : (
+                              <TableRow>
+                                <TableCell colSpan={6} align="center">
+                                  <Typography variant="body2" color="textSecondary" sx={{ py: 2 }}>
+                                    Keine Verpackungseinheiten verfügbar
+                                  </Typography>
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
+                    </AccordionDetails>
+                  </Accordion>
+                ))}
+              </Box>
+            ) : (
+              <Card sx={{ p: 3, mb: 3, textAlign: 'center', borderRadius: 2 }}>
+                <Typography variant="body2" color="textSecondary">
+                  Keine Produktausgaben im gewählten Zeitraum
+                </Typography>
+              </Card>
+            )}
+          </Box>
+        )}
+      </Box>
+    </div>
   );
 };
 

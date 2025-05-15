@@ -5,6 +5,18 @@ from django.urls import reverse
 from django.contrib import messages
 from django.db import transaction
 from django.utils.translation import gettext_lazy as _
+from django.contrib import admin
+from django.contrib.admin.models import LogEntry
+
+class NoLogAdminMixin:
+    def log_addition(self, request, object, message):
+        pass
+
+    def log_change(self, request, object, message):
+        pass
+
+    def log_deletion(self, request, object, message):
+        pass
 
 from .models import (
     SeedPurchase, MotherPlantBatch, MotherPlant, 
