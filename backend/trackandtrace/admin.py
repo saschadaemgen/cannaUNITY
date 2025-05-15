@@ -7,6 +7,7 @@ from django.db import transaction
 from django.utils.translation import gettext_lazy as _
 from django.contrib import admin
 from django.contrib.admin.models import LogEntry
+from django.db.models import Count
 
 class NoLogAdminMixin:
     def log_addition(self, request, object, message):
@@ -92,6 +93,21 @@ class SeedPurchaseAdmin(admin.ModelAdmin):
     inlines = [MotherPlantBatchInline, FloweringPlantBatchInline]
     actions = ['complete_delete_with_related']
     
+    def delete_model(self, request, obj):
+        """Überschreibt die Standard-Löschmethode im Admin"""
+        # Standard-Löschung durchführen
+        obj.delete()
+        
+        # Leere ProductDistribution-Objekte bereinigen
+        empty_distributions = ProductDistribution.objects.annotate(
+            unit_count=Count('packaging_units')
+        ).filter(unit_count=0)
+        
+        count = empty_distributions.count()
+        if count > 0:
+            empty_distributions.delete()
+            messages.success(request, f"{count} leere Produktauslieferungen wurden ebenfalls entfernt.")
+    
     def get_mother_batches(self, obj):
         count = obj.mother_batches.count()
         if count > 0:
@@ -150,7 +166,8 @@ class SeedPurchaseAdmin(admin.ModelAdmin):
             'mother_batches': 0,
             'mother_plants': 0, 
             'flowering_batches': 0,
-            'flowering_plants': 0
+            'flowering_plants': 0,
+            'distributions': 0  # NEU: Zähler für Distributionen
         }
         
         for seed in queryset:
@@ -169,14 +186,26 @@ class SeedPurchaseAdmin(admin.ModelAdmin):
         # Führe die Löschung durch - Dank Cascading werden alle verknüpften Objekte gelöscht
         deleted_count = queryset.delete()[0]
         
-        # Erfolgsmeldung anzeigen
+        # NEU: Finde und lösche leere ProductDistribution-Objekte
+        empty_distributions = ProductDistribution.objects.annotate(
+            unit_count=Count('packaging_units')
+        ).filter(unit_count=0)
+        
+        # Anzahl merken für die Statistik
+        deletion_stats['distributions'] = empty_distributions.count()
+        
+        # Löschen der leeren Distribution-Objekte
+        empty_distributions.delete()
+        
+        # Erfolgsmeldung anzeigen (erweitert)
         messages.success(request, _(
             f"Erfolgreich gelöscht: "
             f"{deletion_stats['seeds']} Samen, "
             f"{deletion_stats['mother_batches']} Mutterpflanzen-Batches, "
             f"{deletion_stats['mother_plants']} Mutterpflanzen, "
             f"{deletion_stats['flowering_batches']} Blühpflanzen-Batches, "
-            f"{deletion_stats['flowering_plants']} Blühpflanzen."
+            f"{deletion_stats['flowering_plants']} Blühpflanzen, "
+            f"{deletion_stats['distributions']} leere Produktauslieferungen."  # NEU
         ))
     complete_delete_with_related.short_description = "Ausgewählte Samen vollständig und unwiderruflich löschen"
 
