@@ -7,6 +7,7 @@ from django.db import models
 from django.utils import timezone
 from django.db.models import Sum, Avg, F, ExpressionWrapper, fields
 from django.db.models.functions import TruncDate
+from decimal import Decimal
 
 import datetime
 import json
@@ -99,16 +100,17 @@ class IrrigationControllerViewSet(viewsets.ModelViewSet):
         # MQTT-Client initialisieren und Befehl senden
         mqtt_client = MQTTClient()
         
-        # Volumenberechnung
-        volume = float(controller.flow_rate) * duration * (intensity / 100)
+        # Volumenberechnung - Decimal für Datenbank, Float für JSON
+        volume_decimal = controller.flow_rate * Decimal(duration) * (Decimal(intensity) / Decimal(100))
+        volume_float = float(volume_decimal)  # Als float für JSON
         
-        # Befehl vorbereiten
+        # Befehl vorbereiten - alle Decimal-Werte als float
         mqtt_payload = {
             "action": "manual_irrigation",
             "parameters": {
                 "duration": duration,
                 "intensity": intensity,
-                "volume": volume
+                "volume": volume_float  # Als float für JSON
             },
             "timestamp": timezone.now().isoformat(),
             "request_id": str(timezone.now().timestamp())
@@ -131,8 +133,8 @@ class IrrigationControllerViewSet(viewsets.ModelViewSet):
         )
         
         if success:
-            # Volumen zum Gesamtverbrauch addieren
-            controller.total_volume_used += volume
+            # Volumen zum Gesamtverbrauch addieren (als Decimal)
+            controller.total_volume_used += volume_decimal
             controller.save(update_fields=['total_volume_used'])
             
             # Ressourcenverbrauch speichern
@@ -143,19 +145,19 @@ class IrrigationControllerViewSet(viewsets.ModelViewSet):
                 resource_type="water",
                 date=today,
                 defaults={
-                    "amount": volume,
+                    "amount": volume_decimal,
                     "unit": "l"
                 }
             )
             
             if not created:
-                # Wenn Eintrag schon existiert, Menge aktualisieren
-                resource_usage.amount += volume
+                # Wenn Eintrag schon existiert, Menge aktualisieren (als Decimal)
+                resource_usage.amount += volume_decimal
                 resource_usage.save(update_fields=['amount'])
             
             return Response({
                 "success": True,
-                "message": f"Bewässerung gestartet: {duration} Minuten, {intensity}% Intensität, {volume:.2f}l Wasser"
+                "message": f"Bewässerung gestartet: {duration} Minuten, {intensity}% Intensität, {volume_float:.2f}l Wasser"
             })
         else:
             return Response(

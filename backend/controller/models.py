@@ -1,8 +1,9 @@
-# controller/models.py (Modifikation der Import- und Modellreferenzen)
+# controller/models.py
 import uuid
 from django.db import models
 from django.utils import timezone
 from django.core.validators import MinValueValidator, MaxValueValidator
+from decimal import Decimal
 
 from members.models import Member  # Ihr Member-Modell
 from rooms.models import Room      # Ihr Room-Modell
@@ -101,7 +102,7 @@ class IrrigationController(BaseController):
         max_digits=8, 
         decimal_places=2,
         default=1.0,
-        validators=[MinValueValidator(0.01)],
+        validators=[MinValueValidator(Decimal('0.01'))],
         verbose_name="Durchflussrate (l/min)"
     )
     max_volume_per_day = models.DecimalField(
@@ -109,7 +110,7 @@ class IrrigationController(BaseController):
         decimal_places=2,
         blank=True, 
         null=True,
-        validators=[MinValueValidator(0.01)],
+        validators=[MinValueValidator(Decimal('0.01'))],
         verbose_name="Max. Volumen pro Tag (l)",
         help_text="Maximale Wassermenge pro Tag (0 für unbegrenzt)"
     )
@@ -281,7 +282,7 @@ class IrrigationSchedule(models.Model):
         decimal_places=2,
         blank=True, 
         null=True,
-        validators=[MinValueValidator(0.01)],
+        validators=[MinValueValidator(Decimal('0.01'))],
         verbose_name="Volumen (l)",
         help_text="Zu verabreichende Wassermenge (wenn leer, wird aus Durchflussrate und Dauer berechnet)"
     )
@@ -684,7 +685,7 @@ class ResourceUsage(models.Model):
     amount = models.DecimalField(
         max_digits=10, 
         decimal_places=2,
-        validators=[MinValueValidator(0)],
+        validators=[MinValueValidator(Decimal('0'))],
         verbose_name="Menge"
     )
     unit = models.CharField(
@@ -697,7 +698,7 @@ class ResourceUsage(models.Model):
         decimal_places=2,
         null=True, 
         blank=True,
-        validators=[MinValueValidator(0)],
+        validators=[MinValueValidator(Decimal('0'))],
         verbose_name="Kosten (€)"
     )
     

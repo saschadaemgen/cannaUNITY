@@ -1,5 +1,5 @@
 // frontend/src/apps/controller/pages/Irrigation/IrrigationControllerPage.jsx
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Container, Grid, Paper, Typography, Box, Button, Chip, 
   CircularProgress, Fade, Tabs, Tab, IconButton, Menu, MenuItem,
@@ -54,34 +54,56 @@ export default function IrrigationControllerPage() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [controllerToDelete, setControllerToDelete] = useState(null);
   
-  // Daten laden
-  const loadData = useCallback(async () => {
+  // Ref für die Initialisierungsprüfung
+  const hasInitializedRef = useRef(false);
+  
+  // Getrennte Funktionen für Controller und Zeitpläne
+  const fetchControllers = useCallback(async () => {
     setLoading(true);
     try {
-      // Controller laden
       const res = await api.get('/controller/irrigation/');
-      setControllers(res.data.results || []);
+      const controllers = res.data.results || [];
+      setControllers(controllers);
       
       // Ersten Controller auswählen, wenn noch keiner ausgewählt ist
-      if (!selectedControllerId && res.data.results && res.data.results.length > 0) {
-        setSelectedControllerId(res.data.results[0].id);
-      }
-      
-      // Zeitpläne für den ausgewählten Controller laden
-      if (selectedControllerId) {
-        const schedulesRes = await api.get(`/controller/irrigation-schedules/?controller_id=${selectedControllerId}`);
-        setSchedules(schedulesRes.data.results || []);
+      if (!selectedControllerId && controllers.length > 0) {
+        setSelectedControllerId(controllers[0].id);
       }
     } catch (error) {
       console.error('Fehler beim Laden der Bewässerungscontroller:', error);
     } finally {
       setLoading(false);
     }
+  }, [selectedControllerId]); // selectedControllerId nur als Bedingung
+  
+  const fetchSchedules = useCallback(async () => {
+    if (!selectedControllerId) return;
+    
+    try {
+      const schedulesRes = await api.get(`/controller/irrigation-schedules/?controller_id=${selectedControllerId}`);
+      setSchedules(schedulesRes.data.results || []);
+    } catch (error) {
+      console.error('Fehler beim Laden der Zeitpläne:', error);
+    }
   }, [selectedControllerId]);
   
+  // Eine gemeinsame Funktion für manuelle Neuladeaufforderungen
+  const loadData = useCallback(() => {
+    fetchControllers();
+    fetchSchedules();
+  }, [fetchControllers, fetchSchedules]);
+  
+  // Beim ersten Laden Controller holen
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    fetchControllers();
+  }, []); // [] bedeutet: nur einmal beim Mount
+  
+  // Zeitpläne laden, wenn sich der Controller ändert
+  useEffect(() => {
+    if (selectedControllerId) {
+      fetchSchedules();
+    }
+  }, [selectedControllerId, fetchSchedules]);
   
   // Controller-Auswahl
   const handleControllerSelect = (controllerId) => {

@@ -1,9 +1,15 @@
 # controller/mqtt_client.py
 import json
 import logging
-from django.conf import settings
+import os
+from pathlib import Path
 from django.utils import timezone
 from django.db import transaction
+from dotenv import load_dotenv
+
+# .env-Datei im übergeordneten Verzeichnis laden
+env_path = Path(__file__).resolve().parent.parent / '.env'
+load_dotenv(env_path)
 
 # Versuche paho-mqtt zu importieren, handle fehlenden Import
 try:
@@ -18,37 +24,54 @@ except ImportError:
 # Logger einrichten
 logger = logging.getLogger(__name__)
 
+# Globale Instanz des MQTT-Clients
+_mqtt_client_instance = None
+
 class MQTTClient:
     """
     MQTT-Client für die Kommunikation mit Cannabis-Grow-Controllern.
     Dieser Client kann für Bewässerungs- und Lichtsteuerung verwendet werden
     und bietet eine zuverlässige bidirektionale Kommunikation mit der Hardware.
+    Implementiert als Singleton-Muster, um nur eine Verbindung zu nutzen.
     """
     
+    def __new__(cls):
+        global _mqtt_client_instance
+        if _mqtt_client_instance is None:
+            _mqtt_client_instance = super(MQTTClient, cls).__new__(cls)
+            _mqtt_client_instance._initialized = False
+        return _mqtt_client_instance
+    
     def __init__(self):
+        # Nur einmal initialisieren
+        if getattr(self, '_initialized', False):
+            return
+            
         # Prüfen, ob paho-mqtt verfügbar ist
         if not MQTT_AVAILABLE:
             logger.error("MQTT-Client kann nicht initialisiert werden: paho-mqtt ist nicht installiert")
+            self._initialized = True
             return
             
-        # MQTT-Broker-Konfiguration aus den Django-Einstellungen lesen
-        self.mqtt_host = getattr(settings, 'MQTT_HOST', 'localhost')
-        self.mqtt_port = getattr(settings, 'MQTT_PORT', 1883)
-        self.mqtt_user = getattr(settings, 'MQTT_USERNAME', None)
-        self.mqtt_password = getattr(settings, 'MQTT_PASSWORD', None)
-        self.mqtt_client_id = getattr(settings, 'MQTT_CLIENT_ID', f'django_controller_{timezone.now().timestamp()}')
-        self.mqtt_keepalive = getattr(settings, 'MQTT_KEEPALIVE', 60)
-        self.mqtt_qos = getattr(settings, 'MQTT_QOS', 1)  # QoS 1: At least once
+        # MQTT-Broker-Konfiguration direkt aus .env laden
+        self.mqtt_host = os.getenv('MQTT_HOST', 'localhost')
+        self.mqtt_port = int(os.getenv('MQTT_PORT', '1883'))
+        self.mqtt_user = os.getenv('MQTT_USERNAME')
+        self.mqtt_password = os.getenv('MQTT_PASSWORD')
+        self.mqtt_client_id = os.getenv('MQTT_CLIENT_ID', f'django_controller_{timezone.now().timestamp()}')
+        self.mqtt_keepalive = int(os.getenv('MQTT_KEEPALIVE', '60'))
+        self.mqtt_qos = int(os.getenv('MQTT_QOS', '1'))  # QoS 1: At least once
         
         # TLS-Konfiguration, falls verfügbar
-        self.mqtt_use_tls = getattr(settings, 'MQTT_USE_TLS', False)
-        self.mqtt_ca_certs = getattr(settings, 'MQTT_CA_CERTS', None)
-        self.mqtt_certfile = getattr(settings, 'MQTT_CERTFILE', None)
-        self.mqtt_keyfile = getattr(settings, 'MQTT_KEYFILE', None)
+        self.mqtt_use_tls = os.getenv('MQTT_USE_TLS', 'false').lower() == 'true'
+        self.mqtt_ca_certs = os.getenv('MQTT_CA_CERTS')
+        self.mqtt_certfile = os.getenv('MQTT_CERTFILE')
+        self.mqtt_keyfile = os.getenv('MQTT_KEYFILE')
         
         # Last-Will-Testament konfigurieren (wird ausgelöst, wenn Client unerwartet die Verbindung verliert)
-        self.mqtt_lwt_topic = getattr(settings, 'MQTT_LWT_TOPIC', 'controller/status')
-        self.mqtt_lwt_payload = getattr(settings, 'MQTT_LWT_PAYLOAD', json.dumps({"status": "offline", "message": "Unexpected disconnect"}))
+        self.mqtt_lwt_topic = os.getenv('MQTT_LWT_TOPIC', 'controller/status')
+        self.mqtt_lwt_payload = os.getenv('MQTT_LWT_PAYLOAD', 
+                                        json.dumps({"status": "offline", "message": "Unexpected disconnect"}))
         
         # MQTT-Client initialisieren
         self.client = mqtt.Client(client_id=self.mqtt_client_id, clean_session=True)
@@ -88,6 +111,12 @@ class MQTTClient:
         self.subscribed_topics = set()
         self.message_callbacks = {}  # Topic -> Callback-Funktion
         self.pending_messages = {}  # mid -> (topic, payload, callback)
+        
+        # Initialisierung abgeschlossen
+        self._initialized = True
+        
+        # Standardmäßig eine Verbindung herstellen
+        self.connect()
     
     def connect(self, clean_session=True):
         """
@@ -103,6 +132,10 @@ class MQTTClient:
             logger.error("MQTT-Verbindung nicht möglich: paho-mqtt ist nicht installiert")
             return False
         
+        # Wenn bereits verbunden, nichts tun
+        if self.connected:
+            return True
+            
         try:
             # Clean-Session-Flag setzen
             self.client._clean_session = clean_session
@@ -139,6 +172,9 @@ class MQTTClient:
             bool: True bei erfolgreicher Trennung, sonst False
         """
         if not MQTT_AVAILABLE or not self.client:
+            return False
+        
+        if not self.connected:
             return False
         
         try:
