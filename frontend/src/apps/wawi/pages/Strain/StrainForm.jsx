@@ -27,15 +27,22 @@ import {
   useMediaQuery,
   useTheme,
   Paper,
-  Alert
+  Alert,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  Tooltip,
+  Popover
 } from '@mui/material';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import DeleteIcon from '@mui/icons-material/Delete';
 import PersonIcon from '@mui/icons-material/Person';
+import HistoryIcon from '@mui/icons-material/History';
+import InfoIcon from '@mui/icons-material/Info';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { styled } from '@mui/material/styles';
 import api from '@/utils/api';
 import { useDropzone } from 'react-dropzone';
-import RFIDMemberSelector from '@/components/RFIDMemberSelector';
 import RFIDSubmitter from '@/components/RFIDSubmitter';
 
 // Styled components
@@ -262,6 +269,7 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const imageUploadRef = useRef(null);
   const tempIdRef = useRef(`temp-${Date.now()}-${Math.floor(Math.random() * 1000)}`);
+  const [historyInfoAnchorEl, setHistoryInfoAnchorEl] = useState(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -321,6 +329,173 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
   const [formValid, setFormValid] = useState(false);
   const [errors, setErrors] = useState({});
   const [apiError, setApiError] = useState('');
+
+  // Neue State-Variablen für History
+  const [history, setHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
+  // Funktion zum Laden der History
+  const loadHistory = async (strainId) => {
+    if (!strainId) return;
+    
+    setHistoryLoading(true);
+    try {
+      const res = await api.get(`/wawi/strains/${strainId}/history/`);
+      // Hier die Korrektur: Prüfen, ob die Antwort paginiert ist
+      setHistory(res.data.results ? res.data.results : res.data);
+    } catch (error) {
+      console.error('Fehler beim Laden der History:', error);
+      setApiError(prev => prev ? `${prev}\nFehler beim Laden der History.` : 'Fehler beim Laden der History.');
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  // Die History-Komponente mit Accordion für mehr Platzeffizienz
+  const HistorySection = () => {
+    return (
+      <Accordion defaultExpanded={false} sx={{ mt: 2, mb: 2, width: '100%' }}>
+        <AccordionSummary
+          expandIcon={<ExpandMoreIcon />}
+          sx={{ 
+            borderLeft: '3px solid #4caf50',
+            '&.Mui-expanded': {
+              borderBottom: '1px solid rgba(0, 0, 0, 0.12)'
+            }
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
+            <Typography 
+              variant="subtitle2" 
+              sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                color: 'success.main',
+                fontWeight: 'bold',
+              }}
+            >
+              <HistoryIcon sx={{ mr: 1, fontSize: '1.2rem' }} />
+              Verlaufshistorie
+            </Typography>
+            <Tooltip title="Zeigt die vollständige Änderungshistorie dieses Datensatzes an, inklusive Erstellung und nachfolgenden Bearbeitungen.">
+              <IconButton 
+                size="small" 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setHistoryInfoAnchorEl(e.currentTarget);
+                }}
+              >
+                <InfoIcon fontSize="small" color="action" />
+              </IconButton>
+            </Tooltip>
+          </Box>
+        </AccordionSummary>
+        <AccordionDetails>
+          {historyLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+              <CircularProgress size={24} />
+            </Box>
+          ) : !history || history.length === 0 ? (
+            <Typography variant="body2" color="text.secondary">
+              Keine Verlaufshistorie verfügbar.
+            </Typography>
+          ) : !Array.isArray(history) ? (
+            <Typography variant="body2" color="text.secondary">
+              Verlaufshistorie im falschen Format.
+            </Typography>
+          ) : (
+            <Box>
+              {/* Ersteller anzeigen */}
+              {(() => {
+                const creator = history.find(entry => entry.action === 'created');
+                
+                if (creator) {
+                  return (
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
+                        Erstellt von:
+                      </Typography>
+                      <Box sx={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        mt: 0.5, 
+                        ml: 1,
+                        bgcolor: 'background.default',
+                        py: 0.75,
+                        px: 1.5,
+                        borderRadius: 1
+                      }}>
+                        <PersonIcon sx={{ fontSize: '1.1rem', color: 'primary.main', mr: 1 }} />
+                        <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
+                          {creator.member_name}
+                          <Typography 
+                            component="span" 
+                            variant="caption" 
+                            color="text.secondary" 
+                            sx={{ ml: 1 }}
+                          >
+                            am {creator.timestamp_formatted}
+                          </Typography>
+                        </Typography>
+                      </Box>
+                    </Box>
+                  );
+                }
+                return null;
+              })()}
+              
+              {/* Letzte Bearbeitungen anzeigen */}
+              {(() => {
+                const lastEdits = history
+                  .filter(entry => entry.action === 'updated')
+                  .slice(0, 5);
+                
+                if (lastEdits.length > 0) {
+                  return (
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 'medium', mt: 1 }}>
+                        Letzte Bearbeitungen:
+                      </Typography>
+                      <Box sx={{ mt: 0.5, ml: 1 }}>
+                        {lastEdits.map((edit, index) => (
+                          <Box 
+                            key={edit.id}
+                            sx={{ 
+                              display: 'flex', 
+                              alignItems: 'center',
+                              mb: index < lastEdits.length - 1 ? 0.75 : 0,
+                              bgcolor: index % 2 === 0 ? 'background.default' : 'transparent',
+                              py: 0.75,
+                              px: 1.5,
+                              borderRadius: 1
+                            }}
+                          >
+                            <PersonIcon sx={{ fontSize: '1.1rem', color: 'info.main', mr: 1 }} />
+                            <Typography variant="body2">
+                              {edit.member_name}
+                              <Typography 
+                                component="span" 
+                                variant="caption" 
+                                color="text.secondary" 
+                                sx={{ ml: 1 }}
+                              >
+                                am {edit.timestamp_formatted}
+                              </Typography>
+                            </Typography>
+                          </Box>
+                        ))}
+                      </Box>
+                    </Box>
+                  );
+                }
+                return null;
+              })()}
+            </Box>
+          )}
+        </AccordionDetails>
+      </Accordion>
+    );
+  };
 
   // Drag & Drop-Funktionalität für den Bildupload
   const onDrop = useCallback((acceptedFiles) => {
@@ -450,6 +625,9 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
         
         // Bilder laden
         loadImages(data.id);
+        
+        // History laden
+        loadHistory(data.id);
       } else {
         // Für den Fall eines neuen Datensatzes
         setFormData({
@@ -918,40 +1096,6 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
               />
             </Stack>
             
-            {/* Info-Box für RFID-Autorisierung */}
-            <Box 
-              sx={{ 
-                p: 2, 
-                mt: 2, 
-                mb: 2, 
-                bgcolor: 'info.light', 
-                color: 'info.contrastText',
-                borderRadius: 1
-              }}
-            >
-              <Typography variant="body2">
-                <strong>Hinweis:</strong> Die Zuordnung des Mitglieds erfolgt automatisch beim Speichern per RFID-Autorisierung.
-              </Typography>
-            </Box>
-            
-            {/* Anzeige des zugeordneten Mitglieds im Bearbeitungsmodus */}
-            {initialData.id && initialData.member && (
-              <Box sx={{ mt: 2, mb: 2 }}>
-                <Typography variant="subtitle2" gutterBottom>
-                  Zugeordnetes Mitglied:
-                </Typography>
-                <Typography variant="body1">
-                  {typeof initialData.member === 'object' 
-                    ? `${initialData.member.first_name} ${initialData.member.last_name}`
-                    : members.find(m => m.id === initialData.member_id)?.display_name || 'Unbekannt'
-                  }
-                </Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                  Das zugeordnete Mitglied wird bei der Autorisierung aktualisiert.
-                </Typography>
-              </Box>
-            )}
-            
             {/* Verbesserter Indica/Sativa-Slider mit Markierungen unter dem Slider */}
             <Box sx={{ width: '100%', mt: 2, mb: 4 }}>
               <Typography gutterBottom>
@@ -1016,6 +1160,190 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
                 </FormControl>
               )}
             </Stack>
+            
+            {/* Info-Box für RFID-Autorisierung */}
+            {initialData.id && (
+              <Box 
+                sx={{ 
+                  p: 2, 
+                  mt: 2, 
+                  mb: 2, 
+                  bgcolor: 'info.light', 
+                  color: 'info.contrastText',
+                  borderRadius: 1,
+                  width: '100%'
+                }}
+              >
+                <Typography variant="body2">
+                  <strong>Hinweis:</strong> Die Zuordnung des Mitglieds erfolgt automatisch beim Speichern per RFID-Autorisierung.
+                </Typography>
+              </Box>
+            )}
+            
+            {/* Verlaufshistorie als Akkordeon mit Ersteller oben im Header */}
+            {initialData.id && (
+              <Accordion defaultExpanded={false} sx={{ mt: 2, mb: 2, width: '100%', borderLeft: '3px solid #4caf50' }}>
+                <AccordionSummary
+                  expandIcon={<ExpandMoreIcon />}
+                  sx={{ 
+                    '&.Mui-expanded': {
+                      borderBottom: '1px solid rgba(0, 0, 0, 0.12)'
+                    }
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                    <Box sx={{ flex: 1 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <PersonIcon sx={{ mr: 1, fontSize: '1.2rem', color: 'success.main' }} />
+                        <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
+                          Sorte wurde erstellt von: 
+                          {(() => {
+                            if (historyLoading) return <CircularProgress size={16} sx={{ ml: 1 }} />;
+                            
+                            if (!history || !Array.isArray(history) || history.length === 0) {
+                              return <Typography component="span" sx={{ ml: 1, fontStyle: 'italic' }}>Unbekannt</Typography>;
+                            }
+                            
+                            const creator = history.find(entry => entry.action === 'created');
+                            return creator ? 
+                              <Typography component="span" sx={{ ml: 1, fontWeight: 'normal' }}>
+                                {creator.member_name}
+                                <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                                  am {creator.timestamp_formatted}
+                                </Typography>
+                              </Typography> : 
+                              <Typography component="span" sx={{ ml: 1, fontStyle: 'italic' }}>Unbekannt</Typography>;
+                          })()}
+                        </Typography>
+                      </Box>
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <Typography 
+                        variant="body2" 
+                        color="text.secondary"
+                        sx={{ mr: 1, display: { xs: 'none', sm: 'block' } }}
+                      >
+                        Verlaufshistorie anzeigen
+                      </Typography>
+                      <Tooltip title="Zeigt die vollständige Änderungshistorie dieses Datensatzes an">
+                        <IconButton 
+                          size="small" 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setHistoryInfoAnchorEl(e.currentTarget);
+                          }}
+                        >
+                          <InfoIcon fontSize="small" color="action" />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
+                  </Box>
+                </AccordionSummary>
+                <AccordionDetails>
+                  {historyLoading ? (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+                      <CircularProgress size={24} />
+                    </Box>
+                  ) : !history || history.length === 0 ? (
+                    <Typography variant="body2" color="text.secondary">
+                      Keine Verlaufshistorie verfügbar.
+                    </Typography>
+                  ) : !Array.isArray(history) ? (
+                    <Typography variant="body2" color="text.secondary">
+                      Verlaufshistorie im falschen Format.
+                    </Typography>
+                  ) : (
+                    <Box>
+                      <Typography variant="subtitle2" sx={{ 
+                        mt: 1, 
+                        mb: 1.5, 
+                        display: 'flex', 
+                        alignItems: 'center',
+                        color: 'text.primary',
+                        fontWeight: 'medium'
+                      }}>
+                        <HistoryIcon sx={{ mr: 1, fontSize: '1.2rem' }} />
+                        Bearbeitungsverlauf
+                      </Typography>
+                      
+                      {/* Bearbeitungen anzeigen */}
+                      <Box sx={{ pl: 1 }}>
+                        {(() => {
+                          const edits = history
+                            .filter(entry => entry.action === 'updated')
+                            .slice(0, 10);
+                          
+                          if (edits.length === 0) {
+                            return (
+                              <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', ml: 1 }}>
+                                Keine Bearbeitungen vorhanden.
+                              </Typography>
+                            );
+                          }
+                          
+                          return edits.map((edit, index) => (
+                            <Box 
+                              key={edit.id}
+                              sx={{ 
+                                display: 'flex', 
+                                alignItems: 'center',
+                                mb: index < edits.length - 1 ? 1 : 0,
+                                bgcolor: index % 2 === 0 ? 'background.default' : 'transparent',
+                                py: 0.75,
+                                px: 1.5,
+                                borderRadius: 1
+                              }}
+                            >
+                              <PersonIcon sx={{ fontSize: '1.1rem', color: 'info.main', mr: 1 }} />
+                              <Typography variant="body2">
+                                {edit.member_name}
+                                <Typography 
+                                  component="span" 
+                                  variant="caption" 
+                                  color="text.secondary" 
+                                  sx={{ ml: 1 }}
+                                >
+                                  am {edit.timestamp_formatted}
+                                </Typography>
+                              </Typography>
+                            </Box>
+                          ));
+                        })()}
+                      </Box>
+                    </Box>
+                  )}
+                </AccordionDetails>
+              </Accordion>
+            )}
+            
+            {/* Popover für detaillierte Info zur Historie */}
+            <Popover
+              open={Boolean(historyInfoAnchorEl)}
+              anchorEl={historyInfoAnchorEl}
+              onClose={() => setHistoryInfoAnchorEl(null)}
+              anchorOrigin={{
+                vertical: 'bottom',
+                horizontal: 'center',
+              }}
+              transformOrigin={{
+                vertical: 'top',
+                horizontal: 'center',
+              }}
+            >
+              <Box sx={{ p: 2, maxWidth: 350 }}>
+                <Typography variant="subtitle2" gutterBottom>
+                  Verlaufshistorie
+                </Typography>
+                <Typography variant="body2">
+                  Hier sehen Sie die komplette Änderungshistorie dieser Cannabis-Sorte, beginnend mit 
+                  der ersten Erstellung bis hin zu allen nachfolgenden Bearbeitungen.
+                </Typography>
+                <Typography variant="body2" sx={{ mt: 1 }}>
+                  Jede Änderung wird mit Zeitstempel und dem verantwortlichen Mitglied protokolliert, 
+                  was eine vollständige Nachverfolgbarkeit aller Aktivitäten gewährleistet.
+                </Typography>
+              </Box>
+            </Popover>
           </Stack>
         </TabPanel>
         

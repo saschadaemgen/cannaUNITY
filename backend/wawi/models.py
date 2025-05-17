@@ -1,6 +1,5 @@
 # wawi/models.py
-import uuid
-import os
+import uuid, os
 from django.db import models
 from django.utils import timezone
 from django.core.files.storage import default_storage
@@ -405,3 +404,39 @@ class StrainInventory(models.Model):
     class Meta:
         verbose_name = "Sortenbestand"
         verbose_name_plural = "Sortenbestände"
+
+class StrainHistory(models.Model):
+    """Modell zur Nachverfolgung von Änderungen an Cannabis-Sorten"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    strain = models.ForeignKey(
+        CannabisStrain,
+        on_delete=models.CASCADE,
+        related_name='history'
+    )
+    member = models.ForeignKey(
+        Member,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='strain_history'
+    )
+    action = models.CharField(
+        max_length=20,
+        choices=[
+            ('created', 'Erstellt'),
+            ('updated', 'Aktualisiert'),
+            ('deactivated', 'Deaktiviert'),
+        ],
+        default='updated',
+        verbose_name="Aktion"
+    )
+    timestamp = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        verbose_name = "Sortenhistorie"
+        verbose_name_plural = "Sortenhistorien"
+        ordering = ['-timestamp']  # Neueste Einträge zuerst
+
+    def __str__(self):
+        if self.member:
+            return f"{self.get_action_display()} von {self.member.first_name} {self.member.last_name} am {self.timestamp.strftime('%d.%m.%Y %H:%M')}"
+        return f"{self.get_action_display()} am {self.timestamp.strftime('%d.%m.%Y %H:%M')}"

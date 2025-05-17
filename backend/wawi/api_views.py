@@ -13,8 +13,8 @@ import os
 import uuid
 import json
 
-from .models import CannabisStrain, StrainImage, StrainInventory
-from .serializers import CannabisStrainSerializer, StrainImageSerializer, StrainInventorySerializer
+from .models import CannabisStrain, StrainImage, StrainInventory, StrainHistory
+from .serializers import CannabisStrainSerializer, StrainImageSerializer, StrainInventorySerializer, StrainHistorySerializer
 
 class StandardResultsSetPagination(pagination.PageNumberPagination):
     page_size = 10
@@ -85,10 +85,32 @@ class CannabisStrainViewSet(viewsets.ModelViewSet):
             available_quantity=0
         )
         
+        # History-Eintrag erstellen
+        member_id = self.request.data.get('member_id')
+        if member_id:
+            StrainHistory.objects.create(
+                strain=strain,
+                member_id=member_id,
+                action='created'
+            )
+        
         # Verarbeite alle temporär gespeicherten Bilder für diese Strain
         temp_id = self.request.data.get('temp_id', None)
         if temp_id:
             self._process_pending_images(strain, temp_id)
+    
+    def perform_update(self, serializer):
+        # Update strain
+        strain = serializer.save()
+        
+        # History-Eintrag erstellen
+        member_id = self.request.data.get('member_id')
+        if member_id:
+            StrainHistory.objects.create(
+                strain=strain,
+                member_id=member_id,
+                action='updated'
+            )
     
     def _process_pending_images(self, strain, temp_id):
         """Verarbeite temporäre Bilder und verknüpfe sie mit der neuen Strain"""
@@ -171,6 +193,15 @@ class CannabisStrainViewSet(viewsets.ModelViewSet):
             
             # Save the image
             serializer.save(strain=strain)
+            
+            # Bild-Upload in Historie erfassen, falls member_id vorhanden
+            member_id = request.data.get('member_id')
+            if member_id:
+                StrainHistory.objects.create(
+                    strain=strain,
+                    member_id=member_id,
+                    action='image_uploaded'
+                )
             
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         
@@ -271,6 +302,16 @@ class CannabisStrainViewSet(viewsets.ModelViewSet):
         try:
             image = StrainImage.objects.get(id=image_id, strain=strain)
             image.delete()
+            
+            # Bild-Entfernung in Historie erfassen, falls member_id vorhanden
+            member_id = request.query_params.get('member_id')
+            if member_id:
+                StrainHistory.objects.create(
+                    strain=strain,
+                    member_id=member_id,
+                    action='image_removed'
+                )
+            
             return Response(status=status.HTTP_204_NO_CONTENT)
         except StrainImage.DoesNotExist:
             return Response({"error": "Image not found"}, status=status.HTTP_404_NOT_FOUND)
@@ -292,6 +333,15 @@ class CannabisStrainViewSet(viewsets.ModelViewSet):
                 serializer.validated_data['last_restocked'] = timezone.now()
             
             serializer.save()
+            
+            # Bestandsänderung in Historie erfassen, falls member_id vorhanden
+            member_id = request.data.get('member_id')
+            if member_id:
+                StrainHistory.objects.create(
+                    strain=strain,
+                    member_id=member_id,
+                    action='inventory_updated'
+                )
             
             return Response(serializer.data)
         
@@ -391,6 +441,15 @@ class CannabisStrainViewSet(viewsets.ModelViewSet):
             image.caption = caption
             image.save()
             
+            # Caption-Änderung in Historie erfassen, falls member_id vorhanden
+            member_id = request.data.get('member_id')
+            if member_id:
+                StrainHistory.objects.create(
+                    strain=strain,
+                    member_id=member_id,
+                    action='image_caption_updated'
+                )
+            
             serializer = StrainImageSerializer(image)
             return Response(serializer.data)
         except StrainImage.DoesNotExist:
@@ -414,6 +473,30 @@ class CannabisStrainViewSet(viewsets.ModelViewSet):
             image.is_primary = True
             image.save()
             
+            # Primärbild-Änderung in Historie erfassen, falls member_id vorhanden
+            member_id = request.data.get('member_id')
+            if member_id:
+                StrainHistory.objects.create(
+                    strain=strain,
+                    member_id=member_id,
+                    action='primary_image_changed'
+                )
+            
             return Response({"success": True})
         except StrainImage.DoesNotExist:
             return Response({"error": "Image not found"}, status=status.HTTP_404_NOT_FOUND)
+            
+    @action(detail=True, methods=['get'])
+    def history(self, request, pk=None):
+        """Gibt die Änderungshistorie einer Cannabis-Sorte zurück"""
+        strain = self.get_object()
+        history = StrainHistory.objects.filter(strain=strain).order_by('-timestamp')
+        
+        # Pagination implementieren
+        page = self.paginate_queryset(history)
+        if page is not None:
+            serializer = StrainHistorySerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = StrainHistorySerializer(history, many=True)
+        return Response(serializer.data)

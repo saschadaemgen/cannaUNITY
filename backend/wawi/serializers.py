@@ -1,6 +1,6 @@
 # wawi/serializers.py
 from rest_framework import serializers
-from .models import CannabisStrain, StrainImage, StrainInventory
+from .models import CannabisStrain, StrainImage, StrainInventory, StrainHistory
 from members.models import Member
 from members.serializers import MemberSerializer  # Importiere den existierenden Serializer
 
@@ -96,3 +96,23 @@ class CannabisStrainSerializer(serializers.ModelSerializer):
             'temp_id'  # Hinzugefügt für die Bildverarbeitung
         ]
         read_only_fields = ['id', 'batch_number', 'created_at', 'updated_at']
+
+class StrainHistorySerializer(serializers.ModelSerializer):
+    member_name = serializers.SerializerMethodField()
+    action_display = serializers.SerializerMethodField()
+    timestamp_formatted = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = StrainHistory
+        fields = ['id', 'member', 'member_name', 'action', 'action_display', 'timestamp', 'timestamp_formatted']
+    
+    def get_member_name(self, obj):
+        if obj.member:
+            return f"{obj.member.first_name} {obj.member.last_name}"
+        return None
+    
+    def get_action_display(self, obj):
+        return obj.get_action_display()
+    
+    def get_timestamp_formatted(self, obj):
+        return obj.timestamp.strftime('%d.%m.%Y %H:%M')
