@@ -354,6 +354,54 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
     }
   };
 
+  // Hilfsfunktion für die HistorySection-Komponente
+  const groupEditsByDate = (edits) => {
+    if (!edits || !Array.isArray(edits) || edits.length === 0) return {};
+    
+    return edits.reduce((groups, edit) => {
+      try {
+        let dateStr;
+        
+        // Datum aus Zeitstempel extrahieren
+        if (edit.timestamp) {
+          if (typeof edit.timestamp === 'string') {
+            if (edit.timestamp.includes('T')) {
+              // ISO-Format
+              dateStr = edit.timestamp.split('T')[0];
+            } else if (edit.timestamp.includes(' um ')) {
+              // Bereits formatiertes Datum
+              dateStr = edit.timestamp.split(' um ')[0].replace('am ', '');
+            } else if (edit.timestamp.includes('.')) {
+              // Datum im Format TT.MM.YYYY
+              dateStr = edit.timestamp;
+            } else {
+              // Undefiniertes Format
+              dateStr = 'Unbekanntes Datum';
+            }
+          } else {
+            // Nicht-String-Wert
+            dateStr = 'Unbekanntes Datum';
+          }
+        } else {
+          dateStr = 'Unbekanntes Datum';
+        }
+        
+        // Gruppe für dieses Datum erstellen, falls noch nicht vorhanden
+        if (!groups[dateStr]) {
+          groups[dateStr] = [];
+        }
+        
+        // Edit zur entsprechenden Gruppe hinzufügen
+        groups[dateStr].push(edit);
+        
+        return groups;
+      } catch (error) {
+        console.error('Fehler beim Gruppieren nach Datum:', error);
+        return groups;
+      }
+    }, {});
+  };
+
   // Die optimierte History-Komponente mit narrativer Darstellung
   const HistorySection = () => {
     // Hilfsfunktion zum Formatieren des Zeitstempels
@@ -373,7 +421,7 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
         return `am ${timestampStr}`;
       }
     };
-    
+
     // Erstellt narrativen Text für eine einzelne Änderung
     const getNarrativeForChange = (field, values, memberName, timestamp) => {
       // Feldnamen Übersetzung
@@ -489,26 +537,48 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
       const fieldLabel = fieldLabels[field] || field;
       
       return (
-        <Typography variant="body2" sx={{ mb: 1.5 }}>
-          <Box component="span" sx={{ fontWeight: 'medium', color: 'primary.main' }}>
+        <Box 
+          component="div" 
+          sx={{ 
+            display: 'flex',
+            alignItems: 'baseline',
+            mb: 0.5,
+            py: 0.25,
+            '&:hover': {
+              bgcolor: 'rgba(0, 0, 0, 0.02)'
+            }
+          }}
+        >
+          <Box 
+            component="span" 
+            sx={{ 
+              fontWeight: 'medium', 
+              color: 'primary.main',
+              minWidth: '120px'
+            }}
+          >
             {memberName}
           </Box>
-          {' änderte '}
-          {timeStr}
-          {' '}
-          <Box component="span" sx={{ fontWeight: 'medium' }}>
-            {fieldLabel}
-          </Box>
-          {' von '}
-          <Box component="span" sx={{ color: 'error.main', fontStyle: 'italic' }}>
-            {oldValueFormatted}
-          </Box>
-          {' zu '}
-          <Box component="span" sx={{ color: 'success.main', fontWeight: 'medium' }}>
-            {newValueFormatted}
-          </Box>
-          {'.'}
-        </Typography>
+          <Typography variant="body2" sx={{ flex: 1 }}>
+            {' änderte '}
+            <Box component="span" sx={{ color: 'text.secondary' }}>
+              {timeStr.includes('am') ? timeStr.split('am ')[1] : timeStr}
+            </Box>
+            {' '}
+            <Box component="span" sx={{ fontWeight: 'medium' }}>
+              {fieldLabel}
+            </Box>
+            {' von '}
+            <Box component="span" sx={{ color: 'error.main', fontStyle: 'italic' }}>
+              {oldValueFormatted}
+            </Box>
+            {' zu '}
+            <Box component="span" sx={{ color: 'success.main', fontWeight: 'medium' }}>
+              {newValueFormatted}
+            </Box>
+            {'.'}
+          </Typography>
+        </Box>
       );
     };
     
@@ -519,103 +589,152 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
       const imageAction = edit.image_action;
       const memberName = edit.member_name;
       const timeStr = formatDateTime(edit.timestamp);
+      const timeOnly = timeStr.includes('am') ? timeStr.split('am ')[1] : timeStr;
       const caption = edit.image_details?.caption || '';
       const oldCaption = edit.image_details?.old_caption || '';
       const newCaption = edit.image_details?.new_caption || '';
       
-      // Narrative je nach Aktion erstellen
+      // Icon je nach Aktion
+      let icon;
       switch (imageAction) {
         case 'added':
-          return (
-            <Typography variant="body2" sx={{ mb: 1.5 }}>
-              <Box component="span" sx={{ fontWeight: 'medium', color: 'primary.main' }}>
-                {memberName}
-              </Box>
-              {' fügte '}
-              {timeStr}
-              {' ein neues Bild hinzu'}
-              {caption && (
-                <>
-                  {' mit der Beschreibung '}
-                  <Box component="span" sx={{ color: 'success.main', fontStyle: 'italic' }}>
-                    "{caption}"
-                  </Box>
-                </>
-              )}
-              {'.'}
-            </Typography>
-          );
+          icon = <AddPhotoAlternateIcon fontSize="small" sx={{ mr: 1, color: 'success.main' }}/>;
+          break;
         case 'removed':
-          return (
-            <Typography variant="body2" sx={{ mb: 1.5 }}>
-              <Box component="span" sx={{ fontWeight: 'medium', color: 'primary.main' }}>
-                {memberName}
-              </Box>
-              {' entfernte '}
-              {timeStr}
-              {' ein Bild'}
-              {caption && (
-                <>
-                  {' mit der Beschreibung '}
-                  <Box component="span" sx={{ color: 'error.main', fontStyle: 'italic' }}>
-                    "{caption}"
-                  </Box>
-                </>
-              )}
-              {'.'}
-            </Typography>
-          );
+          icon = <DeleteIcon fontSize="small" sx={{ mr: 1, color: 'error.main' }}/>;
+          break;
         case 'set_primary':
-          return (
-            <Typography variant="body2" sx={{ mb: 1.5 }}>
-              <Box component="span" sx={{ fontWeight: 'medium', color: 'primary.main' }}>
-                {memberName}
-              </Box>
-              {' legte '}
-              {timeStr}
-              {' ein Bild als Hauptbild fest'}
-              {caption && (
-                <>
-                  {' mit der Beschreibung '}
-                  <Box component="span" sx={{ color: 'success.main', fontStyle: 'italic' }}>
-                    "{caption}"
-                  </Box>
-                </>
-              )}
-              {'.'}
-            </Typography>
-          );
+          icon = <StarIcon fontSize="small" sx={{ mr: 1, color: 'warning.main' }}/>;
+          break;
         case 'caption_updated':
-          return (
-            <Typography variant="body2" sx={{ mb: 1.5 }}>
-              <Box component="span" sx={{ fontWeight: 'medium', color: 'primary.main' }}>
-                {memberName}
-              </Box>
-              {' änderte '}
-              {timeStr}
-              {' die Bildbeschreibung von '}
-              <Box component="span" sx={{ color: 'error.main', fontStyle: 'italic' }}>
-                {oldCaption ? `"${oldCaption}"` : '(leer)'}
-              </Box>
-              {' zu '}
-              <Box component="span" sx={{ color: 'success.main', fontStyle: 'italic' }}>
-                {newCaption ? `"${newCaption}"` : '(leer)'}
-              </Box>
-              {'.'}
-            </Typography>
-          );
+          icon = <EditIcon fontSize="small" sx={{ mr: 1, color: 'info.main' }}/>;
+          break;
         default:
-          return (
-            <Typography variant="body2" sx={{ mb: 1.5 }}>
-              <Box component="span" sx={{ fontWeight: 'medium', color: 'primary.main' }}>
-                {memberName}
-              </Box>
-              {' bearbeitete '}
-              {timeStr}
-              {' ein Bild.'}
-            </Typography>
-          );
+          icon = <EditIcon fontSize="small" sx={{ mr: 1, color: 'action.active' }}/>;
       }
+      
+      // Narrative je nach Aktion erstellen
+      const narrativeContent = (() => {
+        switch (imageAction) {
+          case 'added':
+            return (
+              <>
+                {' fügte '}
+                <Box component="span" sx={{ color: 'text.secondary' }}>
+                  {timeOnly}
+                </Box>
+                {' ein neues Bild hinzu'}
+                {caption && (
+                  <>
+                    {' mit der Beschreibung '}
+                    <Box component="span" sx={{ color: 'success.main', fontStyle: 'italic' }}>
+                      "{caption}"
+                    </Box>
+                  </>
+                )}
+                {'.'}
+              </>
+            );
+          case 'removed':
+            return (
+              <>
+                {' entfernte '}
+                <Box component="span" sx={{ color: 'text.secondary' }}>
+                  {timeOnly}
+                </Box>
+                {' ein Bild'}
+                {caption && (
+                  <>
+                    {' mit der Beschreibung '}
+                    <Box component="span" sx={{ color: 'error.main', fontStyle: 'italic' }}>
+                      "{caption}"
+                    </Box>
+                  </>
+                )}
+                {'.'}
+              </>
+            );
+          case 'set_primary':
+            return (
+              <>
+                {' legte '}
+                <Box component="span" sx={{ color: 'text.secondary' }}>
+                  {timeOnly}
+                </Box>
+                {' ein Bild als Hauptbild fest'}
+                {caption && (
+                  <>
+                    {' mit der Beschreibung '}
+                    <Box component="span" sx={{ color: 'success.main', fontStyle: 'italic' }}>
+                      "{caption}"
+                    </Box>
+                  </>
+                )}
+                {'.'}
+              </>
+            );
+          case 'caption_updated':
+            return (
+              <>
+                {' änderte '}
+                <Box component="span" sx={{ color: 'text.secondary' }}>
+                  {timeOnly}
+                </Box>
+                {' die Bildbeschreibung von '}
+                <Box component="span" sx={{ color: 'error.main', fontStyle: 'italic' }}>
+                  {oldCaption ? `"${oldCaption}"` : '(leer)'}
+                </Box>
+                {' zu '}
+                <Box component="span" sx={{ color: 'success.main', fontStyle: 'italic' }}>
+                  {newCaption ? `"${newCaption}"` : '(leer)'}
+                </Box>
+                {'.'}
+              </>
+            );
+          default:
+            return (
+              <>
+                {' bearbeitete '}
+                <Box component="span" sx={{ color: 'text.secondary' }}>
+                  {timeOnly}
+                </Box>
+                {' ein Bild.'}
+              </>
+            );
+        }
+      })();
+      
+      return (
+        <Box 
+          component="div" 
+          sx={{ 
+            display: 'flex',
+            alignItems: 'center',
+            mb: 0.5,
+            py: 0.25,
+            '&:hover': {
+              bgcolor: 'rgba(0, 0, 0, 0.02)'
+            }
+          }}
+        >
+          <Box
+            component="span"
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              fontWeight: 'medium',
+              color: 'primary.main',
+              minWidth: '120px'
+            }}
+          >
+            {icon}
+            {memberName}
+          </Box>
+          <Typography variant="body2" sx={{ flex: 1 }}>
+            {narrativeContent}
+          </Typography>
+        </Box>
+      );
     };
     
     // Haupt-Rendering für die Historie
@@ -637,47 +756,126 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
       
       // Ersteller-Info rendern
       const creatorSection = creator ? (
-        <Box sx={{ mb: 3 }}>
-          <Typography variant="body2">
-            <Box component="span" sx={{ fontWeight: 'medium', color: 'success.main' }}>
-              {creator.member_name}
-            </Box>
-            {' erstellte diese Sorte '}
-            {formatDateTime(creator.timestamp)}
-            {'.'}
-          </Typography>
+        <Box sx={{ mb: 2 }}>
+          <Box 
+            sx={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              mb: 1.5,
+              p: 1,
+              borderRadius: 1,
+              bgcolor: 'success.light',
+              color: 'success.contrastText'
+            }}
+          >
+            <PersonIcon sx={{ mr: 1 }} />
+            <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
+              {creator.member_name} erstellte diese Sorte {formatDateTime(creator.timestamp)}
+            </Typography>
+          </Box>
         </Box>
       ) : null;
       
+      // Gruppiere Änderungen nach Datum
+      const groupedEdits = groupEditsByDate(edits);
+      
       // Änderungen rendern
-      const editSections = edits.map((edit) => {
-        // Prüfen auf Bild-Aktionen
-        if (edit.image_action) {
-          return (
-            <Box key={`img-${edit.id || Math.random()}`} sx={{ mb: 2 }}>
-              {getNarrativeForImageAction(edit)}
-            </Box>
-          );
-        }
+      const editSections = Object.entries(groupedEdits).map(([dateStr, dateEdits]) => {
+        // Alle Änderungen für dieses Datum sammeln
+        const allChanges = [];
         
-        // Prüfen auf Feld-Änderungen
-        if (edit.action === 'updated' && edit.changes) {
-          const changeEntries = Object.entries(edit.changes);
-          if (changeEntries.length === 0) return null;
+        dateEdits.forEach(edit => {
+          // Prüfen auf Bild-Aktionen
+          if (edit.image_action) {
+            allChanges.push({
+              type: 'image',
+              content: getNarrativeForImageAction(edit),
+              timestamp: edit.timestamp,
+              key: `img-${edit.id || Math.random()}`
+            });
+          }
           
-          // Für jede Änderung einen narrativen Satz erstellen
-          return (
-            <Box key={edit.id || Math.random()} sx={{ mb: 2 }}>
-              {changeEntries.map(([field, values]) => (
-                <Box key={field}>
-                  {getNarrativeForChange(field, values, edit.member_name, edit.timestamp)}
+          // Prüfen auf Feld-Änderungen
+          if (edit.action === 'updated' && edit.changes) {
+            const changeEntries = Object.entries(edit.changes);
+            if (changeEntries.length === 0) return;
+            
+            // Für jede Änderung einen narrativen Satz erstellen
+            changeEntries.forEach(([field, values]) => {
+              allChanges.push({
+                type: 'field',
+                content: getNarrativeForChange(field, values, edit.member_name, edit.timestamp),
+                timestamp: edit.timestamp,
+                key: `${edit.id || Math.random()}-${field}`
+              });
+            });
+          }
+        });
+        
+        // Nach Zeitstempel sortieren (neueste zuerst)
+        allChanges.sort((a, b) => {
+          try {
+            return new Date(b.timestamp) - new Date(a.timestamp);
+          } catch (e) {
+            return 0;
+          }
+        });
+        
+        if (allChanges.length === 0) return null;
+        
+        // Formatiertes Datum für die Überschrift
+        const formattedDate = (() => {
+          try {
+            if (dateStr.includes('.')) {
+              // Bereits formatiertes Datum im Format DD.MM.YYYY
+              return dateStr;
+            }
+            
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('de-DE', { 
+              year: 'numeric', 
+              month: '2-digit', 
+              day: '2-digit' 
+            });
+          } catch (e) {
+            return dateStr;
+          }
+        })();
+        
+        // Änderungen für dieses Datum rendern
+        return (
+          <Box key={dateStr} sx={{ mb: 2 }}>
+            <Box 
+              sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                mb: 1,
+                mt: 2,
+                borderBottom: '1px solid',
+                borderColor: 'divider',
+                pb: 0.5
+              }}
+            >
+              <Typography 
+                variant="subtitle2" 
+                sx={{ 
+                  color: 'text.secondary',
+                  fontWeight: 'bold'
+                }}
+              >
+                {formattedDate}
+              </Typography>
+            </Box>
+            
+            <Box sx={{ pl: 1 }}>
+              {allChanges.map(change => (
+                <Box key={change.key}>
+                  {change.content}
                 </Box>
               ))}
             </Box>
-          );
-        }
-        
-        return null;
+          </Box>
+        );
       }).filter(Boolean); // Entfernt null-Werte
       
       if (!creatorSection && editSections.length === 0) {
@@ -691,13 +889,11 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
       return (
         <>
           {creatorSection}
+          
           {editSections.length > 0 && (
-            <>
-              <Typography variant="subtitle2" gutterBottom sx={{ color: 'text.secondary', mt: 2, mb: 2 }}>
-                Änderungshistorie
-              </Typography>
+            <Box sx={{ mt: 1 }}>
               {editSections}
-            </>
+            </Box>
           )}
         </>
       );
@@ -2218,15 +2414,8 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
                       key={image.id}
                       image={image}
                       onRemove={() => handleRemovePendingImage(image.id)}
-                      onSetPrimary={() => handleSetPrimaryPendingImage(image.id)}
-                      onCaptionChange={(caption) => {
-                        // Bildunterschrift aktualisieren
-                        setPendingImages(prev => 
-                          prev.map(img => 
-                            img.id === image.id ? { ...img, caption: caption } : img
-                          )
-                        );
-                      }}
+                      onSetPrimary={() => handleSetPrimaryImage(image.id, 'pending')}
+                      onCaptionChange={(caption) => handleUpdatePendingImageCaption(image.id, caption)}
                       isPrimary={image.is_primary}
                       isPending={true}
                     />
@@ -2238,65 +2427,8 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
                       key={image.id}
                       image={image}
                       onRemove={() => handleDeleteImage(image.id)}
-                      onSetPrimary={() => {
-                        // Setze das Bild als Hauptbild
-                        // Alle gespeicherten Bilder aktualisieren
-                        setImages(prev => 
-                          prev.map(img => ({
-                            ...img,
-                            is_primary: img.id === image.id
-                          }))
-                        );
-                        
-                        // Alle ausstehenden Bilder als nicht-primär markieren
-                        setPendingImages(prev => 
-                          prev.map(img => ({
-                            ...img,
-                            is_primary: false
-                          }))
-                        );
-                        
-                        // API-Aufruf zum Aktualisieren auf dem Server
-                        if (initialData.id) {
-                          (async () => {
-                            try {
-                              // Diese Funktion müsste in der API implementiert sein,
-                              // hier ist sie nur als Beispiel angegeben
-                              await api.patch(`/wawi/strains/${initialData.id}/set_primary_image/`, {
-                                image_id: image.id
-                              });
-                            } catch (error) {
-                              console.error('Fehler beim Setzen des Hauptbildes:', error);
-                              setApiError('Fehler beim Setzen des Hauptbildes');
-                            }
-                          })();
-                        }
-                      }}
-                      onCaptionChange={(caption) => {
-                        // Bildunterschrift aktualisieren
-                        setImages(prev => 
-                          prev.map(img => 
-                            img.id === image.id ? { ...img, caption: caption } : img
-                          )
-                        );
-                        
-                        // API-Aufruf zum Aktualisieren auf dem Server
-                        if (initialData.id) {
-                          (async () => {
-                            try {
-                              // Diese Funktion müsste in der API implementiert sein,
-                              // hier ist sie nur als Beispiel angegeben
-                              await api.patch(`/wawi/strains/${initialData.id}/update_image_caption/`, {
-                                image_id: image.id,
-                                caption: caption
-                              });
-                            } catch (error) {
-                              console.error('Fehler beim Aktualisieren der Bildunterschrift:', error);
-                              setApiError('Fehler beim Aktualisieren der Bildunterschrift');
-                            }
-                          })();
-                        }
-                      }}
+                      onSetPrimary={() => handleSetPrimaryImage(image.id, 'saved')}
+                      onCaptionChange={(caption) => handleUpdateImageCaption(image.id, caption)}
                       isPrimary={image.is_primary}
                       isPending={false}
                     />
