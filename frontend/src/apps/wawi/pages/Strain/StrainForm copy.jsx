@@ -35,8 +35,7 @@ import PersonIcon from '@mui/icons-material/Person';
 import { styled } from '@mui/material/styles';
 import api from '@/utils/api';
 import { useDropzone } from 'react-dropzone';
-import RFIDMemberSelector from '@/components/RFIDMemberSelector';
-import RFIDSubmitter from '@/components/RFIDSubmitter';
+import RFIDAuthenticator from '@/components/RFIDAuthenticator';
 
 // Styled components
 const VisuallyHiddenInput = styled('input')({
@@ -311,6 +310,8 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
   const [selectedImage, setSelectedImage] = useState(null);
   const [imageCaption, setImageCaption] = useState('');
   const [isPrimaryImage, setIsPrimaryImage] = useState(false);
+  const [showRFIDAuth, setShowRFIDAuth] = useState(false);
+  const [memberName, setMemberName] = useState('');
   
   // Listen für Auswahlelemente
   const [availableTerpenes, setAvailableTerpenes] = useState([]);
@@ -321,6 +322,21 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
   const [formValid, setFormValid] = useState(false);
   const [errors, setErrors] = useState({});
   const [apiError, setApiError] = useState('');
+
+  // Handler für erfolgreiche Authentifizierung
+  const handleMemberAuthenticated = (memberId, name) => {
+    // Mitglieds-ID im Formular-State aktualisieren
+    setFormData(prev => ({
+      ...prev,
+      member_id: memberId
+    }));
+    
+    // Name für die Anzeige speichern
+    setMemberName(name);
+    
+    // RFID-Dialog schließen
+    setShowRFIDAuth(false);
+  };
 
   // Drag & Drop-Funktionalität für den Bildupload
   const onDrop = useCallback((acceptedFiles) => {
@@ -425,6 +441,17 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
       if (initialData.id) {
         const data = {...initialData};
         
+        // Name des bereits ausgewählten Mitglieds setzen
+        if (data.member && typeof data.member === 'object') {
+          setMemberName(`${data.member.first_name} ${data.member.last_name}`);
+          data.member_id = data.member.id;
+        } else if (data.member_id) {
+          const member = members.find(m => m.id === data.member_id);
+          if (member) {
+            setMemberName(`${member.first_name} ${member.last_name}`);
+          }
+        }
+        
         // Objekte in IDs konvertieren, falls nötig
         if (data.member && typeof data.member === 'object') {
           data.member_id = data.member.id;
@@ -505,7 +532,7 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
       // Formular validieren
       validateForm();
     }
-  }, [open, initialData]);
+  }, [open, initialData, members]);
   
   // Formular validieren, wenn sich Daten ändern
   useEffect(() => {
@@ -794,7 +821,7 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
     setPendingImages([]);
   };
 
-  const handleSubmit = async (memberId, memberName) => {
+  const handleSubmit = async () => {
     // Nochmals validieren
     if (!validateForm()) {
       return;
@@ -806,9 +833,6 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
     try {
       const data = { ...formData };
       let strainId;
-      
-      // Mitglied automatisch als zugeordnetes Mitglied setzen
-      data.member_id = memberId;
       
       // Bei Bearbeitung eines bestehenden Datensatzes
       if (initialData.id) {
@@ -908,6 +932,22 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
             </Stack>
             
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+              <FormControl fullWidth>
+                <InputLabel>Samentyp</InputLabel>
+                <Select
+                  name="strain_type"
+                  value={formData.strain_type}
+                  onChange={handleChange}
+                  label="Samentyp"
+                >
+                  <MenuItem value="feminized">Feminisiert</MenuItem>
+                  <MenuItem value="regular">Regulär</MenuItem>
+                  <MenuItem value="autoflower">Autoflower</MenuItem>
+                  <MenuItem value="f1_hybrid">F1 Hybrid</MenuItem>
+                  <MenuItem value="cbd">CBD-Samen</MenuItem>
+                </Select>
+              </FormControl>
+              
               <TextField
                 label="Genetische Herkunft"
                 name="genetic_origin"
@@ -917,40 +957,6 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
                 placeholder="z.B. OG Kush x Sour Diesel"
               />
             </Stack>
-            
-            {/* Info-Box für RFID-Autorisierung */}
-            <Box 
-              sx={{ 
-                p: 2, 
-                mt: 2, 
-                mb: 2, 
-                bgcolor: 'info.light', 
-                color: 'info.contrastText',
-                borderRadius: 1
-              }}
-            >
-              <Typography variant="body2">
-                <strong>Hinweis:</strong> Die Zuordnung des Mitglieds erfolgt automatisch beim Speichern per RFID-Autorisierung.
-              </Typography>
-            </Box>
-            
-            {/* Anzeige des zugeordneten Mitglieds im Bearbeitungsmodus */}
-            {initialData.id && initialData.member && (
-              <Box sx={{ mt: 2, mb: 2 }}>
-                <Typography variant="subtitle2" gutterBottom>
-                  Zugeordnetes Mitglied:
-                </Typography>
-                <Typography variant="body1">
-                  {typeof initialData.member === 'object' 
-                    ? `${initialData.member.first_name} ${initialData.member.last_name}`
-                    : members.find(m => m.id === initialData.member_id)?.display_name || 'Unbekannt'
-                  }
-                </Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                  Das zugeordnete Mitglied wird bei der Autorisierung aktualisiert.
-                </Typography>
-              </Box>
-            )}
             
             {/* Verbesserter Indica/Sativa-Slider mit Markierungen unter dem Slider */}
             <Box sx={{ width: '100%', mt: 2, mb: 4 }}>
@@ -1015,6 +1021,37 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
                   </Select>
                 </FormControl>
               )}
+              
+              <Box sx={{ mt: 2, mb: 3, width: '100%' }}>
+                <Typography variant="subtitle2" gutterBottom>
+                  Zugeordnetes Mitglied:
+                </Typography>
+                
+                {formData.member_id ? (
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                    <Typography>{memberName || members.find(m => m.id === formData.member_id)?.display_name || 'Ausgewähltes Mitglied'}</Typography>
+                    <Button 
+                      size="small" 
+                      sx={{ ml: 2 }}
+                      onClick={() => setShowRFIDAuth(true)}
+                    >
+                      Ändern
+                    </Button>
+                  </Box>
+                ) : (
+                  <Button
+                    variant="outlined"
+                    onClick={() => setShowRFIDAuth(true)}
+                    startIcon={<PersonIcon />}
+                    sx={{ mb: 2 }}
+                  >
+                    Mitglied per RFID auswählen
+                  </Button>
+                )}
+                
+                {/* Verstecktes Feld für die member_id */}
+                <input type="hidden" name="member_id" value={formData.member_id || ''} />
+              </Box>
             </Stack>
           </Stack>
         </TabPanel>
@@ -1847,6 +1884,23 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
         </TabPanel>
       </DialogContent>
       
+      {/* RFID Authenticator Dialog */}
+      <Dialog 
+        open={showRFIDAuth} 
+        onClose={() => setShowRFIDAuth(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Mitglied auswählen</DialogTitle>
+        <DialogContent>
+          <RFIDAuthenticator 
+            onAuthenticated={handleMemberAuthenticated}
+            targetApp="wawi_strain_form"
+            autoClose={true}
+          />
+        </DialogContent>
+      </Dialog>
+      
       <DialogActions sx={{ p: 2 }}>
         <Button 
           onClick={onClose}
@@ -1855,10 +1909,14 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
         >
           Abbrechen
         </Button>
-        <RFIDSubmitter 
-          onAuthorize={handleSubmit} 
+        <Button 
+          onClick={handleSubmit} 
+          variant="contained" 
           disabled={loading || !formValid}
-        />
+          startIcon={loading && <CircularProgress size={18} color="inherit" />}
+        >
+          {loading ? 'Wird gespeichert...' : initialData.id ? 'Aktualisieren' : 'Speichern'}
+        </Button>
       </DialogActions>
     </Dialog>
   );

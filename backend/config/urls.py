@@ -1,4 +1,3 @@
-# config/urls.py
 from django.contrib import admin
 from django.urls import path, include, re_path
 from django.conf import settings
@@ -62,6 +61,10 @@ urlpatterns = [
     # 🌱 Grow Controller
     path('controller/', include('controller.urls')),           # Für Port 8000 (Build Mode)
     path('api/controller/', include('controller.api_urls')),   # Für Vite (Dev Mode)
+    
+    # 🔖 RFID-Bridge für nahtlose RFID-Authentifizierung
+    path('rfid-bridge/', include('rfid_bridge.api_urls')),     # Für Port 8000 (Build Mode)
+    path('api/rfid-bridge/', include('rfid_bridge.api_urls')), # Für Vite (Dev Mode)
 ]
 
 # 🔁 Fallback für alle nicht-API-URLs → React SPA laden

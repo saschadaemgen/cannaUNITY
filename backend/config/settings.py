@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'wawi',
     'unifi_access',
     'unifi_protect',
+    'rfid_bridge',
     'trackandtrace',
 ]
 
