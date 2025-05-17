@@ -1,8 +1,12 @@
 # 🌿 cannaUNITY v0.6.18 (Pre-Alpha)
 "Masteransicht für festes UI Panel 1920x1080p"
 
+<p align="center">
+  <img src="screenshots\WaWi\sorte_bearbeiten.png" alt="Vorschau" width="1920">
+</p>
+
 > **Modulare Open-Source-Software für Cannabis Social Clubs und Anbauvereinigungen gemäß dem Konsumcannabisgesetz § (KCanG)**  
-> Mitgliederverwaltung · Aufgabenplanung · Zutrittskontrolle · Track & Trace · Buchhaltung · WaWi · Raumautomation · Sicherheitssysteme
+> Mitgliederverwaltung · Growcontroller · Aufgabenplanung · Zutrittskontrolle · 10 Schritte UUID Track & Trace · Buchhaltung · WaWi · Raumautomation · Sicherheitssystem
 
 ![GitHub Repo stars](https://img.shields.io/github/stars/saschadaemgen/cannaUNITY?style=social)
 ![GitHub license](https://img.shields.io/github/license/saschadaemgen/cannaUNITY)
@@ -95,7 +99,7 @@ Geplant sind:
 - Eigene **Docker-Images** mit Standardkonfiguration
 - **Proxmox-kompatible Images** für einfache VM-Einbindung
 - Eigene **Linux-Distribution (cannaOS)** für speziell konfigurierte Mini-PCs
-- Verkauf von **zertifizierten Mini-PCs** mit vorinstalliertem System
+- Multi-Growcontroller Anbindung via SPS, API & MQTTS
 
 ---
 
@@ -123,6 +127,7 @@ cannaUNITY/
 - Passkey-Login mit 2-/3-Faktor-Authentifizierung
 - Zutritt zur Anlage & Innenräumen über UniFi / RFID
 - Online-Zugriff strikt anonymisiert über UUID
+- Track and Trace Scritt Freigabe/Identifikation über RFID 
 
 ---
 
