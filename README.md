@@ -1,5 +1,5 @@
 # 🌿 cannaUNITY v0.6.18 (Pre-Alpha)
-"Masteransicht für festes UI Panel 1920x1080p"
+(Masteransicht für festes UI Panel 1920x1080p)
 
 <p align="center">
   <img src="screenshots\WaWi\sorte_bearbeiten.png" alt="Vorschau" width="1920">
