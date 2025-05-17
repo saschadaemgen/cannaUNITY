@@ -3,6 +3,9 @@ import uuid, os
 from django.db import models
 from django.utils import timezone
 from django.core.files.storage import default_storage
+from django.db.models import JSONField  # Import für Django 3.1+
+# Alternative für PostgreSQL:
+# from django.contrib.postgres.fields import JSONField
 from members.models import Member
 
 class CannabisStrain(models.Model):
@@ -428,6 +431,15 @@ class StrainHistory(models.Model):
         ],
         default='updated',
         verbose_name="Aktion"
+    )
+    # Neue JSONFields
+    changes = JSONField(
+        blank=True, null=True,
+        verbose_name="Detaillierte Änderungen"
+    )
+    image_data = JSONField(
+        blank=True, null=True,
+        verbose_name="Bildoperationsdetails"
     )
     timestamp = models.DateTimeField(auto_now_add=True)
     

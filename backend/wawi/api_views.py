@@ -100,17 +100,49 @@ class CannabisStrainViewSet(viewsets.ModelViewSet):
             self._process_pending_images(strain, temp_id)
     
     def perform_update(self, serializer):
-        # Update strain
+        # Original-Objekt vor Änderungen abrufen (als Referenz)
+        original_strain = self.get_object()
+        original_data = CannabisStrainSerializer(original_strain).data
+        
+        # Aktualisierten Strain speichern
         strain = serializer.save()
         
-        # History-Eintrag erstellen
-        member_id = self.request.data.get('member_id')
-        if member_id:
-            StrainHistory.objects.create(
-                strain=strain,
-                member_id=member_id,
-                action='updated'
-            )
+        # Neue Daten nach der Speicherung
+        updated_data = CannabisStrainSerializer(strain).data
+        
+        # Änderungen ermitteln - nur geänderte Felder sammeln
+        changes = {}
+        for field, new_value in updated_data.items():
+            # Felder ignorieren, die nicht relevant sind
+            if field in ['updated_at', 'created_at', 'id', 'images']:
+                continue
+                
+            # Prüfen, ob ein Wert geändert wurde (mit Sonderbehandlung für None/Empty)
+            if field in original_data:
+                old_value = original_data[field]
+                # Vergleich mit spezieller Behandlung für None/leere Werte
+                if ((old_value is None and new_value) or 
+                    (new_value is None and old_value) or
+                    (old_value != new_value)):
+                    # Änderung gefunden
+                    changes[field] = {
+                        'old': old_value,
+                        'new': new_value
+                    }
+        
+        # History-Eintrag erstellen, nur wenn es tatsächlich Änderungen gab
+        if changes:
+            member_id = self.request.data.get('member_id')
+            if member_id:
+                StrainHistory.objects.create(
+                    strain=strain,
+                    member_id=member_id,
+                    action='updated',
+                    changes=changes  # Speichern der detaillierten Änderungen
+                )
+        else:
+            # Debug-Ausgabe, wenn keine Änderungen gefunden wurden
+            print("Keine Änderungen gefunden bei der Aktualisierung von Strain:", strain.id)
     
     def _process_pending_images(self, strain, temp_id):
         """Verarbeite temporäre Bilder und verknüpfe sie mit der neuen Strain"""
@@ -187,20 +219,31 @@ class CannabisStrainViewSet(viewsets.ModelViewSet):
         
         if serializer.is_valid():
             # If marked as primary, unmark other images
-            if request.data.get('is_primary') == 'true':
+            is_primary = request.data.get('is_primary') == 'true'
+            if is_primary:
                 StrainImage.objects.filter(strain=strain, is_primary=True).update(is_primary=False)
                 serializer.validated_data['is_primary'] = True
             
             # Save the image
-            serializer.save(strain=strain)
+            image = serializer.save(strain=strain)
             
             # Bild-Upload in Historie erfassen, falls member_id vorhanden
             member_id = request.data.get('member_id')
             if member_id:
+                # Bilddetails für den Verlauf speichern
+                image_data = {
+                    'operation': 'upload',
+                    'image_id': str(image.id),
+                    'filename': os.path.basename(image.image.name),
+                    'is_primary': is_primary,
+                    'caption': image.caption
+                }
+                
                 StrainHistory.objects.create(
                     strain=strain,
                     member_id=member_id,
-                    action='image_uploaded'
+                    action='image_uploaded',
+                    image_data=image_data  # Speichere die Bilddaten im JSONField
                 )
             
             return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -301,15 +344,32 @@ class CannabisStrainViewSet(viewsets.ModelViewSet):
         
         try:
             image = StrainImage.objects.get(id=image_id, strain=strain)
+            
+            # Bildinformationen vor dem Löschen erfassen
+            image_info = {
+                'image_id': str(image.id),
+                'filename': os.path.basename(image.image.name),
+                'is_primary': image.is_primary,
+                'caption': image.caption
+            }
+            
+            # Bild löschen
             image.delete()
             
             # Bild-Entfernung in Historie erfassen, falls member_id vorhanden
             member_id = request.query_params.get('member_id')
             if member_id:
+                # Bilddetails für den Verlauf speichern
+                image_data = {
+                    'operation': 'remove',
+                    **image_info
+                }
+                
                 StrainHistory.objects.create(
                     strain=strain,
                     member_id=member_id,
-                    action='image_removed'
+                    action='image_removed',
+                    image_data=image_data  # Speichere die Bilddaten im JSONField
                 )
             
             return Response(status=status.HTTP_204_NO_CONTENT)
@@ -438,16 +498,31 @@ class CannabisStrainViewSet(viewsets.ModelViewSet):
         
         try:
             image = StrainImage.objects.get(id=image_id, strain=strain)
+            
+            # Ursprüngliche Beschriftung speichern
+            old_caption = image.caption
+            
+            # Caption aktualisieren
             image.caption = caption
             image.save()
             
             # Caption-Änderung in Historie erfassen, falls member_id vorhanden
             member_id = request.data.get('member_id')
             if member_id:
+                # Bilddetails für den Verlauf speichern
+                image_data = {
+                    'operation': 'update_caption',
+                    'image_id': str(image.id),
+                    'filename': os.path.basename(image.image.name),
+                    'old_caption': old_caption,
+                    'new_caption': caption
+                }
+                
                 StrainHistory.objects.create(
                     strain=strain,
                     member_id=member_id,
-                    action='image_caption_updated'
+                    action='image_caption_updated',
+                    image_data=image_data  # Speichere die Bilddaten im JSONField
                 )
             
             serializer = StrainImageSerializer(image)
@@ -465,6 +540,10 @@ class CannabisStrainViewSet(viewsets.ModelViewSet):
             return Response({"error": "image_id is required"}, status=status.HTTP_400_BAD_REQUEST)
         
         try:
+            # Aktuelles primäres Bild identifizieren
+            old_primary = StrainImage.objects.filter(strain=strain, is_primary=True).first()
+            old_primary_id = str(old_primary.id) if old_primary else None
+            
             # Zunächst alle als nicht-primär markieren
             StrainImage.objects.filter(strain=strain).update(is_primary=False)
             
@@ -476,10 +555,19 @@ class CannabisStrainViewSet(viewsets.ModelViewSet):
             # Primärbild-Änderung in Historie erfassen, falls member_id vorhanden
             member_id = request.data.get('member_id')
             if member_id:
+                # Bilddetails für den Verlauf speichern
+                image_data = {
+                    'operation': 'set_primary',
+                    'old_primary_image_id': old_primary_id,
+                    'new_primary_image_id': str(image.id),
+                    'new_primary_filename': os.path.basename(image.image.name)
+                }
+                
                 StrainHistory.objects.create(
                     strain=strain,
                     member_id=member_id,
-                    action='primary_image_changed'
+                    action='primary_image_changed',
+                    image_data=image_data  # Speichere die Bilddaten im JSONField
                 )
             
             return Response({"success": True})

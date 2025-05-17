@@ -40,6 +40,9 @@ import PersonIcon from '@mui/icons-material/Person';
 import HistoryIcon from '@mui/icons-material/History';
 import InfoIcon from '@mui/icons-material/Info';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import EditIcon from '@mui/icons-material/Edit';
+import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
+import StarIcon from '@mui/icons-material/Star';
 import { styled } from '@mui/material/styles';
 import api from '@/utils/api';
 import { useDropzone } from 'react-dropzone';
@@ -351,46 +354,426 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
     }
   };
 
-  // Die History-Komponente mit Accordion für mehr Platzeffizienz
+  // Die optimierte History-Komponente mit narrativer Darstellung
   const HistorySection = () => {
+    // Hilfsfunktion zum Formatieren des Zeitstempels
+    const formatDateTime = (timestampStr) => {
+      if (!timestampStr) return '';
+      
+      // Falls bereits formatiert, direkt zurückgeben
+      if (typeof timestampStr === 'string' && timestampStr.includes('.') && !timestampStr.includes('T')) {
+        return `am ${timestampStr}`;
+      }
+      
+      try {
+        const date = new Date(timestampStr);
+        return `am ${date.toLocaleDateString('de-DE')} um ${date.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr`;
+      } catch (e) {
+        // Falls Zeitstempel im unbekannten Format vorliegt
+        return `am ${timestampStr}`;
+      }
+    };
+    
+    // Erstellt narrativen Text für eine einzelne Änderung
+    const getNarrativeForChange = (field, values, memberName, timestamp) => {
+      // Feldnamen Übersetzung
+      const fieldLabels = {
+        name: 'den Sortennamen',
+        breeder: 'den Hersteller',
+        strain_type: 'den Samentyp',
+        indica_percentage: 'das Indica/Sativa Verhältnis',
+        genetic_origin: 'die genetische Herkunft',
+        flowering_time_min: 'die minimale Blütezeit',
+        flowering_time_max: 'die maximale Blütezeit',
+        height_indoor_min: 'die minimale Indoor-Höhe',
+        height_indoor_max: 'die maximale Indoor-Höhe',
+        height_outdoor_min: 'die minimale Outdoor-Höhe',
+        height_outdoor_max: 'die maximale Outdoor-Höhe',
+        yield_indoor_min: 'den minimalen Indoor-Ertrag',
+        yield_indoor_max: 'den maximalen Indoor-Ertrag',
+        yield_outdoor_min: 'den minimalen Outdoor-Ertrag',
+        yield_outdoor_max: 'den maximalen Outdoor-Ertrag',
+        thc_percentage_min: 'den minimalen THC-Gehalt',
+        thc_percentage_max: 'den maximalen THC-Gehalt',
+        cbd_percentage_min: 'den minimalen CBD-Gehalt',
+        cbd_percentage_max: 'den maximalen CBD-Gehalt',
+        difficulty: 'den Schwierigkeitsgrad',
+        dominant_terpenes: 'die dominanten Terpene',
+        flavors: 'die Aromen',
+        effects: 'die Effekte',
+        growing_information: 'die Anbauinformationen',
+        general_information: 'die allgemeinen Informationen',
+        suitable_climate: 'das geeignete Klima',
+        growing_method: 'die Anbaumethode',
+        resistance_mold: 'die Schimmelresistenz',
+        resistance_pests: 'die Schädlingsresistenz',
+        resistance_cold: 'die Kälteresistenz',
+        awards: 'die Auszeichnungen',
+        release_year: 'das Erscheinungsjahr',
+        rating: 'die Bewertung',
+        price_per_seed: 'den Preis pro Samen',
+        seeds_per_pack: 'die Anzahl der Samen pro Packung',
+        is_active: 'den Status',
+      };
+      
+      // Spezialformatierung für bestimmte Feldtypen
+      let oldValueFormatted = values.old !== null && values.old !== undefined ? String(values.old) : '(leer)';
+      let newValueFormatted = values.new !== null && values.new !== undefined ? String(values.new) : '(leer)';
+      
+      // Spezialformatierung für verschiedene Feldtypen
+      switch (field) {
+        case 'indica_percentage':
+          oldValueFormatted = `${values.old}% Indica / ${100 - values.old}% Sativa`;
+          newValueFormatted = `${values.new}% Indica / ${100 - values.new}% Sativa`;
+          break;
+        case 'strain_type':
+          // Übersetzung der Samentypen
+          const strainTypes = {
+            'feminized': 'feminisiert',
+            'regular': 'regulär',
+            'autoflowering': 'automatisch blühend',
+            'cbd': 'CBD-reich'
+          };
+          oldValueFormatted = strainTypes[values.old] || values.old;
+          newValueFormatted = strainTypes[values.new] || values.new;
+          break;
+        case 'difficulty':
+          // Übersetzung der Schwierigkeitsgrade
+          const difficultyLevels = {
+            'beginner': 'Anfänger',
+            'intermediate': 'Mittel',
+            'advanced': 'Fortgeschritten',
+            'expert': 'Experte'
+          };
+          oldValueFormatted = difficultyLevels[values.old] || values.old;
+          newValueFormatted = difficultyLevels[values.new] || values.new;
+          break;
+        case 'suitable_climate':
+          // Übersetzung der Klimatypen
+          const climateTypes = {
+            'indoor': 'Indoor',
+            'outdoor': 'Outdoor',
+            'greenhouse': 'Gewächshaus',
+            'all': 'Alle'
+          };
+          oldValueFormatted = climateTypes[values.old] || values.old;
+          newValueFormatted = climateTypes[values.new] || values.new;
+          break;
+        case 'growing_method':
+          // Übersetzung der Anbaumethoden
+          const growingMethods = {
+            'soil': 'Erde',
+            'hydro': 'Hydrokultur',
+            'coco': 'Kokos',
+            'all': 'Alle'
+          };
+          oldValueFormatted = growingMethods[values.old] || values.old;
+          newValueFormatted = growingMethods[values.new] || values.new;
+          break;
+        case 'is_active':
+          oldValueFormatted = values.old ? 'Aktiv' : 'Inaktiv';
+          newValueFormatted = values.new ? 'Aktiv' : 'Inaktiv';
+          break;
+        case 'rating':
+          oldValueFormatted = `${values.old} Sterne`;
+          newValueFormatted = `${values.new} Sterne`;
+          break;
+        case 'price_per_seed':
+          oldValueFormatted = `${values.old}€`;
+          newValueFormatted = `${values.new}€`;
+          break;
+      }
+      
+      // Narrative erstellen
+      const timeStr = formatDateTime(timestamp);
+      const fieldLabel = fieldLabels[field] || field;
+      
+      return (
+        <Typography variant="body2" sx={{ mb: 1.5 }}>
+          <Box component="span" sx={{ fontWeight: 'medium', color: 'primary.main' }}>
+            {memberName}
+          </Box>
+          {' änderte '}
+          {timeStr}
+          {' '}
+          <Box component="span" sx={{ fontWeight: 'medium' }}>
+            {fieldLabel}
+          </Box>
+          {' von '}
+          <Box component="span" sx={{ color: 'error.main', fontStyle: 'italic' }}>
+            {oldValueFormatted}
+          </Box>
+          {' zu '}
+          <Box component="span" sx={{ color: 'success.main', fontWeight: 'medium' }}>
+            {newValueFormatted}
+          </Box>
+          {'.'}
+        </Typography>
+      );
+    };
+    
+    // Erstellt narrative Beschreibung für Bildaktionen
+    const getNarrativeForImageAction = (edit) => {
+      if (!edit || !edit.image_action) return null;
+      
+      const imageAction = edit.image_action;
+      const memberName = edit.member_name;
+      const timeStr = formatDateTime(edit.timestamp);
+      const caption = edit.image_details?.caption || '';
+      const oldCaption = edit.image_details?.old_caption || '';
+      const newCaption = edit.image_details?.new_caption || '';
+      
+      // Narrative je nach Aktion erstellen
+      switch (imageAction) {
+        case 'added':
+          return (
+            <Typography variant="body2" sx={{ mb: 1.5 }}>
+              <Box component="span" sx={{ fontWeight: 'medium', color: 'primary.main' }}>
+                {memberName}
+              </Box>
+              {' fügte '}
+              {timeStr}
+              {' ein neues Bild hinzu'}
+              {caption && (
+                <>
+                  {' mit der Beschreibung '}
+                  <Box component="span" sx={{ color: 'success.main', fontStyle: 'italic' }}>
+                    "{caption}"
+                  </Box>
+                </>
+              )}
+              {'.'}
+            </Typography>
+          );
+        case 'removed':
+          return (
+            <Typography variant="body2" sx={{ mb: 1.5 }}>
+              <Box component="span" sx={{ fontWeight: 'medium', color: 'primary.main' }}>
+                {memberName}
+              </Box>
+              {' entfernte '}
+              {timeStr}
+              {' ein Bild'}
+              {caption && (
+                <>
+                  {' mit der Beschreibung '}
+                  <Box component="span" sx={{ color: 'error.main', fontStyle: 'italic' }}>
+                    "{caption}"
+                  </Box>
+                </>
+              )}
+              {'.'}
+            </Typography>
+          );
+        case 'set_primary':
+          return (
+            <Typography variant="body2" sx={{ mb: 1.5 }}>
+              <Box component="span" sx={{ fontWeight: 'medium', color: 'primary.main' }}>
+                {memberName}
+              </Box>
+              {' legte '}
+              {timeStr}
+              {' ein Bild als Hauptbild fest'}
+              {caption && (
+                <>
+                  {' mit der Beschreibung '}
+                  <Box component="span" sx={{ color: 'success.main', fontStyle: 'italic' }}>
+                    "{caption}"
+                  </Box>
+                </>
+              )}
+              {'.'}
+            </Typography>
+          );
+        case 'caption_updated':
+          return (
+            <Typography variant="body2" sx={{ mb: 1.5 }}>
+              <Box component="span" sx={{ fontWeight: 'medium', color: 'primary.main' }}>
+                {memberName}
+              </Box>
+              {' änderte '}
+              {timeStr}
+              {' die Bildbeschreibung von '}
+              <Box component="span" sx={{ color: 'error.main', fontStyle: 'italic' }}>
+                {oldCaption ? `"${oldCaption}"` : '(leer)'}
+              </Box>
+              {' zu '}
+              <Box component="span" sx={{ color: 'success.main', fontStyle: 'italic' }}>
+                {newCaption ? `"${newCaption}"` : '(leer)'}
+              </Box>
+              {'.'}
+            </Typography>
+          );
+        default:
+          return (
+            <Typography variant="body2" sx={{ mb: 1.5 }}>
+              <Box component="span" sx={{ fontWeight: 'medium', color: 'primary.main' }}>
+                {memberName}
+              </Box>
+              {' bearbeitete '}
+              {timeStr}
+              {' ein Bild.'}
+            </Typography>
+          );
+      }
+    };
+    
+    // Haupt-Rendering für die Historie
+    const renderHistoryContent = () => {
+      // Ersteller finden
+      const creator = history.find(entry => entry.action === 'created');
+      
+      // Bearbeitungen finden
+      const edits = history
+        .filter(entry => entry.action === 'updated')
+        .sort((a, b) => {
+          // Neueste Einträge zuerst
+          try {
+            return new Date(b.timestamp) - new Date(a.timestamp);
+          } catch (e) {
+            return 0;
+          }
+        });
+      
+      // Ersteller-Info rendern
+      const creatorSection = creator ? (
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="body2">
+            <Box component="span" sx={{ fontWeight: 'medium', color: 'success.main' }}>
+              {creator.member_name}
+            </Box>
+            {' erstellte diese Sorte '}
+            {formatDateTime(creator.timestamp)}
+            {'.'}
+          </Typography>
+        </Box>
+      ) : null;
+      
+      // Änderungen rendern
+      const editSections = edits.map((edit) => {
+        // Prüfen auf Bild-Aktionen
+        if (edit.image_action) {
+          return (
+            <Box key={`img-${edit.id || Math.random()}`} sx={{ mb: 2 }}>
+              {getNarrativeForImageAction(edit)}
+            </Box>
+          );
+        }
+        
+        // Prüfen auf Feld-Änderungen
+        if (edit.action === 'updated' && edit.changes) {
+          const changeEntries = Object.entries(edit.changes);
+          if (changeEntries.length === 0) return null;
+          
+          // Für jede Änderung einen narrativen Satz erstellen
+          return (
+            <Box key={edit.id || Math.random()} sx={{ mb: 2 }}>
+              {changeEntries.map(([field, values]) => (
+                <Box key={field}>
+                  {getNarrativeForChange(field, values, edit.member_name, edit.timestamp)}
+                </Box>
+              ))}
+            </Box>
+          );
+        }
+        
+        return null;
+      }).filter(Boolean); // Entfernt null-Werte
+      
+      if (!creatorSection && editSections.length === 0) {
+        return (
+          <Typography variant="body2" color="text.secondary">
+            Keine Verlaufshistorie verfügbar.
+          </Typography>
+        );
+      }
+      
+      return (
+        <>
+          {creatorSection}
+          {editSections.length > 0 && (
+            <>
+              <Typography variant="subtitle2" gutterBottom sx={{ color: 'text.secondary', mt: 2, mb: 2 }}>
+                Änderungshistorie
+              </Typography>
+              {editSections}
+            </>
+          )}
+        </>
+      );
+    };
+
+    // Ersteller finden für die Accordion-Überschrift
+    const creator = history.find(entry => entry.action === 'created');
+    const creatorInfo = creator ? (
+      <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center' }}>
+        <PersonIcon sx={{ mr: 0.5, fontSize: '1.1rem', color: 'success.main' }} />
+        Erstellt von: 
+        <Box component="span" sx={{ ml: 0.5, fontWeight: 'medium', color: 'success.main' }}>
+          {creator.member_name}
+        </Box>
+        <Box component="span" sx={{ ml: 0.5, color: 'text.secondary', fontSize: '0.9rem' }}>
+          {formatDateTime(creator.timestamp)}
+        </Box>
+      </Typography>
+    ) : (
+      <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center' }}>
+        <PersonIcon sx={{ mr: 0.5, fontSize: '1.1rem', color: 'success.main' }} />
+        Keine Erstellerinformation
+      </Typography>
+    );
+
     return (
-      <Accordion defaultExpanded={false} sx={{ mt: 2, mb: 2, width: '100%' }}>
+      <Accordion 
+        defaultExpanded={false} 
+        sx={{ 
+          mt: 2, 
+          mb: 2, 
+          width: '100%',
+          '& .MuiAccordionSummary-root': {
+            borderLeft: '3px solid #4caf50'
+          }
+        }}
+      >
         <AccordionSummary
           expandIcon={<ExpandMoreIcon />}
           sx={{ 
-            borderLeft: '3px solid #4caf50',
             '&.Mui-expanded': {
               borderBottom: '1px solid rgba(0, 0, 0, 0.12)'
             }
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
-            <Typography 
-              variant="subtitle2" 
-              sx={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                color: 'success.main',
-                fontWeight: 'bold',
-              }}
-            >
-              <HistoryIcon sx={{ mr: 1, fontSize: '1.2rem' }} />
-              Verlaufshistorie
-            </Typography>
-            <Tooltip title="Zeigt die vollständige Änderungshistorie dieses Datensatzes an, inklusive Erstellung und nachfolgenden Bearbeitungen.">
-              <IconButton 
-                size="small" 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setHistoryInfoAnchorEl(e.currentTarget);
+            {creatorInfo}
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <Typography 
+                variant="subtitle2" 
+                sx={{ 
+                  display: 'flex', 
+                  alignItems: 'center',
+                  color: 'success.main',
+                  fontWeight: 'bold',
+                  mr: 1
                 }}
               >
-                <InfoIcon fontSize="small" color="action" />
-              </IconButton>
-            </Tooltip>
+                <HistoryIcon sx={{ mr: 0.5, fontSize: '1.2rem' }} />
+                Verlaufshistorie
+              </Typography>
+              <Tooltip title="Zeigt die vollständige Änderungshistorie dieses Datensatzes an, inklusive Erstellung und nachfolgenden Bearbeitungen.">
+                <IconButton 
+                  size="small" 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setHistoryInfoAnchorEl(e.currentTarget);
+                  }}
+                >
+                  <InfoIcon fontSize="small" color="action" />
+                </IconButton>
+              </Tooltip>
+            </Box>
           </Box>
         </AccordionSummary>
-        <AccordionDetails>
+        <AccordionDetails sx={{ p: 3 }}>
           {historyLoading ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
               <CircularProgress size={24} />
@@ -404,92 +787,8 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
               Verlaufshistorie im falschen Format.
             </Typography>
           ) : (
-            <Box>
-              {/* Ersteller anzeigen */}
-              {(() => {
-                const creator = history.find(entry => entry.action === 'created');
-                
-                if (creator) {
-                  return (
-                    <Box sx={{ mb: 2 }}>
-                      <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
-                        Erstellt von:
-                      </Typography>
-                      <Box sx={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        mt: 0.5, 
-                        ml: 1,
-                        bgcolor: 'background.default',
-                        py: 0.75,
-                        px: 1.5,
-                        borderRadius: 1
-                      }}>
-                        <PersonIcon sx={{ fontSize: '1.1rem', color: 'primary.main', mr: 1 }} />
-                        <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
-                          {creator.member_name}
-                          <Typography 
-                            component="span" 
-                            variant="caption" 
-                            color="text.secondary" 
-                            sx={{ ml: 1 }}
-                          >
-                            am {creator.timestamp_formatted}
-                          </Typography>
-                        </Typography>
-                      </Box>
-                    </Box>
-                  );
-                }
-                return null;
-              })()}
-              
-              {/* Letzte Bearbeitungen anzeigen */}
-              {(() => {
-                const lastEdits = history
-                  .filter(entry => entry.action === 'updated')
-                  .slice(0, 5);
-                
-                if (lastEdits.length > 0) {
-                  return (
-                    <Box>
-                      <Typography variant="body2" sx={{ fontWeight: 'medium', mt: 1 }}>
-                        Letzte Bearbeitungen:
-                      </Typography>
-                      <Box sx={{ mt: 0.5, ml: 1 }}>
-                        {lastEdits.map((edit, index) => (
-                          <Box 
-                            key={edit.id}
-                            sx={{ 
-                              display: 'flex', 
-                              alignItems: 'center',
-                              mb: index < lastEdits.length - 1 ? 0.75 : 0,
-                              bgcolor: index % 2 === 0 ? 'background.default' : 'transparent',
-                              py: 0.75,
-                              px: 1.5,
-                              borderRadius: 1
-                            }}
-                          >
-                            <PersonIcon sx={{ fontSize: '1.1rem', color: 'info.main', mr: 1 }} />
-                            <Typography variant="body2">
-                              {edit.member_name}
-                              <Typography 
-                                component="span" 
-                                variant="caption" 
-                                color="text.secondary" 
-                                sx={{ ml: 1 }}
-                              >
-                                am {edit.timestamp_formatted}
-                              </Typography>
-                            </Typography>
-                          </Box>
-                        ))}
-                      </Box>
-                    </Box>
-                  );
-                }
-                return null;
-              })()}
+            <Box sx={{ width: '100%' }}>
+              {renderHistoryContent()}
             </Box>
           )}
         </AccordionDetails>
@@ -1181,140 +1480,7 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
             )}
             
             {/* Verlaufshistorie als Akkordeon mit Ersteller oben im Header */}
-            {initialData.id && (
-              <Accordion defaultExpanded={false} sx={{ mt: 2, mb: 2, width: '100%', borderLeft: '3px solid #4caf50' }}>
-                <AccordionSummary
-                  expandIcon={<ExpandMoreIcon />}
-                  sx={{ 
-                    '&.Mui-expanded': {
-                      borderBottom: '1px solid rgba(0, 0, 0, 0.12)'
-                    }
-                  }}
-                >
-                  <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                    <Box sx={{ flex: 1 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                        <PersonIcon sx={{ mr: 1, fontSize: '1.2rem', color: 'success.main' }} />
-                        <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
-                          Sorte wurde erstellt von: 
-                          {(() => {
-                            if (historyLoading) return <CircularProgress size={16} sx={{ ml: 1 }} />;
-                            
-                            if (!history || !Array.isArray(history) || history.length === 0) {
-                              return <Typography component="span" sx={{ ml: 1, fontStyle: 'italic' }}>Unbekannt</Typography>;
-                            }
-                            
-                            const creator = history.find(entry => entry.action === 'created');
-                            return creator ? 
-                              <Typography component="span" sx={{ ml: 1, fontWeight: 'normal' }}>
-                                {creator.member_name}
-                                <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 1 }}>
-                                  am {creator.timestamp_formatted}
-                                </Typography>
-                              </Typography> : 
-                              <Typography component="span" sx={{ ml: 1, fontStyle: 'italic' }}>Unbekannt</Typography>;
-                          })()}
-                        </Typography>
-                      </Box>
-                    </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <Typography 
-                        variant="body2" 
-                        color="text.secondary"
-                        sx={{ mr: 1, display: { xs: 'none', sm: 'block' } }}
-                      >
-                        Verlaufshistorie anzeigen
-                      </Typography>
-                      <Tooltip title="Zeigt die vollständige Änderungshistorie dieses Datensatzes an">
-                        <IconButton 
-                          size="small" 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setHistoryInfoAnchorEl(e.currentTarget);
-                          }}
-                        >
-                          <InfoIcon fontSize="small" color="action" />
-                        </IconButton>
-                      </Tooltip>
-                    </Box>
-                  </Box>
-                </AccordionSummary>
-                <AccordionDetails>
-                  {historyLoading ? (
-                    <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
-                      <CircularProgress size={24} />
-                    </Box>
-                  ) : !history || history.length === 0 ? (
-                    <Typography variant="body2" color="text.secondary">
-                      Keine Verlaufshistorie verfügbar.
-                    </Typography>
-                  ) : !Array.isArray(history) ? (
-                    <Typography variant="body2" color="text.secondary">
-                      Verlaufshistorie im falschen Format.
-                    </Typography>
-                  ) : (
-                    <Box>
-                      <Typography variant="subtitle2" sx={{ 
-                        mt: 1, 
-                        mb: 1.5, 
-                        display: 'flex', 
-                        alignItems: 'center',
-                        color: 'text.primary',
-                        fontWeight: 'medium'
-                      }}>
-                        <HistoryIcon sx={{ mr: 1, fontSize: '1.2rem' }} />
-                        Bearbeitungsverlauf
-                      </Typography>
-                      
-                      {/* Bearbeitungen anzeigen */}
-                      <Box sx={{ pl: 1 }}>
-                        {(() => {
-                          const edits = history
-                            .filter(entry => entry.action === 'updated')
-                            .slice(0, 10);
-                          
-                          if (edits.length === 0) {
-                            return (
-                              <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', ml: 1 }}>
-                                Keine Bearbeitungen vorhanden.
-                              </Typography>
-                            );
-                          }
-                          
-                          return edits.map((edit, index) => (
-                            <Box 
-                              key={edit.id}
-                              sx={{ 
-                                display: 'flex', 
-                                alignItems: 'center',
-                                mb: index < edits.length - 1 ? 1 : 0,
-                                bgcolor: index % 2 === 0 ? 'background.default' : 'transparent',
-                                py: 0.75,
-                                px: 1.5,
-                                borderRadius: 1
-                              }}
-                            >
-                              <PersonIcon sx={{ fontSize: '1.1rem', color: 'info.main', mr: 1 }} />
-                              <Typography variant="body2">
-                                {edit.member_name}
-                                <Typography 
-                                  component="span" 
-                                  variant="caption" 
-                                  color="text.secondary" 
-                                  sx={{ ml: 1 }}
-                                >
-                                  am {edit.timestamp_formatted}
-                                </Typography>
-                              </Typography>
-                            </Box>
-                          ));
-                        })()}
-                      </Box>
-                    </Box>
-                  )}
-                </AccordionDetails>
-              </Accordion>
-            )}
+            {initialData.id && <HistorySection />}
             
             {/* Popover für detaillierte Info zur Historie */}
             <Popover
@@ -2076,12 +2242,18 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
                         // Setze das Bild als Hauptbild
                         // Alle gespeicherten Bilder aktualisieren
                         setImages(prev => 
-                          prev.map(img => ({ ...img, is_primary: img.id === image.id }))
+                          prev.map(img => ({
+                            ...img,
+                            is_primary: img.id === image.id
+                          }))
                         );
                         
                         // Alle ausstehenden Bilder als nicht-primär markieren
                         setPendingImages(prev => 
-                          prev.map(img => ({ ...img, is_primary: false }))
+                          prev.map(img => ({
+                            ...img,
+                            is_primary: false
+                          }))
                         );
                         
                         // API-Aufruf zum Aktualisieren auf dem Server

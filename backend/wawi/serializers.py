@@ -101,10 +101,15 @@ class StrainHistorySerializer(serializers.ModelSerializer):
     member_name = serializers.SerializerMethodField()
     action_display = serializers.SerializerMethodField()
     timestamp_formatted = serializers.SerializerMethodField()
+    changes_formatted = serializers.SerializerMethodField()
     
     class Meta:
         model = StrainHistory
-        fields = ['id', 'member', 'member_name', 'action', 'action_display', 'timestamp', 'timestamp_formatted']
+        fields = [
+            'id', 'member', 'member_name', 'action', 'action_display', 
+            'timestamp', 'timestamp_formatted', 'changes', 'image_data', 
+            'changes_formatted'
+        ]
     
     def get_member_name(self, obj):
         if obj.member:
@@ -116,3 +121,141 @@ class StrainHistorySerializer(serializers.ModelSerializer):
     
     def get_timestamp_formatted(self, obj):
         return obj.timestamp.strftime('%d.%m.%Y %H:%M')
+    
+    def get_changes_formatted(self, obj):
+        """
+        Formatiert die Änderungen in ein benutzerfreundliches Format.
+        Wandelt technische Feldnamen in lesbare Bezeichnungen um und
+        führt Spezialformatierungen für bestimmte Feldtypen durch.
+        """
+        if not obj.changes:
+            return None
+            
+        try:
+            # Mapping für Feldnamen zu benutzerfreundlichen Bezeichnungen
+            field_name_mapping = {
+                'name': 'Sortenname',
+                'breeder': 'Hersteller/Züchter',
+                'strain_type': 'Samentyp',
+                'indica_percentage': 'Indica-Anteil (%)',
+                'genetic_origin': 'Genetische Herkunft',
+                'flowering_time_min': 'Blütezeit Minimum (Tage)',
+                'flowering_time_max': 'Blütezeit Maximum (Tage)',
+                'height_indoor_min': 'Höhe Indoor Minimum (cm)',
+                'height_indoor_max': 'Höhe Indoor Maximum (cm)',
+                'height_outdoor_min': 'Höhe Outdoor Minimum (cm)',
+                'height_outdoor_max': 'Höhe Outdoor Maximum (cm)',
+                'yield_indoor_min': 'Ertrag Indoor Minimum (g/m²)',
+                'yield_indoor_max': 'Ertrag Indoor Maximum (g/m²)',
+                'yield_outdoor_min': 'Ertrag Outdoor Minimum (g/Pflanze)',
+                'yield_outdoor_max': 'Ertrag Outdoor Maximum (g/Pflanze)',
+                'difficulty': 'Schwierigkeitsgrad',
+                'thc_percentage_min': 'THC-Gehalt Minimum (%)',
+                'thc_percentage_max': 'THC-Gehalt Maximum (%)',
+                'cbd_percentage_min': 'CBD-Gehalt Minimum (%)',
+                'cbd_percentage_max': 'CBD-Gehalt Maximum (%)',
+                'dominant_terpenes': 'Dominante Terpene',
+                'flavors': 'Geschmacksrichtungen',
+                'effects': 'Effekte/Wirkungen',
+                'general_information': 'Allgemeine Informationen',
+                'growing_information': 'Anbauspezifische Informationen',
+                'suitable_climate': 'Geeignetes Klima',
+                'growing_method': 'Anbaumethode',
+                'resistance_mold': 'Schimmelresistenz',
+                'resistance_pests': 'Schädlingsresistenz',
+                'resistance_cold': 'Kälteresistenz',
+                'awards': 'Auszeichnungen',
+                'release_year': 'Jahr der Markteinführung',
+                'rating': 'Bewertung',
+                'price_per_seed': 'Preis pro Samen (€)',
+                'seeds_per_pack': 'Anzahl Samen pro Packung',
+                'is_active': 'Aktiv'
+            }
+            
+            # Mapping für Auswahlfeldwerte
+            strain_type_mapping = {
+                'feminized': 'Feminisiert',
+                'regular': 'Regulär',
+                'autoflower': 'Autoflower',
+                'f1_hybrid': 'F1 Hybrid',
+                'cbd': 'CBD-Samen'
+            }
+            
+            difficulty_mapping = {
+                'beginner': 'Anfänger',
+                'intermediate': 'Mittel',
+                'advanced': 'Fortgeschritten',
+                'expert': 'Experte'
+            }
+            
+            climate_mapping = {
+                'indoor': 'Indoor',
+                'outdoor': 'Outdoor',
+                'greenhouse': 'Gewächshaus',
+                'all': 'Alle'
+            }
+            
+            growing_method_mapping = {
+                'soil': 'Erde',
+                'hydro': 'Hydrokultur',
+                'coco': 'Kokos',
+                'all': 'Alle'
+            }
+            
+            # Boolean-Werte formatieren
+            boolean_mapping = {
+                True: 'Ja',
+                False: 'Nein'
+            }
+            
+            # Ergebnisdictionary initialisieren
+            formatted_changes = {}
+            
+            # Jede Änderung verarbeiten
+            for field, change in obj.changes.items():
+                # Sicherstellen, dass change ein Dictionary ist
+                if not isinstance(change, dict):
+                    continue
+                
+                # Feldnamen formatieren
+                field_display = field_name_mapping.get(field, field)
+                
+                # Alten und neuen Wert extrahieren mit Fehlerbehandlung
+                old_value = change.get('old', None)
+                new_value = change.get('new', None)
+                
+                # Spezialformatierung für bestimmte Feldtypen
+                if field == 'strain_type':
+                    old_value = strain_type_mapping.get(str(old_value), old_value) if old_value is not None else None
+                    new_value = strain_type_mapping.get(str(new_value), new_value) if new_value is not None else None
+                elif field == 'difficulty':
+                    old_value = difficulty_mapping.get(str(old_value), old_value) if old_value is not None else None
+                    new_value = difficulty_mapping.get(str(new_value), new_value) if new_value is not None else None
+                elif field == 'suitable_climate':
+                    old_value = climate_mapping.get(str(old_value), old_value) if old_value is not None else None
+                    new_value = climate_mapping.get(str(new_value), new_value) if new_value is not None else None
+                elif field == 'growing_method':
+                    old_value = growing_method_mapping.get(str(old_value), old_value) if old_value is not None else None
+                    new_value = growing_method_mapping.get(str(new_value), new_value) if new_value is not None else None
+                elif field == 'is_active':
+                    old_value = boolean_mapping.get(old_value, old_value) if old_value is not None else None
+                    new_value = boolean_mapping.get(new_value, new_value) if new_value is not None else None
+                
+                # Listen-Werte formatieren (kommaseparierte Strings)
+                elif field in ['dominant_terpenes', 'flavors', 'effects']:
+                    if old_value and isinstance(old_value, str):
+                        old_value = ", ".join([item.strip() for item in old_value.split(',')])
+                    if new_value and isinstance(new_value, str):
+                        new_value = ", ".join([item.strip() for item in new_value.split(',')])
+                
+                # Formatiertes Ergebnis hinzufügen
+                formatted_changes[field_display] = {
+                    'alt': old_value,
+                    'neu': new_value
+                }
+                
+            return formatted_changes
+            
+        except Exception as e:
+            # Fehlerbehandlung für unerwartete Formate
+            return {'Fehler': str(e)}
