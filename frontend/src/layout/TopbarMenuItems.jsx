@@ -143,19 +143,6 @@ const TopbarMenuItems = [
     ]
   },
   {
-    id: 'showReports',
-    label: 'Berichte', 
-    icon: <AssessmentIcon />,
-    children: [
-      { 
-        label: 'Laborberichte', 
-        path: '/laborreports', 
-        icon: <BiotechIcon />,
-        subtitle: 'Laboranalysen und Qualitätskontrollen'
-      }
-    ]
-  },
-  {
     id: 'showTrackTrace', 
     label: 'Track & Trace', 
     icon: <TimelineIcon />, 
@@ -254,21 +241,15 @@ const TopbarMenuItems = [
     ]
   },
   {
-    id: 'showSecurity', 
-    label: 'Sicherheit', 
-    icon: <VpnKeyIcon />,
+    id: 'showReports',
+    label: 'Berichte', 
+    icon: <AssessmentIcon />,
     children: [
       { 
-        label: 'Zugangskontrolle', 
-        path: '/unifi-access/dashboard', 
-        icon: <SecurityIcon />,
-        subtitle: 'Zugriffsverwaltung und Protokollierung'
-      },
-      { 
-        label: 'Sensoren', 
-        path: '/unifi-protect/sensoren', 
-        icon: <SensorsIcon />,
-        subtitle: 'Sensorüberwachung und Statusberichte'
+        label: 'Laborberichte', 
+        path: '/laborreports', 
+        icon: <BiotechIcon />,
+        subtitle: 'Laboranalysen und Qualitätskontrollen'
       }
     ]
   },
@@ -288,6 +269,25 @@ const TopbarMenuItems = [
         path: '/trace/hersteller', 
         icon: <BusinessIcon />,
         subtitle: 'Verwaltung der Herstellerbeziehungen'
+      }
+    ]
+  },
+  {
+    id: 'showSecurity', 
+    label: 'Sicherheit', 
+    icon: <VpnKeyIcon />,
+    children: [
+      { 
+        label: 'Zugangskontrolle', 
+        path: '/unifi-access/dashboard', 
+        icon: <SecurityIcon />,
+        subtitle: 'Zugriffsverwaltung und Protokollierung'
+      },
+      { 
+        label: 'Sensoren', 
+        path: '/unifi-protect/sensoren', 
+        icon: <SensorsIcon />,
+        subtitle: 'Sensorüberwachung und Statusberichte'
       }
     ]
   },
