@@ -6,7 +6,7 @@
 </p>
 
 > **Modulare Open-Source-Software für Cannabis Social Clubs und Anbauvereinigungen gemäß dem Konsumcannabisgesetz § (KCanG)**  
-> Mitgliederverwaltung · Growcontroller · Aufgabenplanung · Zutrittskontrolle · 10 Schritte UUID Track & Trace · Buchhaltung · WaWi · Raumautomation · Sicherheitssystem
+> Mitgliederverwaltung · Growcontroller · Aufgabenplanung · Laborberichtsverwaltung · Zutrittskontrolle · 10 Schritte UUID Track & Trace · Buchhaltung · WaWi · Raumautomation · Sicherheitssystem
 
 ![GitHub Repo stars](https://img.shields.io/github/stars/saschadaemgen/cannaUNITY?style=social)
 ![GitHub license](https://img.shields.io/github/license/saschadaemgen/cannaUNITY)
@@ -24,7 +24,7 @@
 
 - **Backend:** Django 5.x (API-only), Django REST Framework, PostgreSQL / SQLite
 - **Frontend:** React + Vite + Material UI (SPA)
-- **Schnittstellen:** UniFi Access/Protect, Joomla 5, Home Assistant, Siemens LOGO!, Siemens SIMATIC, Loxone Mini Server
+- **Schnittstellen:** UniFi Access/Protect, Joomla 5, Home Assistant, Siemens LOGO!, Siemens SIMATIC, Loxone Mini Server, Agilent 1260 Infinity HPLC
 - **Technologien:** TokenAuth, WebSocket, Axios, passkey-auth, Container-kompatibel
 
 ---
@@ -154,6 +154,7 @@ cannaUNITY/
 - ✅ RFID/NFC Arbeitszeiterfassung mit Minijob-Erkennung
 - ✅ Dynamische Mitgliederprofile mit RFID
 - ✅ Raumautomation (Loxone, Siemens)
+- ✅ Laborberichtsverwaltung inkl. HPLC & GC (CSV Import)
 - ✅ Vollständige Protokollierung für Behördenzugriff
 - ✅ Touchpanelsteuerung & Raumanzeige
 - ✅ Anonymisierte Produktausgabe mit UUID
