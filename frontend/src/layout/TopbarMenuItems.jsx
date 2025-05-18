@@ -25,9 +25,16 @@ import QrCode2Icon from '@mui/icons-material/QrCode2';
 import DescriptionIcon from '@mui/icons-material/Description';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
-import MonitorHeartIcon from '@mui/icons-material/MonitorHeart'; // Neues Icon für Grow Control
-import OpacityIcon from '@mui/icons-material/Opacity'; // Für Bewässerung
-import WbSunnyIcon from '@mui/icons-material/WbSunny'; // Für Lichtsteuerung
+import MonitorHeartIcon from '@mui/icons-material/MonitorHeart';
+import OpacityIcon from '@mui/icons-material/Opacity';
+import WbSunnyIcon from '@mui/icons-material/WbSunny';
+import AssessmentIcon from '@mui/icons-material/Assessment'; // Für Berichte
+import SchoolIcon from '@mui/icons-material/School'; // Für Fortbildungen
+import ForumIcon from '@mui/icons-material/Forum'; // Für Nachrichtenzentrum
+import HowToVoteIcon from '@mui/icons-material/HowToVote'; // Für Online Abstimmungen
+import AssignmentIcon from '@mui/icons-material/Assignment'; // Für Aufgabenverwaltung
+import VideoCameraFrontIcon from '@mui/icons-material/VideoCameraFront'; // Für Online Versammlungen
+import GavelIcon from '@mui/icons-material/Gavel'; // Für Beschlüsse
 
 // Definierte Menüstruktur mit allen Hauptmenüs und Untermenüs
 const TopbarMenuItems = [
@@ -41,6 +48,42 @@ const TopbarMenuItems = [
         path: '/mitglieder', 
         icon: <GroupsIcon />,
         subtitle: 'Übersicht aller Netzwerkmitglieder'
+      },
+      { 
+        label: 'Online Versammlungen', 
+        path: '/versammlungen', 
+        icon: <VideoCameraFrontIcon />,
+        subtitle: 'Videokonferenzen und virtuelle Treffen'
+      },
+      { 
+        label: 'Online Abstimmungen', 
+        path: '/abstimmungen', 
+        icon: <HowToVoteIcon />,
+        subtitle: 'Demokratische Entscheidungsprozesse'
+      },
+      { 
+        label: 'Aufgabenverwaltung', 
+        path: '/aufgaben', 
+        icon: <AssignmentIcon />,
+        subtitle: 'Projekte und Aufgabenverteilung'
+      },
+      { 
+        label: 'Fortbildungen', 
+        path: '/fortbildungen', 
+        icon: <SchoolIcon />,
+        subtitle: 'Weiterbildungsangebote und Kurse'
+      },
+      { 
+        label: 'Nachrichtenzentrum', 
+        path: '/nachrichten', 
+        icon: <ForumIcon />,
+        subtitle: 'Interne Kommunikationsplattform'
+      },
+      { 
+        label: 'Beschlüsse', 
+        path: '/beschluesse', 
+        icon: <GavelIcon />,
+        subtitle: 'Dokumentation gemeinschaftlicher Entscheidungen'
       }
     ]
   },
@@ -100,6 +143,19 @@ const TopbarMenuItems = [
     ]
   },
   {
+    id: 'showReports',
+    label: 'Berichte', 
+    icon: <AssessmentIcon />,
+    children: [
+      { 
+        label: 'Laborberichte', 
+        path: '/laborreports', 
+        icon: <BiotechIcon />,
+        subtitle: 'Laboranalysen und Qualitätskontrollen'
+      }
+    ]
+  },
+  {
     id: 'showTrackTrace', 
     label: 'Track & Trace', 
     icon: <TimelineIcon />, 
@@ -120,7 +176,7 @@ const TopbarMenuItems = [
         label: 'Step 3 - Stecklinge', 
         path: '/trace/stecklinge', 
         icon: <ContentCutIcon />,
-        subtitle: 'überführt aus Mutterpflanzen'
+        subtitle: 'überführt aus Stecklingen'
       },
       { 
         label: 'Step 4a - Blühpflanzen', 

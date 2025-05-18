@@ -50,6 +50,10 @@ import LightControllerPage from '@/apps/controller/pages/Light/LightControllerPa
 import MonitoringPage from '@/apps/controller/pages/Monitoring/MonitoringPage';
 import ControllerLogsPage from '@/apps/controller/pages/Logs/ControllerLogsPage';
 import MQTTTerminalPage from '@/apps/controller/pages/MQTTTerminal/MQTTTerminalPage';
+import ReportList from '../apps/laborreports/pages/ReportList';
+import ReportCreate from '../apps/laborreports/pages/ReportCreate';
+import ReportView from '../apps/laborreports/pages/ReportView';
+import ReportEdit from '../apps/laborreports/pages/ReportEdit';
 
 export const router = createBrowserRouter([
   {
@@ -114,6 +118,7 @@ export const router = createBrowserRouter([
       // WAWI - Cannabis-Sortenverwaltung
       { path: 'wawi/strains', element: <StrainPage /> },
 
+      // Grow-Controller Routen
       { path: 'controllers', element: <ControllerDashboard /> },
       { path: 'controllers/dashboard', element: <ControllerDashboard /> },
       { path: 'controllers/irrigation', element: <IrrigationControllerPage /> },
@@ -121,6 +126,12 @@ export const router = createBrowserRouter([
       { path: 'controllers/monitoring', element: <MonitoringPage /> },
       { path: 'controllers/logs', element: <ControllerLogsPage /> },
       { path: 'controllers/mqtt', element: <MQTTTerminalPage /> },
+
+      // Laborreports-Routen
+      { path: 'laborreports', element: <ReportList /> },
+      { path: 'laborreports/neu', element: <ReportCreate /> },
+      { path: 'laborreports/:id', element: <ReportView /> },
+      { path: 'laborreports/:id/edit', element: <ReportEdit /> },
 
       // Sicherheit
       { path: 'unifi-protect/sensoren', element: <ProtectSensorPage /> },

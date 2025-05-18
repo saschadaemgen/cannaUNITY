@@ -33,6 +33,7 @@ INSTALLED_APPS = [
     'rooms',
     'options',
     'buchhaltung',
+    'laborreports',
     'interface',
     'controller',
     'logocore',

@@ -65,6 +65,10 @@ urlpatterns = [
     # 🔖 RFID-Bridge für nahtlose RFID-Authentifizierung
     path('rfid-bridge/', include('rfid_bridge.api_urls')),     # Für Port 8000 (Build Mode)
     path('api/rfid-bridge/', include('rfid_bridge.api_urls')), # Für Vite (Dev Mode)
+
+    # ⚙️ Labor Berichte
+    path('laborreports/', include('laborreports.api_urls')),      # für Port 8000 (Build-Modus)
+    path('api/laborreports/', include('laborreports.api_urls')),  # für Port 5173 (Dev-Modus)
 ]
 
 # 🔁 Fallback für alle nicht-API-URLs → React SPA laden
