@@ -241,15 +241,21 @@ const TopbarMenuItems = [
     ]
   },
   {
-    id: 'showReports',
-    label: 'Berichte', 
-    icon: <AssessmentIcon />,
+    id: 'showSecurity', 
+    label: 'Sicherheit', 
+    icon: <VpnKeyIcon />,
     children: [
       { 
-        label: 'Laborberichte', 
-        path: '/laborreports', 
-        icon: <BiotechIcon />,
-        subtitle: 'Laboranalysen und Qualitätskontrollen'
+        label: 'Zugangskontrolle', 
+        path: '/unifi-access/dashboard', 
+        icon: <SecurityIcon />,
+        subtitle: 'Zugriffsverwaltung und Protokollierung'
+      },
+      { 
+        label: 'Sensoren', 
+        path: '/unifi-protect/sensoren', 
+        icon: <SensorsIcon />,
+        subtitle: 'Sensorüberwachung und Statusberichte'
       }
     ]
   },
@@ -269,25 +275,6 @@ const TopbarMenuItems = [
         path: '/trace/hersteller', 
         icon: <BusinessIcon />,
         subtitle: 'Verwaltung der Herstellerbeziehungen'
-      }
-    ]
-  },
-  {
-    id: 'showSecurity', 
-    label: 'Sicherheit', 
-    icon: <VpnKeyIcon />,
-    children: [
-      { 
-        label: 'Zugangskontrolle', 
-        path: '/unifi-access/dashboard', 
-        icon: <SecurityIcon />,
-        subtitle: 'Zugriffsverwaltung und Protokollierung'
-      },
-      { 
-        label: 'Sensoren', 
-        path: '/unifi-protect/sensoren', 
-        icon: <SensorsIcon />,
-        subtitle: 'Sensorüberwachung und Statusberichte'
       }
     ]
   },
@@ -343,6 +330,19 @@ const TopbarMenuItems = [
         path: '/buchhaltung/jahresabschluss', 
         icon: <TimelineIcon />,
         subtitle: 'Erstellung des Jahresabschlusses'
+      }
+    ]
+  },
+  {
+    id: 'showReports',
+    label: 'Berichte', 
+    icon: <AssessmentIcon />,
+    children: [
+      { 
+        label: 'Laborberichte', 
+        path: '/laborreports', 
+        icon: <BiotechIcon />,
+        subtitle: 'Laboranalysen und Qualitätskontrollen'
       }
     ]
   }
