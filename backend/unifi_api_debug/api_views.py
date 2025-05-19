@@ -12,10 +12,8 @@ import requests
 from .serializers import NfcDebugLogSerializer
 from rest_framework.generics import ListAPIView
 
-
 UNIFI_API_URL = f"{settings.UNIFI_ACCESS_HOST}/api/v1/developer"
 UNIFI_API_TOKEN = settings.UNIFI_ACCESS_TOKEN
-
 
 class TestNfcSessionView(APIView):
     permission_classes = [IsAuthenticated]
@@ -43,8 +41,8 @@ class TestNfcSessionView(APIView):
                             full_name = user.get("full_name")
                             unifi_user_id = user.get("id")  # 🧩 Hier wird die UniFi-ID zugewiesen
                             break
-        except Exception as e:
-            print(f"❌ Fehler beim UniFi-API-Call: {e}")
+        except Exception:
+            pass
 
         member_name = None
 
@@ -72,12 +70,12 @@ class TestNfcSessionView(APIView):
         return Response({
             "success": True,
             "token": token,
-            "unifi_id": unifi_user_id,            # ✅ Rückgabe ergänzt
+            "unifi_id": unifi_user_id,
             "unifi_name": full_name,
             "member_name": member_name or "Nicht gefunden"
         })
-    
-    
+
+
 class DebugLogListView(ListAPIView):
     queryset = NfcDebugLog.objects.all().order_by("-timestamp")
     serializer_class = NfcDebugLogSerializer
