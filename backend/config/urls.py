@@ -69,6 +69,10 @@ urlpatterns = [
     # ⚙️ Labor Berichte
     path('laborreports/', include('laborreports.api_urls')),      # für Port 8000 (Build-Modus)
     path('api/laborreports/', include('laborreports.api_urls')),  # für Port 5173 (Dev-Modus)
+
+    path("api/unifi_api_debug/", include("unifi_api_debug.api_urls")),
+    path("unifi_api_debug/", include("unifi_api_debug.api_urls")),  # für Build-Modus
+
 ]
 
 # 🔁 Fallback für alle nicht-API-URLs → React SPA laden

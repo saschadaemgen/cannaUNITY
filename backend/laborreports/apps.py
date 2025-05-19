@@ -1,7 +1,10 @@
-# backend/laborreports/apps.py
+# laborreports/apps.py
 from django.apps import AppConfig
 
-class LaborreportsConfig(AppConfig):
+class LaborReportsConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'laborreports'
-    verbose_name = 'Laborberichte'
+
+    def ready(self):
+        # Keine Modellimporte hier!
+        pass

@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'wawi',
     'unifi_access',
     'unifi_protect',
+    'unifi_api_debug',
     'rfid_bridge',
     'trackandtrace',
 ]
@@ -159,6 +160,7 @@ UNIFI_ACCESS_HOST = os.getenv('UNIFI_ACCESS_HOST')
 UNIFI_ACCESS_TOKEN = os.getenv('UNIFI_ACCESS_TOKEN')
 HOME_ASSISTANT_ACCESS_TOKEN = os.getenv('HOME_ASSISTANT_ACCESS_TOKEN')
 HOME_ASSISTANT_API_URL = os.getenv('HOME_ASSISTANT_API_URL')
+UNIFI_DEVICE_ID = os.getenv("UNIFI_DEVICE_ID")
 
 # 📝 Logging-Konfiguration für Debugging
 LOGGING = {

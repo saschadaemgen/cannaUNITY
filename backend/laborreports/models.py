@@ -161,22 +161,6 @@ class ContaminantTest(models.Model):
     )
     
     name = models.CharField(max_length=100, verbose_name="Verunreinigungsname")
-
-class ContaminantTest(models.Model):
-    """Test auf Verunreinigungen für einen Laborbericht."""
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    report = models.ForeignKey(
-        LaboratoryReport,
-        on_delete=models.CASCADE,
-        related_name='contaminant_tests'
-    )
-    category = models.ForeignKey(
-        ContaminantCategory,
-        on_delete=models.PROTECT,
-        related_name='tests'
-    )
-    
-    name = models.CharField(max_length=100, verbose_name="Verunreinigungsname")
     threshold_value = models.DecimalField(
         max_digits=10, 
         decimal_places=4,

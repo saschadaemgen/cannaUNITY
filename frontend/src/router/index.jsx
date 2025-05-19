@@ -50,10 +50,11 @@ import LightControllerPage from '@/apps/controller/pages/Light/LightControllerPa
 import MonitoringPage from '@/apps/controller/pages/Monitoring/MonitoringPage';
 import ControllerLogsPage from '@/apps/controller/pages/Logs/ControllerLogsPage';
 import MQTTTerminalPage from '@/apps/controller/pages/MQTTTerminal/MQTTTerminalPage';
-import ReportList from '../apps/laborreports/pages/ReportList';
-import ReportCreate from '../apps/laborreports/pages/ReportCreate';
-import ReportView from '../apps/laborreports/pages/ReportView';
-import ReportEdit from '../apps/laborreports/pages/ReportEdit';
+import ReportList from '@/apps/laborreports/pages/ReportList';
+import ReportCreate from '@/apps/laborreports/pages/ReportCreate';
+import ReportView from '@/apps/laborreports/pages/ReportView';
+import ReportEdit from '@/apps/laborreports/pages/ReportEdit';
+import DebugDashboard from '@/apps/unifi_api_debug/pages/DebugDashboard'
 
 export const router = createBrowserRouter([
   {
@@ -138,6 +139,8 @@ export const router = createBrowserRouter([
 
       // Optional: zukünftige Seiten
       { path: 'netzwerk', element: <div>Gemeinschaftsnetzwerk</div> },
+      { path: 'unifi-api-debug', element: <DebugDashboard /> },
+
     ],
   },
 
