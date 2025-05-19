@@ -25,7 +25,7 @@
 
 - **Backend:** Django 5.x (API-only), Django REST Framework, PostgreSQL / SQLite
 - **Frontend:** React + Vite + Material UI (SPA)
-- **Schnittstellen:** UniFi Access/Protect, Joomla 5, Home Assistant, Siemens LOGO!, Siemens SIMATIC, Loxone Mini Server, Agilent 1260 Infinity HPLC
+- **Schnittstellen:** UniFi Access/Protect (native), Joomla 5, Home Assistant, Siemens LOGO!, Siemens SIMATIC, Loxone Mini Server, Agilent 1260 Infinity HPLC
 - **Technologien:** TokenAuth, WebSocket, Axios, passkey-auth, Container-kompatibel
 
 ---
@@ -154,11 +154,13 @@ cannaUNITY/
 - ✅ Echtzeit UUID-Track&Trace von Pflanzen, Verarbeitung & Produktausgabe
 - ✅ RFID/NFC Arbeitszeiterfassung mit Minijob-Erkennung
 - ✅ Dynamische Mitgliederprofile mit RFID
+- ✅ Native API Unterstützung für UniFi (Ubiquiti) Access, Protect und Network. 
 - ✅ Raumautomation (Loxone, Siemens)
 - ✅ Laborberichtsverwaltung inkl. HPLC & GC (CSV Import)
 - ✅ Vollständige Protokollierung für Behördenzugriff
 - ✅ Touchpanelsteuerung & Raumanzeige
 - ✅ Anonymisierte Produktausgabe mit UUID
+- ✅ GMP konforme Laborberichte erstellen,verwalten & speichern.
 - ✅ GoB-konforme Buchhaltung mit vollständiger Journaldarstellung
 - ✅ Stornobuchungen mit gegenbuchender Rückabwicklung (SOLL/HABEN)
 - ✅ Einzel- und Mehrfachbuchungen inkl. Subtransaktionen & Kontenwahl
