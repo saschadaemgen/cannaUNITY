@@ -955,7 +955,7 @@ export default function SeedPurchaseForm({ open, onClose, onSuccess }) {
                     fontStyle: 'italic'
                   }}
                 >
-                  (Bitte Angaben genau prüfen - dieser Schritt kann nicht rückgängig gemacht werden)
+                  (Bitte Angaben vorher genau prüfen - dieser Schritt kann nicht rückgängig gemacht werden)
                 </Typography>
               </Box>
             )}
