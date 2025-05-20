@@ -25,7 +25,7 @@
 
 - **Backend:** Django 5.x (API-only), Django REST Framework, PostgreSQL / SQLite
 - **Frontend:** React + Vite + Material UI (SPA)
-- **Schnittstellen:** UniFi Access/Protect (native), Joomla 5, Home Assistant, Siemens LOGO!, Siemens SIMATIC, Loxone Mini Server, Agilent 1260 Infinity HPLC
+- **Schnittstellen:** UniFi Access/Protect (native), Joomla 5, Siemens LOGO!, Siemens SIMATIC, Loxone Mini Server, Agilent 1260 Infinity HPLC
 - **Technologien:** TokenAuth, WebSocket, Axios, passkey-auth, Container-kompatibel
 
 ---
