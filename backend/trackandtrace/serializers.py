@@ -26,76 +26,70 @@ class RoomSerializer(serializers.ModelSerializer):
         model = Room
         fields = ['id', 'name']
 
+# Datei: backend/trackandtrace/serializers.py
+
 class SeedPurchaseSerializer(serializers.ModelSerializer):
-    # Serializers für Mitglieder und Räume
+    # Alte Mitglieder-Zuweisung (optional noch im Einsatz)
     member = MemberSerializer(read_only=True)
     member_id = serializers.PrimaryKeyRelatedField(
-        queryset=Member.objects.all(), 
+        queryset=Member.objects.all(),
         source='member',
         write_only=True,
         required=False,
         allow_null=True
     )
+
     strain = CannabisStrainSerializer(read_only=True)
     strain_id = serializers.PrimaryKeyRelatedField(
-        queryset=CannabisStrain.objects.all(), 
+        queryset=CannabisStrain.objects.all(),
         source='strain',
         write_only=True,
         required=False,
         allow_null=True
     )
-    
+
     room = RoomSerializer(read_only=True)
     room_id = serializers.PrimaryKeyRelatedField(
-        queryset=Room.objects.all(), 
+        queryset=Room.objects.all(),
         source='room',
         write_only=True,
         required=False,
         allow_null=True
     )
-    
-    # Serializer für das Mitglied, das vernichtet hat
+
     destroyed_by = MemberSerializer(read_only=True)
     destroyed_by_id = serializers.PrimaryKeyRelatedField(
-        queryset=Member.objects.all(), 
+        queryset=Member.objects.all(),
         source='destroyed_by',
         write_only=True,
         required=False,
         allow_null=True
     )
-    
-    # Referenz zum Originalsamen für teilweise vernichtete Samen
+
     original_seed = serializers.PrimaryKeyRelatedField(read_only=True)
-    
-    # Abgeleitete Felder für Pflanzenanzahl
+
     mother_plant_count = serializers.SerializerMethodField()
     flowering_plant_count = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = SeedPurchase
         fields = [
             'id', 'batch_number', 'strain_name', 'quantity', 'remaining_quantity',
             'is_destroyed', 'destroy_reason', 'destroyed_at', 'created_at',
             'member', 'member_id', 'room', 'room_id', 'destroyed_by', 'destroyed_by_id',
-            'original_seed', 'mother_plant_count', 'flowering_plant_count', 
-            'destroyed_quantity', 'strain', 'strain_id', 'thc_percentage_min', 
-            'thc_percentage_max', 'cbd_percentage_min', 'cbd_percentage_max',
+            'original_seed', 'mother_plant_count', 'flowering_plant_count',
+            'destroyed_quantity', 'strain', 'strain_id',
+            'thc_percentage_min', 'thc_percentage_max',
+            'cbd_percentage_min', 'cbd_percentage_max',
             'flowering_time_min', 'flowering_time_max'
         ]
-    
+
     def get_mother_plant_count(self, obj):
-        # Zähle die Mutterpflanzen für diesen Samen
-        count = 0
-        for batch in obj.mother_batches.all():
-            count += batch.plants.filter(is_destroyed=False).count()
-        return count
-    
+        return sum(batch.plants.filter(is_destroyed=False).count() for batch in obj.mother_batches.all())
+
     def get_flowering_plant_count(self, obj):
-        # Zähle die Blühpflanzen für diesen Samen
-        count = 0
-        for batch in obj.flowering_batches.all():
-            count += batch.plants.filter(is_destroyed=False).count()
-        return count
+        return sum(batch.plants.filter(is_destroyed=False).count() for batch in obj.flowering_batches.all())
+
 
 class MotherPlantSerializer(serializers.ModelSerializer):
     # Serializer für das Mitglied, das vernichtet hat

@@ -1,9 +1,16 @@
-# Datei: unifi_api_debug/api_urls.py
+# Datei: backend/unifi_api_debug/api_urls.py
 
 from django.urls import path
-from . import api_views
+from .api_views import (
+    TestNfcSessionView,
+    DebugLogListView,
+    BindRfidSessionView,
+    SecureMemberBindingView,
+)
 
 urlpatterns = [
-    path("test-nfc-session/", api_views.TestNfcSessionView.as_view(), name="test_nfc_session"),
-    path("debug-logs/", api_views.DebugLogListView.as_view(), name="debug_log_list"),  # 👈 HIER
+    path('test-nfc-session/', TestNfcSessionView.as_view(), name='test-nfc-session'),
+    path('debug-log/', DebugLogListView.as_view(), name='debug-log'),
+    path('bind-rfid-session/', BindRfidSessionView.as_view(), name='bind-rfid-session'),  # ✅ HIER!
+    path('secure-member-binding/', SecureMemberBindingView.as_view(), name='secure-member-binding'),
 ]

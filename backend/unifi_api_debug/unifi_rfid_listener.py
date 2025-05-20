@@ -7,6 +7,7 @@ from django.conf import settings
 from dotenv import load_dotenv
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+from django.core.cache import cache
 
 load_dotenv()
 
@@ -20,6 +21,32 @@ HEADERS = {
     "Accept": "application/json",
 }
 
+def resolve_and_store_user_from_token():
+    token = get_token_from_reader()
+    if not token:
+        return None, None, None
+
+    try:
+        response = requests.get(f"{UNIFI_API_URL}/users", headers=HEADERS, verify=False)
+        if response.status_code == 200:
+            users = response.json().get("data", [])
+            for user in users:
+                for card in user.get("nfc_cards", []):
+                    if card.get("token") == token:
+                        user_id = user.get("id")
+                        full_name = user.get("full_name")
+                        save_recent_rfid_user(token, user_id)
+                        return token, user_id, full_name  # 💡 ← Full Name zurückgeben
+    except Exception:
+        pass
+
+    return token, None, None
+
+def save_recent_rfid_user(token: str, user_id: str, duration=30):
+    cache.set(f"rfid:{token}", user_id, timeout=duration)
+
+def get_recent_rfid_user(token: str):
+    return cache.get(f"rfid:{token}")
 
 def get_token_from_reader():
     session_id = None

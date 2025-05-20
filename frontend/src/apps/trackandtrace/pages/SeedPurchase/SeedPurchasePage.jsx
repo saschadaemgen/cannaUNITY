@@ -1,6 +1,6 @@
 // frontend/src/apps/trackandtrace/pages/SeedPurchase/SeedPurchasePage.jsx
 import { useState, useEffect } from 'react'
-import { Container, Button, Box, Typography, Fade } from '@mui/material'
+import { Container, Button, Box, Typography, Fade, Snackbar, Alert } from '@mui/material'
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
 import api from '@/utils/api'
 
@@ -39,6 +39,14 @@ export default function SeedPurchasePage() {
   const [totalPages, setTotalPages] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [totalCount, setTotalCount] = useState(0)
+  
+  // State für globale Snackbar
+  const [globalSnackbar, setGlobalSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'success',
+    duration: 6000
+  })
   
   // Optionen für Page Size Dropdown
   const pageSizeOptions = [5, 10, 15, 25, 50]
@@ -84,6 +92,11 @@ export default function SeedPurchasePage() {
   // Akkordeon-State
   const [expandedSeedId, setExpandedSeedId] = useState('')
 
+  // Snackbar schließen
+  const handleCloseGlobalSnackbar = () => {
+    setGlobalSnackbar(prev => ({ ...prev, open: false }));
+  };
+
   const loadSeeds = async (page = 1) => {
     setLoading(true)
     try {
@@ -116,6 +129,12 @@ export default function SeedPurchasePage() {
       setCurrentPage(page);
     } catch (error) {
       console.error('Fehler beim Laden der Samen:', error)
+      setGlobalSnackbar({
+        open: true, 
+        message: 'Fehler beim Laden der Samen: ' + (error.response?.data?.error || error.message), 
+        severity: 'error',
+        duration: 6000
+      })
     } finally {
       setLoading(false)
     }
@@ -147,6 +166,12 @@ export default function SeedPurchasePage() {
       setCurrentPage(page);
     } catch (error) {
       console.error('Fehler beim Laden der Mutterpflanzen-Batches:', error);
+      setGlobalSnackbar({
+        open: true, 
+        message: 'Fehler beim Laden der Mutterpflanzen-Batches: ' + (error.response?.data?.error || error.message), 
+        severity: 'error',
+        duration: 6000
+      })
     } finally {
       setLoading(false);
     }
@@ -178,6 +203,12 @@ export default function SeedPurchasePage() {
       setCurrentPage(page);
     } catch (error) {
       console.error('Fehler beim Laden der Blühpflanzen-Batches:', error);
+      setGlobalSnackbar({
+        open: true, 
+        message: 'Fehler beim Laden der Blühpflanzen-Batches: ' + (error.response?.data?.error || error.message), 
+        severity: 'error',
+        duration: 6000
+      })
     } finally {
       setLoading(false);
     }
@@ -204,6 +235,12 @@ export default function SeedPurchasePage() {
       setRooms(roomsRes.data.results || [])
     } catch (error) {
       console.error('Fehler beim Laden der Mitglieder und Räume:', error)
+      setGlobalSnackbar({
+        open: true, 
+        message: 'Fehler beim Laden der Mitglieder und Räume: ' + (error.response?.data?.error || error.message), 
+        severity: 'error',
+        duration: 6000
+      })
     } finally {
       setLoadingOptions(false)
     }
@@ -227,6 +264,12 @@ export default function SeedPurchasePage() {
       setFloweringPlantCount(res.data.flowering_plant_count || 0);
     } catch (error) {
       console.error('Fehler beim Laden der Zähler:', error);
+      setGlobalSnackbar({
+        open: true, 
+        message: 'Fehler beim Laden der Zähler: ' + (error.response?.data?.error || error.message), 
+        severity: 'error',
+        duration: 6000
+      })
     }
   };
 
@@ -241,6 +284,21 @@ export default function SeedPurchasePage() {
     }
     
     loadCounts();
+  };
+  
+  // Erfolgshandler für Seed-Erstellung
+  const handleSeedSuccess = (message, memberName) => {
+    setOpenForm(false);
+    setSelectedSeed(null);
+    refreshData();
+    
+    // Ausführlichere Snackbar-Meldung mit längerer Anzeigedauer
+    setGlobalSnackbar({
+      open: true,
+      message: `${message} - Autorisiert durch: ${memberName || 'Unbekannt'} - Samen ist jetzt in der Übersicht sichtbar`,
+      severity: 'success',
+      duration: 10000 // 10 Sekunden anzeigen statt der Standard 6 Sekunden
+    });
   };
 
   // Handler für Änderung der Anzahl der Einträge pro Seite
@@ -289,6 +347,12 @@ export default function SeedPurchasePage() {
           })
           .catch(error => {
             console.error('Fehler beim Laden der Samen:', error);
+            setGlobalSnackbar({
+              open: true, 
+              message: 'Fehler beim Laden der Samen: ' + (error.response?.data?.error || error.message), 
+              severity: 'error',
+              duration: 6000
+            })
           })
           .finally(() => {
             setLoading(false);
@@ -317,6 +381,12 @@ export default function SeedPurchasePage() {
           })
           .catch(error => {
             console.error('Fehler beim Laden der Mutterpflanzen-Batches:', error);
+            setGlobalSnackbar({
+              open: true, 
+              message: 'Fehler beim Laden der Mutterpflanzen-Batches: ' + (error.response?.data?.error || error.message), 
+              severity: 'error',
+              duration: 6000
+            })
           })
           .finally(() => {
             setLoading(false);
@@ -345,6 +415,12 @@ export default function SeedPurchasePage() {
           })
           .catch(error => {
             console.error('Fehler beim Laden der Blühpflanzen-Batches:', error);
+            setGlobalSnackbar({
+              open: true, 
+              message: 'Fehler beim Laden der Blühpflanzen-Batches: ' + (error.response?.data?.error || error.message), 
+              severity: 'error',
+              duration: 6000
+            })
           })
           .finally(() => {
             setLoading(false);
@@ -426,7 +502,7 @@ export default function SeedPurchasePage() {
         ? `/trackandtrace/seeds/${selectedSeed.id}/convert_to_mother/`
         : `/trackandtrace/seeds/${selectedSeed.id}/convert_to_flower/`
 
-      await api.post(endpoint, {
+      const response = await api.post(endpoint, {
         quantity: convertQuantity,
         notes: convertNotes,
         member_id: selectedMemberId || null,
@@ -435,9 +511,25 @@ export default function SeedPurchasePage() {
 
       setOpenConvertDialog(false)
       refreshData()
+      
+      // Finde den Member-Namen für die Snackbar-Meldung
+      const memberName = members.find(m => m.id === selectedMemberId)?.display_name || "Unbekannt"
+      
+      // Erfolgsbenachrichtigung anzeigen
+      setGlobalSnackbar({
+        open: true,
+        message: `Samen erfolgreich zu ${convertType === 'mother' ? 'Mutterpflanzen' : 'Blühpflanzen'} konvertiert - Autorisiert durch: ${memberName}`,
+        severity: 'success',
+        duration: 10000
+      })
     } catch (error) {
       console.error('Fehler bei der Konvertierung:', error)
-      alert(error.response?.data?.error || 'Ein Fehler ist aufgetreten')
+      setGlobalSnackbar({
+        open: true,
+        message: error.response?.data?.error || 'Ein Fehler ist bei der Konvertierung aufgetreten',
+        severity: 'error',
+        duration: 6000
+      })
     }
   }
 
@@ -473,6 +565,17 @@ export default function SeedPurchasePage() {
           quantity: destroyQuantity,
           destroyed_by_id: destroyedByMemberId || null
         });
+        
+        // Finde den Member-Namen für die Snackbar-Meldung
+        const memberName = members.find(m => m.id === destroyedByMemberId)?.display_name || "Unbekannt"
+        
+        // Erfolgsbenachrichtigung anzeigen
+        setGlobalSnackbar({
+          open: true,
+          message: `Samen erfolgreich vernichtet - Autorisiert durch: ${memberName}`,
+          severity: 'success',
+          duration: 10000
+        })
       }
 
       setOpenDestroyDialog(false);
@@ -480,7 +583,12 @@ export default function SeedPurchasePage() {
       refreshData();
     } catch (error) {
       console.error('Fehler bei der Vernichtung:', error);
-      alert(error.response?.data?.error || 'Ein Fehler ist aufgetreten');
+      setGlobalSnackbar({
+        open: true,
+        message: error.response?.data?.error || 'Ein Fehler ist bei der Vernichtung aufgetreten',
+        severity: 'error',
+        duration: 6000
+      })
     }
   }
   
@@ -745,11 +853,7 @@ export default function SeedPurchasePage() {
               setOpenForm(false)
               setSelectedSeed(null)
             }}
-            onSuccess={() => {
-              setOpenForm(false)
-              setSelectedSeed(null)
-              refreshData()
-            }}
+            onSuccess={handleSeedSuccess}
             initialData={selectedSeed || {}}
           />
         </div>
@@ -796,6 +900,23 @@ export default function SeedPurchasePage() {
           />
         </div>
       </Fade>
+      
+      {/* Globale Snackbar-Komponente */}
+      <Snackbar 
+        open={globalSnackbar.open} 
+        autoHideDuration={globalSnackbar.duration || 6000} 
+        onClose={handleCloseGlobalSnackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }} // Gut sichtbar am unteren Bildschirmrand
+      >
+        <Alert 
+          onClose={handleCloseGlobalSnackbar} 
+          severity={globalSnackbar.severity} 
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          {globalSnackbar.message}
+        </Alert>
+      </Snackbar>
     </Container>
   )
 }

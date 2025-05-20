@@ -74,7 +74,7 @@ class FloweringPlantBatchInline(admin.TabularInline):
 @admin.register(SeedPurchase)
 class SeedPurchaseAdmin(admin.ModelAdmin):
     list_display = ['id', 'strain_name', 'quantity', 'remaining_quantity', 
-                   'created_at', 'is_destroyed', 'get_mother_batches', 'get_flowering_batches', 'delete_options']
+    'created_at', 'is_destroyed', 'member', 'get_mother_batches', 'get_flowering_batches', 'delete_options']
     list_filter = ['is_destroyed', 'created_at']
     search_fields = ['strain_name', 'id']
     readonly_fields = ['created_at', 'updated_at', 'destroyed_at', 'mother_batches_info', 'flowering_batches_info']
@@ -87,7 +87,7 @@ class SeedPurchaseAdmin(admin.ModelAdmin):
             'classes': ['collapse']
         }),
         ('Beziehungen', {
-            'fields': ['original_seed', 'mother_batches_info', 'flowering_batches_info'],
+            'fields': ['original_seed', 'member', 'room', 'mother_batches_info', 'flowering_batches_info'],
         })
     ]
     inlines = [MotherPlantBatchInline, FloweringPlantBatchInline]

@@ -1,7 +1,6 @@
 // frontend/src/apps/trackandtrace/pages/SeedPurchase/components/SeedTable.jsx
 import { Box, Button, IconButton, Typography, Tooltip, Grid } from '@mui/material'
 import ScienceIcon from '@mui/icons-material/Science'
-import EditIcon from '@mui/icons-material/Edit'
 import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment'
 import SpaIcon from '@mui/icons-material/Spa'
 import LocalFloristIcon from '@mui/icons-material/LocalFlorist'
@@ -20,7 +19,6 @@ import PaginationFooter from '@/components/common/PaginationFooter'
  * @param {function} onExpandSeed - Handler für Expand/Collapse
  * @param {function} onOpenConvertDialog - Handler für Öffnen des Konvertierungsdialogs
  * @param {function} onOpenDestroyDialog - Handler für Öffnen des Vernichtungsdialogs
- * @param {function} onOpenEditForm - Handler für Öffnen des Bearbeitungsformulars
  * @param {number} currentPage - Aktuelle Seite
  * @param {number} totalPages - Gesamtanzahl der Seiten
  * @param {function} onPageChange - Handler für Seitenwechsel
@@ -37,7 +35,6 @@ const SeedTable = ({
   onExpandSeed,
   onOpenConvertDialog,
   onOpenDestroyDialog,
-  onOpenEditForm,
   currentPage,
   totalPages,
   onPageChange,
@@ -293,19 +290,6 @@ const SeedTable = ({
               </IconButton>
             </Tooltip>
             
-            <Tooltip title="Bearbeiten">
-              <IconButton 
-                size="small" 
-                onClick={(e) => {
-                  stopPropagation(e)
-                  onOpenEditForm(item, e)
-                }}
-                sx={{ mx: 0.5 }}
-              >
-                <EditIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-            
             <Tooltip title="Vernichten">
               <IconButton 
                 size="small" 
@@ -542,17 +526,6 @@ const SeedTable = ({
                     sx={{ mr: 1 }}
                   >
                     Zu Blühpflanze
-                  </Button>
-                </Grid>
-                <Grid item>
-                  <Button 
-                    variant="outlined" 
-                    color="primary"
-                    onClick={() => onOpenEditForm(item)}
-                    startIcon={<EditIcon />}
-                    sx={{ mr: 1 }}
-                  >
-                    Bearbeiten
                   </Button>
                 </Grid>
                 <Grid item>
