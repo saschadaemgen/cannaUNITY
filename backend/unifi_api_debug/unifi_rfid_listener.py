@@ -22,7 +22,7 @@ HEADERS = {
 }
 
 def resolve_and_store_user_from_token():
-    token = get_token_from_reader()
+    token, session_id = get_token_from_reader()
     if not token:
         return None, None, None
 
@@ -36,7 +36,7 @@ def resolve_and_store_user_from_token():
                         user_id = user.get("id")
                         full_name = user.get("full_name")
                         save_recent_rfid_user(token, user_id)
-                        return token, user_id, full_name  # 💡 ← Full Name zurückgeben
+                        return token, user_id, full_name
     except Exception:
         pass
 
@@ -50,6 +50,7 @@ def get_recent_rfid_user(token: str):
 
 def get_token_from_reader():
     session_id = None
+    token = None
 
     try:
         response = requests.post(
@@ -60,16 +61,28 @@ def get_token_from_reader():
         )
         if response.status_code == 200:
             session_id = response.json().get("data", {}).get("session_id")
-    except Exception:
-        return None
+            
+            # Session-ID im Cache speichern für möglichen Abbruch
+            if session_id:
+                cache.set('active_rfid_session_id', session_id, timeout=30)
+                print(f"Aktive Session gestartet: {session_id}")
+    except Exception as e:
+        print(f"Fehler beim Erstellen der Session: {e}")
+        return None, None
 
     if not session_id:
-        return None
+        return None, None
 
     token = None
     timeout = time.time() + 10  # Maximal 10 Sekunden warten
+    
     while time.time() < timeout:
         try:
+            # Vor jedem Poll-Versuch prüfen, ob Session bereits abgebrochen wurde
+            if cache.get(f"cancelled_session:{session_id}"):
+                print(f"Session {session_id} wurde abgebrochen, polling wird beendet")
+                return None, None
+                
             response = requests.get(
                 f"{UNIFI_API_URL}/credentials/nfc_cards/sessions/{session_id}",
                 headers=HEADERS,
@@ -82,8 +95,9 @@ def get_token_from_reader():
                     if data and "token" in data:
                         token = data["token"]
                         break
-        except Exception:
-            return None
+        except Exception as e:
+            print(f"Fehler beim Abfragen der Session: {e}")
+            return None, None
         time.sleep(0.8)
 
-    return token
+    return token, session_id

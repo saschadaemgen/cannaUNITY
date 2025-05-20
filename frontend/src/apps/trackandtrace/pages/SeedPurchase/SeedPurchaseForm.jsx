@@ -31,6 +31,10 @@ export default function SeedPurchaseForm({ open, onClose, onSuccess, initialData
   const [scanSuccess, setScanSuccess] = useState(false)
   // State für den Namen des gescannten Mitglieds (für Erfolgsmeldung)
   const [scannedMemberName, setScannedMemberName] = useState('')
+  // State für den AbortController
+  const [abortController, setAbortController] = useState(null)
+  // Neue Zustandsvariable für den Abbruchstatus
+  const [isAborting, setIsAborting] = useState(false)
   
   // Angepasster onSuccess Handler, der die korrekten Daten zurück an die Elternkomponente gibt
   const handleSuccess = () => {
@@ -41,28 +45,76 @@ export default function SeedPurchaseForm({ open, onClose, onSuccess, initialData
     onSuccess(message, scannedMemberName);
   }
   
+  // Funktion zum Abbrechen des RFID-Scans
+  const handleCancelScan = async () => {
+    // Sofort den Abbruch-Status setzen, um alle neuen Anfragen zu blockieren
+    setIsAborting(true);
+    
+    // Laufende Anfrage abbrechen, falls vorhanden
+    if (abortController) {
+      abortController.abort();
+    }
+    
+    try {
+      // API-Aufruf zum Abbrechen der RFID-Session
+      await api.post('/unifi_api_debug/cancel-rfid-session/');
+      console.log("RFID-Scan erfolgreich abgebrochen");
+    } catch (error) {
+      console.error("Fehler beim Abbrechen des RFID-Scans:", 
+                   error.response?.data?.message || 'Unbekannter Fehler');
+    } finally {
+      setScanMode(false);
+      setLoading(false);
+      
+      // Nach einer kurzen Verzögerung den Abbruch-Status zurücksetzen,
+      // damit neue Scans möglich sind
+      setTimeout(() => {
+        setIsAborting(false);
+      }, 500);
+    }
+  };
+  
   // RFID-Scan-Funktion direkt in der Hauptkomponente
   const startRfidScan = async () => {
+    // Wenn ein Abbruch in Bearbeitung ist, nichts tun
+    if (isAborting) return;
+    
+    // Abbruch-Controller erstellen
+    const controller = new AbortController();
+    setAbortController(controller);
+    
     setLoading(true);
     setScanMode(true);
     setScanSuccess(false);
     
     try {
+      // Prüfen vor jeder API-Anfrage, ob ein Abbruch initiiert wurde
+      if (isAborting) return;
+      
       // 1. Karte scannen und User auslesen
-      const bindRes = await api.get('/unifi_api_debug/bind-rfid-session/')
-      const { token, unifi_user_id, message, unifi_name } = bindRes.data
+      const bindRes = await api.get('/unifi_api_debug/bind-rfid-session/', {
+        signal: controller.signal
+      });
+      
+      // Nochmals prüfen, ob ein Abbruch initiiert wurde
+      if (isAborting) return;
+      
+      const { token, unifi_user_id, message, unifi_name } = bindRes.data;
 
       console.log("🔍 Sende an secure-member-binding:", { token, unifi_user_id, unifi_name })
 
       if (!token || !unifi_user_id || !unifi_name) {
         throw new Error('RFID-Zuweisung fehlgeschlagen. Nutzerinformationen unvollständig.')
       }
+      
+      // Nochmals prüfen vor dem nächsten API-Aufruf
+      if (isAborting) return;
 
-      // 2. Mitglied validieren
-      const verifyRes = await api.post('/unifi_api_debug/secure-member-binding/', {
-        token,
-        unifi_name
-      })
+      // 2. Mitglied validieren - Korrekte Platzierung des Signals in den Request-Options
+      const verifyRes = await api.post('/unifi_api_debug/secure-member-binding/', 
+        { token, unifi_name }, 
+        { signal: controller.signal }  // Optionen als drittes Argument
+      );
 
       const { member_id, member_name } = verifyRes.data
       
@@ -91,10 +143,22 @@ export default function SeedPurchaseForm({ open, onClose, onSuccess, initialData
       }, 2000);
       
     } catch (error) {
-      console.error('RFID-Bindungsfehler:', error.response?.data?.detail || 'Ein Fehler ist aufgetreten.');
-      setScanMode(false);
+      // AbortError ignorieren, diese sind erwartet bei Abbruch
+      if (error.name === 'AbortError' || isAborting) {
+        console.log('RFID-Scan wurde abgebrochen');
+      } else {
+        console.error('RFID-Bindungsfehler:', error.response?.data?.detail || 'Ein Fehler ist aufgetreten.');
+      }
+      
+      // UI nur zurücksetzen, wenn kein Abbruch im Gange ist
+      if (!isAborting) {
+        setScanMode(false);
+      }
     } finally {
-      setLoading(false);
+      // Loading-Status nur zurücksetzen, wenn kein Abbruch im Gange ist
+      if (!isAborting) {
+        setLoading(false);
+      }
     }
   };
 
@@ -202,6 +266,8 @@ export default function SeedPurchaseForm({ open, onClose, onSuccess, initialData
     setSelectedStrain(null);
     setScanMode(false);
     setScanSuccess(false);
+    setAbortController(null);
+    setIsAborting(false);
     setScannedMemberName('');
     setSearchTextBreeder('');
     setSearchTextStrain('');
@@ -533,7 +599,7 @@ export default function SeedPurchaseForm({ open, onClose, onSuccess, initialData
           {/* Abbrechen-Button nur anzeigen, wenn wir NICHT im Erfolgs-Modus sind */}
           {!scanSuccess && (
             <Button 
-              onClick={() => setScanMode(false)} 
+              onClick={handleCancelScan}  // Die neue Funktion verwenden
               variant="contained" 
               color="error"
               size="small"

@@ -1,4 +1,4 @@
-# Datei: backend/unifi_api_debug/api_views.py
+# backend/unifi_api_debug/api_views.py
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -18,10 +18,8 @@ from .unifi_rfid_listener import (
 from members.models import Member
 import requests
 
-
 UNIFI_API_URL = f"{settings.UNIFI_ACCESS_HOST}/api/v1/developer"
 UNIFI_API_TOKEN = settings.UNIFI_ACCESS_TOKEN
-
 
 class TestNfcSessionView(APIView):
     permission_classes = [IsAuthenticated]
@@ -107,7 +105,7 @@ class BindRfidSessionView(APIView):
             "success": True,
             "token": token,
             "unifi_user_id": user_id,
-            "unifi_name": full_name,  # ✅ Jetzt enthalten
+            "unifi_name": full_name,
             "message": "RFID erfolgreich mit UniFi-Benutzer verknüpft."
         })
 
@@ -148,3 +146,47 @@ class SecureMemberBindingView(APIView):
             "member_name": str(member),
             "timestamp": now()
         })
+
+
+class CancelRfidSessionView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        from django.core.cache import cache
+        session_id = cache.get('active_rfid_session_id')
+        
+        if not session_id:
+            return Response({"success": False, "message": "Keine aktive Session gefunden."}, status=404)
+        
+        try:
+            # UniFi API aufrufen
+            headers = {
+                "Authorization": f"Bearer {UNIFI_API_TOKEN}",
+                "Accept": "application/json",
+            }
+            
+            response = requests.delete(
+                f"{UNIFI_API_URL}/credentials/nfc_cards/sessions/{session_id}",
+                headers=headers,
+                verify=False
+            )
+            
+            # Den Cache-Eintrag für die aktive Session löschen
+            cache.delete('active_rfid_session_id')
+            
+            if response.status_code == 200:
+                return Response({
+                    "success": True, 
+                    "message": "RFID-Session erfolgreich abgebrochen."
+                })
+            else:
+                return Response({
+                    "success": False, 
+                    "message": f"Fehler beim Abbrechen der Session. Status: {response.status_code}"
+                }, status=400)
+                
+        except Exception as e:
+            return Response({
+                "success": False, 
+                "message": f"Fehler beim Abbrechen der Session: {str(e)}"
+            }, status=500)

@@ -47,6 +47,16 @@ const RfidMemberBinder = ({ onMemberSelected, scanMode, setScanMode }) => {
     }
   }
 
+  const handleCancelScan = async () => {
+    try {
+      await api.post('/unifi_api_debug/cancel-rfid-session/');
+    } catch (error) {
+      console.error('RFID-Scan-Abbruch fehlgeschlagen:', error);
+    } finally {
+      if (setScanMode) setScanMode(false);
+    }
+  };
+
   // Wenn wir nicht im Scan-Modus sind, zeigen wir den normalen Button an
   if (!scanMode) {
     return (
@@ -70,8 +80,24 @@ const RfidMemberBinder = ({ onMemberSelected, scanMode, setScanMode }) => {
     )
   }
   
-  // Im Scan-Modus zeigen wir nichts an, da die Hauptkomponente das Scan-Interface übernimmt
-  return null;
+  // Im Scan-Modus zeigen wir den Abbrechen-Button an
+  return (
+    <Box textAlign="center" mt={2} mb={2}>
+      <Button
+        onClick={handleCancelScan}
+        variant="contained"
+        color="error"
+        fullWidth
+        sx={{ 
+          height: '48px',
+          fontWeight: 'bold',
+          textTransform: 'uppercase'
+        }}
+      >
+        Abbrechen
+      </Button>
+    </Box>
+  );
 }
 
 export default RfidMemberBinder
