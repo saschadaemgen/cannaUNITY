@@ -22,9 +22,10 @@ import api from '@/utils/api'
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline'
 import CreditCardIcon from '@mui/icons-material/CreditCard'
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'
+import GrassIcon from '@mui/icons-material/Grass'
 import StrainFormModal from './components/StrainFormModal'
 
-export default function SeedPurchaseForm({ open, onClose, onSuccess, initialData = {} }) {
+export default function SeedPurchaseForm({ open, onClose, onSuccess }) {
   // State für den RFID-Scan-Modus
   const [scanMode, setScanMode] = useState(false)
   // Neuer State für erfolgreichen Scan
@@ -38,11 +39,8 @@ export default function SeedPurchaseForm({ open, onClose, onSuccess, initialData
   
   // Angepasster onSuccess Handler, der die korrekten Daten zurück an die Elternkomponente gibt
   const handleSuccess = () => {
-    // Generiere die passende Nachricht
-    const message = initialData.id ? 'Samen erfolgreich aktualisiert' : 'Samen erfolgreich gespeichert';
-    
     // Übergebe zwei separate Parameter anstatt eines Objekts: Nachricht und Mitgliedsname
-    onSuccess(message, scannedMemberName);
+    onSuccess('Samen erfolgreich gespeichert', scannedMemberName);
   }
   
   // Funktion zum Abbrechen des RFID-Scans
@@ -168,12 +166,7 @@ export default function SeedPurchaseForm({ open, onClose, onSuccess, initialData
     try {
       console.log("Sending seed data:", data);
       
-      let result;
-      if (initialData.id) {
-        result = await api.patch(`/trackandtrace/seeds/${initialData.id}/`, data);
-      } else {
-        result = await api.post('/trackandtrace/seeds/', data);
-      }
+      const result = await api.post('/trackandtrace/seeds/', data);
       
       // Bei erfolgreichem Speichern den Erfolgs-Modus aktivieren, wenn nicht bereits aktiviert
       if (!scanSuccess) {
@@ -185,8 +178,7 @@ export default function SeedPurchaseForm({ open, onClose, onSuccess, initialData
           resetForm();
           
           // Direkte Übergabe von Nachricht und Mitgliedsnamen als separate Parameter
-          const successMessage = initialData.id ? 'Samen erfolgreich aktualisiert' : 'Samen erfolgreich gespeichert';
-          onSuccess(successMessage, data.member_name || 'Unbekannt');
+          onSuccess('Samen erfolgreich gespeichert', data.member_name || 'Unbekannt');
         }, 2000); // 2000 ms = 2 Sekunden
       }
       
@@ -216,7 +208,7 @@ export default function SeedPurchaseForm({ open, onClose, onSuccess, initialData
     flowering_time_min: null,
     flowering_time_max: null,
     // Member-Felder 
-    member_id: null, // Geändert: responsible_member -> member_id
+    member_id: null,
     member_name: null // Für die Anzeige
   })
   
@@ -275,35 +267,8 @@ export default function SeedPurchaseForm({ open, onClose, onSuccess, initialData
 
   useEffect(() => {
     if (open) {
-      // Wenn Formulardaten bereitgestellt werden (für Bearbeitungsfall)
-      if (initialData.id) {
-        setFormData({
-          strain_name: initialData.strain_name || '',
-          quantity: initialData.quantity || 1,
-          remaining_quantity: initialData.remaining_quantity || 1,
-          member_id: initialData.member?.id || null, // Geändert
-          member_name: initialData.member?.display_name || null, // Geändert
-          room_id: initialData.room?.id || '',
-          strain_id: initialData.strain_id || null,
-          thc_percentage_min: initialData.thc_percentage_min || null,
-          thc_percentage_max: initialData.thc_percentage_max || null,
-          cbd_percentage_min: initialData.cbd_percentage_min || null,
-          cbd_percentage_max: initialData.cbd_percentage_max || null,
-          flowering_time_min: initialData.flowering_time_min || null,
-          flowering_time_max: initialData.flowering_time_max || null
-        })
-        
-        // Wenn eine Strain vorhanden ist, setze den Breeder
-        if (initialData.strain) {
-          setSelectedBreeder({
-            id: 'breeder-' + initialData.strain.breeder,
-            name: initialData.strain.breeder
-          })
-        }
-      } else {
-        // Für den Fall eines neuen Datensatzes - komplett zurücksetzen
-        resetForm();
-      }
+      // Für den Fall eines neuen Datensatzes - komplett zurücksetzen
+      resetForm();
       
       // Räume, Hersteller und Sorten laden
       loadRoomOptions()
@@ -314,7 +279,7 @@ export default function SeedPurchaseForm({ open, onClose, onSuccess, initialData
       setScanMode(false)
       setScanSuccess(false)
     }
-  }, [open, initialData])
+  }, [open])
   
   // Modifizierte Funktion nur für Räume
   const loadRoomOptions = async () => {
@@ -400,8 +365,8 @@ export default function SeedPurchaseForm({ open, onClose, onSuccess, initialData
   const handleChange = (e) => {
     const { name, value } = e.target
     
-    // Wenn quantity geändert wird, setze remaining_quantity auf denselben Wert (für neue Samen)
-    if (name === 'quantity' && !initialData.id) {
+    // Wenn quantity geändert wird, setze remaining_quantity auf denselben Wert
+    if (name === 'quantity') {
       setFormData(prev => ({
         ...prev,
         [name]: value,
@@ -532,40 +497,6 @@ export default function SeedPurchaseForm({ open, onClose, onSuccess, initialData
     setOpenStrainModal(false)
   }
 
-  const handleSubmit = async () => {
-    setLoading(true)
-    try {
-      const data = { ...formData }
-      console.log("Sending seed data:", data); // Debug-Info
-      
-      let result;
-      if (initialData.id) {
-        result = await api.patch(`/trackandtrace/seeds/${initialData.id}/`, data)
-      } else {
-        result = await api.post('/trackandtrace/seeds/', data)
-      }
-      
-      // Mitgliedsnamen aus der Antwort speichern (falls vorhanden)
-      let displayName = 'Unbekannt';
-      if (result?.data?.member?.display_name) {
-        displayName = result.data.member.display_name;
-      } else if (formData.member_name) {
-        displayName = formData.member_name;
-      }
-      
-      // Formular zurücksetzen und erfolgreichen Abschluss melden
-      resetForm();
-      
-      // Erfolg mit Nachricht und Mitgliedsnamen als separate Parameter melden
-      const successMessage = initialData.id ? 'Samen erfolgreich aktualisiert' : 'Samen erfolgreich gespeichert';
-      onSuccess(successMessage, displayName);
-    } catch (error) {
-      console.error('Fehler beim Speichern:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
   // Angepasster onClose Handler, verhindert Schließen bei Backdrop-Klick
   const handleDialogClose = (event, reason) => {
     // Nur schließen, wenn explizit auf den Abbrechen-Button geklickt wurde
@@ -573,6 +504,24 @@ export default function SeedPurchaseForm({ open, onClose, onSuccess, initialData
       onClose();
     }
   };
+  
+  // Validierungsfunktion - prüft, ob alle erforderlichen Felder ausgefüllt sind
+  const isFormValid = () => {
+    // Prüfen, ob ein gültiger Hersteller ausgewählt ist (außer "Alle Hersteller anzeigen")
+    const hasValidBreeder = selectedBreeder && selectedBreeder.id !== 'all';
+    
+    // Prüfen, ob eine gültige Sorte ausgewählt ist
+    const hasValidStrain = !!selectedStrain && !selectedStrain.isCreateOption;
+    
+    // Prüfen, ob eine gültige Menge angegeben ist (mindestens 1)
+    const hasValidQuantity = formData.quantity && Number(formData.quantity) > 0;
+    
+    // Prüfen, ob ein Raum ausgewählt ist
+    const hasValidRoom = !!formData.room_id;
+    
+    // Alle Bedingungen müssen erfüllt sein
+    return hasValidBreeder && hasValidStrain && hasValidQuantity && hasValidRoom;
+  }
 
   return (
     <Dialog 
@@ -599,7 +548,7 @@ export default function SeedPurchaseForm({ open, onClose, onSuccess, initialData
           {/* Abbrechen-Button nur anzeigen, wenn wir NICHT im Erfolgs-Modus sind */}
           {!scanSuccess && (
             <Button 
-              onClick={handleCancelScan}  // Die neue Funktion verwenden
+              onClick={handleCancelScan}
               variant="contained" 
               color="error"
               size="small"
@@ -665,7 +614,10 @@ export default function SeedPurchaseForm({ open, onClose, onSuccess, initialData
         // Normaler Formularmodus
         <>
           <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="h6">{initialData.id ? 'Samen bearbeiten' : 'Neuen Samen einkaufen'}</Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <GrassIcon sx={{ color: 'success.main', mr: 1, fontSize: 28 }} />
+              <Typography variant="h6">Track & Trace Step 1 - Samen einkaufen</Typography>
+            </Box>
             <Button 
               onClick={onClose} 
               variant="contained" 
@@ -712,7 +664,6 @@ export default function SeedPurchaseForm({ open, onClose, onSuccess, initialData
               isOptionEqualToValue={(option, value) => option && value && option.id === value.id}
               onChange={handleBreederChange}
               value={selectedBreeder}
-              disabled={initialData.id} // Nur bei neuen Samen auswählbar
               inputValue={searchTextBreeder}
               onInputChange={(event, newInputValue) => {
                 setSearchTextBreeder(newInputValue);
@@ -811,7 +762,6 @@ export default function SeedPurchaseForm({ open, onClose, onSuccess, initialData
               isOptionEqualToValue={(option, value) => option.id === value.id}
               onChange={handleStrainChange}
               value={selectedStrain}
-              disabled={initialData.id} // Nur bei neuen Samen auswählbar
               inputValue={searchTextStrain}
               onInputChange={(event, newInputValue) => {
                 setSearchTextStrain(newInputValue)
@@ -909,7 +859,6 @@ export default function SeedPurchaseForm({ open, onClose, onSuccess, initialData
               margin="normal"
               required
               inputProps={{ min: 1 }}
-              disabled={initialData.id} // Nur bei neuen Samen bearbeitbar
             />
             
             {loadingOptions ? (
@@ -965,20 +914,6 @@ export default function SeedPurchaseForm({ open, onClose, onSuccess, initialData
               </FormControl>
             )}
             
-            {initialData.id && (
-              <TextField
-                label="Verfügbare Menge"
-                name="remaining_quantity"
-                type="number"
-                value={formData.remaining_quantity}
-                onChange={handleChange}
-                fullWidth
-                margin="normal"
-                required
-                inputProps={{ min: 0, max: initialData.quantity }}
-              />
-            )}
-            
             {/* Button zum Starten des RFID-Scans */}
             {!formData.member_id && (
               <Box textAlign="center" mt={2} mb={2}>
@@ -986,7 +921,7 @@ export default function SeedPurchaseForm({ open, onClose, onSuccess, initialData
                   onClick={startRfidScan}
                   variant="contained"
                   color="primary"
-                  disabled={loading}
+                  disabled={loading || !isFormValid()}
                   startIcon={loading && !scanMode ? <CircularProgress size={16} /> : null}
                   fullWidth
                   sx={{ 
@@ -995,7 +930,7 @@ export default function SeedPurchaseForm({ open, onClose, onSuccess, initialData
                     textTransform: 'uppercase'
                   }}
                 >
-                  Sameneinkauf abschliießen und Mit RFID bestätigen
+                  Sameneinkauf abschließen und Mit RFID bestätigen
                 </Button>
               </Box>
             )}
