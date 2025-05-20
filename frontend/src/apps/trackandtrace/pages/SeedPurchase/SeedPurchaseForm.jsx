@@ -929,7 +929,7 @@ export default function SeedPurchaseForm({ open, onClose, onSuccess, initialData
                     textTransform: 'uppercase'
                   }}
                 >
-                  Jetzt Speichern und Mit RFID bestätigen
+                  Sameneinkauf abschliießen und Mit RFID bestätigen
                 </Button>
               </Box>
             )}
