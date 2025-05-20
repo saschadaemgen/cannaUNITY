@@ -946,6 +946,17 @@ export default function SeedPurchaseForm({ open, onClose, onSuccess }) {
                 >
                   Sameneinkauf abschließen und Mit RFID bestätigen
                 </Button>
+                <Typography 
+                  variant="caption" 
+                  sx={{ 
+                    display: 'block', 
+                    mt: 1, 
+                    color: 'text.secondary',
+                    fontStyle: 'italic'
+                  }}
+                >
+                  (Bitte Angaben genau prüfen - dieser Schritt kann nicht rückgängig gemacht werden)
+                </Typography>
               </Box>
             )}
           </DialogContent>
