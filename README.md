@@ -17,7 +17,29 @@
 
 ## 📦 Was ist cannaUNITY?
 
-**cannaUNITY** ist eine umfassende DSGVO konforme Open-Source-Plattform zur Organisation, Verwaltung und Automatisierung von Cannabis-Anbauvereinigungen gemäß dem Konsumcannabisgesetz (KCanG).  Das System wurde mit dem Ziel entwickelt, Datenschutz, Nachverfolgbarkeit und Mitwirkung der Mitglieder auf höchstem technischen Niveau umzusetzen.
+**cannaUNITY** ist eine umfassende DSGVO konforme Open-Source-Plattform zur Organisation, Verwaltung und Automatisierung von Cannabis-Anbauvereinigungen gemäß dem Konsumcannabisgesetz (KCanG). Das System wird mit dem Ziel entwickelt, Datenschutz, Nachverfolgbarkeit und Mitwirkung der Mitglieder auf höchstem technischen Niveau umzusetzen.
+
+---
+
+## 🧪 Features
+
+- ✅ Echtzeit UUID-Track & Trace von Pflanzen, Verarbeitung & Produktausgabe
+- ✅ Erzeugung von Batch und Chargenummern inkl. 128 Bit UUID Anbindung
+- ✅ RFID/NFC Arbeitszeiterfassung mit Minijob-Erkennung (KCang)
+- ✅ Dynamische Mitgliederprofile mit RFID Ausweisen inkl. Kartendruckeranbindung
+- ✅ Native API Unterstützung für UniFi (Ubiquiti) Access, Protect und Network. 
+- ✅ Raumautomation (Loxone, Siemens, Honeywell)
+- ✅ Growcontroller mit Anbindung für WYSIWYG Raum Designer.
+- ✅ Laborberichtsverwaltung inkl. HPLC & GC (CSV Import)
+- ✅ Vollständige Protokollierung für Behördenzugriff
+- ✅ Touchpanelsteuerung & Custom UI Panels für Raumanzeige
+- ✅ Anonymisierte Produktausgabe mit UUID Verknüpfung über ZKP (Online).
+- ✅ GMP konforme Laborberichte erstellen,verwalten & speichern.
+- ✅ GoB-konforme Buchhaltung mit vollständiger Journaldarstellung
+- ✅ Stornobuchungen mit gegenbuchender Rückabwicklung (SOLL/HABEN)
+- ✅ Einzel- und Mehrfachbuchungen inkl. Subtransaktionen & Kontenwahl
+- ✅ Vollständige Verknüpfung zu Mitgliedskonten & Mitgliedsbeiträgen
+- ✅ Filterbare Journalansicht nach Jahr, Monat, Typ & Stornostatus
 
 ---
 
@@ -25,7 +47,7 @@
 
 - **Backend:** Django 5.x (API-only), Django REST Framework, PostgreSQL / SQLite
 - **Frontend:** React + Vite + Material UI (SPA)
-- **Schnittstellen:** UniFi Access/Protect (native), Joomla 5, Siemens LOGO!, Siemens SIMATIC, Loxone Mini Server, Agilent 1260 Infinity HPLC
+- **Schnittstellen:** UniFi Access/Protect (native), Joomla 5, Siemens LOGO8!, Siemens SIMATIC, Loxone Mini Server, Agilent 1260 Infinity HPLC, TSC TC200, Evolis Primacy, MQTTS,
 - **Technologien:** TokenAuth, WebSocket, Axios, passkey-auth, Container-kompatibel
 
 ---
@@ -146,27 +168,6 @@ cannaUNITY/
 | `controller`     | Anbindung Siemens/Loxone, Aktorik, Automatisierung                           |
 | `security`       | Alarmsysteme, Notfallzugänge, Behördenzugriff                                |
 | `ha`             | Home Assistant Integration                                                   |
-
----
-
-## 🧪 Features
-
-- ✅ Echtzeit UUID-Track&Trace von Pflanzen, Verarbeitung & Produktausgabe
-- ✅ RFID/NFC Arbeitszeiterfassung mit Minijob-Erkennung
-- ✅ Dynamische Mitgliederprofile mit RFID
-- ✅ Native API Unterstützung für UniFi (Ubiquiti) Access, Protect und Network. 
-- ✅ Raumautomation (Loxone, Siemens)
-- ✅ Laborberichtsverwaltung inkl. HPLC & GC (CSV Import)
-- ✅ Vollständige Protokollierung für Behördenzugriff
-- ✅ Touchpanelsteuerung & Raumanzeige
-- ✅ Anonymisierte Produktausgabe mit UUID
-- ✅ GMP konforme Laborberichte erstellen,verwalten & speichern.
-- ✅ GoB-konforme Buchhaltung mit vollständiger Journaldarstellung
-- ✅ Stornobuchungen mit gegenbuchender Rückabwicklung (SOLL/HABEN)
-- ✅ Einzel- und Mehrfachbuchungen inkl. Subtransaktionen & Kontenwahl
-- ✅ Vollständige Verknüpfung zu Mitgliedskonten & Mitgliedsbeiträgen
-- ✅ Filterbare Journalansicht nach Jahr, Monat, Typ & Stornostatus
-- ✅ Docker-, Proxmox- & Baremetal-ready
 
 ---
 
