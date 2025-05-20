@@ -281,15 +281,29 @@ export default function SeedPurchaseForm({ open, onClose, onSuccess }) {
     }
   }, [open])
   
-  // Modifizierte Funktion nur für Räume
+  // Modifizierte Funktion nur für Anzuchträume
   const loadRoomOptions = async () => {
     setLoadingOptions(true)
     try {
       // Räume laden
       const roomsRes = await api.get('rooms/')
-      setRooms(roomsRes.data.results || [])
+      
+      // Nur Räume vom Typ 'anzuchtraum' filtern
+      const anzuchtraume = (roomsRes.data.results || []).filter(room => 
+        room.room_type === 'anzuchtraum'
+      )
+      
+      setRooms(anzuchtraume)
+      
+      // Falls Anzuchträume gefunden wurden, automatisch den ersten auswählen
+      if (anzuchtraume.length > 0) {
+        setFormData(prev => ({
+          ...prev,
+          room_id: anzuchtraume[0].id
+        }))
+      }
     } catch (error) {
-      console.error('Fehler beim Laden der Räume:', error)
+      console.error('Fehler beim Laden der Anzuchträume:', error)
     } finally {
       setLoadingOptions(false)
     }
@@ -887,15 +901,15 @@ export default function SeedPurchaseForm({ open, onClose, onSuccess }) {
                   }
                 }}
               >
-                <InputLabel>Raum</InputLabel>
+                <InputLabel>Anzuchtraum</InputLabel>
                 <Select
                   name="room_id"
                   value={formData.room_id}
                   onChange={handleChange}
-                  label="Raum"
+                  label="Anzuchtraum"
                 >
                   <MenuItem value="">
-                    <em>Kein Raum zugeordnet</em>
+                    <em>Bitte Anzuchtraum auswählen</em>
                   </MenuItem>
                   {rooms.map(room => (
                     <MenuItem 
