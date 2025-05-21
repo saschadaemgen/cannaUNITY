@@ -112,8 +112,8 @@ const RoomForm = ({ initialData, onSubmit, isLoading }) => {
             fullWidth
           />
           
-          <Grid container spacing={2}>
-            <Grid item xs={12} md={6}>
+          <Grid container spacing={2} sx={{ width: '100%' }}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <TextField
                 label="Kapazität (Personen)"
                 name="capacity"
@@ -124,7 +124,7 @@ const RoomForm = ({ initialData, onSubmit, isLoading }) => {
                 InputProps={{ inputProps: { min: 0 } }}
               />
             </Grid>
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <TextField
                 label="Pflanzenanzahl"
                 name="pflanzenanzahl"
@@ -154,8 +154,8 @@ const RoomForm = ({ initialData, onSubmit, isLoading }) => {
             Räumliche Parameter
           </Typography>
           
-          <Grid container spacing={2}>
-            <Grid item xs={12} md={6}>
+          <Grid container spacing={2} sx={{ width: '100%' }}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <Typography gutterBottom>
                 Länge: {formData.length} cm ({(formData.length / 100).toFixed(2)} m)
               </Typography>
@@ -174,7 +174,7 @@ const RoomForm = ({ initialData, onSubmit, isLoading }) => {
               />
             </Grid>
             
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <Typography gutterBottom>
                 Breite: {formData.width} cm ({(formData.width / 100).toFixed(2)} m)
               </Typography>
@@ -193,7 +193,7 @@ const RoomForm = ({ initialData, onSubmit, isLoading }) => {
               />
             </Grid>
             
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <Typography gutterBottom>
                 Höhe: {formData.height} cm ({(formData.height / 100).toFixed(2)} m)
               </Typography>
@@ -212,7 +212,7 @@ const RoomForm = ({ initialData, onSubmit, isLoading }) => {
               />
             </Grid>
             
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <Typography gutterBottom>
                 Rastergröße: {formData.grid_size} cm
               </Typography>

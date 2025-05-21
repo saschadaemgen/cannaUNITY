@@ -646,23 +646,23 @@ export default function SeedPurchaseForm({ open, onClose, onSuccess }) {
             {/* Falls eine Sorte ausgewählt wurde, zeige die Details an */}
             {selectedStrain && !selectedStrain.isCreateOption && (
               <Box sx={{ mt: 2, p: 2, bgcolor: 'rgba(76, 175, 80, 0.08)', borderRadius: 1 }}>
-                <Grid container spacing={1}>
-                  <Grid item xs={6}>
+                <Grid container spacing={1} sx={{ width: '100%' }}>
+                  <Grid size={6}>
                     <Typography variant="body2">
                       THC: {selectedStrain.thc_percentage_min}-{selectedStrain.thc_percentage_max}%
                     </Typography>
                   </Grid>
-                  <Grid item xs={6}>
+                  <Grid size={6}>
                     <Typography variant="body2">
                       CBD: {selectedStrain.cbd_percentage_min}-{selectedStrain.cbd_percentage_max}%
                     </Typography>
                   </Grid>
-                  <Grid item xs={6}>
+                  <Grid size={6}>
                     <Typography variant="body2">
                       Blütezeit: {selectedStrain.flowering_time_min}-{selectedStrain.flowering_time_max} Tage
                     </Typography>
                   </Grid>
-                  <Grid item xs={6}>
+                  <Grid size={6}>
                     <Typography variant="body2">
                       Typ: {selectedStrain.strain_type}
                     </Typography>
@@ -719,7 +719,7 @@ export default function SeedPurchaseForm({ open, onClose, onSuccess }) {
               renderInput={(params) => (
                 <TextField
                   {...params}
-                  label="Hersteller auswählen, suchen oder neu erstellen"
+                  label="Hersteller auswählen, suchen oder neu erstellen *"
                   fullWidth
                   margin="normal"
                   InputProps={{
@@ -734,11 +734,14 @@ export default function SeedPurchaseForm({ open, onClose, onSuccess }) {
                 />
               )}
               renderOption={(props, option) => {
+                const { key, ...otherProps } = props;
+                
                 // Spezielle Darstellung für "Neuen Hersteller anlegen" Option
                 if (option.isCreateOption) {
                   return (
                     <MenuItem 
-                      {...props} 
+                      key={key}
+                      {...otherProps} 
                       onClick={() => {
                         setInitialBreederName(option.name)
                         setInitialStrainName('') // Sortenname ist noch leer
@@ -759,7 +762,7 @@ export default function SeedPurchaseForm({ open, onClose, onSuccess }) {
                 
                 // Standard-Darstellung für bestehende Hersteller
                 return (
-                  <MenuItem {...props}>
+                  <MenuItem key={key} {...otherProps}>
                     <Typography variant="body1">
                       {option.name}
                     </Typography>
@@ -817,11 +820,14 @@ export default function SeedPurchaseForm({ open, onClose, onSuccess }) {
                 />
               )}
               renderOption={(props, option) => {
+                const { key, ...otherProps } = props;
+                
                 // Spezielle Darstellung für "Neue Sorte erstellen" Option
                 if (option.isCreateOption) {
                   return (
                     <MenuItem 
-                      {...props} 
+                      key={key}
+                      {...otherProps} 
                       onClick={() => {
                         setInitialStrainName(option.name)
                         setInitialBreederName(selectedBreeder && selectedBreeder.id !== 'all' ? selectedBreeder.name : '')
@@ -842,7 +848,7 @@ export default function SeedPurchaseForm({ open, onClose, onSuccess }) {
                 
                 // Standard-Darstellung für bestehende Sorten
                 return (
-                  <MenuItem {...props}>
+                  <MenuItem key={key} {...otherProps}>
                     <Box sx={{ display: 'flex', flexDirection: 'column' }}>
                       <Typography variant="body1">{option.name}</Typography>
                       <Typography variant="caption" color="text.secondary">
@@ -901,12 +907,12 @@ export default function SeedPurchaseForm({ open, onClose, onSuccess }) {
                   }
                 }}
               >
-                <InputLabel>Anzuchtraum</InputLabel>
+                <InputLabel>Anzuchtraum *</InputLabel>
                 <Select
                   name="room_id"
                   value={formData.room_id}
                   onChange={handleChange}
-                  label="Anzuchtraum"
+                  label="Anzuchtraum *"
                 >
                   <MenuItem value="">
                     <em>Bitte Anzuchtraum auswählen</em>

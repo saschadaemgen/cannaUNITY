@@ -278,7 +278,7 @@ export default function TrackTraceMenu({ collapsed = false }) {
     
     // Im kollabierten Zustand: Tooltip um das Element herum
     return (
-      <ListItem key={item.label} disablePadding sx={{ mb: 0.5, px: collapsed ? 0.5 : 0 }}>
+      <ListItem key={item.path} disablePadding sx={{ mb: 0.5, px: collapsed ? 0.5 : 0 }}>
         {collapsed ? (
           <Tooltip 
             title={

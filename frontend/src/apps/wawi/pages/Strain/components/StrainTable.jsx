@@ -473,9 +473,9 @@ const StrainTable = ({
               backgroundColor: 'white'
             }}
           >
-            <Grid container spacing={2}>
+            <Grid container spacing={2} sx={{ width: '100%' }}>
               {item.general_information && (
-                <Grid item xs={12} md={6}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <Typography variant="subtitle2" color="success.main" gutterBottom>
                     Allgemeine Informationen
                   </Typography>
@@ -486,7 +486,7 @@ const StrainTable = ({
               )}
               
               {item.growing_information && (
-                <Grid item xs={12} md={6}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <Typography variant="subtitle2" color="success.main" gutterBottom>
                     Anbauspezifische Informationen
                   </Typography>
@@ -513,9 +513,9 @@ const StrainTable = ({
             <Typography variant="subtitle2" color="success.main" gutterBottom>
               Bilder
             </Typography>
-            <Grid container spacing={2}>
+            <Grid container spacing={2} sx={{ width: '100%' }}>
               {item.images.map((image) => (
-                <Grid item xs={6} sm={4} md={3} key={image.id}>
+                <Grid size={{ xs: 6, sm: 4, md: 3 }} key={image.id}>
                   <Box
                     sx={{
                       position: 'relative',
@@ -603,14 +603,14 @@ const StrainTable = ({
             backgroundColor: 'white'
           }}
         >
-          <Grid container spacing={2} alignItems="center">
-            <Grid item xs={12} sm={4}>
+          <Grid container spacing={2} alignItems="center" sx={{ width: '100%' }}>
+            <Grid size={{ xs: 12, sm: 4 }}>
               <Typography variant="subtitle2" color="success.main" gutterBottom>
                 Verfügbare Aktionen
               </Typography>
             </Grid>
-            <Grid item xs={12} sm={8} container spacing={1} justifyContent="flex-end">
-              <Grid item>
+            <Grid size={{ xs: 12, sm: 8 }} container spacing={1} justifyContent="flex-end" sx={{ width: '100%' }}>
+              <Grid>
                 <Button 
                   variant="outlined" 
                   color="primary"
@@ -623,7 +623,7 @@ const StrainTable = ({
               </Grid>
               
               {item.is_active && (
-                <Grid item>
+                <Grid>
                   <Button 
                     variant="contained" 
                     color="error"

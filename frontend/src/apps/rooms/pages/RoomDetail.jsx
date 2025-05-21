@@ -49,32 +49,32 @@ const RoomDetail = () => {
           
           <Divider sx={{ mb: 3 }} />
           
-          <Grid container spacing={3}>
-            <Grid item xs={12}>
+          <Grid container spacing={3} sx={{ width: '100%' }}>
+            <Grid size={12}>
               <Typography variant="h6">Beschreibung</Typography>
               <Typography paragraph>
                 {room.description || 'Keine Beschreibung verfügbar'}
               </Typography>
             </Grid>
             
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <Typography variant="h6">Kapazität</Typography>
               <Typography>{room.capacity} Personen</Typography>
             </Grid>
             
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <Typography variant="h6">Erstellt von</Typography>
               <Typography>
                 {room.created_by ? `${room.created_by.first_name} ${room.created_by.last_name}` : 'Unbekannt'}
               </Typography>
             </Grid>
             
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <Typography variant="h6">Erstellt am</Typography>
               <Typography>{new Date(room.created_at).toLocaleDateString()}</Typography>
             </Grid>
             
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <Typography variant="h6">Zuletzt aktualisiert</Typography>
               <Typography>{new Date(room.updated_at).toLocaleDateString()}</Typography>
             </Grid>

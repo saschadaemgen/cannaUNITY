@@ -499,14 +499,14 @@ const SeedTable = ({
               backgroundColor: 'white'
             }}
           >
-            <Grid container spacing={2} alignItems="center">
-              <Grid item xs={12} sm={4}>
+            <Grid container spacing={2} alignItems="center" sx={{ width: '100%' }}>
+              <Grid size={{ xs: 12, sm: 4 }}>
                 <Typography variant="subtitle2" color="success.main" gutterBottom>
                   Verfügbare Aktionen
                 </Typography>
               </Grid>
-              <Grid item xs={12} sm={8} container spacing={1} justifyContent="flex-end">
-                <Grid item>
+              <Grid size={{ xs: 12, sm: 8 }} container spacing={1} justifyContent="flex-end">
+                <Grid>
                   <Button 
                     variant="outlined" 
                     color="success"
@@ -517,7 +517,7 @@ const SeedTable = ({
                     Zu Mutterpflanze
                   </Button>
                 </Grid>
-                <Grid item>
+                <Grid>
                   <Button 
                     variant="outlined" 
                     color="success"
@@ -528,7 +528,7 @@ const SeedTable = ({
                     Zu Blühpflanze
                   </Button>
                 </Grid>
-                <Grid item>
+                <Grid>
                   <Button 
                     variant="contained" 
                     color="error"
