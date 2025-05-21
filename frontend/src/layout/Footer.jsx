@@ -70,13 +70,13 @@ export default function Footer() {
   const getFooterTitle = () => {
     switch (footerMode) {
       case 'full':
-        return 'cannaUNITY (Pre-Alpha) Version 0.6.18'
+        return 'cannaUNITY (Pre-Alpha) Version 0.6.20'
       case 'title':
         return 'cannaUNITY'
       case 'none':
         return ''
       default:
-        return 'cannaUNITY (Pre-Alpha) Version 0.6.18'
+        return 'cannaUNITY (Pre-Alpha) Version 0.6.20'
     }
   }
 
