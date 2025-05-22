@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'unifi_api_debug',
     'rfid_bridge',
     'trackandtrace',
+    'taskmanager',
 ]
 
 # 🔄 Middleware

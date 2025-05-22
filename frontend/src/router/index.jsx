@@ -6,7 +6,6 @@ import MemberList from '@/apps/members/pages/MemberList'
 import MemberCreate from '@/apps/members/pages/MemberCreate'
 import MemberEdit from '@/apps/members/pages/MemberEdit'
 import MemberDelete from '@/apps/members/pages/MemberDelete'
-
 import RoomList from '@/apps/rooms/pages/RoomList'
 import RoomDetail from '@/apps/rooms/pages/RoomDetail'
 import RoomCreate from '@/apps/rooms/pages/RoomCreate'
@@ -55,6 +54,19 @@ import ReportCreate from '@/apps/laborreports/pages/ReportCreate';
 import ReportView from '@/apps/laborreports/pages/ReportView';
 import ReportEdit from '@/apps/laborreports/pages/ReportEdit';
 import DebugDashboard from '@/apps/unifi_api_debug/pages/DebugDashboard'
+
+// TaskManager Imports
+import TaskDashboard from '@/apps/taskmanager/pages/TaskDashboard'
+import TaskScheduleList from '@/apps/taskmanager/pages/TaskScheduleList'
+import TaskScheduleCreate from '@/apps/taskmanager/pages/TaskScheduleCreate'
+import TaskScheduleDetail from '@/apps/taskmanager/pages/TaskScheduleDetail'
+import TaskScheduleEdit from '@/apps/taskmanager/pages/TaskScheduleEdit'
+import TaskBookingList from '@/apps/taskmanager/pages/TaskBookingList'
+import MemberTaskDashboard from '@/apps/taskmanager/pages/MemberTaskDashboard'
+import TaskTypeList from '@/apps/taskmanager/pages/TaskTypeList'
+import TaskTypeCreate from '@/apps/taskmanager/pages/TaskTypeCreate'
+import TaskTypeDetail from '@/apps/taskmanager/pages/TaskTypeDetail'
+import TaskTypeEdit from '@/apps/taskmanager/pages/TaskTypeEdit'
 
 export const router = createBrowserRouter([
   {
@@ -141,6 +153,27 @@ export const router = createBrowserRouter([
       { path: 'netzwerk', element: <div>Gemeinschaftsnetzwerk</div> },
       { path: 'unifi-api-debug', element: <DebugDashboard /> },
 
+      // TaskManager-Routen (WICHTIG: Spezifische Routen ZUERST!)
+      { path: 'taskmanager', element: <TaskDashboard /> },
+      { path: 'taskmanager/dashboard', element: <TaskDashboard /> },
+      
+      // Schedule-Routen (spezifische zuerst!)
+      { path: 'taskmanager/schedules', element: <TaskScheduleList /> },
+      { path: 'taskmanager/schedules/new', element: <TaskScheduleCreate /> },
+      { path: 'taskmanager/schedules/:id', element: <TaskScheduleDetail /> },
+      { path: 'taskmanager/schedules/:id/edit', element: <TaskScheduleEdit /> },
+      
+      // Booking-Routen
+      { path: 'taskmanager/bookings', element: <TaskBookingList /> },
+      
+      // TaskType-Routen (spezifische zuerst!)
+      { path: 'taskmanager/task-types', element: <TaskTypeList /> },
+      { path: 'taskmanager/task-types/new', element: <TaskTypeCreate /> },
+      { path: 'taskmanager/task-types/:id', element: <TaskTypeDetail /> },
+      { path: 'taskmanager/task-types/:id/edit', element: <TaskTypeEdit /> },
+      
+      // Member-Routen
+      { path: 'taskmanager/member/:memberId', element: <MemberTaskDashboard /> },
     ],
   },
 

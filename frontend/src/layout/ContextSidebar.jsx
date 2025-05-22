@@ -21,6 +21,7 @@ import WawiMenu from '../apps/wawi/components/WawiMenu'
 import RoomMenu from '../apps/rooms/components/RoomMenu'
 import SecurityMenu from '../apps/security/components/SecurityMenu'
 import OptionsMenu from '../apps/options/components/OptionsMenu'
+import TaskManagerMenu from '../apps/taskmanager/components/TaskManagerMenu'
 
 export default function ContextSidebar() {
   const theme = useTheme()
@@ -79,6 +80,8 @@ export default function ContextSidebar() {
       return <SecurityMenu collapsed={collapsed} />
     } else if (location.pathname.startsWith('/options')) {
       return <OptionsMenu collapsed={collapsed} />
+      } else if (location.pathname.startsWith('/taskmanager')) {
+      return <TaskManagerMenu collapsed={collapsed} />
     } else {
       return <DefaultMenu collapsed={collapsed} />
     }

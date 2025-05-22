@@ -63,7 +63,7 @@ const TopbarMenuItems = [
       },
       { 
         label: 'Aufgabenverwaltung', 
-        path: '/aufgaben', 
+        path: 'taskmanager/', 
         icon: <AssignmentIcon />,
         subtitle: 'Projekte und Aufgabenverteilung'
       },
