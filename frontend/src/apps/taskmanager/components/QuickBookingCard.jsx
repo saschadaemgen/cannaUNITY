@@ -84,11 +84,17 @@ export default function QuickBookingCard({ onBookingSuccess }) {
       setBooking(true)
       setError(null)
       
-      await api.post('/taskmanager/bookings/', {
+      const bookingData = {
         time_slot: selectedSlot,
         member: selectedMember,
         notes: 'Schnellbuchung über Dashboard'
-      })
+      }
+      
+      console.log('📤 Booking data being sent:', bookingData)
+      
+      const response = await api.post('/taskmanager/bookings/', bookingData)
+      
+      console.log('✅ Booking successful:', response.data)
       
       setSuccess(true)
       setSelectedSlot('')
@@ -104,11 +110,23 @@ export default function QuickBookingCard({ onBookingSuccess }) {
       }, 2000)
       
     } catch (err) {
-      console.error('Quick booking error:', err)
-      if (err.response?.data?.non_field_errors) {
-        setError(err.response.data.non_field_errors[0])
+      console.error('❌ Quick booking error:', err)
+      console.error('📋 Error response:', err.response?.data)
+      console.error('📋 Error status:', err.response?.status)
+      
+      if (err.response?.data) {
+        // Detaillierte Fehlermeldungen anzeigen
+        const errorMessages = []
+        Object.entries(err.response.data).forEach(([key, value]) => {
+          if (Array.isArray(value)) {
+            errorMessages.push(`${key}: ${value.join(', ')}`)
+          } else {
+            errorMessages.push(`${key}: ${value}`)
+          }
+        })
+        setError(`Validierungsfehler: ${errorMessages.join(' | ')}`)
       } else {
-        setError('Fehler bei der Schnellbuchung')
+        setError('Fehler bei der Schnellbuchung - siehe Browser-Konsole für Details')
       }
     } finally {
       setBooking(false)
@@ -261,7 +279,7 @@ export default function QuickBookingCard({ onBookingSuccess }) {
                     }}
                   >
                     {members.map((member) => (
-                      <MenuItem key={member.uuid} value={member.uuid}>
+                      <MenuItem key={member.uuid} value={member.id || member.uuid}>
                         <Box display="flex" alignItems="center" gap={2}>
                           <Avatar sx={{ width: 32, height: 32 }}>
                             {member.first_name[0]}

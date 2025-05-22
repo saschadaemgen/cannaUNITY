@@ -28,7 +28,6 @@ export default function TaskScheduleCreate() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(false)
-  const [duplicateWarning, setDuplicateWarning] = useState(null)
 
   useEffect(() => {
     loadOptions()
@@ -62,50 +61,7 @@ export default function TaskScheduleCreate() {
       ...prev,
       [field]: event.target.value
     }))
-    
-    // Clear warnings when user changes relevant fields
-    if (['task_type', 'room', 'date'].includes(field)) {
-      setDuplicateWarning(null)
-    }
   }
-
-  // Proaktive Überprüfung auf Duplikate
-  useEffect(() => {
-    const checkForDuplicates = async () => {
-      if (formData.task_type && formData.room && formData.date) {
-        try {
-          const response = await api.get('/taskmanager/schedules/', {
-            params: {
-              task_type: formData.task_type,
-              room: formData.room,
-              date: formData.date
-            }
-          })
-          
-          const existingSchedules = response.data.results || response.data
-          if (existingSchedules.length > 0) {
-            const selectedTaskType = taskTypes.find(tt => tt.id === formData.task_type)
-            const selectedRoom = rooms.find(r => r.id === formData.room)
-            
-            setDuplicateWarning(
-              `⚠️ Hinweis: Es existiert bereits eine Aufgabenplanung für "${selectedTaskType?.name}" ` +
-              `im Raum "${selectedRoom?.name}" am ${formData.date}. ` +
-              `Bitte wählen Sie andere Parameter oder bearbeiten Sie die bestehende Planung.`
-            )
-          } else {
-            setDuplicateWarning(null)
-          }
-        } catch (err) {
-          // Fehler beim Prüfen ignorieren
-          console.warn('Could not check for duplicates:', err)
-        }
-      }
-    }
-
-    // Debounce die Überprüfung um API-Aufrufe zu reduzieren
-    const timeoutId = setTimeout(checkForDuplicates, 500)
-    return () => clearTimeout(timeoutId)
-  }, [formData.task_type, formData.room, formData.date, taskTypes, rooms])
 
   const handleSubmit = async (event) => {
     event.preventDefault()
@@ -124,7 +80,16 @@ export default function TaskScheduleCreate() {
       setLoading(true)
       setError(null)
       
-      const response = await api.post('/taskmanager/schedules/', formData)
+      const scheduleData = {
+        ...formData,
+        created_by: null // Wird vom Backend automatisch gesetzt
+      }
+      
+      console.log('📤 Schedule data being sent:', scheduleData)
+      
+      const response = await api.post('/taskmanager/schedules/', scheduleData)
+      
+      console.log('✅ Schedule created successfully:', response.data)
       
       setSuccess(true)
       setTimeout(() => {
@@ -132,38 +97,21 @@ export default function TaskScheduleCreate() {
       }, 1500)
       
     } catch (err) {
-      console.error('Create error:', err)
+      console.error('❌ Schedule create error:', err)
+      console.error('📋 Error response:', err.response?.data)
       
-      if (err.response?.status === 400) {
-        const errorData = err.response.data
-        
-        // Spezielle Behandlung für unique_together Constraint
-        if (errorData.non_field_errors && 
-            errorData.non_field_errors[0]?.includes('eindeutige Menge')) {
-          
-          const selectedTaskType = taskTypes.find(tt => tt.id === formData.task_type)
-          const selectedRoom = rooms.find(r => r.id === formData.room)
-          
-          setError(
-            `⚠️ Es existiert bereits eine Aufgabenplanung für "${selectedTaskType?.name}" ` +
-            `im Raum "${selectedRoom?.name}" am ${formData.date}. ` +
-            `Bitte wählen Sie ein anderes Datum, einen anderen Raum oder einen anderen Aufgabentyp.`
-          )
-          return
-        }
-        
-        // Andere Validierungsfehler
-        if (errorData) {
-          const errors = []
-          Object.entries(errorData).forEach(([key, value]) => {
-            if (Array.isArray(value)) {
-              errors.push(`${key}: ${value.join(', ')}`)
-            } else {
-              errors.push(`${key}: ${value}`)
-            }
-          })
-          setError(errors.join(' | '))
-        }
+      if (err.response?.data?.non_field_errors) {
+        setError(err.response.data.non_field_errors[0])
+      } else if (err.response?.data) {
+        const errorMessages = []
+        Object.entries(err.response.data).forEach(([key, value]) => {
+          if (Array.isArray(value)) {
+            errorMessages.push(`${key}: ${value.join(', ')}`)
+          } else {
+            errorMessages.push(`${key}: ${value}`)
+          }
+        })
+        setError(`Validierungsfehler: ${errorMessages.join(' | ')}`)
       } else {
         setError('Fehler beim Erstellen der Aufgabenplanung')
       }
@@ -213,22 +161,6 @@ export default function TaskScheduleCreate() {
           Neue Aufgabe planen
         </Typography>
       </Box>
-
-      {/* Duplicate Warning */}
-      {duplicateWarning && (
-        <Alert severity="warning" sx={{ mb: 3 }}>
-          {duplicateWarning}
-          <Box sx={{ mt: 1 }}>
-            <Button 
-              size="small" 
-              onClick={() => navigate('/taskmanager/schedules')}
-              sx={{ mr: 1 }}
-            >
-              Bestehende Planungen anzeigen
-            </Button>
-          </Box>
-        </Alert>
-      )}
 
       {/* Success Alert */}
       {success && (
@@ -463,8 +395,7 @@ export default function TaskScheduleCreate() {
               type="submit"
               variant="contained"
               startIcon={<Save />}
-              disabled={loading || success || duplicateWarning}
-              size="large"
+              disabled={loading || success}
             >
               {loading ? 'Erstelle...' : 'Aufgabenplanung erstellen'}
             </Button>

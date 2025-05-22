@@ -71,11 +71,17 @@ export default function TaskSlotBooking({ scheduleId, onBookingChange }) {
     try {
       setBookingLoading(true)
       
-      await api.post('/taskmanager/bookings/', {
+      const bookingData = {
         time_slot: selectedSlot.id,
         member: selectedMember,
         notes: bookingNotes
-      })
+      }
+      
+      console.log('📤 TaskSlot Booking data being sent:', bookingData)
+      
+      const response = await api.post('/taskmanager/bookings/', bookingData)
+      
+      console.log('✅ TaskSlot Booking successful:', response.data)
       
       // Daten neu laden
       await loadData()
@@ -89,8 +95,24 @@ export default function TaskSlotBooking({ scheduleId, onBookingChange }) {
       }
       
     } catch (err) {
-      console.error('Booking error:', err)
-      setError('Fehler bei der Buchung')
+      console.error('❌ TaskSlot Booking error:', err)
+      console.error('📋 Error response:', err.response?.data)
+      console.error('📋 Error status:', err.response?.status)
+      
+      if (err.response?.data) {
+        // Detaillierte Fehlermeldungen anzeigen
+        const errorMessages = []
+        Object.entries(err.response.data).forEach(([key, value]) => {
+          if (Array.isArray(value)) {
+            errorMessages.push(`${key}: ${value.join(', ')}`)
+          } else {
+            errorMessages.push(`${key}: ${value}`)
+          }
+        })
+        setError(`Validierungsfehler: ${errorMessages.join(' | ')}`)
+      } else {
+        setError('Fehler bei der Buchung - siehe Browser-Konsole für Details')
+      }
     } finally {
       setBookingLoading(false)
     }
@@ -362,7 +384,7 @@ export default function TaskSlotBooking({ scheduleId, onBookingChange }) {
                 onChange={(e) => setSelectedMember(e.target.value)}
               >
                 {members.map((member) => (
-                  <MenuItem key={member.uuid} value={member.uuid}>
+                  <MenuItem key={member.uuid} value={member.id || member.uuid}>
                     <Box display="flex" alignItems="center" gap={2}>
                       <Avatar sx={{ width: 32, height: 32 }}>
                         {member.first_name[0]}
