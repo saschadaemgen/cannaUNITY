@@ -2,11 +2,15 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { 
   Dialog, DialogTitle, DialogContent, DialogActions, 
-  Button, TextField, Typography, Box, CircularProgress, Fade, Zoom
+  Button, TextField, Typography, Box, CircularProgress, Fade, Zoom,
+  LinearProgress
 } from '@mui/material'
 import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment'
 import CreditCardIcon from '@mui/icons-material/CreditCard'
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'
+import SecurityIcon from '@mui/icons-material/Security'
+import TimerIcon from '@mui/icons-material/Timer'
+import WarningAmberIcon from '@mui/icons-material/WarningAmber'
 import api from '@/utils/api'
 
 const DestroyDialog = ({
@@ -31,9 +35,12 @@ const DestroyDialog = ({
   const [scannedMemberId, setScannedMemberId] = useState(null)
   const [loading, setLoading] = useState(false)
   const [timeoutMessage, setTimeoutMessage] = useState('')
+  const [countdown, setCountdown] = useState(30)
   
-  // Ref für den Timeout
+  // Refs
   const timeoutRef = useRef(null)
+  const countdownRef = useRef(null)
+  const cleanupTimeoutRef = useRef(null)
   
   // Reset beim Öffnen/Schließen des Dialogs
   useEffect(() => {
@@ -45,10 +52,17 @@ const DestroyDialog = ({
       setScannedMemberId(null)
       setLoading(false)
       setTimeoutMessage('')
+      setCountdown(30)
       
-      // Timeout clearen falls vorhanden
+      // Alle Timers clearen
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current)
+      }
+      if (countdownRef.current) {
+        clearInterval(countdownRef.current)
+      }
+      if (cleanupTimeoutRef.current) {
+        clearTimeout(cleanupTimeoutRef.current)
       }
     }
   }, [open])
@@ -56,9 +70,12 @@ const DestroyDialog = ({
   // Wenn scanSuccess true wird, führe die Vernichtung durch
   useEffect(() => {
     if (scanSuccess && scannedMemberId) {
-      // Timeout clearen
+      // Timers clearen
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current)
+      }
+      if (countdownRef.current) {
+        clearInterval(countdownRef.current)
       }
       
       // Nach 2 Sekunden die Vernichtung durchführen
@@ -72,47 +89,81 @@ const DestroyDialog = ({
   
   // Funktion zum sauberen Abbrechen
   const cleanupAndReturn = async () => {
-    // Erst Timeout clearen
+    console.log("🧹 Cleanup initiated - cancelling RFID session")
+    
+    // Erst Timers clearen
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current)
       timeoutRef.current = null
     }
+    if (countdownRef.current) {
+      clearInterval(countdownRef.current)
+      countdownRef.current = null
+    }
+    if (cleanupTimeoutRef.current) {
+      clearTimeout(cleanupTimeoutRef.current)
+      cleanupTimeoutRef.current = null
+    }
     
     try {
       // Cancel-Request an Backend
-      await api.post('/unifi_api_debug/cancel-rfid-session/')
-      console.log("RFID-Session erfolgreich abgebrochen")
+      console.log("📡 Sende Cancel-Request an Backend...")
+      const response = await api.post('/unifi_api_debug/cancel-rfid-session/')
+      console.log("✅ RFID-Session erfolgreich abgebrochen:", response.data)
     } catch (error) {
-      console.error("Fehler beim Abbrechen der RFID-Session:", error)
+      console.error("❌ Fehler beim Abbrechen der RFID-Session:", error.response || error)
+      // Trotzdem fortfahren
     }
     
     // States zurücksetzen
     setScanMode(false)
     setLoading(false)
     setTimeoutMessage('')
+    setCountdown(30)
   }
   
   // RFID-Scan starten
   const startRfidScan = async () => {
+  
     setScanMode(true)
     setScanSuccess(false)
     setLoading(true)
     setTimeoutMessage('')
+    setCountdown(30)
+    
+    // Countdown starten
+    countdownRef.current = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) {
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
     
     // 30 Sekunden Timeout setzen
     timeoutRef.current = setTimeout(async () => {
       console.log("⏱️ RFID-Scan Timeout nach 30 Sekunden")
+      
+      // Countdown stoppen
+      if (countdownRef.current) {
+        clearInterval(countdownRef.current)
+        countdownRef.current = null
+      }
+      
       setTimeoutMessage('Zeitüberschreitung - kehre zurück...')
       setLoading(false)
       
-      // Nach 2 Sekunden zurück zum Formular
-      setTimeout(() => {
-        cleanupAndReturn()
+      // Direkt die cleanup Funktion aufrufen nach 2 Sekunden
+      cleanupTimeoutRef.current = setTimeout(async () => {
+        await cleanupAndReturn()
       }, 2000)
+      
     }, 30000)
     
     try {
       // RFID-Session binden
+      console.log("🔄 Starte RFID-Session bind...")
       const bindRes = await api.get('/unifi_api_debug/bind-rfid-session/')
       const { token, unifi_user_id, unifi_name } = bindRes.data
       
@@ -140,10 +191,11 @@ const DestroyDialog = ({
       setLoading(false)
       
     } catch (error) {
-      console.error('RFID-Scan Fehler:', error.response?.data || error.message)
+      console.error('❌ RFID-Scan Fehler:', error.response?.data || error.message)
       
-      // Bei Fehler zurück zum Formular
-      if (scanMode) {
+      // Bei Fehler sofort cleanup
+      if (scanMode && !scanSuccess) {
+        console.log("🔴 Fehler erkannt, führe cleanup durch...")
         await cleanupAndReturn()
       }
     }
@@ -151,7 +203,7 @@ const DestroyDialog = ({
   
   // Manueller Abbruch
   const handleCancelScan = async () => {
-    console.log("Manueller Abbruch initiiert")
+    console.log("🔴 Manueller Abbruch initiiert")
     await cleanupAndReturn()
   }
   
@@ -176,39 +228,80 @@ const DestroyDialog = ({
       disableEscapeKeyDown
     >
       {scanMode ? (
-        // RFID-Scan-Modus
+        // RFID-Scan-Modus mit rotem Sicherheitsdesign
         <Box 
           sx={{ 
-            bgcolor: scanSuccess ? 'success.light' : 'error.light', 
-            height: '400px', 
+            bgcolor: scanSuccess ? 'success.light' : 'error.light',
+            height: '500px', 
             display: 'flex', 
             flexDirection: 'column',
             justifyContent: 'center', 
             alignItems: 'center',
             p: 4,
-            position: 'relative'
+            position: 'relative',
+            overflow: 'hidden'
           }}
         >
+          {/* Sicherheitsmuster im Hintergrund */}
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              opacity: 0.1,
+              backgroundImage: `repeating-linear-gradient(
+                45deg,
+                transparent,
+                transparent 10px,
+                rgba(255,255,255,.05) 10px,
+                rgba(255,255,255,.05) 20px
+              )`,
+              pointerEvents: 'none'
+            }}
+          />
+          
           {!scanSuccess && !timeoutMessage && (
-            <Button 
-              onClick={handleCancelScan}
-              variant="contained" 
-              color="error"
-              size="small"
-              sx={{ 
-                position: 'absolute',
-                top: 16,
-                right: 16,
-                minWidth: '100px',
-                bgcolor: 'white',
-                color: 'error.main',
-                '&:hover': {
-                  bgcolor: 'grey.100'
-                }
-              }}
-            >
-              Abbrechen
-            </Button>
+            <>
+              {/* Sicherheitsindikator oben */}
+              <Box 
+                sx={{ 
+                  position: 'absolute',
+                  top: 16,
+                  left: 16,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1
+                }}
+              >
+                <SecurityIcon sx={{ color: 'white', fontSize: 24 }} />
+                <Typography variant="body2" sx={{ color: 'white', fontWeight: 'bold' }}>
+                  SICHERE AUTORISIERUNG
+                </Typography>
+              </Box>
+              
+              {/* Abbrechen Button */}
+              <Button 
+                onClick={handleCancelScan}
+                variant="contained" 
+                color="error"
+                size="small"
+                sx={{ 
+                  position: 'absolute',
+                  top: 16,
+                  right: 16,
+                  minWidth: '100px',
+                  bgcolor: 'white',
+                  color: 'error.main',
+                  '&:hover': {
+                    bgcolor: 'grey.100'
+                  }
+                }}
+              >
+                Abbrechen
+              </Button>
+            </>
           )}
           
           {scanSuccess ? (
@@ -236,7 +329,7 @@ const DestroyDialog = ({
             // Timeout-Nachricht
             <Fade in={true}>
               <Box sx={{ textAlign: 'center' }}>
-                <CreditCardIcon sx={{ fontSize: 120, color: 'white', mb: 4, opacity: 0.7 }} />
+                <WarningAmberIcon sx={{ fontSize: 120, color: 'white', mb: 4 }} />
                 
                 <Typography variant="h5" align="center" color="white" fontWeight="bold">
                   {timeoutMessage}
@@ -244,9 +337,37 @@ const DestroyDialog = ({
               </Box>
             </Fade>
           ) : (
-            // Warte auf Scan
+            // Warte auf Scan mit Countdown
             <>
-              <CreditCardIcon sx={{ fontSize: 120, color: 'white', mb: 4 }} />
+              <Box sx={{ position: 'relative', mb: 4 }}>
+                <CreditCardIcon sx={{ fontSize: 120, color: 'white' }} />
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    width: '160px',
+                    height: '160px',
+                    borderRadius: '50%',
+                    border: '3px solid rgba(255,255,255,0.3)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <CircularProgress
+                    variant="determinate"
+                    value={(countdown / 30) * 100}
+                    size={160}
+                    thickness={3}
+                    sx={{
+                      color: countdown > 10 ? 'white' : '#ffeb3b',
+                      position: 'absolute'
+                    }}
+                  />
+                </Box>
+              </Box>
               
               <Typography variant="h5" align="center" color="white" fontWeight="bold" gutterBottom>
                 Bitte Ausweis jetzt scannen
@@ -256,20 +377,49 @@ const DestroyDialog = ({
                 um die Vernichtung zu autorisieren
               </Typography>
               
+              {/* Countdown Anzeige */}
+              <Box sx={{ mt: 4, display: 'flex', alignItems: 'center', gap: 2 }}>
+                <TimerIcon sx={{ color: countdown > 10 ? 'white' : '#ffeb3b' }} />
+                <Typography 
+                  variant="h4" 
+                  sx={{ 
+                    color: countdown > 10 ? 'white' : '#ffeb3b',
+                    fontFamily: 'monospace',
+                    fontWeight: 'bold'
+                  }}
+                >
+                  {countdown}s
+                </Typography>
+              </Box>
+              
+              {/* Progress Bar */}
+              <Box sx={{ width: '80%', mt: 3 }}>
+                <LinearProgress 
+                  variant="determinate" 
+                  value={(countdown / 30) * 100}
+                  sx={{
+                    height: 8,
+                    borderRadius: 4,
+                    backgroundColor: 'rgba(255,255,255,0.2)',
+                    '& .MuiLinearProgress-bar': {
+                      backgroundColor: countdown > 10 ? 'white' : '#ffeb3b',
+                      borderRadius: 4
+                    }
+                  }}
+                />
+              </Box>
+              
               {loading && (
                 <CircularProgress 
-                  size={60} 
-                  thickness={5} 
+                  size={30} 
+                  thickness={3} 
                   sx={{ 
                     color: 'white', 
-                    mt: 4 
+                    mt: 2,
+                    opacity: 0.8
                   }} 
                 />
               )}
-              
-              <Typography variant="caption" align="center" color="white" sx={{ mt: 2, opacity: 0.8 }}>
-                Warte auf RFID-Karte... (max. 30 Sekunden)
-              </Typography>
             </>
           )}
         </Box>
