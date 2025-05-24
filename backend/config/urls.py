@@ -61,10 +61,6 @@ urlpatterns = [
     # 🌱 Grow Controller
     path('controller/', include('controller.urls')),           # Für Port 8000 (Build Mode)
     path('api/controller/', include('controller.api_urls')),   # Für Vite (Dev Mode)
-    
-    # 🔖 RFID-Bridge für nahtlose RFID-Authentifizierung
-    path('rfid-bridge/', include('rfid_bridge.api_urls')),     # Für Port 8000 (Build Mode)
-    path('api/rfid-bridge/', include('rfid_bridge.api_urls')), # Für Vite (Dev Mode)
 
     # ⚙️ Labor Berichte
     path('laborreports/', include('laborreports.api_urls')),      # für Port 8000 (Build-Modus)

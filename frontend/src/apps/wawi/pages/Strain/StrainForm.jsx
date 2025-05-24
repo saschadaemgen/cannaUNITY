@@ -32,7 +32,9 @@ import {
   AccordionSummary,
   AccordionDetails,
   Tooltip,
-  Popover
+  Popover,
+  Fade,
+  Zoom
 } from '@mui/material';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -43,10 +45,11 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import EditIcon from '@mui/icons-material/Edit';
 import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
 import StarIcon from '@mui/icons-material/Star';
+import CreditCardIcon from '@mui/icons-material/CreditCard';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import { styled } from '@mui/material/styles';
 import api from '@/utils/api';
 import { useDropzone } from 'react-dropzone';
-import RFIDSubmitter from '@/components/RFIDSubmitter';
 
 // Styled components
 const VisuallyHiddenInput = styled('input')({
@@ -274,6 +277,14 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
   const tempIdRef = useRef(`temp-${Date.now()}-${Math.floor(Math.random() * 1000)}`);
   const [historyInfoAnchorEl, setHistoryInfoAnchorEl] = useState(null);
 
+  // Neue States für RFID-Verifizierung
+  const [scanMode, setScanMode] = useState(false);
+  const [rfidLoading, setRfidLoading] = useState(false);
+  const [abortController, setAbortController] = useState(null);
+  const [isAborting, setIsAborting] = useState(false);
+  const [scanSuccess, setScanSuccess] = useState(false);
+  const [scannedMemberName, setScannedMemberName] = useState('');
+
   const [formData, setFormData] = useState({
     name: '',
     breeder: '',
@@ -336,6 +347,122 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
   // Neue State-Variablen für History
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+
+  // Funktion zum Starten des RFID-Scans
+  const startRfidScan = async () => {
+    setScanMode(true);
+    setScanSuccess(false);
+    setScannedMemberName('');
+    await handleRfidScan();
+  };
+
+  // RFID-Scan Handler
+  const handleRfidScan = async () => {
+    // Wenn ein Abbruch in Bearbeitung ist, nichts tun
+    if (isAborting) return;
+    
+    // Abbruch-Controller erstellen
+    const controller = new AbortController();
+    setAbortController(controller);
+    
+    setRfidLoading(true);
+    setScanSuccess(false);
+    
+    try {
+      console.log("🚀 Starte RFID-Scan...");
+      
+      // Prüfen vor jeder API-Anfrage, ob ein Abbruch initiiert wurde
+      if (isAborting) return;
+      
+      // 1. Karte scannen und User auslesen
+      const bindRes = await api.get('/unifi_api_debug/bind-rfid-session/', {
+        signal: controller.signal
+      });
+      
+      console.log("📡 Bind-Response:", bindRes.data);
+      
+      // Nochmals prüfen, ob ein Abbruch initiiert wurde
+      if (isAborting) return;
+      
+      const { token, unifi_user_id, message, unifi_name } = bindRes.data;
+
+      console.log("🔍 Sende an secure-member-binding:", { token, unifi_user_id, unifi_name });
+
+      if (!token || !unifi_user_id || !unifi_name) {
+        throw new Error('RFID-Zuweisung fehlgeschlagen. Nutzerinformationen unvollständig.');
+      }
+      
+      // Nochmals prüfen vor dem nächsten API-Aufruf
+      if (isAborting) return;
+
+      // 2. Mitglied validieren
+      const verifyRes = await api.post('/unifi_api_debug/secure-member-binding/', 
+        { token, unifi_name }, 
+        { signal: controller.signal }
+      );
+
+      const { member_id, member_name } = verifyRes.data;
+      
+      // Erfolg setzen und Mitgliedsnamen speichern
+      setScannedMemberName(member_name);
+      setScanSuccess(true);
+
+      // 3. Nach erfolgreicher Verifizierung das Formular speichern
+      await handleSubmit(member_id, member_name);
+      
+      // Nach 2 Sekunden das Modal schließen
+      setTimeout(() => {
+        onSuccess();
+      }, 2000);
+      
+    } catch (error) {
+      // AbortError ignorieren, diese sind erwartet bei Abbruch
+      if (error.name === 'AbortError' || isAborting) {
+        console.log('RFID-Scan wurde abgebrochen');
+      } else {
+        console.error('RFID-Bindungsfehler:', error);
+        console.error('Response:', error.response);
+        setApiError(error.response?.data?.detail || error.response?.data?.message || 'RFID-Verifizierung fehlgeschlagen');
+      }
+      
+      // UI nur zurücksetzen, wenn kein Abbruch im Gange ist
+      if (!isAborting) {
+        setScanMode(false);
+      }
+    } finally {
+      // Loading-Status nur zurücksetzen, wenn kein Abbruch im Gange ist
+      if (!isAborting) {
+        setRfidLoading(false);
+      }
+    }
+  };
+
+  const handleCancelRfidScan = async () => {
+    // Sofort den Abbruch-Status setzen, um alle neuen Anfragen zu blockieren
+    setIsAborting(true);
+    
+    // Laufende Anfrage abbrechen, falls vorhanden
+    if (abortController) {
+      abortController.abort();
+    }
+    
+    try {
+      await api.post('/unifi_api_debug/cancel-rfid-session/');
+      console.log("RFID-Scan erfolgreich abgebrochen");
+    } catch (error) {
+      console.error('RFID-Scan-Abbruch fehlgeschlagen:', error);
+    } finally {
+      setScanMode(false);
+      setRfidLoading(false);
+      setScanSuccess(false);
+      setScannedMemberName('');
+      
+      // Nach einer kurzen Verzögerung den Abbruch-Status zurücksetzen
+      setTimeout(() => {
+        setIsAborting(false);
+      }, 500);
+    }
+  };
 
   // Funktion zum Laden der History
   const loadHistory = async (strainId) => {
@@ -1090,6 +1217,11 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
     if (open) {
       // Fehler zurücksetzen beim Öffnen
       setApiError('');
+      setScanMode(false);
+      setAbortController(null);
+      setIsAborting(false);
+      setScanSuccess(false);
+      setScannedMemberName('');
       
       // Wenn Formulardaten bereitgestellt werden (für Bearbeitungsfall)
       if (initialData.id) {
@@ -1470,6 +1602,7 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
   const handleSubmit = async (memberId, memberName) => {
     // Nochmals validieren
     if (!validateForm()) {
+      setScanMode(false);
       return;
     }
     
@@ -1498,10 +1631,14 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
         await uploadPendingImages(strainId);
       }
       
-      onSuccess();
+      // Erfolg - aber Dialog bleibt offen für Erfolgsanzeige
+      console.log("Sorte erfolgreich gespeichert!");
+      
     } catch (error) {
       console.error('Fehler beim Speichern:', error);
       setApiError(error.response?.data?.error || 'Ein Fehler ist aufgetreten');
+      setScanMode(false);
+      setScanSuccess(false);
     } finally {
       setLoading(false);
     }
@@ -1517,9 +1654,96 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
       maxWidth="lg" 
       fullWidth
       PaperProps={{
-        sx: { maxHeight: '90vh' }
+        sx: { 
+          maxHeight: '90vh',
+          position: 'relative',
+          overflow: scanMode ? 'hidden' : 'auto'
+        }
       }}
     >
+      {/* RFID-Scan-Overlay */}
+      {scanMode && (
+        <Box sx={{ 
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          bgcolor: 'success.light',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          p: 4,
+          zIndex: 1300
+        }}>
+          {/* Abbrechen-Button nur anzeigen, wenn wir NICHT im Erfolgs-Modus sind */}
+          {!scanSuccess && (
+            <Button 
+              onClick={handleCancelRfidScan}
+              variant="contained" 
+              color="error"
+              size="small"
+              sx={{ 
+                position: 'absolute',
+                top: 16,
+                right: 16,
+                minWidth: '100px'
+              }}
+            >
+              Abbrechen
+            </Button>
+          )}
+          
+          {scanSuccess ? (
+            // Erfolgsmeldung nach erfolgreichem Scan
+            <Fade in={scanSuccess}>
+              <Box sx={{ textAlign: 'center' }}>
+                <Zoom in={scanSuccess}>
+                  <CheckCircleOutlineIcon sx={{ fontSize: 120, color: 'white', mb: 3 }} />
+                </Zoom>
+                
+                <Typography variant="h5" align="center" color="white" fontWeight="bold" gutterBottom>
+                  Autorisierung erfolgreich
+                </Typography>
+                
+                <Typography variant="body1" align="center" color="white" sx={{ mt: 2 }}>
+                  Sorte wurde erfolgreich {initialData.id ? 'aktualisiert' : 'angelegt'}
+                </Typography>
+                
+                <Typography variant="h6" align="center" color="white" fontWeight="bold" sx={{ mt: 1 }}>
+                  Bearbeiter: {scannedMemberName}
+                </Typography>
+              </Box>
+            </Fade>
+          ) : (
+            // Scan-Aufforderung
+            <>
+              <CreditCardIcon sx={{ fontSize: 120, color: 'white', mb: 4 }} />
+              
+              <Typography variant="h5" align="center" color="white" fontWeight="bold" gutterBottom>
+                Bitte Ausweis jetzt scannen
+              </Typography>
+              
+              <Typography variant="body1" align="center" color="white" gutterBottom>
+                um den Vorgang abzuschließen
+              </Typography>
+              
+              {rfidLoading && (
+                <CircularProgress 
+                  size={60} 
+                  thickness={5} 
+                  sx={{ 
+                    color: 'white', 
+                    mt: 4 
+                  }} 
+                />
+              )}
+            </>
+          )}
+        </Box>
+      )}
+      
       <DialogTitle>
         {initialData.id ? `Sorte bearbeiten: ${initialData.name}` : 'Neue Cannabis-Sorte hinzufügen'}
       </DialogTitle>
@@ -2487,10 +2711,30 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
         >
           Abbrechen
         </Button>
-        <RFIDSubmitter 
-          onAuthorize={handleSubmit} 
-          disabled={loading || !formValid}
-        />
+        
+        {/* Neuer RFID-Verifizierungs-Button */}
+        {!scanMode ? (
+          <Button
+            onClick={startRfidScan}
+            variant="contained"
+            color="primary"
+            disabled={loading || !formValid || rfidLoading}
+            startIcon={<CreditCardIcon />}
+            sx={{ minWidth: 220 }}
+          >
+            Per RFID autorisieren & speichern
+          </Button>
+        ) : (
+          <Button
+            onClick={handleCancelRfidScan}
+            variant="contained"
+            color="error"
+            disabled={loading}
+            sx={{ minWidth: 220 }}
+          >
+            Scan abbrechen
+          </Button>
+        )}
       </DialogActions>
     </Dialog>
   );

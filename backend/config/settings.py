@@ -42,7 +42,6 @@ INSTALLED_APPS = [
     'unifi_access',
     'unifi_protect',
     'unifi_api_debug',
-    'rfid_bridge',
     'trackandtrace',
     'taskmanager',
 ]
