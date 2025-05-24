@@ -1,10 +1,11 @@
 # wawi/admin.py
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.utils.html import format_html
 from django.db.models import Count, Avg
 from django.urls import reverse
 from django.utils.safestring import mark_safe
 from django.contrib.admin import SimpleListFilter
+import os
 from .models import CannabisStrain, StrainImage, StrainInventory, StrainHistory
 
 
@@ -214,7 +215,7 @@ class CannabisStrainAdmin(admin.ModelAdmin):
     genetics_display.short_description = 'Genetik'
     
     def thc_range_display(self, obj):
-        avg_thc = (obj.thc_percentage_min + obj.thc_percentage_max) / 2
+        avg_thc = (float(obj.thc_percentage_min) + float(obj.thc_percentage_max)) / 2
         if avg_thc < 15:
             color = '#4CAF50'  # Grün für niedrig
         elif avg_thc < 20:
@@ -223,15 +224,15 @@ class CannabisStrainAdmin(admin.ModelAdmin):
             color = '#F44336'  # Rot für hoch
         
         return format_html(
-            '<span style="color: {}; font-weight: bold;">{:.1f} - {:.1f}%</span>',
+            '<span style="color: {}; font-weight: bold;">{} - {}%</span>',
             color,
-            obj.thc_percentage_min,
-            obj.thc_percentage_max
+            f"{float(obj.thc_percentage_min):.1f}",
+            f"{float(obj.thc_percentage_max):.1f}"
         )
     thc_range_display.short_description = 'THC'
     
     def cbd_range_display(self, obj):
-        return f"{obj.cbd_percentage_min:.1f} - {obj.cbd_percentage_max:.1f}%"
+        return f"{float(obj.cbd_percentage_min):.1f} - {float(obj.cbd_percentage_max):.1f}%"
     cbd_range_display.short_description = 'CBD'
     
     def flowering_time_display(self, obj):
@@ -239,8 +240,9 @@ class CannabisStrainAdmin(admin.ModelAdmin):
     flowering_time_display.short_description = 'Blütezeit'
     
     def rating_stars(self, obj):
-        full_stars = int(obj.rating)
-        half_star = obj.rating % 1 >= 0.5
+        rating = float(obj.rating)
+        full_stars = int(rating)
+        half_star = rating % 1 >= 0.5
         empty_stars = 5 - full_stars - (1 if half_star else 0)
         
         stars_html = '★' * full_stars
@@ -250,7 +252,7 @@ class CannabisStrainAdmin(admin.ModelAdmin):
         
         return format_html(
             '<span style="color: #FFD700; font-size: 16px;" title="{}/5">{}</span>',
-            obj.rating,
+            rating,
             stars_html
         )
     rating_stars.short_description = 'Bewertung'
@@ -276,6 +278,63 @@ class CannabisStrainAdmin(admin.ModelAdmin):
             "(Feature noch in Entwicklung)"
         )
     export_strain_data.short_description = "Sortendaten exportieren"
+    
+    def delete_model(self, request, obj):
+        """
+        Überschreibt delete_model um sicherzustellen, dass alle
+        zugehörigen Objekte korrekt gelöscht werden.
+        """
+        # Sammle Informationen vor dem Löschen
+        strain_name = obj.name
+        related_images = obj.images.count()
+        has_inventory = hasattr(obj, 'inventory')
+        history_entries = obj.history.count()
+        
+        # Lösche das Objekt (CASCADE kümmert sich um alles)
+        super().delete_model(request, obj)
+        
+        # Zeige detaillierte Erfolgsmeldung
+        message_parts = [f'Sorte "{strain_name}" wurde gelöscht.']
+        message_parts.append(f'Mitgelöscht: {related_images} Bilder')
+        if has_inventory:
+            message_parts.append('1 Bestandseintrag')
+        message_parts.append(f'{history_entries} Historie-Einträge')
+        
+        self.message_user(
+            request,
+            ', '.join(message_parts) + '.',
+            level=messages.SUCCESS
+        )
+    
+    def delete_queryset(self, request, queryset):
+        """
+        Überschreibt delete_queryset für Bulk-Löschungen.
+        Stellt sicher, dass alle zugehörigen Objekte gelöscht werden.
+        """
+        # Sammle Statistiken
+        total_strains = queryset.count()
+        total_images = 0
+        total_inventory = 0
+        total_history = 0
+        
+        for strain in queryset:
+            total_images += strain.images.count()
+            if hasattr(strain, 'inventory'):
+                total_inventory += 1
+            total_history += strain.history.count()
+        
+        # Lösche alle (CASCADE kümmert sich um zugehörige Objekte)
+        queryset.delete()
+        
+        # Zeige detaillierte Erfolgsmeldung
+        self.message_user(
+            request,
+            f'{total_strains} Sorten wurden gelöscht. '
+            f'Mitgelöscht: {total_images} Bilder, '
+            f'{total_inventory} Bestandseinträge, '
+            f'{total_history} Historie-Einträge.',
+            level=messages.SUCCESS
+        )
     
     def save_model(self, request, obj, form, change):
         """Überschreibe save_model um Historie zu erstellen"""
@@ -336,7 +395,10 @@ class StrainInventoryAdmin(admin.ModelAdmin):
     ordering = ('available_quantity',)
     
     def stock_status(self, obj):
-        percentage = (obj.available_quantity / obj.total_quantity * 100) if obj.total_quantity > 0 else 0
+        if obj.total_quantity > 0:
+            percentage = (obj.available_quantity / obj.total_quantity * 100)
+        else:
+            percentage = 0
         
         if percentage == 0:
             color = '#F44336'
@@ -400,7 +462,16 @@ class StrainHistoryAdmin(admin.ModelAdmin):
     changes_summary.short_description = 'Änderungen'
     
     def has_add_permission(self, request):
+        # Keine manuellen Historie-Einträge erlauben
         return False
     
-    def has_delete_permission(self, request, obj=None):
-        return False
+    def change_view(self, request, object_id, form_url='', extra_context=None):
+        """Zeigt Warnhinweise zu abhängigen Objekten beim Bearbeiten"""
+        extra_context = extra_context or {}
+        obj = self.get_object(request, object_id)
+        if obj:
+            extra_context['related_objects'] = {
+                'images': obj.images.count(),
+                'history_entries': obj.history.count() 
+            }
+        return super().change_view(request, object_id, form_url, extra_context)
