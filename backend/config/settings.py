@@ -37,7 +37,7 @@ INSTALLED_APPS = [
     'interface',
     'controller',
     'logocore',
-    'ha',
+    'logo_bridge',
     'wawi',
     'unifi_access',
     'unifi_protect',

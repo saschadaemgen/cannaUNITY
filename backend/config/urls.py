@@ -73,6 +73,8 @@ urlpatterns = [
     path('taskmanager/', include('taskmanager.api_urls')),           # für Port 8000 (Build-Modus)
     path('api/taskmanager/', include('taskmanager.api_urls')),       # für Port 5173
 
+    path('api/logo-bridge/', include('logo_bridge.api_urls')),
+
 ]
 
 # 🔁 Fallback für alle nicht-API-URLs → React SPA laden

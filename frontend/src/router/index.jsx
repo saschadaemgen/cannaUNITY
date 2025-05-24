@@ -54,8 +54,6 @@ import ReportCreate from '@/apps/laborreports/pages/ReportCreate';
 import ReportView from '@/apps/laborreports/pages/ReportView';
 import ReportEdit from '@/apps/laborreports/pages/ReportEdit';
 import DebugDashboard from '@/apps/unifi_api_debug/pages/DebugDashboard'
-
-// TaskManager Imports
 import TaskDashboard from '@/apps/taskmanager/pages/TaskDashboard'
 import TaskScheduleList from '@/apps/taskmanager/pages/TaskScheduleList'
 import TaskScheduleCreate from '@/apps/taskmanager/pages/TaskScheduleCreate'
@@ -67,6 +65,9 @@ import TaskTypeList from '@/apps/taskmanager/pages/TaskTypeList'
 import TaskTypeCreate from '@/apps/taskmanager/pages/TaskTypeCreate'
 import TaskTypeDetail from '@/apps/taskmanager/pages/TaskTypeDetail'
 import TaskTypeEdit from '@/apps/taskmanager/pages/TaskTypeEdit'
+import LogoBridgeDashboard from '../apps/logo_bridge/pages/Dashboard'
+import LogoDeviceForm from '../apps/logo_bridge/pages/DeviceForm'
+import LogoVariableManager from '../apps/logo_bridge/pages/VariableManager'
 
 export const router = createBrowserRouter([
   {
@@ -174,6 +175,11 @@ export const router = createBrowserRouter([
       
       // Member-Routen
       { path: 'taskmanager/member/:memberId', element: <MemberTaskDashboard /> },
+
+      { path: 'logo-bridge', element: <LogoBridgeDashboard /> },
+      { path: 'logo-bridge/devices/new', element: <LogoDeviceForm /> },
+      { path: 'logo-bridge/devices/:id/edit', element: <LogoDeviceForm /> },
+      { path: 'logo-bridge/devices/:id/variables', element: <LogoVariableManager /> },
     ],
   },
 
