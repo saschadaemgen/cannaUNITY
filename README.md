@@ -1,5 +1,5 @@
 # 🌿 cannaUNITY v0.6.20 (Pre-Alpha)
-(Masteransicht für festes UI Panel 1920x1080p)
+(Masteransicht für "festes" UI Panel 1920x1080p)
 
 <p align="center">
   <img src="screenshots\WaWi\sorte_bearbeiten.png" alt="Vorschau" width="1920">
@@ -7,7 +7,7 @@
 
 > **Modulare Open-Source-Software Suite für Cannabis Social Clubs und Anbauvereinigungen gemäß dem Konsumcannabisgesetz § (KCanG)**
 
-> Mitgliederverwaltung · Vereinsverwaltung · Berichtsverwaltung · Aufgabenplanung ·  Growcontroller · Zutrittskontrolle · 10 Schritte UUID Track & Trace · Buchhaltung · WaWi · Raumautomation · Sicherheitssystem
+> Mitgliederverwaltung · eVereinsverwaltung · Berichtsverwaltung · Aufgabenplanung ·  Growcontroller · Zutrittskontrolle · eStempelkarte · Track & Trace · Buchhaltung · WaWi · Raumautomation · Sicherheitssystem
 
 ![GitHub Repo stars](https://img.shields.io/github/stars/saschadaemgen/cannaUNITY?style=social)
 ![GitHub license](https://img.shields.io/github/license/saschadaemgen/cannaUNITY)
@@ -17,7 +17,9 @@
 
 ## 📦 Was ist cannaUNITY?
 
-**cannaUNITY** ist eine umfassende DSGVO konforme Open-Source-Plattform zur Organisation, Verwaltung und Automatisierung von Cannabis-Anbauvereinigungen gemäß dem Konsumcannabisgesetz (KCanG). Das System wird mit dem Ziel entwickelt, Datenschutz, Nachverfolgbarkeit und Mitwirkung der Mitglieder auf höchstem technischen Niveau umzusetzen.
+**cannaUNITY** ist eine umfassende kostenlose Open-Source-Plattform zur Organisation, Verwaltung und Automatisierung von Cannabis-Anbauvereinigungen gemäß dem Konsumcannabisgesetz (KCanG). Das System wird mit dem Ziel entwickelt, Datenschutz (DSGVO), Nachverfolgbarkeit und Mitwirkung der Mitglieder auf "höchstem" technischen Niveau umzusetzen.
+
+"Crescit sub pondere virtus." – "Tugend wächst unter Belastung."
 
 ---
 
@@ -25,10 +27,12 @@
 
 - ✅ Echtzeit UUID-Track & Trace von Pflanzen, Verarbeitung & Produktausgabe
 - ✅ Erzeugung von Batch und Chargenummern inkl. 128 Bit UUID Anbindung
-- ✅ RFID/NFC Arbeitszeiterfassung mit Minijob-Erkennung (KCang)
-- ✅ Dynamische Mitgliederprofile mit RFID Ausweisen inkl. Kartendruckeranbindung
-- ✅ Native API Unterstützung für UniFi (Ubiquiti) Access, Protect und Network. 
-- ✅ Raumautomation (Loxone, Siemens, Honeywell)
+- ✅ RFID/NFC Arbeitszeiterfassung mit Minijob/Pflichtstunden & Ehrenamt Erkennung
+- ✅ Dynamische Mitgliederprofile mit UUD RFID Ausweisen inkl. Evolis Kartendruckeranbindung
+- ✅ SIMATIC G2 Integration mit API-gesteuerter Licht-, Klima- und Prozessautomation
+- ✅ Vollständig redundante Raumsteuerungen mit Zentraler UI Anbindung # Alarmserver
+- ✅ Native API Unterstützung für UniFi (Ubiquiti) Access, Protect, AI Key und Network. 
+- ✅ Raumautomation (Loxone, Honeywell)
 - ✅ Growcontroller mit Anbindung für WYSIWYG Raum Designer.
 - ✅ Laborberichtsverwaltung inkl. HPLC & GC (CSV Import)
 - ✅ Vollständige Protokollierung für Behördenzugriff
@@ -47,15 +51,15 @@
 
 - **Backend:** Django 5.x (API-only), Django REST Framework, PostgreSQL / SQLite
 - **Frontend:** React + Vite + Material UI (SPA)
-- **Schnittstellen:** UniFi Access/Protect (native), Joomla 5, Siemens LOGO8!, Siemens SIMATIC, Loxone Mini Server, Agilent 1260 Infinity HPLC, TSC TC200, Evolis Primacy, MQTTS,
+- **Schnittstellen:** UniFi Access/Protect (native), Joomla 5, Siemens SIMATIC G2, Loxone Mini Server, Agilent 1260 Infinity HPLC, TSC TC200, Evolis Primacy, MQTTS, REST, 
 - **Technologien:** TokenAuth, WebSocket, Axios, passkey-auth, Container-kompatibel
 
 ---
 
 ## 🛡️ Datenschutz & Anonymisierungskonzept
 
-**cannaUNITY** basiert auf dem Zero-Knowledge-Prinzip:  
-Es findet eine strikte Trennung zwischen personenbezogenen Daten (lokal) und anonymisierten Online-Daten (UUID-basiert) statt. Der Onlinebereich erhält **niemals** Zugriff auf echte Identitäten.
+**cannaUNITY** basiert vollständig auf dem Zero-Knowledge-Prinzip:  
+Es findet eine strikte Trennung zwischen personenbezogenen Daten (lokal) und anonymisierten Online-Daten (UUID-basiert) statt. Der Onlinebereich erhält **niemals** Zugriff auf echte Identitäten oder/und personenbezogene Daten!
 
 ### Authentifizierung & Zugriffskontrolle
 
@@ -85,6 +89,38 @@ Jeder Schritt wird über die Mitarbeiterkonten per RFID/NFC bestätigt und in Ec
 
 ---
 
+🔧 Integration & Automatisierung
+cannaUNITY setzt ab sofort vollständig auf die neueste Generation der Siemens SIMATIC S7-1200 G2 Steuerungstechnik. Die zuvor integrierte Siemens LOGO8!-Anbindung wurde aufgrund ihrer konzeptionellen Limitierungen entfernt. Die LOGO-Serie bot keine strukturierte API, keine fernkonfigurierbaren Zeitschaltlogiken und war für den mehrraumfähigen Growcontroller-Betrieb weder skalierbar noch wartbar.
+
+Die SIMATIC G2 hingegen ermöglicht erstmals die vollständige Steuerung industrieller Prozesse über eine moderne Webarchitektur mit echter API-Kommunikation – sicher, performant, redundant und vollständig integrierbar in das cannaUNITY-Frontend.
+
+🔌 Highlights der SIMATIC G2 Integration
+✅ Web-API mit strukturierter REST-Kommunikation (HTTPS, JSON)
+✅ MQTT-Anbindung mit Topic-Flexibilität über LMQTT_FB
+✅ TLS-Verschlüsselung, Multisession, Authentifizierung
+✅ Zeitschalt-, Rampen- und Szenensteuerung über Django konfigurierbar
+✅ UUID-basierte Verknüpfung jeder SPS zu einem Raumobjekt
+✅ Redundanter Autonomiebetrieb: Räume funktionieren auch ohne Zentrale
+
+🌞 0–10 V Lichtsteuerung & Tageslichtprofile
+Über das SM1232-AQ Analogausgangsmodul steuert cannaUNITY sämtliche 0–10 V LED-Growlampen energieeffizient und dynamisch – direkt aus dem zentralen UI. Die Lichtprofile beinhalten Sonnenaufgangs- und Sonnenuntergangssimulationen mit fein abgestufter Dimmung bis auf exakt 0 %, was viele andere Systeme technisch nicht unterstützen.
+
+Unterstützt werden unter anderem LED-Systeme von:
+
+Spider Farmer™
+SANlight™
+GBK Growlight
+Mars Hydro™
+AC Infinity™
+
+sowie alle baugleichen Systeme mit 0–10 V Eingang oder PWM
+
+Die Lichtsteuerung erfolgt über benutzerfreundliche Zeitraster mit Rampenfunktionen, die in der cannaUNITY-Oberfläche konfiguriert und per API an die SPS übertragen werden. Jeder Raum agiert dabei unabhängig und besitzt eine eigene SPS – vollständig synchronisiert, aber autark funktionsfähig.
+
+Mit dieser Architektur bringt cannaUNITY industrielle SPS-Technik erstmals in eine visuell steuerbare Webumgebung für Grower – ohne SPS-Kenntnisse, ohne STEP7, ohne klassische Programmierung. Die Steuerung erfolgt vollständig über ein interaktives UI, das nicht nur Licht, sondern auch Klima, Bewässerung, Trocknung und Prozesszyklen in Echtzeit erfasst und ansprechbar macht.
+
+---
+
 📘 Buchhaltungssystem: GoB-konforme, modulare Finanzübersicht
 Das integrierte Buchhaltungssystem ist vollständig GoB-konform aufgebaut und erlaubt eine transparente, strukturierte Abbildung aller finanziellen Vorgänge im Verein.
 Es wurde speziell für Anbauvereinigungen entwickelt und verbindet klassische Buchhaltungsprinzipien mit moderner, filterbarer Darstellung im Webinterface.
@@ -108,8 +144,7 @@ Die Umsetzung folgt den Grundsätzen ordnungsgemäßer Buchführung (GoB) und bi
 
 ## 🔧 Integration & Automatisierung
 
-- **Siemens LOGO8!** vollständig integrierbar
-- **Siemens SIMATIC** kompatibel
+- **Siemens SIMATIC S7 1200 G2** kompatibel mit SM1232-AQ
 - **Loxone Mini Server** mit Raumanzeige, Klima- und Lichtsteuerung
 - Weitere industrielle Schnittstellen folgen (MQTT, KNX, Modbus etc.)
 
@@ -123,6 +158,8 @@ Geplant sind:
 - **Proxmox-kompatible Images** für einfache VM-Einbindung
 - Eigene **Linux-Distribution (cannaOS)** für speziell konfigurierte Mini-PCs
 - Multi-Growcontroller Anbindung via SPS, API & MQTTS
+- (Kostenplichtig) Vorkonfigurierte Endkunden Lösungen.
+- (Kostenplichtig) Vollständige Hardware Sets zum Kauf/Miete. 
 
 ---
 
@@ -148,9 +185,9 @@ cannaUNITY/
 
 - Tokenbasierte API-Auth (Token wird im `localStorage` gespeichert)
 - Passkey-Login mit 2-/3-Faktor-Authentifizierung
-- Zutritt zur Anlage & Innenräumen über UniFi / RFID
-- Online-Zugriff strikt anonymisiert über UUID
-- Track and Trace Scritt Freigabe/Identifikation über RFID 
+- Zutritt zur Anlage & Innenräumen über UniFi / RFID / NFC
+- Online-Zugriff strikt anonymisiert über UUID/Passkey
+- Track and Trace Schritt Freigabe/Identifikation über RFID / NFC
 
 ---
 
