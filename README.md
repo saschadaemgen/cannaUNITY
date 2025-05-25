@@ -28,9 +28,9 @@
 - ✅ Echtzeit UUID-Track & Trace von Pflanzen, Verarbeitung & Produktausgabe
 - ✅ Erzeugung von Batch und Chargenummern inkl. 128 Bit UUID Anbindung
 - ✅ RFID/NFC Arbeitszeiterfassung mit Minijob/Pflichtstunden & Ehrenamt Erkennung
-- ✅ Dynamische Mitgliederprofile mit UUD RFID Ausweisen inkl. Evolis Kartendruckeranbindung
+- ✅ Dynamische Mitgliederprofile mit UUID RFID Ausweisen inkl. Evolis Kartendruckeranbindung
 - ✅ SIMATIC G2 Integration mit API-gesteuerter Licht-, Klima- und Prozessautomation
-- ✅ Vollständig redundante Raumsteuerungen mit Zentraler UI Anbindung # Alarmserver
+- ✅ Vollständig redundante Raumsteuerungen mit Zentraler UI Anbindung & Alarmserver
 - ✅ Native API Unterstützung für UniFi (Ubiquiti) Access, Protect, AI Key und Network. 
 - ✅ Raumautomation (Loxone, Honeywell)
 - ✅ Growcontroller mit Anbindung für WYSIWYG Raum Designer.
@@ -89,7 +89,8 @@ Jeder Schritt wird über die Mitarbeiterkonten per RFID/NFC bestätigt und in Ec
 
 ---
 
-🔧 Integration & Automatisierung
+## 🔧 Integration & Automatisierung
+
 cannaUNITY setzt ab sofort vollständig auf die neueste Generation der Siemens SIMATIC S7-1200 G2 Steuerungstechnik. Die zuvor integrierte Siemens LOGO8!-Anbindung wurde aufgrund ihrer konzeptionellen Limitierungen entfernt. Die LOGO-Serie bot keine strukturierte API, keine fernkonfigurierbaren Zeitschaltlogiken und war für den mehrraumfähigen Growcontroller-Betrieb weder skalierbar noch wartbar.
 
 Die SIMATIC G2 hingegen ermöglicht erstmals die vollständige Steuerung industrieller Prozesse über eine moderne Webarchitektur mit echter API-Kommunikation – sicher, performant, redundant und vollständig integrierbar in das cannaUNITY-Frontend.
@@ -121,7 +122,8 @@ Mit dieser Architektur bringt cannaUNITY industrielle SPS-Technik erstmals in ei
 
 ---
 
-📘 Buchhaltungssystem: GoB-konforme, modulare Finanzübersicht
+## 📘 Buchhaltungssystem: GoB-konforme, modulare Finanzübersicht
+
 Das integrierte Buchhaltungssystem ist vollständig GoB-konform aufgebaut und erlaubt eine transparente, strukturierte Abbildung aller finanziellen Vorgänge im Verein.
 Es wurde speziell für Anbauvereinigungen entwickelt und verbindet klassische Buchhaltungsprinzipien mit moderner, filterbarer Darstellung im Webinterface.
 
