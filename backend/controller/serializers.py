@@ -1,174 +1,91 @@
-# controller/serializers.py
+# backend/controller/serializers.py
+
 from rest_framework import serializers
-from .models import (
-    IrrigationController, IrrigationSchedule,
-    LightController, LightSchedule, LightSchedulePoint,
-    ControllerLog, ResourceUsage
-)
 from rooms.models import Room
 from rooms.serializers import RoomSerializer
-from members.models import Member
-from members.serializers import MemberSerializer
+from .models import (
+    ControlUnit, ControlSchedule, ControlParameter, 
+    ControlStatus, ControlCommand
+)
 
-class IrrigationScheduleSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = IrrigationSchedule
-        fields = ['id', 'day_of_week', 'phase_day', 'start_time', 'duration', 
-                 'volume', 'intensity', 'repeated_cycles', 'cycle_pause', 
-                 'is_active', 'created_at', 'updated_at']
-        read_only_fields = ['id', 'created_at', 'updated_at']
+class ControlParameterSerializer(serializers.ModelSerializer):
+    typed_value = serializers.SerializerMethodField()
     
-    def to_representation(self, instance):
-        representation = super().to_representation(instance)
-        if instance.day_of_week is not None:
-            representation['day_of_week_display'] = instance.get_day_of_week_display()
-        return representation
+    class Meta:
+        model = ControlParameter
+        fields = '__all__'
+        read_only_fields = ['control_unit']
+    
+    def get_typed_value(self, obj):
+        return obj.get_typed_value()
 
 
-class IrrigationControllerSerializer(serializers.ModelSerializer):
-    created_by = MemberSerializer(read_only=True)
-    last_modified_by = MemberSerializer(read_only=True)
+class ControlScheduleSerializer(serializers.ModelSerializer):
+    weekday_display = serializers.CharField(source='get_weekday_display', read_only=True)
+    
+    class Meta:
+        model = ControlSchedule
+        fields = '__all__'
+        read_only_fields = ['control_unit']
+
+
+class ControlStatusSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ControlStatus
+        fields = '__all__'
+        read_only_fields = ['control_unit', 'last_update']
+
+
+class ControlCommandSerializer(serializers.ModelSerializer):
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    
+    class Meta:
+        model = ControlCommand
+        fields = '__all__'
+        read_only_fields = ['created_at', 'sent_at', 'confirmed_at']
+
+
+class ControlUnitSerializer(serializers.ModelSerializer):
+    room_name = serializers.CharField(source='room.name', read_only=True)
+    room_type = serializers.CharField(source='room.room_type', read_only=True)
+    unit_type_display = serializers.CharField(source='get_unit_type_display', read_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    
+    parameters = ControlParameterSerializer(many=True, read_only=True)
+    schedules = ControlScheduleSerializer(many=True, read_only=True)
+    current_status = ControlStatusSerializer(read_only=True)
+    
+    class Meta:
+        model = ControlUnit
+        fields = '__all__'
+        read_only_fields = ['created_at', 'updated_at']
+
+
+class ControlUnitDetailSerializer(ControlUnitSerializer):
+    """Detaillierter Serializer mit allen Relationen"""
     room = RoomSerializer(read_only=True)
-    schedules = IrrigationScheduleSerializer(many=True, read_only=True)
+    recent_commands = serializers.SerializerMethodField()
     
-    # IDs für Beziehungen
-    room_id = serializers.PrimaryKeyRelatedField(
-        queryset=Room.objects.all(),
-        source='room',
-        write_only=True,
-        required=False,
-        allow_null=True
-    )
-    created_by_id = serializers.PrimaryKeyRelatedField(
-        queryset=Member.objects.all(),
-        source='created_by',
-        write_only=True,
-        required=False,
-        allow_null=True
-    )
-    last_modified_by_id = serializers.PrimaryKeyRelatedField(
-        queryset=Member.objects.all(),
-        source='last_modified_by',
-        write_only=True,
-        required=False,
-        allow_null=True
-    )
-    
-    status = serializers.SerializerMethodField()
+    def get_recent_commands(self, obj):
+        commands = obj.commands.all()[:10]  # Letzte 10 Befehle
+        return ControlCommandSerializer(commands, many=True).data
+
+
+class RoomControlOverviewSerializer(serializers.ModelSerializer):
+    """Serializer für Raumübersicht mit allen Steuerungen"""
+    control_units = serializers.SerializerMethodField()
     
     class Meta:
-        model = IrrigationController
-        fields = ['id', 'name', 'description', 'is_active', 'is_connected', 
-                 'mqtt_topic_prefix', 'room', 'room_id', 'created_by', 
-                 'created_by_id', 'last_modified_by', 'last_modified_by_id',
-                 'created_at', 'updated_at', 'last_communication', 'pump_type',
-                 'water_source', 'flow_rate', 'max_volume_per_day', 
-                 'total_volume_used', 'schedule_type', 'sensor_feedback_enabled',
-                 'emergency_stop', 'schedules', 'status']
-        read_only_fields = ['id', 'created_at', 'updated_at', 'last_communication',
-                           'total_volume_used', 'status']
+        model = Room
+        fields = ['id', 'name', 'room_type', 'control_units']
     
-    def get_status(self, obj):
-        return obj.get_status()
-    
-    def to_representation(self, instance):
-        representation = super().to_representation(instance)
-        representation['pump_type_display'] = instance.get_pump_type_display()
-        representation['schedule_type_display'] = instance.get_schedule_type_display()
-        representation['controller_type'] = instance.get_controller_type()
-        return representation
+    def get_control_units(self, obj):
+        units = obj.control_units.all()
+        return ControlUnitSerializer(units, many=True).data
 
 
-class LightSchedulePointSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = LightSchedulePoint
-        fields = ['id', 'time_point', 'intensity', 'spectrum_red', 
-                 'spectrum_blue', 'transition_duration']
-        read_only_fields = ['id']
-
-
-class LightScheduleSerializer(serializers.ModelSerializer):
-    points = LightSchedulePointSerializer(many=True, read_only=True)
-    
-    class Meta:
-        model = LightSchedule
-        fields = ['id', 'name', 'day_in_cycle', 'is_active', 
-                 'created_at', 'updated_at', 'points']
-        read_only_fields = ['id', 'created_at', 'updated_at']
-
-
-class LightControllerSerializer(serializers.ModelSerializer):
-    created_by = MemberSerializer(read_only=True)
-    last_modified_by = MemberSerializer(read_only=True)
-    room = RoomSerializer(read_only=True)
-    schedules = LightScheduleSerializer(many=True, read_only=True)
-    
-    # IDs für Beziehungen
-    room_id = serializers.PrimaryKeyRelatedField(
-        queryset=Room.objects.all(),
-        source='room',
-        write_only=True,
-        required=False,
-        allow_null=True
-    )
-    created_by_id = serializers.PrimaryKeyRelatedField(
-        queryset=Member.objects.all(),
-        source='created_by',
-        write_only=True,
-        required=False,
-        allow_null=True
-    )
-    last_modified_by_id = serializers.PrimaryKeyRelatedField(
-        queryset=Member.objects.all(),
-        source='last_modified_by',
-        write_only=True,
-        required=False,
-        allow_null=True
-    )
-    
-    status = serializers.SerializerMethodField()
-    
-    class Meta:
-        model = LightController
-        fields = ['id', 'name', 'description', 'is_active', 'is_connected', 
-                 'mqtt_topic_prefix', 'room', 'room_id', 'created_by', 
-                 'created_by_id', 'last_modified_by', 'last_modified_by_id',
-                 'created_at', 'updated_at', 'last_communication', 'light_type',
-                 'max_power', 'spectrum_type', 'supports_dimming', 
-                 'supports_spectrum_control', 'cycle_type', 'current_day_in_cycle',
-                 'cycle_start_date', 'auto_increment_day', 'emergency_off',
-                 'energy_consumption', 'schedules', 'status']
-        read_only_fields = ['id', 'created_at', 'updated_at', 'last_communication',
-                           'energy_consumption', 'status']
-    
-    def get_status(self, obj):
-        return obj.get_status()
-    
-    def to_representation(self, instance):
-        representation = super().to_representation(instance)
-        representation['light_type_display'] = instance.get_light_type_display()
-        representation['cycle_type_display'] = instance.get_cycle_type_display()
-        representation['controller_type'] = instance.get_controller_type()
-        return representation
-
-
-class ControllerLogSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = ControllerLog
-        fields = ['id', 'controller_type', 'controller_id', 'timestamp', 
-                 'action_type', 'value', 'mqtt_command', 'success_status',
-                 'error_message']
-        read_only_fields = ['id']
-
-
-class ResourceUsageSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = ResourceUsage
-        fields = ['id', 'controller_type', 'controller_id', 'resource_type', 
-                 'date', 'amount', 'unit', 'cost']
-        read_only_fields = ['id']
-    
-    def to_representation(self, instance):
-        representation = super().to_representation(instance)
-        representation['resource_type_display'] = instance.get_resource_type_display()
-        return representation
+class SendCommandSerializer(serializers.Serializer):
+    """Serializer für das Senden von Befehlen an die SPS"""
+    command_type = serializers.CharField(max_length=50)
+    parameters = serializers.DictField(required=False, default=dict)
+    force = serializers.BooleanField(default=False, help_text="Befehl auch bei Fehler senden")

@@ -59,8 +59,7 @@ urlpatterns = [
     path('api/wawi/', include('wawi.api_urls')),
 
     # 🌱 Grow Controller
-    path('controller/', include('controller.urls')),           # Für Port 8000 (Build Mode)
-    path('api/controller/', include('controller.api_urls')),   # Für Vite (Dev Mode)
+    path('api/controller/', include('controller.api_urls')),
 
     # ⚙️ Labor Berichte
     path('laborreports/', include('laborreports.api_urls')),      # für Port 8000 (Build-Modus)
@@ -72,8 +71,6 @@ urlpatterns = [
     # TaskManager API-Routen
     path('taskmanager/', include('taskmanager.api_urls')),           # für Port 8000 (Build-Modus)
     path('api/taskmanager/', include('taskmanager.api_urls')),       # für Port 5173
-
-    path('api/logo-bridge/', include('logo_bridge.api_urls')),
 
 ]
 

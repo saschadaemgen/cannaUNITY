@@ -43,12 +43,9 @@ import PackagingPage from '@/apps/trackandtrace/pages/Packaging/PackagingPage'
 import ProductDistributionPage from '@/apps/trackandtrace/pages/ProductDistribution/ProductDistributionPage';
 import ProtectSensorPage from '@/apps/unifi_protect/pages/ProtectSensorPage'
 import StrainPage from '@/apps/wawi/pages/Strain/StrainPage'
-import ControllerDashboard from '@/apps/controller/pages/Dashboard';
-import IrrigationControllerPage from '@/apps/controller/pages/Irrigation/IrrigationControllerPage';
-import LightControllerPage from '@/apps/controller/pages/Light/LightControllerPage';
-import MonitoringPage from '@/apps/controller/pages/Monitoring/MonitoringPage';
-import ControllerLogsPage from '@/apps/controller/pages/Logs/ControllerLogsPage';
-import MQTTTerminalPage from '@/apps/controller/pages/MQTTTerminal/MQTTTerminalPage';
+import ControllerDashboard from '../apps/controller/pages/ControllerDashboard'
+import ControlUnitEdit from '../apps/controller/pages/ControlUnitEdit'
+import ControlUnitSchedule from '../apps/controller/pages/ControlUnitSchedule'
 import ReportList from '@/apps/laborreports/pages/ReportList';
 import ReportCreate from '@/apps/laborreports/pages/ReportCreate';
 import ReportView from '@/apps/laborreports/pages/ReportView';
@@ -65,9 +62,6 @@ import TaskTypeList from '@/apps/taskmanager/pages/TaskTypeList'
 import TaskTypeCreate from '@/apps/taskmanager/pages/TaskTypeCreate'
 import TaskTypeDetail from '@/apps/taskmanager/pages/TaskTypeDetail'
 import TaskTypeEdit from '@/apps/taskmanager/pages/TaskTypeEdit'
-import LogoBridgeDashboard from '../apps/logo_bridge/pages/Dashboard'
-import LogoDeviceForm from '../apps/logo_bridge/pages/DeviceForm'
-import LogoVariableManager from '../apps/logo_bridge/pages/VariableManager'
 
 export const router = createBrowserRouter([
   {
@@ -133,13 +127,9 @@ export const router = createBrowserRouter([
       { path: 'wawi/strains', element: <StrainPage /> },
 
       // Grow-Controller Routen
-      { path: 'controllers', element: <ControllerDashboard /> },
-      { path: 'controllers/dashboard', element: <ControllerDashboard /> },
-      { path: 'controllers/irrigation', element: <IrrigationControllerPage /> },
-      { path: 'controllers/lighting', element: <LightControllerPage /> },
-      { path: 'controllers/monitoring', element: <MonitoringPage /> },
-      { path: 'controllers/logs', element: <ControllerLogsPage /> },
-      { path: 'controllers/mqtt', element: <MQTTTerminalPage /> },
+      { path: 'controller', element: <ControllerDashboard /> },
+      { path: 'controller/units/:id/edit', element: <ControlUnitEdit /> },
+      { path: 'controller/units/:id/schedule', element: <ControlUnitSchedule /> },
 
       // Laborreports-Routen
       { path: 'laborreports', element: <ReportList /> },
@@ -175,11 +165,6 @@ export const router = createBrowserRouter([
       
       // Member-Routen
       { path: 'taskmanager/member/:memberId', element: <MemberTaskDashboard /> },
-
-      { path: 'logo-bridge', element: <LogoBridgeDashboard /> },
-      { path: 'logo-bridge/devices/new', element: <LogoDeviceForm /> },
-      { path: 'logo-bridge/devices/:id/edit', element: <LogoDeviceForm /> },
-      { path: 'logo-bridge/devices/:id/variables', element: <LogoVariableManager /> },
     ],
   },
 

@@ -1,21 +1,19 @@
-# controller/api_urls.py
+# backend/controller/api_urls.py
+
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-
 from .api_views import (
-    IrrigationControllerViewSet, IrrigationScheduleViewSet,
-    LightControllerViewSet, LightScheduleViewSet, LightSchedulePointViewSet,
-    ControllerLogViewSet, ResourceUsageViewSet
+    ControlUnitViewSet, ControlScheduleViewSet,
+    ControlParameterViewSet, ControlStatusViewSet,
+    ControlCommandViewSet
 )
 
 router = DefaultRouter()
-router.register(r'irrigation', IrrigationControllerViewSet, basename='irrigation_controller')
-router.register(r'irrigation-schedules', IrrigationScheduleViewSet, basename='irrigation_schedule')
-router.register(r'light', LightControllerViewSet, basename='light_controller')
-router.register(r'light-schedules', LightScheduleViewSet, basename='light_schedule')
-router.register(r'light-schedule-points', LightSchedulePointViewSet, basename='light_schedule_point')
-router.register(r'logs', ControllerLogViewSet, basename='controller_log')
-router.register(r'resource-usage', ResourceUsageViewSet, basename='resource_usage')
+router.register(r'units', ControlUnitViewSet, basename='control-unit')
+router.register(r'schedules', ControlScheduleViewSet, basename='control-schedule')
+router.register(r'parameters', ControlParameterViewSet, basename='control-parameter')
+router.register(r'status', ControlStatusViewSet, basename='control-status')
+router.register(r'commands', ControlCommandViewSet, basename='control-command')
 
 urlpatterns = [
     path('', include(router.urls)),
