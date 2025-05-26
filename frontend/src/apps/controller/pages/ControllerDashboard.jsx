@@ -188,6 +188,7 @@ export default function ControllerDashboard() {
   const getSystemStatusOverview = () => {
     const statusCounts = {
       active: 0,    // RUN
+      sync: 0,      // SYNC
       inactive: 0,  // STOP  
       error: 0,     // ERROR
       maintenance: 0 // MAINTENANCE
@@ -198,6 +199,11 @@ export default function ControllerDashboard() {
         statusCounts[unit.status]++
       } else {
         statusCounts.inactive++ // Fallback für unbekannte Status
+      }
+      
+      // SYNC-Status separat zählen (bei active units)
+      if (unit.status === 'active' || unit.status === 'syncing') {
+        statusCounts.sync++
       }
     })
     
@@ -320,10 +326,23 @@ export default function ControllerDashboard() {
               width: '8px',
               height: '8px',
               borderRadius: '50%',
-              background: '#00FF00',
+              background: '#00AA00',
             }} />
             <Typography sx={{ fontSize: '12px', color: '#666', fontWeight: 500 }}>
               RUN: {systemStatus.active}
+            </Typography>
+          </Box>
+
+          {/* SYNC Status */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <Box sx={{
+              width: '8px',
+              height: '8px',
+              borderRadius: '50%',
+              background: '#0099FF',
+            }} />
+            <Typography sx={{ fontSize: '12px', color: '#666', fontWeight: 500 }}>
+              SYNC: {systemStatus.sync}
             </Typography>
           </Box>
 
