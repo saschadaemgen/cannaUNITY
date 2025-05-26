@@ -1,7 +1,7 @@
 // frontend/src/apps/controller/pages/ControllerDashboard.jsx
 import { useState, useEffect } from 'react'
 import {
-  Box, Typography, FormControl, Select, MenuItem, Button, IconButton, Container
+  Box, Typography, FormControl, Select, MenuItem, Button, IconButton
 } from '@mui/material'
 import { Add, Delete } from '@mui/icons-material'
 import { useNavigate } from 'react-router-dom'
@@ -17,6 +17,32 @@ export default function ControllerDashboard() {
   const [statusOverview, setStatusOverview] = useState({ errors: 0 })
   const [draggedUnit, setDraggedUnit] = useState(null)
   const [moduleOrder, setModuleOrder] = useState([])
+  
+  // Sidebar-Breite für die fixe Control Bar
+  const [sidebarWidth, setSidebarWidth] = useState(240)
+  
+  // Neue States für bessere Drag-Kontrolle
+  const [dragState, setDragState] = useState({
+    dragging: null,
+    dragOver: null
+  })
+
+  // Sidebar-Breite überwachen
+  useEffect(() => {
+    const updateSidebarWidth = () => {
+      const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true'
+      setSidebarWidth(isCollapsed ? 64 : 240)
+    }
+    
+    updateSidebarWidth()
+    window.addEventListener('storage', updateSidebarWidth)
+    window.addEventListener('sidebarToggle', updateSidebarWidth)
+    
+    return () => {
+      window.removeEventListener('storage', updateSidebarWidth)
+      window.removeEventListener('sidebarToggle', updateSidebarWidth)
+    }
+  }, [])
 
   useEffect(() => {
     loadData()
@@ -29,6 +55,23 @@ export default function ControllerDashboard() {
       setModuleOrder(units.map(u => u.id))
     }
   }, [units])
+
+  // Cleanup-Funktion für alle Drag-States
+  const cleanupDragState = () => {
+    setDraggedUnit(null)
+    setDragState({
+      dragging: null,
+      dragOver: null
+    })
+    
+    // Alle möglichen Transform-Styles zurücksetzen
+    document.querySelectorAll('[data-unit-card]').forEach(element => {
+      element.style.transform = ''
+      element.style.opacity = ''
+      element.style.boxShadow = ''
+      element.classList.remove('dragging', 'drag-over')
+    })
+  }
 
   const loadData = async () => {
     try {
@@ -66,28 +109,48 @@ export default function ControllerDashboard() {
     }
   }
 
-  // Drag & Drop Handler
+  // Verbesserte Drag & Drop Handler
   const handleDragStart = (e, unit) => {
     setDraggedUnit(unit)
-    e.currentTarget.classList.add('dragging')
+    setDragState(prev => ({ ...prev, dragging: unit.id }))
+    
+    // Drag-Image setzen (optional)
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/html', unit.id.toString())
   }
 
   const handleDragEnd = (e) => {
-    e.currentTarget.classList.remove('dragging')
+    // Cleanup mit kleiner Verzögerung für bessere UX
+    setTimeout(() => {
+      cleanupDragState()
+    }, 100)
   }
 
   const handleDragOver = (e) => {
     e.preventDefault()
-    e.currentTarget.classList.add('drag-over')
+    e.dataTransfer.dropEffect = 'move'
+  }
+
+  const handleDragEnter = (e, unit) => {
+    e.preventDefault()
+    if (draggedUnit && draggedUnit.id !== unit.id) {
+      setDragState(prev => ({ ...prev, dragOver: unit.id }))
+    }
   }
 
   const handleDragLeave = (e) => {
-    e.currentTarget.classList.remove('drag-over')
+    // Nur zurücksetzen wenn wir wirklich das Element verlassen
+    const rect = e.currentTarget.getBoundingClientRect()
+    const x = e.clientX
+    const y = e.clientY
+    
+    if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
+      setDragState(prev => ({ ...prev, dragOver: null }))
+    }
   }
 
   const handleDrop = (e, targetUnit) => {
     e.preventDefault()
-    e.currentTarget.classList.remove('drag-over')
     
     if (draggedUnit && draggedUnit.id !== targetUnit.id) {
       const newOrder = [...moduleOrder]
@@ -99,14 +162,10 @@ export default function ControllerDashboard() {
       newOrder.splice(targetIndex, 0, draggedUnit.id)
       
       setModuleOrder(newOrder)
-      
-      // Kurze Animation für Feedback
-      e.currentTarget.style.transform = 'scale(1.1)'
-      setTimeout(() => {
-        e.currentTarget.style.transform = ''
-      }, 200)
     }
-    setDraggedUnit(null)
+    
+    // Sofortiges Cleanup
+    cleanupDragState()
   }
 
   // Filter anwenden
@@ -125,188 +184,273 @@ export default function ControllerDashboard() {
     return indexA - indexB
   })
 
+  // Berechne Systemstatus-Übersicht
+  const getSystemStatusOverview = () => {
+    const statusCounts = {
+      active: 0,    // RUN
+      inactive: 0,  // STOP  
+      error: 0,     // ERROR
+      maintenance: 0 // MAINTENANCE
+    }
+    
+    filteredUnits.forEach(unit => {
+      if (statusCounts.hasOwnProperty(unit.status)) {
+        statusCounts[unit.status]++
+      } else {
+        statusCounts.inactive++ // Fallback für unbekannte Status
+      }
+    })
+    
+    return statusCounts
+  }
+
+  const systemStatus = getSystemStatusOverview()
+  const getCardStyle = (unit) => {
+    const isDragging = dragState.dragging === unit.id
+    const isDragOver = dragState.dragOver === unit.id
+    
+    return {
+      position: 'relative',
+      cursor: isDragging ? 'grabbing' : 'grab',
+      transition: 'all 0.2s ease',
+      margin: 0,
+      padding: 0,
+      width: '280px',
+      flexShrink: 0,
+      opacity: isDragging ? 0.5 : 1,
+      transform: isDragOver ? 'translateY(-5px) scale(1.02)' : 'scale(1)',
+      boxShadow: isDragOver ? '0 8px 25px rgba(76, 175, 80, 0.3)' : 'none',
+      '&:hover .delete-btn': {
+        opacity: 1,
+      }
+    }
+  }
+
   return (
-    <Container maxWidth="xl" sx={{ width: '100%' }}>
-      <Box sx={{ my: 4 }}>
-        {/* Control Bar */}
-        <Box sx={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          padding: '10px 20px',
-          background: '#FFF',
-          borderBottom: '1px solid #E0E0E0',
-          borderRadius: '8px 8px 0 0',
-          mb: 2,
-        }}>
-          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-            <FormControl size="small" sx={{ minWidth: 120 }}>
-              <Select
-                value={selectedRoom}
-                onChange={(e) => setSelectedRoom(e.target.value)}
-                displayEmpty
-                sx={{ 
-                  background: '#FFF',
-                  height: '32px',
-                  fontSize: '14px',
-                  '& .MuiOutlinedInput-notchedOutline': { borderColor: '#DDD' }
-                }}
-              >
-                <MenuItem value="all">Alle Räume</MenuItem>
-                {rooms.map(room => (
-                  <MenuItem key={room.id} value={room.id}>
-                    {room.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            <FormControl size="small" sx={{ minWidth: 120 }}>
-              <Select
-                value={selectedType}
-                onChange={(e) => setSelectedType(e.target.value)}
-                displayEmpty
-                sx={{ 
-                  background: '#FFF',
-                  height: '32px',
-                  fontSize: '14px',
-                  '& .MuiOutlinedInput-notchedOutline': { borderColor: '#DDD' }
-                }}
-              >
-                <MenuItem value="all">Alle Typen</MenuItem>
-                <MenuItem value="lighting">Beleuchtung</MenuItem>
-                <MenuItem value="climate">Klima</MenuItem>
-                <MenuItem value="watering">Bewässerung</MenuItem>
-                <MenuItem value="co2">CO2</MenuItem>
-                <MenuItem value="humidity">Feuchtigkeit</MenuItem>
-              </Select>
-            </FormControl>
-
-            <Button
-              variant="contained"
-              size="small"
-              startIcon={<Add />}
-              onClick={() => navigate('/controller/units/new/edit')}
+    <Box sx={{ 
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden'
+    }}>
+      {/* Fixed Control Bar - direkt unter DateBar */}
+      <Box sx={{
+        position: 'relative',
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 100,
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: '10px 20px',
+        background: '#FFF',
+        borderBottom: '1px solid #E0E0E0',
+        height: '48px',
+        flexShrink: 0
+      }}>
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+          <FormControl size="small" sx={{ minWidth: 120 }}>
+            <Select
+              value={selectedRoom}
+              onChange={(e) => setSelectedRoom(e.target.value)}
+              displayEmpty
               sx={{ 
-                background: '#4CAF50',
+                background: '#FFF',
                 height: '32px',
-                fontSize: '13px',
-                textTransform: 'none',
-                '&:hover': { background: '#66BB6A' }
+                fontSize: '14px',
+                '& .MuiOutlinedInput-notchedOutline': { borderColor: '#DDD' }
               }}
             >
-              Neues Modul
-            </Button>
-          </Box>
+              <MenuItem value="all">Alle Räume</MenuItem>
+              {rooms.map(room => (
+                <MenuItem key={room.id} value={room.id}>
+                  {room.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
 
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <FormControl size="small" sx={{ minWidth: 120 }}>
+            <Select
+              value={selectedType}
+              onChange={(e) => setSelectedType(e.target.value)}
+              displayEmpty
+              sx={{ 
+                background: '#FFF',
+                height: '32px',
+                fontSize: '14px',
+                '& .MuiOutlinedInput-notchedOutline': { borderColor: '#DDD' }
+              }}
+            >
+              <MenuItem value="all">Alle Typen</MenuItem>
+              <MenuItem value="lighting">Beleuchtung</MenuItem>
+              <MenuItem value="climate">Klima</MenuItem>
+              <MenuItem value="watering">Bewässerung</MenuItem>
+              <MenuItem value="co2">CO2</MenuItem>
+              <MenuItem value="humidity">Feuchtigkeit</MenuItem>
+            </Select>
+          </FormControl>
+
+          <Button
+            variant="contained"
+            size="small"
+            startIcon={<Add />}
+            onClick={() => navigate('/controller/units/new/edit')}
+            sx={{ 
+              background: '#4CAF50',
+              height: '32px',
+              fontSize: '13px',
+              textTransform: 'none',
+              '&:hover': { background: '#66BB6A' }
+            }}
+          >
+            Neues Modul
+          </Button>
+        </Box>
+
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          {/* RUN Status */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
             <Box sx={{
               width: '8px',
               height: '8px',
               borderRadius: '50%',
-              background: statusOverview.errors > 0 ? '#FF0000' : '#00FF00',
+              background: '#00FF00',
             }} />
-            <Typography sx={{ fontSize: '14px', color: '#666' }}>
-              {statusOverview.errors > 0 ? `${statusOverview.errors} Fehler` : 'System OK'}
+            <Typography sx={{ fontSize: '12px', color: '#666', fontWeight: 500 }}>
+              RUN: {systemStatus.active}
+            </Typography>
+          </Box>
+
+          {/* ERROR Status */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <Box sx={{
+              width: '8px',
+              height: '8px',
+              borderRadius: '50%',
+              background: '#FF0000',
+            }} />
+            <Typography sx={{ fontSize: '12px', color: '#666', fontWeight: 500 }}>
+              ERROR: {systemStatus.error}
+            </Typography>
+          </Box>
+
+          {/* MAINTENANCE Status */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <Box sx={{
+              width: '8px',
+              height: '8px',
+              borderRadius: '50%',
+              background: '#FFA500',
+            }} />
+            <Typography sx={{ fontSize: '12px', color: '#666', fontWeight: 500 }}>
+              MAINT: {systemStatus.maintenance}
+            </Typography>
+          </Box>
+
+          {/* STOP Status */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <Box sx={{
+              width: '8px',
+              height: '8px',
+              borderRadius: '50%',
+              background: '#666',
+            }} />
+            <Typography sx={{ fontSize: '12px', color: '#666', fontWeight: 500 }}>
+              STOP: {systemStatus.inactive}
             </Typography>
           </Box>
         </Box>
+      </Box>
 
-        {/* Content Area */}
-        <Box sx={{
-          background: '#F8F8F8',
-          borderRadius: '0 0 8px 8px',
-          minHeight: '400px',
-        }}>
-          {sortedUnits.length === 0 ? (
-            <Box sx={{ 
-              textAlign: 'center',
-              padding: '60px',
-              color: '#999',
-            }}>
-              <Typography variant="h6">
-                Keine Module vorhanden
-              </Typography>
-              <Typography variant="body2" sx={{ mt: 1 }}>
-                Fügen Sie ein neues Modul über den Button oben hinzu
-              </Typography>
-            </Box>
-          ) : (
-            <Box sx={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              gap: '10px',
-              justifyContent: 'flex-start',
-              alignItems: 'flex-start',
-              width: '100%',
-              height: 'fit-content',
-              padding: '25px 25px 25px 0px', // Links 0px - komplett bündig
-            }}>
-              {sortedUnits.map(unit => (
-                <Box 
-                  key={unit.id}
-                  draggable
-                  onDragStart={(e) => handleDragStart(e, unit)}
-                  onDragEnd={handleDragEnd}
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  onDrop={(e) => handleDrop(e, unit)}
+      {/* Main Content Area */}
+      <Box sx={{ 
+        flex: 1,
+        background: '#F8F8F8',
+        overflow: 'auto',
+        display: 'flex',
+        alignItems: 'flex-start', // Oben anfangen statt zentriert
+        justifyContent: 'center',
+        position: 'relative',
+        padding: '20px'
+      }}>
+        {sortedUnits.length === 0 ? (
+          <Box sx={{ 
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
+            color: '#999',
+            textAlign: 'center',
+            width: '100%',
+            height: '100%'
+          }}>
+            <Typography variant="h6">
+              Keine Module vorhanden
+            </Typography>
+            <Typography variant="body2" sx={{ mt: 1 }}>
+              Fügen Sie ein neues Modul über den Button oben hinzu
+            </Typography>
+          </Box>
+        ) : (
+          <Box sx={{
+            display: 'flex',
+            flexWrap: 'wrap', // Zeilenumbruch aktivieren
+            gap: '10px',
+            justifyContent: 'center', // Horizontal zentriert
+            alignItems: 'flex-start', // Oben anfangen
+            width: '100%',
+            maxWidth: '1800px', // Begrenzt Breite für optimale 6er-Darstellung
+          }}>
+            {sortedUnits.map(unit => (
+              <Box 
+                key={unit.id}
+                data-unit-card
+                draggable
+                onDragStart={(e) => handleDragStart(e, unit)}
+                onDragEnd={handleDragEnd}
+                onDragOver={handleDragOver}
+                onDragEnter={(e) => handleDragEnter(e, unit)}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => handleDrop(e, unit)}
+                sx={getCardStyle(unit)}
+              >
+                <IconButton
+                  className="delete-btn"
+                  size="small"
+                  onClick={(e) => handleDeleteUnit(unit.id, e)}
+                  onMouseDown={(e) => e.stopPropagation()}
                   sx={{
-                    position: 'relative',
-                    cursor: 'grab',
-                    transition: 'all 0.2s ease',
-                    margin: 0,
-                    padding: 0,
-                    width: '280px',
-                    flexShrink: 0,
-                    '&:hover .delete-btn': {
-                      opacity: 1,
-                    },
-                    '&:active': {
-                      cursor: 'grabbing',
-                    },
-                    '&.dragging': {
-                      opacity: 0.3,
-                      transform: 'scale(0.95)',
-                    },
-                    '&.drag-over': {
-                      transform: 'translateY(-5px)',
-                      boxShadow: '0 5px 15px rgba(76, 175, 80, 0.3)',
+                    position: 'absolute',
+                    top: '-10px',
+                    right: '-10px',
+                    background: '#FF5252',
+                    color: 'white',
+                    opacity: 0,
+                    transition: 'opacity 0.2s',
+                    zIndex: 10,
+                    padding: '4px',
+                    '&:hover': {
+                      background: '#F44336',
                     }
                   }}
                 >
-                  <IconButton
-                    className="delete-btn"
-                    size="small"
-                    onClick={(e) => handleDeleteUnit(unit.id, e)}
-                    onMouseDown={(e) => e.stopPropagation()}
-                    sx={{
-                      position: 'absolute',
-                      top: '-10px',
-                      right: '-10px',
-                      background: '#FF5252',
-                      color: 'white',
-                      opacity: 0,
-                      transition: 'opacity 0.2s',
-                      zIndex: 10,
-                      padding: '4px',
-                      '&:hover': {
-                        background: '#F44336',
-                      }
-                    }}
-                  >
-                    <Delete sx={{ fontSize: 16 }} />
-                  </IconButton>
-                  <ControlUnitCard 
-                    unit={unit} 
-                    onStatusChange={loadStatusOverview}
-                  />
-                </Box>
-              ))}
-            </Box>
-          )}
-        </Box>
+                  <Delete sx={{ fontSize: 16 }} />
+                </IconButton>
+                <ControlUnitCard 
+                  unit={unit} 
+                  onStatusChange={loadStatusOverview}
+                />
+              </Box>
+            ))}
+          </Box>
+        )}
       </Box>
-    </Container>
+    </Box>
   )
 }
