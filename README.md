@@ -29,15 +29,15 @@
 - ✅ Erzeugung von Batch und Chargenummern inkl. 128 Bit UUID Anbindung
 - ✅ RFID/NFC Arbeitszeiterfassung mit Minijob/Pflichtstunden & Ehrenamt Erkennung
 - ✅ Dynamische Mitgliederprofile mit UUID RFID Ausweisen inkl. Evolis Kartendruckeranbindung
-- ✅ SIMATIC G2 Integration mit API-gesteuerter Licht-, Klima- und Prozessautomation
+- ✅ SIMATIC S7 1200 G2 Integration mit API-gesteuerter Licht-, Klima- und Prozessautomation
 - ✅ Vollständig redundante Raumsteuerungen mit Zentraler UI Anbindung & Alarmserver
-- ✅ Native API Unterstützung für UniFi (Ubiquiti) Access, Protect, AI Key und Network. 
+- ✅ Native API Unterstützung für UniFi (Ubiquiti) Access, Protect, AI Key und Network
 - ✅ Raumautomation (Loxone, Honeywell)
-- ✅ Growcontroller mit Anbindung für WYSIWYG Raum Designer.
+- ✅ Growcontroller mit Anbindung für WYSIWYG Raum Designer
 - ✅ Laborberichtsverwaltung inkl. HPLC & GC (CSV Import)
 - ✅ Vollständige Protokollierung für Behördenzugriff
 - ✅ Touchpanelsteuerung & Custom UI Panels für Raumanzeige
-- ✅ Anonymisierte Produktausgabe mit UUID Verknüpfung über ZKP (Online).
+- ✅ Anonymisierte Produktausgabe mit UUID Verknüpfung über ZKP (Online)
 - ✅ GMP konforme Laborberichte erstellen,verwalten & speichern.
 - ✅ GoB-konforme Buchhaltung mit vollständiger Journaldarstellung
 - ✅ Stornobuchungen mit gegenbuchender Rückabwicklung (SOLL/HABEN)
@@ -49,9 +49,9 @@
 
 ## 🧠 Architekturüberblick
 
-- **Backend:** Django 5.x (API-only), Django REST Framework, PostgreSQL / SQLite
+- **Backend:** Django 5.x (API-only), Django REST Framework, PostgreSQL (P) / SQLite (E)
 - **Frontend:** React + Vite + Material UI (SPA)
-- **Schnittstellen:** UniFi Access/Protect (native), Joomla 5, Siemens SIMATIC G2, Loxone Mini Server, Agilent 1260 Infinity HPLC, TSC TC200, Evolis Primacy, MQTTS, REST, 
+- **Schnittstellen:** UniFi Access/Protect (native), Joomla 5, Siemens SIMATIC S7 1200 G2, Loxone Mini Server, Agilent 1260 Infinity HPLC, TSC TC200, Evolis Primacy, MQTTS, REST, 
 - **Technologien:** TokenAuth, WebSocket, Axios, passkey-auth, Container-kompatibel
 
 ---
@@ -144,14 +144,6 @@ Die Umsetzung folgt den Grundsätzen ordnungsgemäßer Buchführung (GoB) und bi
 
 ---
 
-## 🔧 Integration & Automatisierung
-
-- **Siemens SIMATIC S7 1200 G2** kompatibel mit SM1232-AQ
-- **Loxone Mini Server** mit Raumanzeige, Klima- und Lichtsteuerung
-- Weitere industrielle Schnittstellen folgen (MQTT, KNX, Modbus etc.)
-
----
-
 ## 🐳 Bereitstellung & Infrastruktur
 
 Geplant sind:
@@ -159,7 +151,6 @@ Geplant sind:
 - Eigene **Docker-Images** mit Standardkonfiguration
 - **Proxmox-kompatible Images** für einfache VM-Einbindung
 - Eigene **Linux-Distribution (cannaOS)** für speziell konfigurierte Mini-PCs
-- Multi-Growcontroller Anbindung via SPS, API & MQTTS
 - (Kostenplichtig) Vorkonfigurierte Endkunden Lösungen.
 - (Kostenplichtig) Vollständige Hardware Sets zum Kauf/Miete. 
 
@@ -204,7 +195,7 @@ cannaUNITY/
 | `taskmanager`    | Aufgabenreservierung, Stundenkonto, Abgleiche                                |
 | `buchhaltung`    | GoB-konforme Buchhaltung mit HBCI Abgleich,                                  |
 | `interface`      | Touchpanels, Raumterminals, Infodisplays                                     |
-| `controller`     | Anbindung Siemens/Loxone, Aktorik, Automatisierung                           |
+| `controller`     | Anbindung Siemens/Loxone,                         |
 | `security`       | Alarmsysteme, Notfallzugänge, Behördenzugriff                                |
 | `ha`             | Home Assistant Integration                                                   |
 

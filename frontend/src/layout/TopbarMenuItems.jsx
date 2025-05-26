@@ -94,7 +94,7 @@ const TopbarMenuItems = [
     children: [
       { 
         label: 'Grow Controller', 
-        path: '/controllers', 
+        path: '/controller', 
         icon: <DashboardIcon />,
         subtitle: 'Zentrale Steuerungsübersicht'
       },
