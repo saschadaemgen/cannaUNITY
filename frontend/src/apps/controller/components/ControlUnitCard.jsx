@@ -59,7 +59,7 @@ const StatusPanel = styled(Box)(({ theme }) => ({
   display: 'grid',
   gridTemplateColumns: 'auto 1fr',
   gap: '12px',
-  marginBottom: '20px',
+  marginBottom: '15px',
 }))
 
 const LEDGroup = styled(Box)(({ theme }) => ({
@@ -89,7 +89,7 @@ const LED = styled(Box)(({ color, active, blink }) => ({
 }))
 
 const LEDLabel = styled(Typography)(({ theme }) => ({
-  fontSize: '10px',
+  fontSize: '12px',
   color: '#E8E9EA',
   fontWeight: 500,
   letterSpacing: '0.5px',
@@ -101,7 +101,7 @@ const PortLEDs = styled(Box)(({ theme }) => ({
   gridTemplateColumns: 'repeat(8, 1fr)',
   gridTemplateRows: 'repeat(2, 1fr)',
   gap: '4px',
-  padding: '10px',
+  padding: '4px',
   background: '#5A6570',
   borderRadius: '2px',
 }))
@@ -131,7 +131,7 @@ const AmberDisplay = styled(Box)(({ theme }) => ({
   background: '#2a2a2a',
   border: '1px solid #3a3a3a',
   borderRadius: '3px',
-  padding: '6px',
+  padding: '2px',
   marginBottom: '16px',
   position: 'relative',
 }))
@@ -140,7 +140,7 @@ const AmberScreen = styled(Box)(({ theme }) => ({
   background: '#1a0f00',
   border: '1px solid #444',
   borderRadius: '2px',
-  padding: '6px 8px',
+  padding: '0px 7px',
   position: 'relative',
   display: 'flex',
   alignItems: 'center',
@@ -162,7 +162,7 @@ const AmberTextContent = styled(Box)(({ theme }) => ({
 
 const AmberIcon = styled(Box)(({ theme, active }) => ({
   color: '#ffaa00',
-  fontSize: '20px',
+  fontSize: '28px',
   textShadow: '0 0 2px #ff8800',
   display: 'flex',
   alignItems: 'center',
