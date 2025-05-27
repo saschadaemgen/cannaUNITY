@@ -28,6 +28,7 @@
 - ✅ Echtzeit UUID-Track & Trace von Pflanzen, Verarbeitung & Produktausgabe
 - ✅ Erzeugung von Batch und Chargenummern inkl. 128 Bit UUID Anbindung
 - ✅ RFID/NFC Arbeitszeiterfassung mit Minijob/Pflichtstunden & Ehrenamt Erkennung
+- ✅ Automatische KI Personenerkennung per UniFi Protect AI Key API / Webhook Anbindung
 - ✅ Dynamische Mitgliederprofile mit UUID RFID Ausweisen inkl. Evolis Kartendruckeranbindung
 - ✅ SIMATIC S7 1200 G2 Integration mit API-gesteuerter Licht-, Klima- und Prozessautomation
 - ✅ Vollständig redundante Raumsteuerungen mit Zentraler UI Anbindung & Alarmserver
