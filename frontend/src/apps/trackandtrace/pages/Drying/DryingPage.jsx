@@ -233,10 +233,16 @@ export default function DryingPage() {
     setOpenProcessingDialog(true);
   };
   
-  const handleConvertToProcessing = async (formData) => {
+  const handleConvertToProcessing = async (formData, rfidMemberId = null) => {
     try {
       if (dryingForProcessing) {
-        const response = await api.post(`/trackandtrace/drying/${dryingForProcessing.id}/convert_to_processing/`, formData);
+        // Füge die RFID member_id zu den Formulardaten hinzu
+        const dataToSend = {
+          ...formData,
+          member_id: rfidMemberId || formData.member_id || null
+        };
+        
+        const response = await api.post(`/trackandtrace/drying/${dryingForProcessing.id}/convert_to_processing/`, dataToSend);
         console.log("API-Antwort:", response.data);
         
         // Dialog schließen

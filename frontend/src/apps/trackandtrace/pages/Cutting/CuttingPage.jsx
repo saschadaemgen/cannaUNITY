@@ -458,13 +458,14 @@ export default function CuttingPage() {
   };
   
   // Aktualisierte Funktion zum Konvertieren von Stecklingen zu Blühpflanzen
-  const handleConvert = async (convertData) => {
+  const handleConvert = async (convertData, rfidMemberId = null) => {
     try {
       console.log("Converting cuttings with data:", convertData);
       
       // Stelle sicher, dass cutting_ids ein Array ist und keine null-Werte enthält
       const cleanedData = {
         ...convertData,
+        member_id: rfidMemberId || convertData.member_id || null,
         cutting_ids: Array.isArray(convertData.cutting_ids)
           ? convertData.cutting_ids.filter(id => id !== null && id !== undefined)
           : []

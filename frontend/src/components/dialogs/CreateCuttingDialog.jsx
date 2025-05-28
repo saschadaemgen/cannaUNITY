@@ -157,7 +157,7 @@ const CreateCuttingDialog = ({
         // Original onCreateCuttings aufrufen OHNE Parameter
         // Die Parent-Komponente nutzt selectedMemberId aus ihrem eigenen State
         if (onCreateCuttings) {
-          await onCreateCuttings()  // KEIN Parameter - wie im Original!
+          await onCreateCuttings(member_id)  // KEIN Parameter - wie im Original!
         }
         
         // Nach weiteren 2 Sekunden schließen

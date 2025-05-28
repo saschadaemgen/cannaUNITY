@@ -229,10 +229,14 @@ export default function HarvestPage() {
     setOpenDryingDialog(true);
   };
   
-  const handleConvertToDrying = async (formData) => {
+  const handleConvertToDrying = async (formData, rfidMemberId = null) => {
     try {
+      const dataWithMemberId = {
+        ...formData,
+        member_id: rfidMemberId || formData.member_id || null
+      };
       if (harvestForDrying) {
-        const response = await api.post(`/trackandtrace/harvests/${harvestForDrying.id}/convert_to_drying/`, formData);
+        const response = await api.post(`/trackandtrace/harvests/${harvestForDrying.id}/convert_to_drying/`, dataWithMemberId);
         console.log("API-Antwort:", response.data);
         
         // Dialog schließen

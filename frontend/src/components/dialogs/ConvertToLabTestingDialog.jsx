@@ -1,4 +1,4 @@
-// frontend/src/apps/trackandtrace/pages/LabTesting/components/UpdateLabResultsDialog.jsx
+// frontend/src/apps/trackandtrace/pages/Processing/components/ConvertToLabTestingDialog.jsx
 import { useState, useEffect } from 'react';
 import {
   Dialog,
@@ -19,16 +19,19 @@ import {
   Zoom
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
-import BiotechIcon from '@mui/icons-material/Biotech';
+import ScienceIcon from '@mui/icons-material/Science';
 import CreditCardIcon from '@mui/icons-material/CreditCard';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import api from '@/utils/api';
 
-const UpdateLabResultsDialog = ({
+const ConvertToLabTestingDialog = ({
   open,
   onClose,
-  onUpdateLabResults,
-  labTesting
+  onConvert,
+  processing,
+  members, // Für Kompatibilität beibehalten
+  rooms,
+  loadingOptions
 }) => {
   // States für RFID-Verifizierung
   const [scanMode, setScanMode] = useState(false);
@@ -40,21 +43,19 @@ const UpdateLabResultsDialog = ({
   const [memberId, setMemberId] = useState(null);
   
   // Formular-States
-  const [status, setStatus] = useState('pending');
-  const [thcContent, setThcContent] = useState('');
-  const [cbdContent, setCbdContent] = useState('');
-  const [labNotes, setLabNotes] = useState('');
+  const [inputWeight, setInputWeight] = useState('');
+  const [sampleWeight, setSampleWeight] = useState('');
+  const [notes, setNotes] = useState('');
+  const [roomId, setRoomId] = useState('');
   const [error, setError] = useState('');
+  
+  // Berechnete Werte
+  const [remainingWeight, setRemainingWeight] = useState(0);
+  const [isWeightValid, setIsWeightValid] = useState(false);
 
+  // Dialog zurücksetzen beim Öffnen
   useEffect(() => {
-    if (open && labTesting) {
-      // Formular zurücksetzen
-      setStatus(labTesting.status || 'pending');
-      setThcContent(labTesting.thc_content || '');
-      setCbdContent(labTesting.cbd_content || '');
-      setLabNotes(labTesting.lab_notes || '');
-      setError('');
-      
+    if (open && processing) {
       // RFID-States zurücksetzen
       setScanMode(false);
       setScanSuccess(false);
@@ -62,38 +63,99 @@ const UpdateLabResultsDialog = ({
       setMemberId(null);
       setAbortController(null);
       setIsAborting(false);
+      
+      // Setze Standardwerte
+      const outputWeight = parseFloat(processing.output_weight);
+      setInputWeight(outputWeight.toString());
+      
+      // Standardmäßig 10% als Probengewicht
+      const defaultSampleWeight = Math.min(1.0, outputWeight * 0.1).toFixed(2);
+      setSampleWeight(defaultSampleWeight);
+      
+      // Zurücksetzen der anderen Felder
+      setNotes('');
+      setRoomId('');
+      setError('');
+      
+      // Kalkulierte Werte aktualisieren
+      updateRemainingWeight(outputWeight, defaultSampleWeight);
+      validateWeights(outputWeight, defaultSampleWeight, outputWeight);
     }
-  }, [open, labTesting]);
-
-  // Validierung
-  const validateForm = () => {
-    setError('');
-    
-    if (!status) {
-      setError('Bitte wählen Sie einen Status aus');
-      return false;
+  }, [open, processing]);
+  
+  // Berechne das verbleibende Gewicht basierend auf Input - Sample
+  useEffect(() => {
+    if (inputWeight && sampleWeight) {
+      updateRemainingWeight(parseFloat(inputWeight), parseFloat(sampleWeight));
     }
-    
-    if (thcContent && (isNaN(parseFloat(thcContent)) || parseFloat(thcContent) < 0 || parseFloat(thcContent) > 100)) {
-      setError('THC-Gehalt muss zwischen 0 und 100 Prozent liegen');
-      return false;
+  }, [inputWeight, sampleWeight]);
+  
+  // Validiere, ob die Gewichte gültig sind
+  useEffect(() => {
+    if (processing && inputWeight && sampleWeight) {
+      const output = parseFloat(processing.output_weight);
+      validateWeights(parseFloat(inputWeight), parseFloat(sampleWeight), output);
     }
-    
-    if (cbdContent && (isNaN(parseFloat(cbdContent)) || parseFloat(cbdContent) < 0 || parseFloat(cbdContent) > 100)) {
-      setError('CBD-Gehalt muss zwischen 0 und 100 Prozent liegen');
-      return false;
+  }, [inputWeight, sampleWeight, processing]);
+  
+  const updateRemainingWeight = (input, sample) => {
+    if (!isNaN(input) && !isNaN(sample)) {
+      setRemainingWeight(Math.max(0, input - sample));
+    } else {
+      setRemainingWeight(0);
     }
-    
-    return true;
+  };
+  
+  const validateWeights = (input, sample, output) => {
+    if (!isNaN(input) && !isNaN(sample) && !isNaN(output)) {
+      setIsWeightValid(
+        input > 0 && 
+        input <= output && 
+        sample > 0 && 
+        sample < input
+      );
+    } else {
+      setIsWeightValid(false);
+    }
   };
 
   // RFID-Scan starten
-  const startRfidScan = () => {
-    if (!validateForm()) return;
+  const startRfidScan = async () => {
+    // Validierung vor dem Scan
+    setError('');
+    
+    if (!inputWeight || parseFloat(inputWeight) <= 0) {
+      setError('Bitte geben Sie ein gültiges Eingangsgewicht ein');
+      return;
+    }
+    
+    if (!sampleWeight || parseFloat(sampleWeight) <= 0) {
+      setError('Bitte geben Sie ein gültiges Probengewicht ein');
+      return;
+    }
+    
+    const inputVal = parseFloat(inputWeight);
+    const sampleVal = parseFloat(sampleWeight);
+    const outputVal = parseFloat(processing.output_weight);
+    
+    if (inputVal > outputVal) {
+      setError(`Das Eingangsgewicht kann nicht größer als das Verarbeitungsgewicht (${outputVal}g) sein`);
+      return;
+    }
+    
+    if (sampleVal >= inputVal) {
+      setError('Das Probengewicht muss kleiner als das Eingangsgewicht sein');
+      return;
+    }
+    
+    if (!roomId) {
+      setError('Bitte wählen Sie einen Raum aus');
+      return;
+    }
     
     setScanMode(true);
     setScanSuccess(false);
-    handleRfidScan();
+    await handleRfidScan();
   };
 
   // RFID-Scan Handler
@@ -105,7 +167,7 @@ const UpdateLabResultsDialog = ({
     setLoading(true);
     
     try {
-      console.log("🚀 Starte RFID-Scan für Laborergebnisse...");
+      console.log("🚀 Starte RFID-Scan für Laborkontrolle...");
       
       if (isAborting) return;
       
@@ -139,22 +201,22 @@ const UpdateLabResultsDialog = ({
       setScannedMemberName(member_name);
       setScanSuccess(true);
       
-      // 3. Nach erfolgreicher Verifizierung die Laborergebnisse aktualisieren
+      // 3. Nach erfolgreicher Verifizierung die Konvertierung durchführen
       setTimeout(async () => {
-        // Submit-Daten mit member_id
+        // Submit-Daten
         const formData = {
-          status,
-          thc_content: thcContent ? parseFloat(thcContent) : null,
-          cbd_content: cbdContent ? parseFloat(cbdContent) : null,
-          lab_notes: labNotes,
-          member_id: member_id // member_id hinzufügen
+          input_weight: parseFloat(inputWeight),
+          sample_weight: parseFloat(sampleWeight),
+          notes,
+          member_id: member_id, // Direkt die member_id verwenden
+          room_id: roomId
         };
         
-        console.log("Aktualisiere Laborergebnisse mit RFID member_id:", formData);
+        console.log("Lab testing form data mit RFID member_id:", formData);
         
-        // onUpdateLabResults aufrufen
-        if (onUpdateLabResults) {
-          await onUpdateLabResults(formData);
+        // onConvert mit member_id als zweitem Parameter aufrufen
+        if (onConvert) {
+          await onConvert(formData, member_id);
         }
         
         // Nach weiteren 2 Sekunden schließen
@@ -168,7 +230,7 @@ const UpdateLabResultsDialog = ({
         console.log('RFID-Scan wurde abgebrochen');
       } else {
         console.error('RFID-Bindungsfehler:', error);
-        setError(error.response?.data?.detail || error.message || 'RFID-Verifizierung fehlgeschlagen');
+        alert(error.response?.data?.detail || error.message || 'RFID-Verifizierung fehlgeschlagen');
       }
       
       if (!isAborting) {
@@ -199,7 +261,6 @@ const UpdateLabResultsDialog = ({
       setLoading(false);
       setScanSuccess(false);
       setScannedMemberName('');
-      setError('');
       
       setTimeout(() => {
         setIsAborting(false);
@@ -213,11 +274,15 @@ const UpdateLabResultsDialog = ({
     setScanSuccess(false);
     setScannedMemberName('');
     setMemberId(null);
-    setError('');
     
     if (onClose) {
       onClose();
     }
+  };
+
+  // Validierung: Prüft ob alle Felder ausgefüllt sind
+  const isFormValid = () => {
+    return isWeightValid && roomId;
   };
 
   return (
@@ -249,7 +314,7 @@ const UpdateLabResultsDialog = ({
           left: 0,
           right: 0,
           bottom: 0,
-          bgcolor: 'info.light',
+          bgcolor: 'info.main',
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'center',
@@ -288,7 +353,7 @@ const UpdateLabResultsDialog = ({
                 </Typography>
                 
                 <Typography variant="body1" align="center" color="white" sx={{ mt: 2 }}>
-                  Laborergebnisse wurden aktualisiert für {labTesting?.source_strain || 'Probe'}
+                  Laborkontrolle mit {sampleWeight}g Probengewicht wurde erstellt
                 </Typography>
                 
                 <Typography variant="h6" align="center" color="white" fontWeight="bold" sx={{ mt: 1 }}>
@@ -306,7 +371,7 @@ const UpdateLabResultsDialog = ({
               </Typography>
               
               <Typography variant="body1" align="center" color="white" gutterBottom>
-                um die Laborergebnisse zu bestätigen
+                um die Laborkontrolle zu erstellen
               </Typography>
               
               {loading && (
@@ -326,8 +391,8 @@ const UpdateLabResultsDialog = ({
       
       <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <BiotechIcon sx={{ mr: 1, color: 'info.main' }} />
-          <Typography variant="h6">Laborergebnisse aktualisieren</Typography>
+          <ScienceIcon sx={{ mr: 1, color: 'info.main' }} />
+          <Typography variant="h6">Zu Laborkontrolle konvertieren</Typography>
         </Box>
         <IconButton onClick={handleDialogClose} size="small">
           <CloseIcon />
@@ -335,17 +400,17 @@ const UpdateLabResultsDialog = ({
       </DialogTitle>
       
       <DialogContent dividers>
-        {labTesting && (
+        {processing && (
           <Box sx={{ mb: 3, p: 2, bgcolor: 'background.paper', borderRadius: 1 }}>
             <Typography variant="subtitle2" color="textSecondary" gutterBottom>
-              Laborkontrolle-Information
+              Verarbeitungs-Information
             </Typography>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
               <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
                 Genetik:
               </Typography>
               <Typography variant="body2">
-                {labTesting.source_strain || "Unbekannt"}
+                {processing.source_strain || "Unbekannt"}
               </Typography>
             </Box>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
@@ -353,72 +418,110 @@ const UpdateLabResultsDialog = ({
                 Produkttyp:
               </Typography>
               <Typography variant="body2">
-                {labTesting.product_type_display || labTesting.product_type || "Unbekannt"}
+                {processing.product_type_display || processing.product_type || "Unbekannt"}
               </Typography>
             </Box>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
               <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
                 Charge-Nummer:
               </Typography>
               <Typography variant="body2">
-                {labTesting.batch_number}
+                {processing.batch_number}
+              </Typography>
+            </Box>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+              <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                Verfügbares Gewicht:
+              </Typography>
+              <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                {processing ? parseFloat(processing.output_weight).toLocaleString('de-DE') : 0}g
+              </Typography>
+            </Box>
+          </Box>
+        )}
+        
+        <TextField
+          autoFocus
+          margin="dense"
+          id="input-weight"
+          label="Eingangsgewicht (g)"
+          type="number"
+          fullWidth
+          value={inputWeight}
+          onChange={(e) => setInputWeight(e.target.value)}
+          required
+          inputProps={{ min: 0.01, step: 0.01 }}
+          variant="outlined"
+          sx={{ mb: 2 }}
+          error={inputWeight !== '' && (!isWeightValid || parseFloat(inputWeight) > parseFloat(processing?.output_weight || 0))}
+          helperText={inputWeight !== '' && !isWeightValid ? 
+            "Gewicht muss größer als 0 und kleiner gleich dem verfügbaren Gewicht sein" : ""}
+        />
+        
+        <TextField
+          margin="dense"
+          id="sample-weight"
+          label="Probengewicht (g)"
+          type="number"
+          fullWidth
+          value={sampleWeight}
+          onChange={(e) => setSampleWeight(e.target.value)}
+          required
+          inputProps={{ min: 0.01, step: 0.01 }}
+          variant="outlined"
+          sx={{ mb: 2 }}
+          error={sampleWeight !== '' && (!isWeightValid || parseFloat(sampleWeight) >= parseFloat(inputWeight || 0))}
+          helperText={sampleWeight !== '' && !isWeightValid ? 
+            "Probengewicht muss größer als 0 und kleiner als das Eingangsgewicht sein" : ""}
+        />
+        
+        {inputWeight && sampleWeight && isWeightValid && (
+          <Box sx={{ mb: 2, p: 2, bgcolor: 'info.lighter', borderRadius: 1 }}>
+            <Typography variant="subtitle2" color="info.main" gutterBottom>
+              Berechnetes verbleibendes Gewicht
+            </Typography>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+              <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                Verbleibendes Gewicht nach Probenentnahme:
+              </Typography>
+              <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                {remainingWeight.toFixed(2)}g
               </Typography>
             </Box>
           </Box>
         )}
         
         <FormControl fullWidth margin="dense" sx={{ mb: 2 }}>
-          <InputLabel id="status-label">Status</InputLabel>
+          <InputLabel id="room-label">Raum *</InputLabel>
           <Select
-            labelId="status-label"
-            id="status"
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-            label="Status"
+            labelId="room-label"
+            id="room"
+            value={roomId}
+            onChange={(e) => setRoomId(e.target.value)}
+            label="Raum *"
             required
+            disabled={loadingOptions}
           >
-            <MenuItem value="pending">In Bearbeitung</MenuItem>
-            <MenuItem value="passed">Freigegeben</MenuItem>
-            <MenuItem value="failed">Nicht bestanden</MenuItem>
+            <MenuItem value="">
+              <em>Bitte Raum auswählen</em>
+            </MenuItem>
+            {rooms.map((room) => (
+              <MenuItem key={room.id} value={room.id}>
+                {room.name}
+              </MenuItem>
+            ))}
           </Select>
         </FormControl>
         
         <TextField
-          autoFocus
           margin="dense"
-          id="thc-content"
-          label="THC-Gehalt (%)"
-          type="number"
-          fullWidth
-          value={thcContent}
-          onChange={(e) => setThcContent(e.target.value)}
-          inputProps={{ min: 0, max: 100, step: 0.1 }}
-          variant="outlined"
-          sx={{ mb: 2 }}
-        />
-        
-        <TextField
-          margin="dense"
-          id="cbd-content"
-          label="CBD-Gehalt (%)"
-          type="number"
-          fullWidth
-          value={cbdContent}
-          onChange={(e) => setCbdContent(e.target.value)}
-          inputProps={{ min: 0, max: 100, step: 0.1 }}
-          variant="outlined"
-          sx={{ mb: 2 }}
-        />
-        
-        <TextField
-          margin="dense"
-          id="lab-notes"
-          label="Laborergebnisse/Bericht"
+          id="notes"
+          label="Notizen (optional)"
           multiline
-          rows={4}
+          rows={3}
           fullWidth
-          value={labNotes}
-          onChange={(e) => setLabNotes(e.target.value)}
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
           variant="outlined"
         />
         
@@ -452,14 +555,15 @@ const UpdateLabResultsDialog = ({
           onClick={startRfidScan}
           variant="contained" 
           color="info"
-          disabled={loading}
-          startIcon={loading ? <CircularProgress size={16} /> : <BiotechIcon />}
+          startIcon={loading ? <CircularProgress size={16} /> : <ScienceIcon />}
+          disabled={loading || !isFormValid()}
+          sx={{ minWidth: 200 }}
         >
-          Mit RFID autorisieren & aktualisieren
+          Mit RFID autorisieren & konvertieren
         </Button>
       </DialogActions>
     </Dialog>
   );
 };
 
-export default UpdateLabResultsDialog;
+export default ConvertToLabTestingDialog;

@@ -115,15 +115,16 @@ const BloomingCuttingPlantTable = ({
   };
 
   // Funktion zum Konvertieren zu Ernte
-  const handleConvertToHarvest = async (formData) => {
+  const handleConvertToHarvest = async (formData, rfidMemberId = null) => {
     try {
       // Stelle sicher, dass das Gewicht als Zahl übergeben wird
       const apiData = {
         ...formData,
+        member_id: rfidMemberId || formData.member_id || null,
         weight: parseFloat(formData.weight),
         plant_ids: selectedPlants[batchForHarvest.id] || []
       };
-      
+    
       console.log("Sende Daten an API:", apiData);
 
       const apiEndpoint = `/trackandtrace/bloomingcuttingbatches/${batchForHarvest.id}/convert_to_harvest/`;

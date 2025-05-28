@@ -459,7 +459,7 @@ export default function MotherPlantPage() {
   };
 
   // Funktion zum Erstellen von Stecklingen
-  const handleCreateCuttings = async () => {
+  const handleCreateCuttings = async (rfidMemberId = null) => {
     try {
       if (!selectedBatch) return;
 
@@ -476,7 +476,7 @@ export default function MotherPlantPage() {
       await api.post(endpoint, {
         quantity: cuttingQuantity,
         notes: cuttingNotes,
-        member_id: selectedMemberId || null,
+        member_id: rfidMemberId || selectedMemberId || null,
         room_id: selectedRoomId || null
       });
 

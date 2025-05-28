@@ -14,7 +14,7 @@ import AnimatedTabPanel from '@/components/common/AnimatedTabPanel'
 
 // Spezifische Komponenten
 import ProcessingTable from './components/ProcessingTable'
-import ConvertToLabTestingDialog from './components/ConvertToLabTestingDialog'
+import ConvertToLabTestingDialog from '@/components/dialogs/ConvertToLabTestingDialog'
 
 export default function ProcessingPage() {
   const [processingBatches, setProcessingBatches] = useState([])
@@ -248,9 +248,14 @@ export default function ProcessingPage() {
     }
   };
 
-  const handleConvertToLabTesting = async (formData) => {
+  const handleConvertToLabTesting = async (formData, rfidMemberId = null) => {
     try {
       if (selectedProcessing) {
+        // Member ID aus RFID verwenden, falls vorhanden
+        if (rfidMemberId) {
+          formData.member_id = rfidMemberId;
+        }
+        
         await api.post(`/trackandtrace/processing/${selectedProcessing.id}/convert_to_labtesting/`, formData);
         
         setOpenConvertToLabTestingDialog(false);

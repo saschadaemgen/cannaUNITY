@@ -16,7 +16,7 @@ import AnimatedTabPanel from '@/components/common/AnimatedTabPanel'
 // Spezifische Komponenten
 import LabTestingTable from './LabTestingTable'
 import UpdateLabResultsDialog from '@/components/dialogs/UpdateLabResultsDialog'
-import EnhancedConvertToPackagingDialog from '@/components/dialogs/EnhancedConvertToPackagingDialog'
+import EnhancedConvertToPackagingDialog from '@/components/dialogs/ConvertToPackagingDialog'
 
 export default function LabTestingPage() {
   const [labTestingBatches, setLabTestingBatches] = useState([])
@@ -254,31 +254,36 @@ export default function LabTestingPage() {
     }
   };
   
-  const handleConvertToPackaging = async (formData) => {
-    try {
-      if (selectedLabTesting) {
-        const response = await api.post(`/trackandtrace/labtesting/${selectedLabTesting.id}/convert_to_packaging/`, formData);
-        
-        setOpenConvertToPackagingDialog(false);
-        setSelectedLabTesting(null);
-        
-        // Laborkontrollen neu laden
-        loadLabTestingBatches(currentPage);
-        loadTabCounts();
-        
-        // Erfolgsmeldung anzeigen
-        const createdCount = response.data.created_count || 1;
-        setSuccessMessage(`${createdCount} Verpackung${createdCount > 1 ? 'en wurden' : ' wurde'} erfolgreich erstellt!`);
-        setShowSuccessAlert(true);
-        
-        // Erfolg im localStorage speichern für die Verpackungs-Seite
-        localStorage.setItem('showPackagingSuccess', 'true');
+  const handleConvertToPackaging = async (formData, rfidMemberId = null) => {
+      try {
+        if (selectedLabTesting) {
+          // RFID member_id hat Vorrang
+          if (rfidMemberId) {
+            formData.member_id = rfidMemberId;
+          }
+          
+          const response = await api.post(`/trackandtrace/labtesting/${selectedLabTesting.id}/convert_to_packaging/`, formData);
+          
+          setOpenConvertToPackagingDialog(false);
+          setSelectedLabTesting(null);
+          
+          // Laborkontrollen neu laden
+          loadLabTestingBatches(currentPage);
+          loadTabCounts();
+          
+          // Erfolgsmeldung anzeigen
+          const createdCount = response.data.created_count || 1;
+          setSuccessMessage(`${createdCount} Verpackung${createdCount > 1 ? 'en wurden' : ' wurde'} erfolgreich erstellt!`);
+          setShowSuccessAlert(true);
+          
+          // Erfolg im localStorage speichern für die Verpackungs-Seite
+          localStorage.setItem('showPackagingSuccess', 'true');
+        }
+      } catch (error) {
+        console.error('Fehler bei der Konvertierung zur Verpackung:', error);
+        alert(error.response?.data?.error || 'Ein Fehler ist aufgetreten');
       }
-    } catch (error) {
-      console.error('Fehler bei der Konvertierung zur Verpackung:', error);
-      alert(error.response?.data?.error || 'Ein Fehler ist aufgetreten');
-    }
-  };
+    };
 
   const handleDestroy = async () => {
     try {

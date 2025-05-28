@@ -159,7 +159,7 @@ const ConvertDialog = ({
       setTimeout(async () => {
         // Original onConvert aufrufen
         if (onConvert) {
-          await onConvert()
+          await onConvert(member_id)
         }
         
         // Nach weiteren 2 Sekunden schließen

@@ -494,7 +494,7 @@ export default function SeedPurchasePage() {
     setOpenConvertDialog(true)
   }
 
-  const handleConvert = async () => {
+  const handleConvert = async (rfidMemberId = null) => {
     if (!selectedSeed || !convertType) return
 
     try {
@@ -505,7 +505,7 @@ export default function SeedPurchasePage() {
       const response = await api.post(endpoint, {
         quantity: convertQuantity,
         notes: convertNotes,
-        member_id: selectedMemberId || null,
+        member_id: rfidMemberId || selectedMemberId || null,
         room_id: selectedRoomId || null
       })
 

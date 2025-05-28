@@ -5,13 +5,15 @@ import {
   InputLabel, MenuItem, Select, FormHelperText, Snackbar,
   Alert, List, ListItem, ListItemText, ListItemSecondaryAction,
   IconButton, Card, CardContent, Table, TableBody, TableCell,
-  TableContainer, TableHead, TableRow
+  TableContainer, TableHead, TableRow, CircularProgress, Fade, Zoom
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
 import LocalFloristIcon from '@mui/icons-material/LocalFlorist';
 import FilterDramaIcon from '@mui/icons-material/FilterDrama';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import CreditCardIcon from '@mui/icons-material/CreditCard';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import api from '@/utils/api';
 
 // Gemeinsame Komponenten
@@ -19,6 +21,13 @@ import PageHeader from '@/components/common/PageHeader';
 import LoadingIndicator from '@/components/common/LoadingIndicator';
 
 const ProductDistributionPage = () => {
+  // States für RFID-Verifizierung
+  const [scanMode, setScanMode] = useState(false);
+  const [scanSuccess, setScanSuccess] = useState(false);
+  const [scannedMemberName, setScannedMemberName] = useState('');
+  const [abortController, setAbortController] = useState(null);
+  const [isAborting, setIsAborting] = useState(false);
+  
   // Zustände für Formularelemente
   const [distributorId, setDistributorId] = useState('');
   const [recipientId, setRecipientId] = useState('');
@@ -98,13 +107,154 @@ const ProductDistributionPage = () => {
     setSelectedUnits(selectedUnits.filter(unit => unit.id !== unitId));
   };
   
+  // RFID-Scan starten
+  const startRfidScan = async () => {
+    setScanMode(true);
+    setScanSuccess(false);
+    await handleRfidScan();
+  };
+  
+  // RFID-Scan Handler
+  const handleRfidScan = async () => {
+    if (isAborting) return;
+    
+    const controller = new AbortController();
+    setAbortController(controller);
+    setSubmitting(true);
+    
+    try {
+      console.log("🚀 Starte RFID-Scan für Produktausgabe...");
+      
+      if (isAborting) return;
+      
+      // 1. Karte scannen und User auslesen
+      const bindRes = await api.get('/unifi_api_debug/bind-rfid-session/', {
+        signal: controller.signal
+      });
+      
+      if (isAborting) return;
+      
+      const { token, unifi_user_id, message, unifi_name } = bindRes.data;
+      
+      console.log("🔍 Sende an secure-member-binding:", { token, unifi_user_id, unifi_name });
+      
+      if (!token || !unifi_user_id || !unifi_name) {
+        throw new Error('RFID-Zuweisung fehlgeschlagen. Nutzerinformationen unvollständig.');
+      }
+      
+      if (isAborting) return;
+      
+      // 2. Mitglied validieren
+      const verifyRes = await api.post('/unifi_api_debug/secure-member-binding/', 
+        { token, unifi_name }, 
+        { signal: controller.signal }
+      );
+      
+      const { member_id, member_name } = verifyRes.data;
+      
+      // Erfolg setzen und Mitgliedsdaten speichern
+      setDistributorId(member_id);
+      setScannedMemberName(member_name);
+      setScanSuccess(true);
+      
+      // 3. Nach erfolgreicher Verifizierung die Produktausgabe durchführen
+      setTimeout(async () => {
+        await submitDistribution(member_id);
+        
+        // Nach weiteren 2 Sekunden zurücksetzen
+        setTimeout(() => {
+          setScanMode(false);
+          setScanSuccess(false);
+          setScannedMemberName('');
+          
+          // Formular zurücksetzen
+          setSelectedUnits([]);
+          setNotes('');
+          setRecipientId('');
+          
+          // Verfügbare Einheiten aktualisieren
+          fetchAvailableUnits();
+        }, 2000);
+      }, 500);
+      
+    } catch (error) {
+      if (error.name === 'AbortError' || isAborting) {
+        console.log('RFID-Scan wurde abgebrochen');
+      } else {
+        console.error('RFID-Bindungsfehler:', error);
+        setError(error.response?.data?.detail || error.message || 'RFID-Verifizierung fehlgeschlagen');
+      }
+      
+      if (!isAborting) {
+        setScanMode(false);
+      }
+    } finally {
+      if (!isAborting) {
+        setSubmitting(false);
+      }
+    }
+  };
+  
+  // RFID-Scan abbrechen
+  const handleCancelScan = async () => {
+    setIsAborting(true);
+    
+    if (abortController) {
+      abortController.abort();
+    }
+    
+    try {
+      await api.post('/unifi_api_debug/cancel-rfid-session/');
+      console.log("RFID-Scan erfolgreich abgebrochen");
+    } catch (error) {
+      console.error('RFID-Scan-Abbruch fehlgeschlagen:', error);
+    } finally {
+      setScanMode(false);
+      setSubmitting(false);
+      setScanSuccess(false);
+      setScannedMemberName('');
+      
+      setTimeout(() => {
+        setIsAborting(false);
+      }, 500);
+    }
+  };
+  
+  // Produktausgabe durchführen
+  const submitDistribution = async (rfidDistributorId) => {
+    try {
+      const response = await api.post('/trackandtrace/distributions/', {
+        distributor_id: rfidDistributorId,
+        recipient_id: recipientId,
+        packaging_unit_ids: selectedUnits.map(unit => unit.id),
+        notes: notes,
+        distribution_date: new Date().toISOString()
+      });
+      
+      // Erfolgsmeldung anzeigen
+      setSuccess(true);
+      setError(null);
+    } catch (err) {
+      console.error('Fehler beim Speichern der Produktausgabe:', err);
+      setError(err.response?.data?.error || 'Die Produktausgabe konnte nicht gespeichert werden');
+      setScanMode(false);
+      setScanSuccess(false);
+    }
+  };
+  
+  // Verfügbare Einheiten neu laden
+  const fetchAvailableUnits = async () => {
+    try {
+      const unitsResponse = await api.get('/trackandtrace/distributions/available_units/');
+      setAvailableUnits(unitsResponse.data);
+    } catch (err) {
+      console.error('Fehler beim Laden der verfügbaren Einheiten:', err);
+    }
+  };
+  
+  // Form Submit Handler
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (!distributorId) {
-      setError('Bitte wählen Sie einen ausgebenden Mitarbeiter aus');
-      return;
-    }
     
     if (!recipientId) {
       setError('Bitte wählen Sie ein empfangendes Mitglied aus');
@@ -116,35 +266,8 @@ const ProductDistributionPage = () => {
       return;
     }
     
-    setSubmitting(true);
-    
-    try {
-      const response = await api.post('/trackandtrace/distributions/', {
-        distributor_id: distributorId,
-        recipient_id: recipientId,
-        packaging_unit_ids: selectedUnits.map(unit => unit.id),
-        notes: notes,
-        distribution_date: new Date().toISOString()
-      });
-      
-      // Erfolgsmeldung anzeigen
-      setSuccess(true);
-      
-      // Formular zurücksetzen
-      setSelectedUnits([]);
-      setNotes('');
-      
-      // Verfügbare Einheiten aktualisieren
-      const unitsResponse = await api.get('/trackandtrace/distributions/available_units/');
-      setAvailableUnits(unitsResponse.data);
-      
-      setError(null);
-    } catch (err) {
-      console.error('Fehler beim Speichern der Produktausgabe:', err);
-      setError(err.response?.data?.error || 'Die Produktausgabe konnte nicht gespeichert werden');
-    } finally {
-      setSubmitting(false);
-    }
+    // Starte RFID-Scan für Autorisierung
+    startRfidScan();
   };
   
   // Filtere verfügbare Einheiten basierend auf dem ausgewählten Produkttyp
@@ -156,6 +279,11 @@ const ProductDistributionPage = () => {
         return processingBatch.product_type === filterProductType;
       })
     : availableUnits;
+  
+  // Validierung
+  const isFormValid = () => {
+    return recipientId && selectedUnits.length > 0;
+  };
   
   if (loading) {
     return (
@@ -170,7 +298,7 @@ const ProductDistributionPage = () => {
     <Container maxWidth="xl">
       <PageHeader title="Produktausgabe" />
       
-      {error && (
+      {error && !scanMode && (
         <Alert severity="error" sx={{ mb: 2 }}>
           {error}
         </Alert>
@@ -187,31 +315,116 @@ const ProductDistributionPage = () => {
         </Alert>
       </Snackbar>
       
-      <Paper sx={{ p: 3, mb: 4 }}>
+      <Paper sx={{ p: 3, mb: 4, position: 'relative', overflow: scanMode ? 'hidden' : 'visible' }}>
+        {/* RFID-Scan-Overlay */}
+        {scanMode && (
+          <Box sx={{ 
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            bgcolor: 'primary.light',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
+            p: 4,
+            zIndex: 1300
+          }}>
+            {/* Abbrechen-Button nur anzeigen, wenn wir NICHT im Erfolgs-Modus sind */}
+            {!scanSuccess && (
+              <Button 
+                onClick={handleCancelScan}
+                variant="contained" 
+                color="error"
+                size="small"
+                sx={{ 
+                  position: 'absolute',
+                  top: 16,
+                  right: 16,
+                  minWidth: '100px'
+                }}
+              >
+                Abbrechen
+              </Button>
+            )}
+            
+            {scanSuccess ? (
+              // Erfolgsmeldung nach erfolgreichem Scan
+              <Fade in={scanSuccess}>
+                <Box sx={{ textAlign: 'center' }}>
+                  <Zoom in={scanSuccess}>
+                    <CheckCircleOutlineIcon sx={{ fontSize: 120, color: 'white', mb: 3 }} />
+                  </Zoom>
+                  
+                  <Typography variant="h5" align="center" color="white" fontWeight="bold" gutterBottom>
+                    Autorisierung erfolgreich
+                  </Typography>
+                  
+                  <Typography variant="body1" align="center" color="white" sx={{ mt: 2 }}>
+                    {selectedUnits.length} {selectedUnits.length === 1 ? 'Einheit' : 'Einheiten'} mit {totalWeight.toFixed(2)}g wurden ausgegeben
+                  </Typography>
+                  
+                  <Typography variant="h6" align="center" color="white" fontWeight="bold" sx={{ mt: 1 }}>
+                    Ausgegeben von: {scannedMemberName}
+                  </Typography>
+                </Box>
+              </Fade>
+            ) : (
+              // Scan-Aufforderung
+              <>
+                <CreditCardIcon sx={{ fontSize: 120, color: 'white', mb: 4 }} />
+                
+                <Typography variant="h5" align="center" color="white" fontWeight="bold" gutterBottom>
+                  Bitte Ausweis jetzt scannen
+                </Typography>
+                
+                <Typography variant="body1" align="center" color="white" gutterBottom>
+                  um die Produktausgabe zu autorisieren
+                </Typography>
+                
+                {submitting && (
+                  <CircularProgress 
+                    size={60} 
+                    thickness={5} 
+                    sx={{ 
+                      color: 'white', 
+                      mt: 4 
+                    }} 
+                  />
+                )}
+              </>
+            )}
+          </Box>
+        )}
+        
         <Typography variant="h6" gutterBottom>
           Neue Produktausgabe erstellen
         </Typography>
         
         <Grid container spacing={3} component="form" onSubmit={handleSubmit}>
-          {/* Ausgeber & Empfänger */}
+          {/* Info-Box für ausgebenden Mitarbeiter */}
           <Grid item xs={12} md={6}>
-            <Autocomplete
-              id="distributor-select"
-              options={members}
-              getOptionLabel={(option) => `${option.first_name} ${option.last_name}`}
-              onChange={(_, newValue) => setDistributorId(newValue?.id || '')}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="Ausgebender Mitarbeiter"
-                  required
-                  helperText="Wer gibt das Produkt aus?"
-                />
-              )}
-              fullWidth
-            />
+            <Box 
+              sx={{ 
+                p: 2, 
+                bgcolor: 'info.light', 
+                color: 'info.contrastText',
+                borderRadius: 1,
+                height: '100%'
+              }}
+            >
+              <Typography variant="subtitle2" gutterBottom>
+                <strong>Ausgebender Mitarbeiter</strong>
+              </Typography>
+              <Typography variant="body2">
+                Die Zuordnung des ausgebenden Mitarbeiters erfolgt automatisch per RFID-Autorisierung beim Speichern.
+              </Typography>
+            </Box>
           </Grid>
           
+          {/* Empfänger */}
           <Grid item xs={12} md={6}>
             <Autocomplete
               id="recipient-select"
@@ -438,8 +651,9 @@ const ProductDistributionPage = () => {
                 onClick={() => {
                   setSelectedUnits([]);
                   setNotes('');
+                  setRecipientId('');
                 }}
-                disabled={selectedUnits.length === 0 && !notes}
+                disabled={selectedUnits.length === 0 && !notes && !recipientId}
               >
                 Zurücksetzen
               </Button>
@@ -448,10 +662,10 @@ const ProductDistributionPage = () => {
                 type="submit"
                 variant="contained" 
                 color="primary"
-                disabled={!distributorId || !recipientId || selectedUnits.length === 0 || submitting}
-                endIcon={<ArrowForwardIcon />}
+                disabled={!isFormValid() || submitting}
+                startIcon={submitting ? <CircularProgress size={16} /> : <CreditCardIcon />}
               >
-                {submitting ? 'Speichern...' : 'Produkt ausgeben'}
+                Mit RFID autorisieren & ausgeben
               </Button>
             </Box>
           </Grid>
