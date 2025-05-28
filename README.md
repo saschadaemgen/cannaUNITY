@@ -25,10 +25,6 @@
 
 ## 🧪 Features
 
-<p align="center">
-  <img src="screenshots/mitglieder/produkthistorie.png" alt="Vorschau" width="1920">
-</p>
-
 - ✅ Echtzeit UUID-Track & Trace von Pflanzen, Verarbeitung & Produktausgabe
 - ✅ Erzeugung von Batch und Chargenummern inkl. 128 Bit UUID Anbindung
 - ✅ Digitalisierte Produktausgabe mit Limitkontrolle
@@ -50,6 +46,10 @@
 - ✅ Einzel- und Mehrfachbuchungen inkl. Subtransaktionen & Kontenwahl
 - ✅ Vollständige Verknüpfung zu Mitgliedskonten & Mitgliedsbeiträgen
 - ✅ Filterbare Journalansicht nach Jahr, Monat, Typ & Stornostatus
+
+<p align="center">
+  <img src="screenshots/mitglieder/ausgabelimit_18plus.png" alt="Vorschau" width="1920">
+</p>
 
 ---
 
