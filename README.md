@@ -27,6 +27,7 @@
 
 - ✅ Echtzeit UUID-Track & Trace von Pflanzen, Verarbeitung & Produktausgabe
 - ✅ Erzeugung von Batch und Chargenummern inkl. 128 Bit UUID Anbindung
+- ✅ Digitalisierte Produktausgabe mit Limitkontrolle
 - ✅ RFID/NFC Arbeitszeiterfassung mit Minijob/Pflichtstunden & Ehrenamt Erkennung
 - ✅ Automatische KI Personenerkennung per UniFi Protect AI Key API / Webhook Anbindung
 - ✅ Dynamische Mitgliederprofile mit UUID RFID Ausweisen inkl. Evolis Kartendruckeranbindung
@@ -46,6 +47,10 @@
 - ✅ Vollständige Verknüpfung zu Mitgliedskonten & Mitgliedsbeiträgen
 - ✅ Filterbare Journalansicht nach Jahr, Monat, Typ & Stornostatus
 
+<p align="center">
+  <img src="screenshots/mitglieder/ausgabelimit_18plus.png" alt="Vorschau" width="1920">
+</p>
+
 ---
 
 ## 🧠 Architekturüberblick
@@ -58,10 +63,6 @@
 ---
 
 ## 🛡️ § KCanG konform, Datenschutz & Anonymisierungskonzept
-
-<p align="center">
-  <img src="screenshots\WaWi\sorte_bearbeiten.png" alt="Vorschau" width="1920">
-</p>
 
 **cannaUNITY** basiert vollständig auf dem Zero-Knowledge-Prinzip:  
 Es findet eine strikte Trennung zwischen personenbezogenen Daten (lokal) und anonymisierten Online-Daten (UUID-basiert) statt. Der Onlinebereich erhält **niemals** Zugriff auf echte Identitäten oder/und personenbezogene Daten!
@@ -76,6 +77,10 @@ Es findet eine strikte Trennung zwischen personenbezogenen Daten (lokal) und ano
 ---
 
 ## 🔁 Track & Trace: Vom Samen bis zur Ausgabe
+
+<p align="center">
+  <img src="screenshots/trackandtrace/samen_einkauf_liste.png" alt="Vorschau" width="1920">
+</p>
 
 Jeder Verarbeitungsschritt ist dokumentiert und manipulationssicher protokolliert:
 
@@ -115,16 +120,6 @@ Die SIMATIC G2 hingegen ermöglicht erstmals die vollständige Steuerung industr
 🌞 0–10 V Lichtsteuerung & Tageslichtprofile
 Über das SM1232-AQ Analogausgangsmodul steuert cannaUNITY sämtliche 0–10 V LED-Growlampen energieeffizient und dynamisch – direkt aus dem zentralen UI. Die Lichtprofile beinhalten Sonnenaufgangs- und Sonnenuntergangssimulationen mit fein abgestufter Dimmung bis auf exakt 0 %, was viele andere Systeme technisch nicht unterstützen.
 
-Unterstützt werden unter anderem LED-Systeme von:
-
-Spider Farmer™
-SANlight™
-GBK Growlight
-Mars Hydro™
-AC Infinity™
-
-sowie alle baugleichen Systeme mit 0–10 V Eingang oder PWM
-
 Die Lichtsteuerung erfolgt über benutzerfreundliche Zeitraster mit Rampenfunktionen, die in der cannaUNITY-Oberfläche konfiguriert und per API an die SPS übertragen werden. Jeder Raum agiert dabei unabhängig und besitzt eine eigene SPS – vollständig synchronisiert, aber autark funktionsfähig.
 
 Mit dieser Architektur bringt cannaUNITY industrielle SPS-Technik erstmals in eine visuell steuerbare Webumgebung für Grower – ohne SPS-Kenntnisse, ohne STEP7, ohne klassische Programmierung. Die Steuerung erfolgt vollständig über ein interaktives UI, das nicht nur Licht, sondern auch Klima, Bewässerung, Trocknung und Prozesszyklen in Echtzeit erfasst und ansprechbar macht.
@@ -132,6 +127,10 @@ Mit dieser Architektur bringt cannaUNITY industrielle SPS-Technik erstmals in ei
 ---
 
 ## 📘 Buchhaltungssystem: GoB-konforme, modulare Finanzübersicht
+
+<p align="center">
+  <img src="screenshots/buchhaltung/buchungsjournal.png" alt="Vorschau" width="1920">
+</p>
 
 Das integrierte Buchhaltungssystem ist vollständig GoB-konform aufgebaut und erlaubt eine transparente, strukturierte Abbildung aller finanziellen Vorgänge im Verein.
 Es wurde speziell für Anbauvereinigungen entwickelt und verbindet klassische Buchhaltungsprinzipien mit moderner, filterbarer Darstellung im Webinterface.
