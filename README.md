@@ -57,7 +57,11 @@
 
 ---
 
-## 🛡️ Datenschutz & Anonymisierungskonzept
+## 🛡️ § KCanG konform, Datenschutz & Anonymisierungskonzept
+
+<p align="center">
+  <img src="screenshots\WaWi\sorte_bearbeiten.png" alt="Vorschau" width="1920">
+</p>
 
 **cannaUNITY** basiert vollständig auf dem Zero-Knowledge-Prinzip:  
 Es findet eine strikte Trennung zwischen personenbezogenen Daten (lokal) und anonymisierten Online-Daten (UUID-basiert) statt. Der Onlinebereich erhält **niemals** Zugriff auf echte Identitäten oder/und personenbezogene Daten!
