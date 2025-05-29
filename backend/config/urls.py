@@ -72,6 +72,9 @@ urlpatterns = [
     path('taskmanager/', include('taskmanager.api_urls')),           # für Port 8000 (Build-Modus)
     path('api/taskmanager/', include('taskmanager.api_urls')),       # für Port 5173
 
+    # SIMATIC S7 1200 G2
+    path('api/automation/', include('automation.api_urls')),
+
 ]
 
 # 🔁 Fallback für alle nicht-API-URLs → React SPA laden
