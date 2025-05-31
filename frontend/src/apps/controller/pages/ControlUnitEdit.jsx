@@ -5,9 +5,10 @@ import { useParams, useNavigate } from 'react-router-dom'
 import {
   Container, Paper, Typography, TextField, Button, Box,
   FormControl, InputLabel, Select, MenuItem, Grid,
-  CircularProgress, Alert, Divider
+  CircularProgress, Alert, Divider, InputAdornment,
+  IconButton, Tooltip
 } from '@mui/material'
-import { Save, Cancel, Settings } from '@mui/icons-material'
+import { Save, Cancel, Settings, Visibility, VisibilityOff, Info } from '@mui/icons-material'
 import api from '@/utils/api'
 
 export default function ControlUnitEdit() {
@@ -17,6 +18,7 @@ export default function ControlUnitEdit() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
   const [rooms, setRooms] = useState([])
+  const [showPassword, setShowPassword] = useState(false)
   
   const [formData, setFormData] = useState({
     room: '',
@@ -26,6 +28,8 @@ export default function ControlUnitEdit() {
     status: 'inactive',
     plc_address: '',
     plc_db_number: '',
+    plc_username: '',
+    plc_password: '',
   })
 
   const [parameters, setParameters] = useState([])
@@ -53,6 +57,8 @@ export default function ControlUnitEdit() {
           status: unit.status,
           plc_address: unit.plc_address || '',
           plc_db_number: unit.plc_db_number || '',
+          plc_username: unit.plc_username || '',
+          plc_password: unit.plc_password || '', // Wird leer sein wenn existiert
         })
         
         setParameters(unit.parameters || [])
@@ -97,12 +103,23 @@ export default function ControlUnitEdit() {
     try {
       let unitId = id
       
+      // Daten vorbereiten
+      const submitData = {
+        ...formData,
+        plc_db_number: formData.plc_db_number ? parseInt(formData.plc_db_number) : null
+      }
+      
+      // Wenn kein Passwort eingegeben wurde bei Bearbeitung, entfernen
+      if (id !== 'new' && !submitData.plc_password) {
+        delete submitData.plc_password
+      }
+      
       // Einheit erstellen oder aktualisieren
       if (id === 'new') {
-        const response = await api.post('/controller/units/', formData)
+        const response = await api.post('/controller/units/', submitData)
         unitId = response.data.id
       } else {
-        await api.put(`/controller/units/${id}/`, formData)
+        await api.put(`/controller/units/${id}/`, submitData)
       }
 
       // Parameter speichern
@@ -231,17 +248,23 @@ export default function ControlUnitEdit() {
               <Divider sx={{ my: 2 }} />
               <Typography variant="h6" gutterBottom>
                 SPS-Konfiguration
+                <Tooltip title="JSON-RPC API Verbindung zur Siemens S7-1200 G2">
+                  <IconButton size="small">
+                    <Info fontSize="small" />
+                  </IconButton>
+                </Tooltip>
               </Typography>
             </Grid>
 
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
-                label="SPS-Adresse"
+                label="SPS IP-Adresse"
                 name="plc_address"
                 value={formData.plc_address}
                 onChange={handleChange}
-                placeholder="z.B. 192.168.1.100"
+                placeholder="z.B. 192.168.1.185"
+                helperText="IP-Adresse der SPS (ohne https://)"
               />
             </Grid>
 
@@ -253,7 +276,45 @@ export default function ControlUnitEdit() {
                 type="number"
                 value={formData.plc_db_number}
                 onChange={handleChange}
-                placeholder="z.B. 100"
+                placeholder="z.B. 1"
+                helperText="DB-Nummer für diese Steuerungseinheit"
+              />
+            </Grid>
+
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="API Benutzername"
+                name="plc_username"
+                value={formData.plc_username}
+                onChange={handleChange}
+                placeholder="Standard: sash"
+                helperText="Benutzername für die SPS Web-API"
+              />
+            </Grid>
+
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="API Passwort"
+                name="plc_password"
+                type={showPassword ? 'text' : 'password'}
+                value={formData.plc_password}
+                onChange={handleChange}
+                placeholder={id === 'new' ? 'Standard: Janus72728' : 'Unverändert lassen wenn nicht ändern'}
+                helperText={id === 'new' ? 'Passwort für die SPS Web-API' : 'Leer lassen um bestehendes Passwort zu behalten'}
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        onClick={() => setShowPassword(!showPassword)}
+                        edge="end"
+                      >
+                        {showPassword ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                }}
               />
             </Grid>
 

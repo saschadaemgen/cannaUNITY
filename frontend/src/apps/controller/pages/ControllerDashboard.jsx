@@ -81,7 +81,11 @@ export default function ControllerDashboard() {
       const unitsResponse = await api.get('/controller/units/')
       const unitsData = unitsResponse.data.results || unitsResponse.data
       setUnits(unitsData)
-      setModuleOrder(unitsData.map(u => u.id))
+      
+      // Module Order nur setzen wenn noch nicht vorhanden
+      if (moduleOrder.length === 0) {
+        setModuleOrder(unitsData.map(u => u.id))
+      }
     } catch (error) {
       console.error('Fehler beim Laden der Daten:', error)
     }
@@ -463,7 +467,11 @@ export default function ControllerDashboard() {
                 </IconButton>
                 <ControlUnitCard 
                   unit={unit} 
-                  onStatusChange={loadStatusOverview}
+                  onStatusChange={() => {
+                    // Daten neu laden wenn sich Status ändert
+                    loadData()
+                    loadStatusOverview()
+                  }}
                 />
               </Box>
             ))}

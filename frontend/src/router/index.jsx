@@ -62,7 +62,6 @@ import TaskTypeList from '@/apps/taskmanager/pages/TaskTypeList'
 import TaskTypeCreate from '@/apps/taskmanager/pages/TaskTypeCreate'
 import TaskTypeDetail from '@/apps/taskmanager/pages/TaskTypeDetail'
 import TaskTypeEdit from '@/apps/taskmanager/pages/TaskTypeEdit'
-import PLCDashboard from '../apps/automation/components/PLCDashboard'
 
 export const router = createBrowserRouter([
   {
@@ -167,8 +166,6 @@ export const router = createBrowserRouter([
       // Member-Routen
       { path: 'taskmanager/member/:memberId', element: <MemberTaskDashboard /> },
 
-      // SIMATIC UI
-      { path: 'automation', element: <PLCDashboard /> },
     ],
   },
 

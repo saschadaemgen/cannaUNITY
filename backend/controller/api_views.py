@@ -9,15 +9,16 @@ from django.db import transaction
 from rooms.models import Room
 from .models import (
     ControlUnit, ControlSchedule, ControlParameter,
-    ControlStatus, ControlCommand
+    ControlStatus, ControlCommand, PLCConfiguration
 )
 from .serializers import (
     ControlUnitSerializer, ControlUnitDetailSerializer,
     ControlScheduleSerializer, ControlParameterSerializer,
     ControlStatusSerializer, ControlCommandSerializer,
-    RoomControlOverviewSerializer, SendCommandSerializer
+    RoomControlOverviewSerializer, SendCommandSerializer,
+    PLCConfigSerializer, LEDControlSerializer
 )
-from .plc_interface import PLCInterface  # Wird später implementiert
+from .plc_interface import get_plc_interface
 
 
 class ControlUnitViewSet(viewsets.ModelViewSet):
@@ -32,6 +33,181 @@ class ControlUnitViewSet(viewsets.ModelViewSet):
         if self.action == 'retrieve':
             return ControlUnitDetailSerializer
         return ControlUnitSerializer
+    
+    def perform_create(self, serializer):
+        """Bei Erstellung den aktuellen Benutzer setzen"""
+        serializer.save(created_by=self.request.user)
+    
+    @action(detail=True, methods=['post'])
+    def toggle_led(self, request, pk=None):
+        """LED Start/Stopp umschalten"""
+        control_unit = self.get_object()
+        serializer = LEDControlSerializer(data=request.data)
+        
+        if serializer.is_valid():
+            new_status = serializer.validated_data['status']
+            
+            # Command erstellen
+            command = ControlCommand.objects.create(
+                control_unit=control_unit,
+                command_type='set_led',
+                payload={'status': new_status}
+            )
+            
+            # An SPS senden
+            try:
+                plc = get_plc_interface(control_unit)
+                success = plc.set_led_status(new_status)
+                
+                if success:
+                    # Status aktualisieren oder erstellen
+                    status_obj, created = ControlStatus.objects.get_or_create(
+                        control_unit=control_unit,
+                        defaults={
+                            'led_status': new_status,
+                            'output_q0_status': new_status,
+                            'is_online': True
+                        }
+                    )
+                    
+                    if not created:
+                        status_obj.led_status = new_status
+                        status_obj.output_q0_status = new_status  # Q0 ist mit LED verknüpft
+                        status_obj.is_online = True
+                        status_obj.save()
+                    
+                    command.status = 'confirmed'
+                    command.confirmed_at = timezone.now()
+                    
+                    # Control Unit neu laden für aktuelle Daten
+                    control_unit.refresh_from_db()
+                    
+                    # Vollständige Unit-Daten zurückgeben
+                    unit_data = ControlUnitSerializer(control_unit).data
+                    
+                else:
+                    command.status = 'failed'
+                    command.error_message = 'SPS hat den Befehl nicht akzeptiert'
+                
+                command.save()
+                
+                return Response({
+                    'success': success,
+                    'led_status': new_status,
+                    'command_id': str(command.id),
+                    'unit': unit_data  # Vollständige Unit-Daten inkl. current_status
+                }, status=status.HTTP_200_OK if success else status.HTTP_500_INTERNAL_SERVER_ERROR)
+                
+            except Exception as e:
+                command.status = 'failed'
+                command.error_message = str(e)
+                command.save()
+                
+                return Response({
+                    'success': False,
+                    'error': str(e)
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=True, methods=['post'])
+    def save_to_plc(self, request, pk=None):
+        """Speichert die aktuelle Konfiguration in der SPS"""
+        control_unit = self.get_object()
+        
+        # Prüfung ob alle notwendigen Daten vorhanden sind
+        if not control_unit.plc_address:
+            return Response({
+                'error': 'Keine SPS-Adresse konfiguriert'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Konfigurationsdaten sammeln
+        config_data = {
+            'unit_id': str(control_unit.id),
+            'unit_type': control_unit.unit_type,
+            'name': control_unit.name,
+            'parameters': {}
+        }
+        
+        # Parameter hinzufügen
+        for param in control_unit.parameters.all():
+            config_data['parameters'][param.key] = param.get_typed_value()
+        
+        # Command erstellen
+        command = ControlCommand.objects.create(
+            control_unit=control_unit,
+            command_type='save_config',
+            payload=config_data
+        )
+        
+        try:
+            plc = get_plc_interface(control_unit)
+            
+            # Zuerst authentifizieren
+            plc.ensure_authenticated()
+            
+            # Konfiguration speichern
+            success = plc.send_command(command)
+            
+            if success:
+                control_unit.last_sync = timezone.now()
+                control_unit.save(update_fields=['last_sync'])
+                
+                return Response({
+                    'success': True,
+                    'message': 'Konfiguration erfolgreich in SPS gespeichert',
+                    'last_sync': control_unit.last_sync
+                })
+            else:
+                return Response({
+                    'success': False,
+                    'error': 'Fehler beim Speichern in der SPS'
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                
+        except Exception as e:
+            command.status = 'failed'
+            command.error_message = str(e)
+            command.save()
+            
+            return Response({
+                'success': False,
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    @action(detail=True, methods=['get'])
+    def sync_status(self, request, pk=None):
+        """Synchronisiert den Status mit der SPS"""
+        control_unit = self.get_object()
+        
+        try:
+            plc = get_plc_interface(control_unit)
+            plc.ensure_authenticated()
+            
+            # LED/Output Status lesen
+            output_status = plc.get_output_q0_status()
+            
+            # Status aktualisieren
+            status_obj, created = ControlStatus.objects.get_or_create(
+                control_unit=control_unit
+            )
+            
+            if output_status is not None:
+                status_obj.led_status = output_status
+                status_obj.output_q0_status = output_status
+                status_obj.is_online = True
+                status_obj.error_message = None
+            else:
+                status_obj.is_online = False
+                status_obj.error_message = 'Keine Antwort von SPS'
+            
+            status_obj.save()
+            
+            return Response(ControlStatusSerializer(status_obj).data)
+            
+        except Exception as e:
+            return Response({
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     @action(detail=True, methods=['post'])
     def send_to_plc(self, request, pk=None):
@@ -61,9 +237,9 @@ class ControlUnitViewSet(viewsets.ModelViewSet):
                 }
             )
             
-            # An SPS senden (async oder über Celery-Task)
+            # An SPS senden
             try:
-                plc = PLCInterface()
+                plc = get_plc_interface(control_unit)
                 result = plc.send_command(command)
                 
                 command.status = 'sent' if result else 'failed'
@@ -216,6 +392,8 @@ class ControlStatusViewSet(viewsets.ReadOnlyModelViewSet):
             'online': queryset.filter(is_online=True).count(),
             'offline': queryset.filter(is_online=False).count(),
             'errors': queryset.exclude(error_message__isnull=True).exclude(error_message='').count(),
+            'led_on': queryset.filter(led_status=True).count(),
+            'led_off': queryset.filter(led_status=False).count(),
         }
         
         return Response(overview)
@@ -238,4 +416,15 @@ class ControlCommandViewSet(viewsets.ReadOnlyModelViewSet):
         if status_filter:
             queryset = queryset.filter(status=status_filter)
         
-        return queryset
+        return queryset.order_by('-created_at')
+
+
+class PLCConfigurationViewSet(viewsets.ModelViewSet):
+    """ViewSet für globale PLC-Konfiguration"""
+    queryset = PLCConfiguration.objects.all()
+    serializer_class = PLCConfigSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_object(self):
+        """Gibt immer die Singleton-Instanz zurück"""
+        return PLCConfiguration.get_config()

@@ -5,7 +5,7 @@ from rooms.models import Room
 from rooms.serializers import RoomSerializer
 from .models import (
     ControlUnit, ControlSchedule, ControlParameter, 
-    ControlStatus, ControlCommand
+    ControlStatus, ControlCommand, PLCConfiguration
 )
 
 class ControlParameterSerializer(serializers.ModelSerializer):
@@ -55,10 +55,30 @@ class ControlUnitSerializer(serializers.ModelSerializer):
     schedules = ControlScheduleSerializer(many=True, read_only=True)
     current_status = ControlStatusSerializer(read_only=True)
     
+    # NEU: Zusätzliche Felder für SPS-Konfiguration
+    has_plc_config = serializers.SerializerMethodField()
+    is_authenticated = serializers.SerializerMethodField()
+    
     class Meta:
         model = ControlUnit
         fields = '__all__'
-        read_only_fields = ['created_at', 'updated_at']
+        read_only_fields = ['created_at', 'updated_at', 'created_by', 'plc_auth_token', 'plc_token_expires']
+        extra_kwargs = {
+            'plc_password': {'write_only': True}  # Passwort nicht im Response anzeigen
+        }
+    
+    def get_has_plc_config(self, obj):
+        """Prüft ob PLC-Konfiguration vorhanden ist"""
+        return bool(obj.plc_address and obj.plc_username)
+    
+    def get_is_authenticated(self, obj):
+        """Prüft ob ein gültiger Token vorhanden ist"""
+        from django.utils import timezone
+        return bool(
+            obj.plc_auth_token and 
+            obj.plc_token_expires and 
+            obj.plc_token_expires > timezone.now()
+        )
 
 
 class ControlUnitDetailSerializer(ControlUnitSerializer):
@@ -89,3 +109,18 @@ class SendCommandSerializer(serializers.Serializer):
     command_type = serializers.CharField(max_length=50)
     parameters = serializers.DictField(required=False, default=dict)
     force = serializers.BooleanField(default=False, help_text="Befehl auch bei Fehler senden")
+
+
+class LEDControlSerializer(serializers.Serializer):
+    """Serializer für LED-Kontrolle"""
+    status = serializers.BooleanField(required=True, help_text="LED Ein/Aus")
+
+
+class PLCConfigSerializer(serializers.ModelSerializer):
+    """Serializer für globale PLC-Konfiguration"""
+    class Meta:
+        model = PLCConfiguration
+        fields = '__all__'
+        extra_kwargs = {
+            'default_password': {'write_only': True}
+        }

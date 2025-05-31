@@ -36,7 +36,6 @@ INSTALLED_APPS = [
     'laborreports',
     'interface',
     'controller',
-    'automation',
     'wawi',
     'unifi_access',
     'unifi_protect',
