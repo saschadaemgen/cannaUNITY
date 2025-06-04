@@ -1,4 +1,4 @@
-# wawi/api_views.py
+# wawi/api_views.py - Am Anfang der Datei
 from rest_framework import viewsets, status, pagination
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -13,8 +13,22 @@ import os
 import uuid
 import json
 
-from .models import CannabisStrain, StrainImage, StrainInventory, StrainHistory
-from .serializers import CannabisStrainSerializer, StrainImageSerializer, StrainInventorySerializer, StrainHistorySerializer
+from .models import (
+    CannabisStrain, 
+    StrainImage, 
+    StrainInventory, 
+    StrainHistory,
+    StrainPriceTier,
+    StrainPurchaseHistory
+)
+from .serializers import (
+    CannabisStrainSerializer, 
+    StrainImageSerializer, 
+    StrainInventorySerializer, 
+    StrainHistorySerializer,
+    StrainPriceTierSerializer,
+    StrainPurchaseHistorySerializer
+)
 
 class StandardResultsSetPagination(pagination.PageNumberPagination):
     page_size = 10
@@ -587,4 +601,189 @@ class CannabisStrainViewSet(viewsets.ModelViewSet):
             return self.get_paginated_response(serializer.data)
         
         serializer = StrainHistorySerializer(history, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=True, methods=['get', 'post'])
+    def price_tiers(self, request, pk=None):
+        """Verwaltet Preisstaffeln einer Sorte"""
+        strain = self.get_object()
+        
+        if request.method == 'GET':
+            tiers = strain.price_tiers.all()
+            serializer = StrainPriceTierSerializer(tiers, many=True)
+            return Response(serializer.data)
+        
+        elif request.method == 'POST':
+            # Neue Preisstaffel hinzufügen
+            serializer = StrainPriceTierSerializer(data=request.data)
+            if serializer.is_valid():
+                serializer.save(strain=strain)
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+    @action(detail=True, methods=['get', 'post'])
+    def price_tiers(self, request, pk=None):
+        """Verwaltet Preisstaffeln einer Sorte"""
+        strain = self.get_object()
+        
+        if request.method == 'GET':
+            tiers = strain.price_tiers.all()
+            serializer = StrainPriceTierSerializer(tiers, many=True)
+            return Response(serializer.data)
+        
+        elif request.method == 'POST':
+            # Wenn es die erste Preisstaffel ist, automatisch als Standard setzen
+            if not strain.price_tiers.exists():
+                request.data['is_default'] = True
+            
+            serializer = StrainPriceTierSerializer(data=request.data)
+            if serializer.is_valid():
+                # Wenn als Standard markiert, andere zurücksetzen
+                if request.data.get('is_default'):
+                    strain.price_tiers.update(is_default=False)
+                
+                serializer.save(strain=strain)
+                
+                # History-Eintrag
+                member_id = request.data.get('member_id')
+                if member_id:
+                    StrainHistory.objects.create(
+                        strain=strain,
+                        member_id=member_id,
+                        action='updated',
+                        changes={'price_tier_added': {
+                            'tier_name': serializer.data.get('tier_name'),
+                            'quantity': serializer.data.get('quantity'),
+                            'price': str(serializer.data.get('total_price'))
+                        }}
+                    )
+                
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['patch', 'delete'], url_path='price_tiers/(?P<tier_id>[^/.]+)')
+    def manage_price_tier(self, request, pk=None, tier_id=None):
+        """Aktualisiert oder löscht eine einzelne Preisstaffel"""
+        strain = self.get_object()
+        
+        try:
+            tier = strain.price_tiers.get(id=tier_id)
+        except StrainPriceTier.DoesNotExist:
+            return Response(
+                {'error': 'Preisstaffel nicht gefunden'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        if request.method == 'PATCH':
+            serializer = StrainPriceTierSerializer(tier, data=request.data, partial=True)
+            if serializer.is_valid():
+                # Wenn als Standard markiert, andere zurücksetzen
+                if request.data.get('is_default'):
+                    strain.price_tiers.exclude(id=tier_id).update(is_default=False)
+                
+                serializer.save()
+                
+                # History-Eintrag
+                member_id = request.data.get('member_id')
+                if member_id:
+                    StrainHistory.objects.create(
+                        strain=strain,
+                        member_id=member_id,
+                        action='updated',
+                        changes={'price_tier_updated': {
+                            'tier_id': str(tier_id),
+                            'updates': request.data
+                        }}
+                    )
+                
+                return Response(serializer.data)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        elif request.method == 'DELETE':
+            # Verhindere Löschen, wenn es die einzige Preisstaffel ist
+            if strain.price_tiers.count() <= 1:
+                return Response(
+                    {'error': 'Die letzte Preisstaffel kann nicht gelöscht werden'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Wenn es der Standard war, setze eine andere als Standard
+            if tier.is_default:
+                other_tier = strain.price_tiers.exclude(id=tier_id).first()
+                if other_tier:
+                    other_tier.is_default = True
+                    other_tier.save()
+            
+            tier_data = {
+                'tier_name': tier.tier_name,
+                'quantity': tier.quantity,
+                'price': str(tier.total_price)
+            }
+            
+            tier.delete()
+            
+            # History-Eintrag
+            member_id = request.query_params.get('member_id')
+            if member_id:
+                StrainHistory.objects.create(
+                    strain=strain,
+                    member_id=member_id,
+                    action='updated',
+                    changes={'price_tier_deleted': tier_data}
+                )
+            
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=['post'], url_path='price_tiers/(?P<tier_id>[^/.]+)/purchase')
+    def add_purchase(self, request, pk=None, tier_id=None):
+        """Fügt einen Einkauf zu einer Preisstaffel hinzu"""
+        strain = self.get_object()
+        
+        try:
+            tier = strain.price_tiers.get(id=tier_id)
+        except StrainPriceTier.DoesNotExist:
+            return Response(
+                {'error': 'Preisstaffel nicht gefunden'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        serializer = StrainPurchaseHistorySerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(price_tier=tier)
+            
+            # History-Eintrag
+            member_id = request.data.get('member_id') or request.data.get('purchased_by')
+            if member_id:
+                StrainHistory.objects.create(
+                    strain=strain,
+                    member_id=member_id,
+                    action='updated',
+                    changes={'purchase_added': {
+                        'tier_name': tier.tier_name,
+                        'quantity': serializer.data.get('quantity'),
+                        'total_cost': str(serializer.data.get('total_cost')),
+                        'date': serializer.data.get('purchase_date')
+                    }}
+                )
+            
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['get'])
+    def purchase_history(self, request, pk=None):
+        """Gibt die komplette Einkaufshistorie einer Sorte zurück"""
+        strain = self.get_object()
+        
+        # Alle Einkäufe über alle Preisstaffeln
+        purchases = StrainPurchaseHistory.objects.filter(
+            price_tier__strain=strain
+        ).order_by('-purchase_date')
+        
+        # Pagination
+        page = self.paginate_queryset(purchases)
+        if page is not None:
+            serializer = StrainPurchaseHistorySerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = StrainPurchaseHistorySerializer(purchases, many=True)
         return Response(serializer.data)

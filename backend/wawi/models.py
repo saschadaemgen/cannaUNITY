@@ -327,6 +327,22 @@ class CannabisStrain(models.Model):
     def __str__(self):
         return f"{self.name} ({self.breeder})"
     
+    @property
+    def lowest_unit_price(self):
+        """Gibt den günstigsten Stückpreis zurück"""
+        price_tiers = self.price_tiers.all()
+        if price_tiers:
+            return min(tier.unit_price for tier in price_tiers)
+        return None
+
+    @property
+    def default_price_display(self):
+        """Gibt den Standardpreis für die Anzeige zurück"""
+        default_tier = self.price_tiers.filter(is_default=True).first()
+        if default_tier:
+            return f"{default_tier.quantity}× {default_tier.total_price}€"
+        return "Kein Preis definiert"
+    
     class Meta:
         verbose_name = "Cannabis-Sorte"
         verbose_name_plural = "Cannabis-Sorten"
@@ -452,3 +468,127 @@ class StrainHistory(models.Model):
         if self.member:
             return f"{self.get_action_display()} von {self.member.first_name} {self.member.last_name} am {self.timestamp.strftime('%d.%m.%Y %H:%M')}"
         return f"{self.get_action_display()} am {self.timestamp.strftime('%d.%m.%Y %H:%M')}"
+    
+class StrainPriceTier(models.Model):
+    """Preisstaffel für Cannabis-Sorten"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    strain = models.ForeignKey(
+        CannabisStrain,
+        on_delete=models.CASCADE,
+        related_name='price_tiers'
+    )
+    tier_name = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name="Staffelbezeichnung"
+    )
+    quantity = models.IntegerField(
+        verbose_name="Menge (Samen pro Packung)"
+    )
+    total_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        verbose_name="Gesamtpreis pro Packung"
+    )
+    is_default = models.BooleanField(
+        default=False,
+        verbose_name="Standardpreis"
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    @property
+    def unit_price(self):
+        """Berechnet den Stückpreis"""
+        if self.quantity > 0:
+            return self.total_price / self.quantity
+        return 0
+    
+    @property
+    def discount_percentage(self):
+        """Berechnet den Rabatt im Vergleich zur kleinsten Packung"""
+        smallest_tier = self.strain.price_tiers.order_by('quantity').first()
+        if smallest_tier and smallest_tier != self:
+            smallest_unit_price = smallest_tier.unit_price
+            if smallest_unit_price > 0:
+                return ((smallest_unit_price - self.unit_price) / smallest_unit_price) * 100
+        return 0
+    
+    @property
+    def purchased_seeds(self):
+        """Berechnet die Gesamtzahl der eingekauften Samen dieser Staffel"""
+        purchases = self.purchase_history.aggregate(
+            total_packs=models.Sum('quantity')
+        )['total_packs'] or 0
+        return purchases * self.quantity
+    
+    @property
+    def flowering_plants(self):
+        """Anzahl der Blütepflanzen aus dieser Staffel"""
+        # Wird später mit CultivationBatch verknüpft
+        return 0
+    
+    @property
+    def mother_plants(self):
+        """Anzahl der Mutterpflanzen aus dieser Staffel"""
+        # Wird später mit CultivationBatch verknüpft
+        return 0
+    
+    @property
+    def available_seeds(self):
+        """Berechnet verfügbare Samen"""
+        return self.purchased_seeds - (self.flowering_plants + self.mother_plants)
+    
+    class Meta:
+        verbose_name = "Preisstaffel"
+        verbose_name_plural = "Preisstaffeln"
+        ordering = ['quantity']
+        unique_together = ['strain', 'quantity']
+
+
+class StrainPurchaseHistory(models.Model):
+    """Einkaufshistorie für Preisstaffeln"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    price_tier = models.ForeignKey(
+        StrainPriceTier,
+        on_delete=models.CASCADE,
+        related_name='purchase_history'
+    )
+    purchase_date = models.DateField(
+        verbose_name="Einkaufsdatum"
+    )
+    quantity = models.IntegerField(
+        verbose_name="Anzahl Packungen"
+    )
+    total_cost = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        verbose_name="Gesamtkosten"
+    )
+    supplier = models.CharField(
+        max_length=200,
+        blank=True,
+        verbose_name="Lieferant"
+    )
+    invoice_number = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name="Rechnungsnummer"
+    )
+    notes = models.TextField(
+        blank=True,
+        verbose_name="Notizen"
+    )
+    purchased_by = models.ForeignKey(
+        Member,
+        on_delete=models.SET_NULL,
+        null=True,
+        verbose_name="Eingekauft von"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        verbose_name = "Einkaufshistorie"
+        verbose_name_plural = "Einkaufshistorien"
+        ordering = ['-purchase_date']

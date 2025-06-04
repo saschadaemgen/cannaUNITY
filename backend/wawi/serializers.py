@@ -1,8 +1,16 @@
 # wawi/serializers.py
 from rest_framework import serializers
-from .models import CannabisStrain, StrainImage, StrainInventory, StrainHistory
+from django.db import models
+from .models import (
+    CannabisStrain, 
+    StrainImage, 
+    StrainInventory, 
+    StrainHistory,
+    StrainPriceTier,
+    StrainPurchaseHistory
+)
 from members.models import Member
-from members.serializers import MemberSerializer  # Importiere den existierenden Serializer
+from members.serializers import MemberSerializer
 
 class StrainImageSerializer(serializers.ModelSerializer):
     class Meta:
@@ -16,6 +24,80 @@ class StrainInventorySerializer(serializers.ModelSerializer):
         model = StrainInventory
         fields = ['total_quantity', 'available_quantity', 'last_restocked']
         read_only_fields = ['last_restocked']
+
+
+class StrainPurchaseHistorySerializer(serializers.ModelSerializer):
+    purchased_by_name = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = StrainPurchaseHistory
+        fields = [
+            'id', 'purchase_date', 'quantity', 'total_cost',
+            'supplier', 'invoice_number', 'notes', 
+            'purchased_by', 'purchased_by_name', 'created_at'
+        ]
+        read_only_fields = ['id', 'created_at']
+    
+    def get_purchased_by_name(self, obj):
+        if obj.purchased_by:
+            return f"{obj.purchased_by.first_name} {obj.purchased_by.last_name}"
+        return None
+
+
+class StrainPriceTierSerializer(serializers.ModelSerializer):
+    unit_price = serializers.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        read_only=True
+    )
+    discount_percentage = serializers.DecimalField(
+        max_digits=5, 
+        decimal_places=2, 
+        read_only=True
+    )
+    purchased_seeds = serializers.IntegerField(read_only=True)
+    flowering_plants = serializers.IntegerField(read_only=True)
+    mother_plants = serializers.IntegerField(read_only=True)
+    available_seeds = serializers.IntegerField(read_only=True)
+    
+    # Für Frontend-Kompatibilität
+    totalPurchasedQuantity = serializers.SerializerMethodField()
+    floweringPlants = serializers.SerializerMethodField()
+    motherPlants = serializers.SerializerMethodField()
+    purchaseHistory = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = StrainPriceTier
+        fields = [
+            'id', 'tier_name', 'quantity', 'total_price', 'is_default',
+            'unit_price', 'discount_percentage', 'purchased_seeds',
+            'flowering_plants', 'mother_plants', 'available_seeds',
+            'created_at', 'updated_at',
+            # Frontend-kompatible Felder
+            'totalPurchasedQuantity', 'floweringPlants', 'motherPlants',
+            'purchaseHistory'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+    
+    def get_totalPurchasedQuantity(self, obj):
+        """Anzahl der eingekauften Packungen"""
+        return obj.purchase_history.aggregate(
+            total=models.Sum('quantity')
+        )['total'] or 0
+    
+    def get_floweringPlants(self, obj):
+        return obj.flowering_plants
+    
+    def get_motherPlants(self, obj):
+        return obj.mother_plants
+    
+    def get_purchaseHistory(self, obj):
+        """Letzte 3 Einkäufe für die Anzeige"""
+        recent_purchases = obj.purchase_history.all()[:3]
+        return [{
+            'date': purchase.purchase_date.strftime('%d.%m.%Y'),
+            'quantity': purchase.quantity
+        } for purchase in recent_purchases]
 
 
 class CannabisStrainSerializer(serializers.ModelSerializer):
@@ -35,6 +117,15 @@ class CannabisStrainSerializer(serializers.ModelSerializer):
     # Nested Serializers für Bilder und Bestand
     images = StrainImageSerializer(many=True, read_only=True)
     inventory = StrainInventorySerializer(read_only=True)
+    
+    # Neue Felder für Preisstaffeln
+    price_tiers = StrainPriceTierSerializer(many=True, read_only=True)
+    lowest_unit_price = serializers.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        read_only=True
+    )
+    default_price_display = serializers.CharField(read_only=True)
     
     # Berechnung des Sativa-Prozentsatzes
     sativa_percentage = serializers.IntegerField(read_only=True)
@@ -93,9 +184,12 @@ class CannabisStrainSerializer(serializers.ModelSerializer):
             'member', 'member_id',
             'images', 'inventory',
             'is_active', 'created_at', 'updated_at',
-            'temp_id'  # Hinzugefügt für die Bildverarbeitung
+            'temp_id',
+            # Neue Preis-Felder
+            'price_tiers', 'lowest_unit_price', 'default_price_display'
         ]
         read_only_fields = ['id', 'batch_number', 'created_at', 'updated_at']
+
 
 class StrainHistorySerializer(serializers.ModelSerializer):
     member_name = serializers.SerializerMethodField()
@@ -125,8 +219,6 @@ class StrainHistorySerializer(serializers.ModelSerializer):
     def get_changes_formatted(self, obj):
         """
         Formatiert die Änderungen in ein benutzerfreundliches Format.
-        Wandelt technische Feldnamen in lesbare Bezeichnungen um und
-        führt Spezialformatierungen für bestimmte Feldtypen durch.
         """
         if not obj.changes:
             return None
@@ -169,7 +261,12 @@ class StrainHistorySerializer(serializers.ModelSerializer):
                 'rating': 'Bewertung',
                 'price_per_seed': 'Preis pro Samen (€)',
                 'seeds_per_pack': 'Anzahl Samen pro Packung',
-                'is_active': 'Aktiv'
+                'is_active': 'Aktiv',
+                # Neue Preis-bezogene Änderungen
+                'price_tier_added': 'Preisstaffel hinzugefügt',
+                'price_tier_updated': 'Preisstaffel aktualisiert',
+                'price_tier_deleted': 'Preisstaffel gelöscht',
+                'purchase_added': 'Einkauf hinzugefügt'
             }
             
             # Mapping für Auswahlfeldwerte
@@ -213,6 +310,11 @@ class StrainHistorySerializer(serializers.ModelSerializer):
             
             # Jede Änderung verarbeiten
             for field, change in obj.changes.items():
+                # Sonderbehandlung für Preis-bezogene Änderungen
+                if field in ['price_tier_added', 'price_tier_updated', 'price_tier_deleted', 'purchase_added']:
+                    formatted_changes[field_name_mapping.get(field, field)] = change
+                    continue
+                
                 # Sicherstellen, dass change ein Dictionary ist
                 if not isinstance(change, dict):
                     continue
@@ -240,6 +342,15 @@ class StrainHistorySerializer(serializers.ModelSerializer):
                 elif field == 'is_active':
                     old_value = boolean_mapping.get(old_value, old_value) if old_value is not None else None
                     new_value = boolean_mapping.get(new_value, new_value) if new_value is not None else None
+                elif field == 'indica_percentage':
+                    old_value = f"{old_value}% Indica / {100 - old_value}% Sativa" if old_value is not None else None
+                    new_value = f"{new_value}% Indica / {100 - new_value}% Sativa" if new_value is not None else None
+                elif field == 'rating':
+                    old_value = f"{old_value} Sterne" if old_value is not None else None
+                    new_value = f"{new_value} Sterne" if new_value is not None else None
+                elif field == 'price_per_seed':
+                    old_value = f"{old_value}€" if old_value is not None else None
+                    new_value = f"{new_value}€" if new_value is not None else None
                 
                 # Listen-Werte formatieren (kommaseparierte Strings)
                 elif field in ['dominant_terpenes', 'flavors', 'effects']:

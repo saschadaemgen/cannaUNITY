@@ -113,7 +113,7 @@ export default function Home() {
 
       <Box sx={{ mb: 3 }}>
         <Typography variant="body2" color="text.secondary" align="center" sx={{ mb: 1 }}>
-          Version 0.6.18 (Pre-Alpha) – Ein Open-Source-Projekt für Cannabis Social Clubs
+          Ein Open-Source-Projekt für Cannabis Social Clubs
         </Typography>
         <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', mb: 1 }}>
           <GitHubIcon fontSize="small" sx={{ mr: 1 }} />
