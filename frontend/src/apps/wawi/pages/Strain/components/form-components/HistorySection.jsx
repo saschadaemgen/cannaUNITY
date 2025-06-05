@@ -19,6 +19,25 @@ import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
 import DeleteIcon from '@mui/icons-material/Delete';
 import StarIcon from '@mui/icons-material/Star';
 import EditIcon from '@mui/icons-material/Edit';
+import LocalOfferIcon from '@mui/icons-material/LocalOffer';
+import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
+import LabelIcon from '@mui/icons-material/Label';
+import BusinessIcon from '@mui/icons-material/Business';
+import GrassIcon from '@mui/icons-material/Grass';
+import HeightIcon from '@mui/icons-material/Height';
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
+import ScaleIcon from '@mui/icons-material/Scale';
+import ScienceIcon from '@mui/icons-material/Science';
+import PsychologyIcon from '@mui/icons-material/Psychology';
+import LocalFloristIcon from '@mui/icons-material/LocalFlorist';
+import TerrainIcon from '@mui/icons-material/Terrain';
+import BugReportIcon from '@mui/icons-material/BugReport';
+import AcUnitIcon from '@mui/icons-material/AcUnit';
+import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
+import EventIcon from '@mui/icons-material/Event';
+import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
+import InventoryIcon from '@mui/icons-material/Inventory';
+import ToggleOnIcon from '@mui/icons-material/ToggleOn';
 
 export default function HistorySection({ history, historyLoading }) {
   const [historyInfoAnchorEl, setHistoryInfoAnchorEl] = useState(null);
@@ -77,7 +96,182 @@ export default function HistorySection({ history, historyLoading }) {
     }, {});
   };
 
+  const getIconForField = (field) => {
+    const iconMap = {
+      name: <LabelIcon fontSize="small" sx={{ mr: 1, color: 'info.main' }}/>,
+      breeder: <BusinessIcon fontSize="small" sx={{ mr: 1, color: 'info.main' }}/>,
+      strain_type: <GrassIcon fontSize="small" sx={{ mr: 1, color: 'success.main' }}/>,
+      indica_percentage: <GrassIcon fontSize="small" sx={{ mr: 1, color: 'success.main' }}/>,
+      genetic_origin: <ScienceIcon fontSize="small" sx={{ mr: 1, color: 'info.main' }}/>,
+      flowering_time_min: <CalendarMonthIcon fontSize="small" sx={{ mr: 1, color: 'warning.main' }}/>,
+      flowering_time_max: <CalendarMonthIcon fontSize="small" sx={{ mr: 1, color: 'warning.main' }}/>,
+      height_indoor_min: <HeightIcon fontSize="small" sx={{ mr: 1, color: 'info.main' }}/>,
+      height_indoor_max: <HeightIcon fontSize="small" sx={{ mr: 1, color: 'info.main' }}/>,
+      height_outdoor_min: <HeightIcon fontSize="small" sx={{ mr: 1, color: 'info.main' }}/>,
+      height_outdoor_max: <HeightIcon fontSize="small" sx={{ mr: 1, color: 'info.main' }}/>,
+      yield_indoor_min: <ScaleIcon fontSize="small" sx={{ mr: 1, color: 'success.main' }}/>,
+      yield_indoor_max: <ScaleIcon fontSize="small" sx={{ mr: 1, color: 'success.main' }}/>,
+      yield_outdoor_min: <ScaleIcon fontSize="small" sx={{ mr: 1, color: 'success.main' }}/>,
+      yield_outdoor_max: <ScaleIcon fontSize="small" sx={{ mr: 1, color: 'success.main' }}/>,
+      thc_percentage_min: <ScienceIcon fontSize="small" sx={{ mr: 1, color: 'warning.main' }}/>,
+      thc_percentage_max: <ScienceIcon fontSize="small" sx={{ mr: 1, color: 'warning.main' }}/>,
+      cbd_percentage_min: <ScienceIcon fontSize="small" sx={{ mr: 1, color: 'info.main' }}/>,
+      cbd_percentage_max: <ScienceIcon fontSize="small" sx={{ mr: 1, color: 'info.main' }}/>,
+      difficulty: <PsychologyIcon fontSize="small" sx={{ mr: 1, color: 'warning.main' }}/>,
+      dominant_terpenes: <LocalFloristIcon fontSize="small" sx={{ mr: 1, color: 'success.main' }}/>,
+      flavors: <LocalFloristIcon fontSize="small" sx={{ mr: 1, color: 'success.main' }}/>,
+      effects: <PsychologyIcon fontSize="small" sx={{ mr: 1, color: 'info.main' }}/>,
+      growing_information: <InfoIcon fontSize="small" sx={{ mr: 1, color: 'info.main' }}/>,
+      general_information: <InfoIcon fontSize="small" sx={{ mr: 1, color: 'info.main' }}/>,
+      suitable_climate: <TerrainIcon fontSize="small" sx={{ mr: 1, color: 'success.main' }}/>,
+      growing_method: <GrassIcon fontSize="small" sx={{ mr: 1, color: 'success.main' }}/>,
+      resistance_mold: <BugReportIcon fontSize="small" sx={{ mr: 1, color: 'warning.main' }}/>,
+      resistance_pests: <BugReportIcon fontSize="small" sx={{ mr: 1, color: 'warning.main' }}/>,
+      resistance_cold: <AcUnitIcon fontSize="small" sx={{ mr: 1, color: 'info.main' }}/>,
+      awards: <EmojiEventsIcon fontSize="small" sx={{ mr: 1, color: 'warning.main' }}/>,
+      release_year: <EventIcon fontSize="small" sx={{ mr: 1, color: 'info.main' }}/>,
+      rating: <StarIcon fontSize="small" sx={{ mr: 1, color: 'warning.main' }}/>,
+      price_per_seed: <AttachMoneyIcon fontSize="small" sx={{ mr: 1, color: 'success.main' }}/>,
+      seeds_per_pack: <InventoryIcon fontSize="small" sx={{ mr: 1, color: 'info.main' }}/>,
+      is_active: <ToggleOnIcon fontSize="small" sx={{ mr: 1, color: 'success.main' }}/>,
+    };
+    
+    return iconMap[field] || <EditIcon fontSize="small" sx={{ mr: 1, color: 'action.active' }}/>;
+  };
+
+  const getNarrativeForPriceAction = (action, details, memberName, timestamp) => {
+    const timeStr = formatDateTime(timestamp);
+    const timeOnly = timeStr.includes('am') ? timeStr.split('am ')[1] : timeStr;
+    
+    let icon;
+    let narrativeContent;
+    
+    switch (action) {
+      case 'price_tier_added':
+        icon = <LocalOfferIcon fontSize="small" sx={{ mr: 1, color: 'success.main' }}/>;
+        narrativeContent = (
+          <>
+            fügte{' '}
+            <Box component="span" sx={{ color: 'text.secondary' }}>
+              {timeOnly}
+            </Box>
+            {' '}eine neue Preisstaffel hinzu:{' '}
+            <Box component="span" sx={{ color: 'success.main', fontWeight: 'medium' }}>
+              {details.tier_name || `${details.quantity}er Packung`} für {details.price}€
+            </Box>
+            {'.'}
+          </>
+        );
+        break;
+        
+      case 'price_tier_updated':
+        icon = <EditIcon fontSize="small" sx={{ mr: 1, color: 'info.main' }}/>;
+        narrativeContent = (
+          <>
+            aktualisierte{' '}
+            <Box component="span" sx={{ color: 'text.secondary' }}>
+              {timeOnly}
+            </Box>
+            {' '}eine Preisstaffel
+            {details.tier_name && (
+              <>
+                :{' '}
+                <Box component="span" sx={{ color: 'info.main', fontWeight: 'medium' }}>
+                  {details.tier_name}
+                </Box>
+              </>
+            )}
+            {'.'}
+          </>
+        );
+        break;
+        
+      case 'price_tier_deleted':
+        icon = <DeleteIcon fontSize="small" sx={{ mr: 1, color: 'error.main' }}/>;
+        narrativeContent = (
+          <>
+            löschte{' '}
+            <Box component="span" sx={{ color: 'text.secondary' }}>
+              {timeOnly}
+            </Box>
+            {' '}eine Preisstaffel
+            {details.tier_name && (
+              <>
+                :{' '}
+                <Box component="span" sx={{ color: 'error.main', fontStyle: 'italic' }}>
+                  {details.tier_name} ({details.quantity} Samen für {details.price}€)
+                </Box>
+              </>
+            )}
+            {'.'}
+          </>
+        );
+        break;
+        
+      case 'purchase_added':
+        icon = <ShoppingCartIcon fontSize="small" sx={{ mr: 1, color: 'success.main' }}/>;
+        narrativeContent = (
+          <>
+            dokumentierte{' '}
+            <Box component="span" sx={{ color: 'text.secondary' }}>
+              {timeOnly}
+            </Box>
+            {' '}einen Einkauf:{' '}
+            <Box component="span" sx={{ color: 'success.main', fontWeight: 'medium' }}>
+              {details.quantity} × {details.tier_name} für {details.total_cost}€
+            </Box>
+            {' '}am{' '}
+            <Box component="span" sx={{ color: 'text.secondary' }}>
+              {details.date}
+            </Box>
+            {'.'}
+          </>
+        );
+        break;
+        
+      default:
+        return null;
+    }
+    
+    return (
+      <Box 
+        component="div" 
+        sx={{ 
+          display: 'flex',
+          alignItems: 'center',
+          mb: 0.5,
+          py: 0.25,
+          '&:hover': {
+            bgcolor: 'rgba(0, 0, 0, 0.02)'
+          }
+        }}
+      >
+        <Box
+          component="span"
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            fontWeight: 'medium',
+            color: 'primary.main',
+            minWidth: '120px'
+          }}
+        >
+          {icon}
+          {memberName}
+        </Box>
+        <Typography variant="body2" sx={{ flex: 1 }}>
+          &nbsp;{narrativeContent}
+        </Typography>
+      </Box>
+    );
+  };
+
   const getNarrativeForChange = (field, values, memberName, timestamp) => {
+    // Spezielle Behandlung für Preis-bezogene Aktionen
+    if (['price_tier_added', 'price_tier_updated', 'price_tier_deleted', 'purchase_added'].includes(field)) {
+      return getNarrativeForPriceAction(field, values, memberName, timestamp);
+    }
+    
     const fieldLabels = {
       name: 'den Sortennamen',
       breeder: 'den Hersteller/Züchter',
@@ -141,13 +335,14 @@ export default function HistorySection({ history, historyLoading }) {
     
     const timeStr = formatDateTime(timestamp);
     const fieldLabel = fieldLabels[field] || field;
+    const icon = getIconForField(field);
     
     return (
       <Box 
         component="div" 
         sx={{ 
           display: 'flex',
-          alignItems: 'baseline',
+          alignItems: 'center',
           mb: 0.5,
           py: 0.25,
           '&:hover': {
@@ -158,15 +353,18 @@ export default function HistorySection({ history, historyLoading }) {
         <Box 
           component="span" 
           sx={{ 
+            display: 'flex',
+            alignItems: 'center',
             fontWeight: 'medium', 
             color: 'primary.main',
             minWidth: '120px'
           }}
         >
+          {icon}
           {memberName}
         </Box>
         <Typography variant="body2" sx={{ flex: 1 }}>
-          {' änderte '}
+          &nbsp;änderte{' '}
           <Box component="span" sx={{ color: 'text.secondary' }}>
             {timeStr.includes('am') ? timeStr.split('am ')[1] : timeStr}
           </Box>
@@ -174,11 +372,11 @@ export default function HistorySection({ history, historyLoading }) {
           <Box component="span" sx={{ fontWeight: 'medium' }}>
             {fieldLabel}
           </Box>
-          {' von '}
+          {' '}von{' '}
           <Box component="span" sx={{ color: 'error.main', fontStyle: 'italic' }}>
             {oldValueFormatted}
           </Box>
-          {' zu '}
+          {' '}zu{' '}
           <Box component="span" sx={{ color: 'success.main', fontWeight: 'medium' }}>
             {newValueFormatted}
           </Box>
@@ -222,14 +420,14 @@ export default function HistorySection({ history, historyLoading }) {
         case 'added':
           return (
             <>
-              {' fügte '}
+              fügte{' '}
               <Box component="span" sx={{ color: 'text.secondary' }}>
                 {timeOnly}
               </Box>
-              {' ein neues Bild hinzu'}
+              {' '}ein neues Bild hinzu
               {caption && (
                 <>
-                  {' mit der Beschreibung '}
+                  {' '}mit der Beschreibung{' '}
                   <Box component="span" sx={{ color: 'success.main', fontStyle: 'italic' }}>
                     "{caption}"
                   </Box>
@@ -241,14 +439,14 @@ export default function HistorySection({ history, historyLoading }) {
         case 'removed':
           return (
             <>
-              {' entfernte '}
+              entfernte{' '}
               <Box component="span" sx={{ color: 'text.secondary' }}>
                 {timeOnly}
               </Box>
-              {' ein Bild'}
+              {' '}ein Bild
               {caption && (
                 <>
-                  {' mit der Beschreibung '}
+                  {' '}mit der Beschreibung{' '}
                   <Box component="span" sx={{ color: 'error.main', fontStyle: 'italic' }}>
                     "{caption}"
                   </Box>
@@ -289,7 +487,7 @@ export default function HistorySection({ history, historyLoading }) {
           {memberName}
         </Box>
         <Typography variant="body2" sx={{ flex: 1 }}>
-          {narrativeContent}
+          &nbsp;{narrativeContent}
         </Typography>
       </Box>
     );
@@ -497,17 +695,6 @@ export default function HistorySection({ history, historyLoading }) {
                 <HistoryIcon sx={{ mr: 0.5, fontSize: '1.2rem' }} />
                 Verlaufshistorie
               </Typography>
-              <Tooltip title="Zeigt die vollständige Änderungshistorie dieses Datensatzes an, inklusive Erstellung und nachfolgenden Bearbeitungen.">
-                <IconButton 
-                  size="small" 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setHistoryInfoAnchorEl(e.currentTarget);
-                  }}
-                >
-                  <InfoIcon fontSize="small" color="action" />
-                </IconButton>
-              </Tooltip>
             </Box>
           </Box>
         </AccordionSummary>
@@ -531,6 +718,18 @@ export default function HistorySection({ history, historyLoading }) {
           )}
         </AccordionDetails>
       </Accordion>
+
+      {/* Info-Icon außerhalb des Accordions */}
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: -1 }}>
+        <Tooltip title="Zeigt die vollständige Änderungshistorie dieses Datensatzes an, inklusive Erstellung und nachfolgenden Bearbeitungen.">
+          <IconButton 
+            size="small" 
+            onClick={(e) => setHistoryInfoAnchorEl(e.currentTarget)}
+          >
+            <InfoIcon fontSize="small" color="action" />
+          </IconButton>
+        </Tooltip>
+      </Box>
 
       <Popover
         open={Boolean(historyInfoAnchorEl)}
