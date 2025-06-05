@@ -104,6 +104,7 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
 
   // Price tiers state
   const [priceTiers, setPriceTiers] = useState([]);
+  const [originalPriceTiers, setOriginalPriceTiers] = useState([]);
   
   const [tabValue, setTabValue] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -254,11 +255,34 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
   const loadPriceTiers = async (strainId) => {
     try {
       const res = await api.get(`/wawi/strains/${strainId}/price_tiers/`);
+      console.log('Geladene Preisstaffeln:', res.data);
+      
       if (res.data && res.data.length > 0) {
-        setPriceTiers(res.data);
+        // Normalisiere die Daten für die Frontend-Verwendung
+        const normalizedTiers = res.data.map(tier => ({
+          ...tier,
+          // Stelle sicher, dass alle erwarteten Felder vorhanden sind
+          tierName: tier.tier_name || tier.tierName || '',
+          totalPrice: parseFloat(tier.total_price || tier.totalPrice || 0),
+          isDefault: tier.is_default || tier.isDefault || false,
+          // Diese Felder kommen von der API
+          totalPurchasedQuantity: tier.totalPurchasedQuantity || 0,
+          floweringPlants: tier.floweringPlants || 0,
+          motherPlants: tier.motherPlants || 0,
+          purchaseHistory: tier.purchaseHistory || []
+        }));
+        
+        setPriceTiers(normalizedTiers);
+        setOriginalPriceTiers(JSON.parse(JSON.stringify(normalizedTiers)));
+      } else {
+        console.log('Keine Preisstaffeln gefunden');
+        setPriceTiers([]);
+        setOriginalPriceTiers([]);
       }
     } catch (error) {
       console.error('Fehler beim Laden der Preisstaffeln:', error);
+      setPriceTiers([]);
+      setOriginalPriceTiers([]);
     }
   };
   
@@ -286,6 +310,25 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
       setAvailableEffects(res.data || []);
     } catch (error) {
       console.error('Fehler beim Laden der Effekte:', error);
+    }
+  };
+
+  // Initialize default price tier for new entries
+  const initializeDefaultPriceTier = () => {
+    if (!initialData.id && priceTiers.length === 0) {
+      const defaultTier = {
+        id: `new-${Date.now()}`,
+        tierName: '4er Packung',
+        quantity: 4,
+        totalPrice: 28.00,
+        isDefault: true,
+        isNew: true,
+        totalPurchasedQuantity: 0,
+        floweringPlants: 0,
+        motherPlants: 0,
+        purchaseHistory: []
+      };
+      setPriceTiers([defaultTier]);
     }
   };
 
@@ -402,6 +445,99 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
     setPendingImages([]);
   };
 
+  // Price tier handlers - KORRIGIERTE VERSION MIT TRAILING SLASH
+  const savePriceTiers = async (strainId, memberId) => {
+    try {
+      console.log('=== SPEICHERE PREISSTAFFELN ===');
+      console.log('Aktuelle Preisstaffeln:', priceTiers);
+      console.log('Original Preisstaffeln:', originalPriceTiers);
+      
+      // Nur verarbeiten wenn tatsächlich Preisstaffeln vorhanden sind
+      if (!priceTiers || priceTiers.length === 0) {
+        console.warn('Keine Preisstaffeln zum Speichern vorhanden');
+        return;
+      }
+      
+      // Normalisiere die IDs für Vergleiche
+      const normalizeId = (id) => id ? String(id) : '';
+      
+      // Finde welche Preisstaffeln gelöscht, aktualisiert oder hinzugefügt werden müssen
+      const originalIds = originalPriceTiers.map(tier => normalizeId(tier.id));
+      const currentIds = priceTiers
+        .filter(tier => !tier.isNew)
+        .map(tier => normalizeId(tier.id));
+      
+      console.log('Original IDs:', originalIds);
+      console.log('Aktuelle IDs:', currentIds);
+      
+      // Zu löschende Preisstaffeln
+      const toDelete = originalIds.filter(id => id && !currentIds.includes(id));
+      console.log('Zu löschende IDs:', toDelete);
+      
+      // WICHTIG: Prüfe ob noch genügend Preisstaffeln übrig bleiben
+      const remainingCount = priceTiers.length - toDelete.length;
+      
+      // Lösche entfernte Preisstaffeln nur, wenn mindestens eine übrig bleibt
+      if (toDelete.length > 0 && remainingCount > 0) {
+        for (const tierId of toDelete) {
+          try {
+            // WICHTIG: Trailing slash vor dem Query-Parameter!
+            await api.delete(`/wawi/strains/${strainId}/price_tiers/${tierId}/?member_id=${memberId}`);
+            console.log(`Preisstaffel ${tierId} gelöscht`);
+          } catch (deleteError) {
+            console.warn('Konnte Preisstaffel nicht löschen:', deleteError);
+            // Wenn es ein 400 Bad Request ist (letzte Staffel), ignoriere ihn
+            if (deleteError.response?.status !== 400) {
+              throw deleteError;
+            }
+          }
+        }
+      }
+      
+      // Verarbeite alle aktuellen Preisstaffeln
+      for (const tier of priceTiers) {
+        // Normalisiere die Daten
+        const tierData = {
+          tier_name: tier.tierName || tier.tier_name || `${tier.quantity}er Packung`,
+          quantity: parseInt(tier.quantity),
+          total_price: parseFloat(tier.totalPrice || tier.total_price),
+          is_default: tier.isDefault || tier.is_default || false,
+          member_id: memberId
+        };
+        
+        if (tier.isNew) {
+          // Neue Preisstaffel erstellen
+          console.log('Erstelle neue Preisstaffel:', tierData);
+          await api.post(`/wawi/strains/${strainId}/price_tiers/`, tierData);
+        } else {
+          // Prüfe ob sich die Preisstaffel geändert hat
+          const originalTier = originalPriceTiers.find(t => normalizeId(t.id) === normalizeId(tier.id));
+          
+          if (originalTier) {
+            const hasChanged = 
+              (originalTier.tier_name || originalTier.tierName) !== (tier.tierName || tier.tier_name) ||
+              parseInt(originalTier.quantity) !== parseInt(tier.quantity) ||
+              parseFloat(originalTier.total_price || originalTier.totalPrice) !== parseFloat(tier.totalPrice || tier.total_price) ||
+              Boolean(originalTier.is_default || originalTier.isDefault) !== Boolean(tier.isDefault || tier.is_default);
+            
+            if (hasChanged) {
+              console.log('Aktualisiere Preisstaffel:', tier.id, tierData);
+              await api.patch(`/wawi/strains/${strainId}/price_tiers/${tier.id}/`, tierData);
+            }
+          }
+        }
+      }
+      
+      console.log("Preisstaffeln erfolgreich gespeichert!");
+    } catch (error) {
+      console.error('Fehler beim Speichern der Preisstaffeln:', error);
+      // Nur werfen, wenn es kein erwarteter 400-Fehler ist
+      if (error.response?.status !== 400) {
+        throw new Error('Fehler beim Speichern der Preisstaffeln: ' + (error.response?.data?.error || error.message));
+      }
+    }
+  };
+
   // Validation
   const validateForm = () => {
     const newErrors = {};
@@ -458,9 +594,29 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
     }
 
     // Validate price tiers
-    if (priceTiers.length === 0) {
+    if (priceTiers.length === 0 && !initialData.id) {
       newErrors.priceTiers = 'Mindestens eine Preisstaffel ist erforderlich';
       isValid = false;
+    } else if (priceTiers.length > 0) {
+      // Prüfe ob alle Preisstaffeln gültig sind
+      priceTiers.forEach((tier, index) => {
+        if (!tier.quantity || tier.quantity <= 0) {
+          newErrors[`tier_${index}_quantity`] = 'Menge muss größer als 0 sein';
+          isValid = false;
+        }
+        if (!tier.totalPrice || tier.totalPrice <= 0) {
+          newErrors[`tier_${index}_price`] = 'Preis muss größer als 0 sein';
+          isValid = false;
+        }
+      });
+      
+      // Prüfe auf doppelte Mengen
+      const quantities = priceTiers.map(t => t.quantity);
+      const uniqueQuantities = new Set(quantities);
+      if (quantities.length !== uniqueQuantities.size) {
+        newErrors.priceTiers = 'Jede Mengenstaffel darf nur einmal vorkommen';
+        isValid = false;
+      }
     }
     
     setErrors(newErrors);
@@ -486,25 +642,28 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
       data.member_id = memberId;
       
       if (initialData.id) {
+        // Update existing strain
         const response = await api.patch(`/wawi/strains/${initialData.id}/`, data);
         strainId = initialData.id;
       } else {
+        // Create new strain
         const response = await api.post('/wawi/strains/', data);
         strainId = response.data.id;
       }
       
+      // Upload pending images
       if (pendingImages.length > 0) {
         await uploadPendingImages(strainId);
       }
 
       // Save price tiers
-      // TODO: Implement price tier API calls here
+      await savePriceTiers(strainId, memberId);
       
-      console.log("Sorte erfolgreich gespeichert!");
+      console.log("Sorte und Preisstaffeln erfolgreich gespeichert!");
       
     } catch (error) {
       console.error('Fehler beim Speichern:', error);
-      setApiError(error.response?.data?.error || 'Ein Fehler ist aufgetreten');
+      setApiError(error.response?.data?.error || error.message || 'Ein Fehler ist aufgetreten');
       setScanMode(false);
       setScanSuccess(false);
     } finally {
@@ -595,6 +754,9 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
         setImages([]);
         setPendingImages([]);
         setPriceTiers([]);
+        setOriginalPriceTiers([]);
+        // Initialisiere Standard-Preisstaffel für neue Einträge
+        initializeDefaultPriceTier();
       }
       
       loadTerpenes();
@@ -727,6 +889,7 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
         </TabPanel>
         
         <TabPanel value={tabValue} index={6}>
+          {console.log('Passing to PricingTab:', priceTiers)}
           <PricingTab 
             priceTiers={priceTiers}
             onPriceTiersChange={setPriceTiers}

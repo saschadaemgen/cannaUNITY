@@ -28,9 +28,27 @@ export default function PricingTab({
   const [tiers, setTiers] = useState(priceTiers);
   const [warnings, setWarnings] = useState([]);
 
-  // Initialisiere mit einem Standard-Einzelpreis, wenn keine Preisstaffeln vorhanden
+  // WICHTIG: Aktualisiere tiers wenn priceTiers von außen geändert werden
   useEffect(() => {
-    if (tiers.length === 0) {
+    console.log('PricingTab: priceTiers prop changed:', priceTiers);
+    if (priceTiers.length > 0) {
+      // Normalisiere die Daten für die interne Verwendung
+      const normalizedTiers = priceTiers.map(tier => ({
+        id: tier.id,
+        tierName: tier.tierName || tier.tier_name,
+        quantity: tier.quantity,
+        totalPrice: parseFloat(tier.totalPrice || tier.total_price),
+        isDefault: tier.isDefault || tier.is_default || false,
+        isNew: tier.isNew || false,
+        // API Daten
+        totalPurchasedQuantity: tier.totalPurchasedQuantity || 0,
+        floweringPlants: tier.floweringPlants || 0,
+        motherPlants: tier.motherPlants || 0,
+        purchaseHistory: tier.purchaseHistory || []
+      }));
+      setTiers(normalizedTiers);
+    } else if (!initialData.id && priceTiers.length === 0 && tiers.length === 0) {
+      // Nur bei neuen Einträgen UND wenn noch keine Tiers existieren
       const defaultTier = {
         id: `new-${Date.now()}`,
         tierName: '4er Packung',
@@ -38,7 +56,6 @@ export default function PricingTab({
         totalPrice: 28.00,
         isDefault: true,
         isNew: true,
-        // Platzhalter-Daten
         totalPurchasedQuantity: 0,
         floweringPlants: 0,
         motherPlants: 0,
@@ -47,7 +64,10 @@ export default function PricingTab({
       setTiers([defaultTier]);
       onPriceTiersChange([defaultTier]);
     }
-  }, []);
+  }, [priceTiers, initialData.id]);
+
+  // ENTFERNT: Dieser useEffect hat eine Endlosschleife verursacht
+  // Änderungen werden jetzt nur bei expliziten Aktionen (add, update, delete) kommuniziert
 
   // Validierung der Preisstaffeln
   useEffect(() => {
@@ -100,6 +120,7 @@ export default function PricingTab({
   const handleUpdateTier = (tierId, updatedTier) => {
     const updatedTiers = tiers.map(t => t.id === tierId ? updatedTier : t);
     setTiers(updatedTiers);
+    // Wichtig: Änderungen nach außen kommunizieren
     onPriceTiersChange(updatedTiers);
   };
 
@@ -112,6 +133,7 @@ export default function PricingTab({
     }
     
     setTiers(updatedTiers);
+    // Wichtig: Änderungen nach außen kommunizieren
     onPriceTiersChange(updatedTiers);
   };
 
@@ -121,6 +143,7 @@ export default function PricingTab({
       isDefault: t.id === tierId
     }));
     setTiers(updatedTiers);
+    // Wichtig: Änderungen nach außen kommunizieren
     onPriceTiersChange(updatedTiers);
   };
 
@@ -271,64 +294,48 @@ export default function PricingTab({
             Detaillierte Bestandsübersicht
           </Typography>
           
-          {/* Für jede Preisstaffel */}
-          {sortedTiers.map((tier) => {
-            const purchasedSeeds = (tier.totalPurchasedQuantity || 0) * tier.quantity;
-            const availableSeeds = purchasedSeeds - ((tier.floweringPlants || 0) + (tier.motherPlants || 0));
-            
-            return (
-              <Box key={tier.id} sx={{ mb: 2, pb: 2, borderBottom: '1px solid', borderColor: 'divider', '&:last-child': { mb: 0, pb: 0, borderBottom: 'none' } }}>
-                <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1 }}>
-                  {tier.tierName || `${tier.quantity}er Packung`}:
+          {/* Eine einzelne Zeile mit Gesamtübersicht */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, flexWrap: 'wrap' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <ShoppingCartIcon fontSize="small" sx={{ color: 'success.main' }} />
+              <Typography variant="caption" color="text.secondary">Bereits eingekauft:</Typography>
+              <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                {totalStats.totalPurchased} Samen
+              </Typography>
+            </Box>
+
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="caption" color="text.secondary">Daraus entstanden:</Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <LocalFloristIcon fontSize="small" sx={{ color: 'warning.main' }} />
+                <Typography variant="body2">
+                  <strong>{totalStats.totalFlowering}</strong> Blütepflanzen
                 </Typography>
-                
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, flexWrap: 'wrap', pl: 2 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    <ShoppingCartIcon fontSize="small" sx={{ color: 'success.main' }} />
-                    <Typography variant="caption" color="text.secondary">Bereits eingekauft:</Typography>
-                    <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                      {tier.totalPurchasedQuantity || 0} Packungen
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      ({purchasedSeeds} Samen)
-                    </Typography>
-                  </Box>
-
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Typography variant="caption" color="text.secondary">Daraus entstanden:</Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                      <LocalFloristIcon fontSize="small" sx={{ color: 'warning.main' }} />
-                      <Typography variant="body2">
-                        <strong>{tier.floweringPlants || 0}</strong> Blütepflanzen
-                      </Typography>
-                    </Box>
-                    <Typography variant="body2">,</Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                      <SpaIcon fontSize="small" sx={{ color: 'success.main' }} />
-                      <Typography variant="body2">
-                        <strong>{tier.motherPlants || 0}</strong> Mutterpflanzen
-                      </Typography>
-                    </Box>
-                  </Box>
-
-                  <Box sx={{ 
-                    display: 'flex', 
-                    alignItems: 'center',
-                    gap: 0.5,
-                    ml: 'auto'
-                  }}>
-                    <CheckCircleOutlineIcon fontSize="small" sx={{ color: 'success.main' }} />
-                    <Typography variant="caption" color="text.secondary">
-                      Noch verfügbar:
-                    </Typography>
-                    <Typography variant="body2" sx={{ fontWeight: 'bold', color: availableSeeds > 0 ? 'success.main' : 'text.primary' }}>
-                      {availableSeeds} Samen
-                    </Typography>
-                  </Box>
-                </Box>
               </Box>
-            );
-          })}
+              <Typography variant="body2">,</Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <SpaIcon fontSize="small" sx={{ color: 'success.main' }} />
+                <Typography variant="body2">
+                  <strong>{totalStats.totalMother}</strong> Mutterpflanzen
+                </Typography>
+              </Box>
+            </Box>
+
+            <Box sx={{ 
+              display: 'flex', 
+              alignItems: 'center',
+              gap: 0.5,
+              ml: 'auto'
+            }}>
+              <CheckCircleOutlineIcon fontSize="small" sx={{ color: 'success.main' }} />
+              <Typography variant="caption" color="text.secondary">
+                Noch verfügbar:
+              </Typography>
+              <Typography variant="body2" sx={{ fontWeight: 'bold', color: totalAvailable > 0 ? 'success.main' : 'text.primary' }}>
+                {totalAvailable} Samen
+              </Typography>
+            </Box>
+          </Box>
         </Paper>
       )}
     </Box>
