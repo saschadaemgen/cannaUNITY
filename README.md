@@ -40,6 +40,7 @@
 - ✅ Vollständige Protokollierung für Behördenzugriff
 - ✅ Touchpanelsteuerung & Custom UI Panels für Raumanzeige
 - ✅ Anonymisierte Produktausgabe mit UUID Verknüpfung über ZKP (Online)
+- ✅ Warenwirtschaftssystem (WaWi) mit Anbindung an Track & Trace / Buchhaltung  
 - ✅ GMP konforme Laborberichte erstellen,verwalten & speichern.
 - ✅ GoB-konforme Buchhaltung mit vollständiger Journaldarstellung
 - ✅ Stornobuchungen mit gegenbuchender Rückabwicklung (SOLL/HABEN)
