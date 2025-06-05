@@ -180,36 +180,6 @@ export default function PricingTab({
             </Typography>
           </Box>
           
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-            <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
-              <Typography variant="caption" color="text.secondary">Gesamt eingekauft:</Typography>
-              <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                {totalStats.totalPurchased} Samen
-              </Typography>
-            </Box>
-            
-            <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
-              <Typography variant="caption" color="text.secondary">Noch verfügbar:</Typography>
-              <Typography variant="body2" sx={{ fontWeight: 'bold', color: totalAvailable > 0 ? 'success.main' : 'text.primary' }}>
-                {totalAvailable} Samen
-              </Typography>
-            </Box>
-            
-            <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
-              <Typography variant="caption" color="text.secondary">Blütepflanzen:</Typography>
-              <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                {totalStats.totalFlowering} Pflanzen
-              </Typography>
-            </Box>
-            
-            <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
-              <Typography variant="caption" color="text.secondary">Mutterpflanzen:</Typography>
-              <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                {totalStats.totalMother} Pflanzen
-              </Typography>
-            </Box>
-          </Box>
-
           {/* Preisübersicht in einer Zeile */}
           <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
