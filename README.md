@@ -153,6 +153,32 @@ Die Umsetzung folgt den Grundsätzen ordnungsgemäßer Buchführung (GoB) und bi
 
 ---
 
+## 🌿 Warenwirtschaftssystem: Integrierte Cannabis-Genetikverwaltung mit Track & Trace
+
+<p align="center">
+  <img src="screenshots/WaWi/sorte_staffelpreise.png" alt="Vorschau" width="1195">
+</p>
+
+Das Warenwirtschaftssystem bildet das Herzstück der Cannabis-Verwaltung und verbindet nahtlos Genetik-Stammdaten mit operativer Bestandsführung.
+Durch die bidirektionale Integration mit Track & Trace und Buchhaltung entsteht ein geschlossener Kreislauf vom Sameneinkauf bis zur Ernte.
+Unterstützte Funktionen & Module:
+
+1. Genetik-Datenbank – Über 40 Attribute pro Strain (THC/CBD, Terpene, Wachstum)
+2. Preisstaffel-System – Flexible Mengenrabatte mit automatischer Kalkulation
+3. Track & Trace Integration – Live-Bestandsanzeige aus operativen Daten
+4. Buchhaltungs-Workflow – Bestellanforderung → Freigabe → Buchung
+5. RFID-Autorisierung über UniFi Access – Manipulationssichere Dokumentation aller Aktionen
+6. Medien-Verwaltung – Multi-Image Support mit Metadaten & Drag & Drop
+7. Einkaufs-Aggregation – Chargenübergreifende Bestandsermittlung
+8. Audit-Trail – Lückenlose Änderungshistorie für Compliance
+9. API-Schnittstellen – REST-basierte Kommunikation zwischen Systemen
+10. Echtzeit-Metriken – Verfügbare Samen, Pflanzenkonvertierungen, Verluste
+
+Jede Bestellung durchläuft automatisch den Freigabeprozess der Buchhaltung, wird im Track & Trace als Wareneingang erfasst und aktualisiert sofort die Bestandsübersicht im Warenwirtschaftssystem.
+Die Lösung erfüllt alle regulatorischen Anforderungen des BtMG und ermöglicht eine revisionssichere Dokumentation der gesamten Supply Chain.
+
+---
+
 ## 🐳 Bereitstellung & Infrastruktur
 
 Geplant sind:
