@@ -54,14 +54,15 @@ const StrainTable = ({
   // Spalten für den Tabellenkopf definieren
   const getHeaderColumns = () => {
     const baseColumns = [
-      { label: 'Sortenname', width: '16%', align: 'left', padding: '0 8px 0 28px' },
-      { label: 'Hersteller', width: '14%', align: 'left', padding: '0 10px' },
-      { label: 'Typ', width: '10%', align: 'left', padding: '0 10px' },
-      { label: 'THC/CBD (%)', width: '12%', align: 'center', padding: '0 10px' },
-      { label: 'Indica/Sativa (%)', width: '13%', align: 'center', padding: '0 10px' },
-      { label: 'Blütezeit (Tage)', width: '13%', align: 'center', padding: '0 10px' },
-      { label: 'Bewertung', width: '10%', align: 'center', padding: '0 10px' },
-      { label: 'Aktionen', width: '12%', align: 'center', padding: '0 8px' }
+      { label: 'Sortenname', width: '14%', align: 'left', padding: '0 8px 0 28px' },
+      { label: 'Hersteller', width: '13%', align: 'left', padding: '0 10px' },
+      { label: 'Typ', width: '9%', align: 'left', padding: '0 10px' },
+      { label: 'Preis/Samen', width: '10%', align: 'center', padding: '0 10px' }, // NEU
+      { label: 'THC/CBD (%)', width: '11%', align: 'center', padding: '0 10px' },
+      { label: 'Indica/Sativa (%)', width: '12%', align: 'center', padding: '0 10px' },
+      { label: 'Blütezeit (Tage)', width: '12%', align: 'center', padding: '0 10px' },
+      { label: 'Bewertung', width: '9%', align: 'center', padding: '0 10px' },
+      { label: 'Aktionen', width: '10%', align: 'center', padding: '0 8px' }
     ]
     
     return baseColumns
@@ -78,10 +79,94 @@ const StrainTable = ({
       'cbd': 'CBD'
     }
     
+    // Funktion zur Darstellung der Preisspanne
+    const renderPriceRange = () => {
+      if (!item.price_range_display || item.price_range_display === 'Kein Preis') {
+        return (
+          <Typography
+            variant="body2"
+            sx={{
+              fontSize: '0.8rem',
+              color: 'text.disabled',
+              fontStyle: 'italic'
+            }}
+          >
+            -
+          </Typography>
+        )
+      }
+      
+      // Prüfen ob es eine Spanne oder einzelner Preis ist
+      const isRange = item.price_range_display.includes('-')
+      
+      // Tooltip-Inhalt vorbereiten
+      const getTooltipContent = () => {
+        if (!item.price_tiers || item.price_tiers.length === 0) return null
+        
+        // Sortiere Preisstaffeln nach Menge
+        const sortedTiers = [...item.price_tiers].sort((a, b) => a.quantity - b.quantity)
+        
+        return (
+          <Box sx={{ p: 0.5 }}>
+            <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 0.5 }}>
+              Preisstaffeln:
+            </Typography>
+            {sortedTiers.map((tier, index) => {
+              const unitPrice = tier.quantity > 0 ? (tier.total_price / tier.quantity).toFixed(2) : '0.00'
+              return (
+                <Box key={tier.id} sx={{ display: 'flex', justifyContent: 'space-between', gap: 2 }}>
+                  <Typography variant="caption">
+                    {tier.tier_name || `${tier.quantity}er Pack`}:
+                  </Typography>
+                  <Typography variant="caption" sx={{ fontWeight: 'bold' }}>
+                    {unitPrice}€/Samen
+                  </Typography>
+                </Box>
+              )
+            })}
+          </Box>
+        )
+      }
+      
+      const tooltipContent = getTooltipContent()
+      
+      const priceDisplay = (
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Typography
+            variant="body2"
+            sx={{
+              fontSize: '0.8rem',
+              fontWeight: isRange ? 'bold' : 'normal',
+              color: isRange ? 'success.main' : 'text.primary',
+              cursor: tooltipContent ? 'help' : 'default'
+            }}
+          >
+            {item.price_range_display}
+          </Typography>
+        </Box>
+      )
+      
+      // Wenn Tooltip-Inhalt vorhanden, mit Tooltip umschließen
+      if (tooltipContent) {
+        return (
+          <Tooltip 
+            title={tooltipContent}
+            placement="top"
+            arrow
+            enterDelay={200}
+          >
+            {priceDisplay}
+          </Tooltip>
+        )
+      }
+      
+      return priceDisplay
+    }
+    
     const baseColumns = [
       {
         content: item.name,
-        width: '16%',
+        width: '14%',
         bold: true,
         icon: ScienceIcon,
         iconColor: 'success.main',
@@ -89,7 +174,7 @@ const StrainTable = ({
       },
       {
         content: item.breeder,
-        width: '14%',
+        width: '13%',
         padding: '0 10px'
       },
       {
@@ -106,24 +191,31 @@ const StrainTable = ({
             variant="outlined"
           />
         ),
+        width: '9%',
+        padding: '0 10px'
+      },
+      {
+        // NEUE SPALTE: Preisspanne
+        content: renderPriceRange(),
         width: '10%',
+        align: 'center',
         padding: '0 10px'
       },
       {
         content: `${item.thc_percentage_max}/${item.cbd_percentage_max}`,
-        width: '12%',
+        width: '11%',
         align: 'center',
         padding: '0 10px'
       },
       {
         content: `${item.indica_percentage}/${item.sativa_percentage}`,
-        width: '13%',
+        width: '12%',
         align: 'center',
         padding: '0 10px'
       },
       {
         content: `${item.flowering_time_min}-${item.flowering_time_max}`,
-        width: '13%',
+        width: '12%',
         align: 'center',
         padding: '0 10px'
       },
@@ -136,14 +228,14 @@ const StrainTable = ({
             size="small"
           />
         ),
-        width: '10%',
+        width: '9%',
         align: 'center',
         padding: '0 10px'
       },
       {
         // Die Aktionsspalte
         content: renderActions(item),
-        width: '12%',
+        width: '10%',
         align: 'center',
         padding: '0 8px'
       }
@@ -443,6 +535,51 @@ const StrainTable = ({
       </Box>
     );
 
+    const priceInfo = (
+      <Box>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+          <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)' }}>
+            Preisspanne pro Samen:
+          </Typography>
+          <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.87)', fontWeight: 'bold' }}>
+            {item.price_range_display || "Keine Preise definiert"}
+          </Typography>
+        </Box>
+        
+        {item.price_tiers && item.price_tiers.length > 0 && (
+          <>
+            <Box sx={{ borderTop: '1px solid', borderColor: 'divider', my: 1 }} />
+            <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)', mb: 1 }}>
+              Verfügbare Packungsgrößen:
+            </Typography>
+            {[...item.price_tiers]
+              .sort((a, b) => a.quantity - b.quantity)
+              .map((tier) => {
+                const unitPrice = tier.quantity > 0 ? (tier.total_price / tier.quantity).toFixed(2) : '0.00'
+                return (
+                  <Box key={tier.id} sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5, pl: 1 }}>
+                    <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.87)' }}>
+                      {tier.tier_name || `${tier.quantity}er Packung`}
+                      {tier.is_default && (
+                        <Chip 
+                          label="Standard" 
+                          size="small" 
+                          color="success" 
+                          sx={{ ml: 1, height: 16, fontSize: '0.7rem' }}
+                        />
+                      )}
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.87)' }}>
+                      {tier.total_price.toFixed(2)}€ ({unitPrice}€/Samen)
+                    </Typography>
+                  </Box>
+                )
+              })}
+          </>
+        )}
+      </Box>
+    );
+
     const cards = [
       {
         title: 'Basis-Informationen',
@@ -455,6 +592,10 @@ const StrainTable = ({
       {
         title: 'Cannabinoide & Terpene',
         content: cannabisContent
+      },
+      {
+        title: 'Preisinformationen',
+        content: priceInfo
       }
     ];
 

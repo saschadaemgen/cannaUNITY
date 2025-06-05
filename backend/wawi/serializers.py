@@ -127,6 +127,10 @@ class CannabisStrainSerializer(serializers.ModelSerializer):
     )
     default_price_display = serializers.CharField(read_only=True)
     
+    # NEU: Preisspanne Felder
+    price_range = serializers.SerializerMethodField()
+    price_range_display = serializers.CharField(read_only=True)
+    
     # Berechnung des Sativa-Prozentsatzes
     sativa_percentage = serializers.IntegerField(read_only=True)
     
@@ -150,6 +154,11 @@ class CannabisStrainSerializer(serializers.ModelSerializer):
         if not obj.effects:
             return []
         return [effect.strip() for effect in obj.effects.split(',')]
+    
+    # NEU: Methode für Preisspanne
+    def get_price_range(self, obj):
+        """Gibt die Preisspanne mit Details zurück"""
+        return obj.price_range
     
     # Human-readable Werte für die Auswahl-Felder
     strain_type_display = serializers.CharField(source='get_strain_type_display', read_only=True)
@@ -185,8 +194,9 @@ class CannabisStrainSerializer(serializers.ModelSerializer):
             'images', 'inventory',
             'is_active', 'created_at', 'updated_at',
             'temp_id',
-            # Neue Preis-Felder
-            'price_tiers', 'lowest_unit_price', 'default_price_display'
+            # Preis-Felder
+            'price_tiers', 'lowest_unit_price', 'default_price_display',
+            'price_range', 'price_range_display'  # NEU
         ]
         read_only_fields = ['id', 'batch_number', 'created_at', 'updated_at']
 

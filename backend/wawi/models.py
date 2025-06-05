@@ -347,6 +347,42 @@ class CannabisStrain(models.Model):
         verbose_name = "Cannabis-Sorte"
         verbose_name_plural = "Cannabis-Sorten"
 
+    @property
+    def price_range(self):
+        """Gibt die Preisspanne als Dictionary zurück"""
+        price_tiers = self.price_tiers.all()
+        if not price_tiers:
+            return None
+        
+        # Berechne alle Stückpreise
+        unit_prices = [tier.unit_price for tier in price_tiers if tier.quantity > 0]
+        
+        if not unit_prices:
+            return None
+        
+        return {
+            'min': min(unit_prices),
+            'max': max(unit_prices)
+        }
+
+    @property
+    def price_range_display(self):
+        """Gibt die formatierte Preisspanne für die Anzeige zurück"""
+        price_range = self.price_range
+        
+        if not price_range:
+            return "Kein Preis"
+        
+        min_price = price_range['min']
+        max_price = price_range['max']
+        
+        # Wenn min und max gleich sind (nur eine Preisstaffel)
+        if min_price == max_price:
+            return f"{min_price:.0f}€"
+        
+        # Formatierung der Preisspanne
+        return f"{min_price:.0f}-{max_price:.0f}€"
+
 
 class StrainImage(models.Model):
     """Modell für Bilder von Cannabis-Sorten"""

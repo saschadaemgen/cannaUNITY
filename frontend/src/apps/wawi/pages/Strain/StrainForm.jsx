@@ -125,6 +125,16 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
 
+  // Custom onClose handler that prevents backdrop clicks
+  const handleDialogClose = (event, reason) => {
+    // Ignoriere Backdrop-Klicks und ESC-Taste
+    if (reason === 'backdropClick' || reason === 'escapeKeyDown') {
+      return;
+    }
+    // Nur beim expliziten Schließen (z.B. durch den Abbrechen-Button)
+    onClose();
+  };
+
   // RFID Functions
   const startRfidScan = async () => {
     setScanMode(true);
@@ -773,9 +783,10 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
   return (
     <Dialog 
       open={open} 
-      onClose={onClose} 
+      onClose={handleDialogClose}  // Verwende unseren Custom Handler
       maxWidth="xl" 
       fullWidth
+      disableEscapeKeyDown  // Deaktiviere auch ESC-Taste
       PaperProps={{
         sx: { 
           maxHeight: '90vh',
@@ -908,7 +919,7 @@ export default function StrainForm({ open, onClose, onSuccess, initialData = {},
       
       <DialogActions sx={{ p: 2 }}>
         <Button 
-          onClick={onClose}
+          onClick={onClose}  // Verwende direkt onClose
           variant="outlined"
           color="inherit"
         >
