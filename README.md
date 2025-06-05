@@ -174,8 +174,14 @@ Unterstützte Funktionen & Module:
 9. API-Schnittstellen – REST-basierte Kommunikation zwischen Systemen
 10. Echtzeit-Metriken – Verfügbare Samen, Pflanzenkonvertierungen, Verluste
 
+```
+Track&Trace DB → Django ORM → API Endpoint → React Component → UI Update
+     ↑                                              ↓
+     └──────────── User Actions ←───────────────────┘
+```
+
 Jede Bestellung durchläuft automatisch den Freigabeprozess der Buchhaltung, wird im Track & Trace als Wareneingang erfasst und aktualisiert sofort die Bestandsübersicht im Warenwirtschaftssystem.
-Die Lösung erfüllt alle regulatorischen Anforderungen des BtMG und ermöglicht eine revisionssichere Dokumentation der gesamten Supply Chain.
+Die Lösung erfüllt alle regulatorischen Anforderungen des Konsumcannabisgesetzes (KCanG) und ermöglicht eine revisionssichere Dokumentation der gesamten Supply Chain.
 
 ---
 
