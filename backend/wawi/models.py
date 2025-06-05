@@ -553,22 +553,17 @@ class StrainPriceTier(models.Model):
     
     @property
     def purchased_seeds(self):
-        """Berechnet die Gesamtzahl der eingekauften Samen dieser Staffel"""
-        purchases = self.purchase_history.aggregate(
-            total_packs=models.Sum('quantity')
-        )['total_packs'] or 0
-        return purchases * self.quantity
-    
+        """Wird später mit externem System verknüpft"""
+        return 0
+
     @property
     def flowering_plants(self):
-        """Anzahl der Blütepflanzen aus dieser Staffel"""
-        # Wird später mit CultivationBatch verknüpft
+        """Wird später mit externem System verknüpft"""
         return 0
-    
+
     @property
     def mother_plants(self):
-        """Anzahl der Mutterpflanzen aus dieser Staffel"""
-        # Wird später mit CultivationBatch verknüpft
+        """Wird später mit externem System verknüpft"""
         return 0
     
     @property
@@ -581,50 +576,3 @@ class StrainPriceTier(models.Model):
         verbose_name_plural = "Preisstaffeln"
         ordering = ['quantity']
         unique_together = ['strain', 'quantity']
-
-
-class StrainPurchaseHistory(models.Model):
-    """Einkaufshistorie für Preisstaffeln"""
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    price_tier = models.ForeignKey(
-        StrainPriceTier,
-        on_delete=models.CASCADE,
-        related_name='purchase_history'
-    )
-    purchase_date = models.DateField(
-        verbose_name="Einkaufsdatum"
-    )
-    quantity = models.IntegerField(
-        verbose_name="Anzahl Packungen"
-    )
-    total_cost = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        verbose_name="Gesamtkosten"
-    )
-    supplier = models.CharField(
-        max_length=200,
-        blank=True,
-        verbose_name="Lieferant"
-    )
-    invoice_number = models.CharField(
-        max_length=100,
-        blank=True,
-        verbose_name="Rechnungsnummer"
-    )
-    notes = models.TextField(
-        blank=True,
-        verbose_name="Notizen"
-    )
-    purchased_by = models.ForeignKey(
-        Member,
-        on_delete=models.SET_NULL,
-        null=True,
-        verbose_name="Eingekauft von"
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
-    
-    class Meta:
-        verbose_name = "Einkaufshistorie"
-        verbose_name_plural = "Einkaufshistorien"
-        ordering = ['-purchase_date']

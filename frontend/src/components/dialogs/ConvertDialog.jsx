@@ -387,7 +387,7 @@ const ConvertDialog = ({
             {rooms
               .filter(room => 
                 type === 'mother' 
-                  ? room.room_type === 'mutterraum'
+                  ? room.room_type === 'anzuchtraum'
                   : room.room_type === 'bluetekammer'
               )
               .map(room => (

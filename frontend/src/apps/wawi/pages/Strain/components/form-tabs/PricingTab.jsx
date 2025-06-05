@@ -7,7 +7,8 @@ import {
   Box,
   Alert,
   Divider,
-  Paper
+  Paper,
+  CircularProgress
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import TrendingDownIcon from '@mui/icons-material/TrendingDown';
@@ -19,6 +20,7 @@ import SpaIcon from '@mui/icons-material/Spa';
 import InventoryIcon from '@mui/icons-material/Inventory';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import PriceTierCard from '../form-components/PriceTierCard';
+import api from '@/utils/api';
 
 export default function PricingTab({ 
   priceTiers = [], 
@@ -27,6 +29,8 @@ export default function PricingTab({
 }) {
   const [tiers, setTiers] = useState(priceTiers);
   const [warnings, setWarnings] = useState([]);
+  const [trackTraceData, setTrackTraceData] = useState(null);
+  const [loadingTrackTrace, setLoadingTrackTrace] = useState(false);
 
   // WICHTIG: Aktualisiere tiers wenn priceTiers von außen geändert werden
   useEffect(() => {
@@ -66,8 +70,36 @@ export default function PricingTab({
     }
   }, [priceTiers, initialData.id]);
 
-  // ENTFERNT: Dieser useEffect hat eine Endlosschleife verursacht
-  // Änderungen werden jetzt nur bei expliziten Aktionen (add, update, delete) kommuniziert
+  // Lade Track and Trace Daten wenn eine Strain ID vorhanden ist
+  useEffect(() => {
+    if (initialData.id) {
+      loadTrackTraceData();
+    }
+  }, [initialData.id]);
+
+  const loadTrackTraceData = async () => {
+    if (!initialData.id) return;
+    
+    setLoadingTrackTrace(true);
+    try {
+      const response = await api.get(`/wawi/strains/${initialData.id}/track_and_trace_stats/`);
+      setTrackTraceData(response.data);
+      console.log('Track and Trace Daten geladen:', response.data);
+    } catch (error) {
+      console.error('Fehler beim Laden der Track and Trace Daten:', error);
+      // Setze Standardwerte bei Fehler
+      setTrackTraceData({
+        total_purchased: 0,
+        total_available: 0,
+        mother_plants_count: 0,
+        flowering_plants_count: 0,
+        purchase_count: 0,
+        purchase_details: []
+      });
+    } finally {
+      setLoadingTrackTrace(false);
+    }
+  };
 
   // Validierung der Preisstaffeln
   useEffect(() => {
@@ -151,14 +183,14 @@ export default function PricingTab({
   const sortedTiers = [...tiers].sort((a, b) => a.quantity - b.quantity);
   const baseTier = sortedTiers[0];
 
-  // Berechne Gesamtstatistiken
-  const totalStats = tiers.reduce((acc, tier) => ({
-    totalPurchased: acc.totalPurchased + ((tier.totalPurchasedQuantity || 0) * tier.quantity),
-    totalFlowering: acc.totalFlowering + (tier.floweringPlants || 0),
-    totalMother: acc.totalMother + (tier.motherPlants || 0)
-  }), { totalPurchased: 0, totalFlowering: 0, totalMother: 0 });
-
-  const totalAvailable = totalStats.totalPurchased - (totalStats.totalFlowering + totalStats.totalMother);
+  // Verwende Track and Trace Daten wenn verfügbar, sonst Platzhalter
+  const totalStats = {
+    totalPurchased: trackTraceData?.total_purchased || 0,
+    totalAvailable: trackTraceData?.total_available || 0,
+    totalFlowering: trackTraceData?.flowering_plants_count || 0,
+    totalMother: trackTraceData?.mother_plants_count || 0,
+    purchaseCount: trackTraceData?.purchase_count || 0
+  };
 
   return (
     <Box sx={{ width: '100%' }}>
@@ -261,51 +293,93 @@ export default function PricingTab({
         <Paper variant="outlined" sx={{ p: 2, mt: 1.5 }}>
           <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
             <InventoryIcon fontSize="small" color="success" />
-            Detaillierte Bestandsübersicht
+            Detaillierte Bestandsübersicht (Track & Trace Integration)
           </Typography>
           
-          {/* Eine einzelne Zeile mit Gesamtübersicht */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, flexWrap: 'wrap' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <ShoppingCartIcon fontSize="small" sx={{ color: 'success.main' }} />
-              <Typography variant="caption" color="text.secondary">Bereits eingekauft:</Typography>
-              <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                {totalStats.totalPurchased} Samen
-              </Typography>
+          {loadingTrackTrace ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+              <CircularProgress size={24} color="success" />
             </Box>
+          ) : (
+            <>
+              {/* Eine einzelne Zeile mit Gesamtübersicht */}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, flexWrap: 'wrap' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <ShoppingCartIcon fontSize="small" sx={{ color: 'success.main' }} />
+                  <Typography variant="caption" color="text.secondary">Gesamt eingekauft:</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                    {totalStats.totalPurchased} Samen
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    ({totalStats.purchaseCount} Einkäufe)
+                  </Typography>
+                </Box>
 
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Typography variant="caption" color="text.secondary">Daraus entstanden:</Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <LocalFloristIcon fontSize="small" sx={{ color: 'warning.main' }} />
-                <Typography variant="body2">
-                  <strong>{totalStats.totalFlowering}</strong> Blütepflanzen
-                </Typography>
-              </Box>
-              <Typography variant="body2">,</Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <SpaIcon fontSize="small" sx={{ color: 'success.main' }} />
-                <Typography variant="body2">
-                  <strong>{totalStats.totalMother}</strong> Mutterpflanzen
-                </Typography>
-              </Box>
-            </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Typography variant="caption" color="text.secondary">Daraus entstanden:</Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <LocalFloristIcon fontSize="small" sx={{ color: 'warning.main' }} />
+                    <Typography variant="body2">
+                      <strong>{totalStats.totalFlowering}</strong> Blütepflanzen
+                    </Typography>
+                  </Box>
+                  <Typography variant="body2">,</Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <SpaIcon fontSize="small" sx={{ color: 'success.main' }} />
+                    <Typography variant="body2">
+                      <strong>{totalStats.totalMother}</strong> Mutterpflanzen
+                    </Typography>
+                  </Box>
+                </Box>
 
-            <Box sx={{ 
-              display: 'flex', 
-              alignItems: 'center',
-              gap: 0.5,
-              ml: 'auto'
-            }}>
-              <CheckCircleOutlineIcon fontSize="small" sx={{ color: 'success.main' }} />
-              <Typography variant="caption" color="text.secondary">
-                Noch verfügbar:
-              </Typography>
-              <Typography variant="body2" sx={{ fontWeight: 'bold', color: totalAvailable > 0 ? 'success.main' : 'text.primary' }}>
-                {totalAvailable} Samen
-              </Typography>
-            </Box>
-          </Box>
+                <Box sx={{ 
+                  display: 'flex', 
+                  alignItems: 'center',
+                  gap: 0.5,
+                  ml: 'auto'
+                }}>
+                  <CheckCircleOutlineIcon fontSize="small" sx={{ color: 'success.main' }} />
+                  <Typography variant="caption" color="text.secondary">
+                    Noch verfügbar:
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 'bold', color: totalStats.totalAvailable > 0 ? 'success.main' : 'text.primary' }}>
+                    {totalStats.totalAvailable} Samen
+                  </Typography>
+                </Box>
+              </Box>
+
+              {/* Detaillierte Einkaufsliste bei Bedarf */}
+              {trackTraceData?.purchase_details && trackTraceData.purchase_details.length > 0 && (
+                <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid', borderColor: 'divider' }}>
+                  <Typography variant="caption" sx={{ fontWeight: 'bold', display: 'block', mb: 1 }}>
+                    Einkaufshistorie:
+                  </Typography>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    {trackTraceData.purchase_details.slice(0, 3).map((purchase, index) => (
+                      <Box key={purchase.id} sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <Typography variant="caption" color="text.secondary">
+                          {new Date(purchase.created_at).toLocaleDateString('de-DE')}:
+                        </Typography>
+                        <Typography variant="caption">
+                          {purchase.quantity} Samen (Charge: {purchase.batch_number})
+                        </Typography>
+                        {purchase.member && (
+                          <Typography variant="caption" color="text.secondary">
+                            - {purchase.member}
+                          </Typography>
+                        )}
+                      </Box>
+                    ))}
+                    {trackTraceData.purchase_details.length > 3 && (
+                      <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                        ... und {trackTraceData.purchase_details.length - 3} weitere Einkäufe
+                      </Typography>
+                    )}
+                  </Box>
+                </Box>
+              )}
+            </>
+          )}
         </Paper>
       )}
     </Box>

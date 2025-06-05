@@ -6,8 +6,7 @@ from .models import (
     StrainImage, 
     StrainInventory, 
     StrainHistory,
-    StrainPriceTier,
-    StrainPurchaseHistory
+    StrainPriceTier
 )
 from members.models import Member
 from members.serializers import MemberSerializer
@@ -24,24 +23,6 @@ class StrainInventorySerializer(serializers.ModelSerializer):
         model = StrainInventory
         fields = ['total_quantity', 'available_quantity', 'last_restocked']
         read_only_fields = ['last_restocked']
-
-
-class StrainPurchaseHistorySerializer(serializers.ModelSerializer):
-    purchased_by_name = serializers.SerializerMethodField()
-    
-    class Meta:
-        model = StrainPurchaseHistory
-        fields = [
-            'id', 'purchase_date', 'quantity', 'total_cost',
-            'supplier', 'invoice_number', 'notes', 
-            'purchased_by', 'purchased_by_name', 'created_at'
-        ]
-        read_only_fields = ['id', 'created_at']
-    
-    def get_purchased_by_name(self, obj):
-        if obj.purchased_by:
-            return f"{obj.purchased_by.first_name} {obj.purchased_by.last_name}"
-        return None
 
 
 class StrainPriceTierSerializer(serializers.ModelSerializer):
@@ -80,10 +61,8 @@ class StrainPriceTierSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'updated_at']
     
     def get_totalPurchasedQuantity(self, obj):
-        """Anzahl der eingekauften Packungen"""
-        return obj.purchase_history.aggregate(
-            total=models.Sum('quantity')
-        )['total'] or 0
+        """Anzahl der eingekauften Packungen - wird später mit externem System verknüpft"""
+        return 0
     
     def get_floweringPlants(self, obj):
         return obj.flowering_plants
@@ -92,12 +71,8 @@ class StrainPriceTierSerializer(serializers.ModelSerializer):
         return obj.mother_plants
     
     def get_purchaseHistory(self, obj):
-        """Letzte 3 Einkäufe für die Anzeige"""
-        recent_purchases = obj.purchase_history.all()[:3]
-        return [{
-            'date': purchase.purchase_date.strftime('%d.%m.%Y'),
-            'quantity': purchase.quantity
-        } for purchase in recent_purchases]
+        """Placeholder für zukünftige Integration"""
+        return []
 
 
 class CannabisStrainSerializer(serializers.ModelSerializer):
@@ -272,11 +247,10 @@ class StrainHistorySerializer(serializers.ModelSerializer):
                 'price_per_seed': 'Preis pro Samen (€)',
                 'seeds_per_pack': 'Anzahl Samen pro Packung',
                 'is_active': 'Aktiv',
-                # Neue Preis-bezogene Änderungen
+                # Preis-bezogene Änderungen (für zukünftige Nutzung beibehalten)
                 'price_tier_added': 'Preisstaffel hinzugefügt',
                 'price_tier_updated': 'Preisstaffel aktualisiert',
-                'price_tier_deleted': 'Preisstaffel gelöscht',
-                'purchase_added': 'Einkauf hinzugefügt'
+                'price_tier_deleted': 'Preisstaffel gelöscht'
             }
             
             # Mapping für Auswahlfeldwerte
@@ -321,7 +295,7 @@ class StrainHistorySerializer(serializers.ModelSerializer):
             # Jede Änderung verarbeiten
             for field, change in obj.changes.items():
                 # Sonderbehandlung für Preis-bezogene Änderungen
-                if field in ['price_tier_added', 'price_tier_updated', 'price_tier_deleted', 'purchase_added']:
+                if field in ['price_tier_added', 'price_tier_updated', 'price_tier_deleted']:
                     formatted_changes[field_name_mapping.get(field, field)] = change
                     continue
                 

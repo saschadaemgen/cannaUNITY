@@ -1,4 +1,4 @@
-# wawi/api_views.py - Am Anfang der Datei
+# wawi/api_views.py
 from rest_framework import viewsets, status, pagination
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -6,9 +6,10 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.permissions import IsAuthenticated
 from django.db import models
 from django.utils import timezone
-from django.db.models import Q
+from django.db.models import Q, Sum, Count
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
+from trackandtrace.models import SeedPurchase, MotherPlantBatch, FloweringPlantBatch
 import os
 import uuid
 import json
@@ -18,16 +19,14 @@ from .models import (
     StrainImage, 
     StrainInventory, 
     StrainHistory,
-    StrainPriceTier,
-    StrainPurchaseHistory
+    StrainPriceTier
 )
 from .serializers import (
     CannabisStrainSerializer, 
     StrainImageSerializer, 
     StrainInventorySerializer, 
     StrainHistorySerializer,
-    StrainPriceTierSerializer,
-    StrainPurchaseHistorySerializer
+    StrainPriceTierSerializer
 )
 
 class StandardResultsSetPagination(pagination.PageNumberPagination):
@@ -614,24 +613,6 @@ class CannabisStrainViewSet(viewsets.ModelViewSet):
             return Response(serializer.data)
         
         elif request.method == 'POST':
-            # Neue Preisstaffel hinzufügen
-            serializer = StrainPriceTierSerializer(data=request.data)
-            if serializer.is_valid():
-                serializer.save(strain=strain)
-                return Response(serializer.data, status=status.HTTP_201_CREATED)
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
-    @action(detail=True, methods=['get', 'post'])
-    def price_tiers(self, request, pk=None):
-        """Verwaltet Preisstaffeln einer Sorte"""
-        strain = self.get_object()
-        
-        if request.method == 'GET':
-            tiers = strain.price_tiers.all()
-            serializer = StrainPriceTierSerializer(tiers, many=True)
-            return Response(serializer.data)
-        
-        elif request.method == 'POST':
             # Wenn es die erste Preisstaffel ist, automatisch als Standard setzen
             if not strain.price_tiers.exists():
                 request.data['is_default'] = True
@@ -733,57 +714,75 @@ class CannabisStrainViewSet(viewsets.ModelViewSet):
                 )
             
             return Response(status=status.HTTP_204_NO_CONTENT)
-
-    @action(detail=True, methods=['post'], url_path='price_tiers/(?P<tier_id>[^/.]+)/purchase')
-    def add_purchase(self, request, pk=None, tier_id=None):
-        """Fügt einen Einkauf zu einer Preisstaffel hinzu"""
-        strain = self.get_object()
-        
-        try:
-            tier = strain.price_tiers.get(id=tier_id)
-        except StrainPriceTier.DoesNotExist:
-            return Response(
-                {'error': 'Preisstaffel nicht gefunden'}, 
-                status=status.HTTP_404_NOT_FOUND
-            )
-        
-        serializer = StrainPurchaseHistorySerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save(price_tier=tier)
-            
-            # History-Eintrag
-            member_id = request.data.get('member_id') or request.data.get('purchased_by')
-            if member_id:
-                StrainHistory.objects.create(
-                    strain=strain,
-                    member_id=member_id,
-                    action='updated',
-                    changes={'purchase_added': {
-                        'tier_name': tier.tier_name,
-                        'quantity': serializer.data.get('quantity'),
-                        'total_cost': str(serializer.data.get('total_cost')),
-                        'date': serializer.data.get('purchase_date')
-                    }}
-                )
-            
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
+    
     @action(detail=True, methods=['get'])
-    def purchase_history(self, request, pk=None):
-        """Gibt die komplette Einkaufshistorie einer Sorte zurück"""
+    def track_and_trace_stats(self, request, pk=None):
+        """
+        Gibt aggregierte Statistiken aus dem Track and Trace System für eine Cannabis-Sorte zurück.
+        """
         strain = self.get_object()
         
-        # Alle Einkäufe über alle Preisstaffeln
-        purchases = StrainPurchaseHistory.objects.filter(
-            price_tier__strain=strain
-        ).order_by('-purchase_date')
+        # Alle Samenkäufe für diese Sorte
+        seed_purchases = SeedPurchase.objects.filter(strain=strain)
         
-        # Pagination
-        page = self.paginate_queryset(purchases)
-        if page is not None:
-            serializer = StrainPurchaseHistorySerializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
+        # Gesamtstatistiken
+        total_purchased = seed_purchases.aggregate(
+            total=Sum('quantity')
+        )['total'] or 0
         
-        serializer = StrainPurchaseHistorySerializer(purchases, many=True)
-        return Response(serializer.data)
+        total_available = seed_purchases.filter(is_destroyed=False).aggregate(
+            total=Sum('remaining_quantity')
+        )['total'] or 0
+        
+        # Anzahl der Einkäufe (Chargen)
+        purchase_count = seed_purchases.count()
+        
+        # Berechne die Anzahl der zu Mutterpflanzen konvertierten Samen
+        mother_plants_count = 0
+        for purchase in seed_purchases:
+            # Zähle alle Mutterpflanzen-Batches für diesen Einkauf
+            mother_batches = MotherPlantBatch.objects.filter(seed_purchase=purchase)
+            for batch in mother_batches:
+                mother_plants_count += batch.quantity
+        
+        # Berechne die Anzahl der zu Blühpflanzen konvertierten Samen
+        flowering_plants_count = 0
+        for purchase in seed_purchases:
+            # Zähle alle Blühpflanzen-Batches für diesen Einkauf
+            flowering_batches = FloweringPlantBatch.objects.filter(seed_purchase=purchase)
+            for batch in flowering_batches:
+                flowering_plants_count += batch.quantity
+        
+        # Detaillierte Einkaufsliste
+        purchase_details = []
+        for purchase in seed_purchases.order_by('-created_at'):
+            # Berechne für jeden Einkauf die Konvertierungen
+            mother_count = MotherPlantBatch.objects.filter(
+                seed_purchase=purchase
+            ).aggregate(total=Sum('quantity'))['total'] or 0
+            
+            flowering_count = FloweringPlantBatch.objects.filter(
+                seed_purchase=purchase
+            ).aggregate(total=Sum('quantity'))['total'] or 0
+            
+            purchase_details.append({
+                'id': str(purchase.id),
+                'batch_number': purchase.batch_number,
+                'quantity': purchase.quantity,
+                'remaining_quantity': purchase.remaining_quantity,
+                'destroyed_quantity': purchase.destroyed_quantity,
+                'is_destroyed': purchase.is_destroyed,
+                'created_at': purchase.created_at,
+                'member': f"{purchase.member.first_name} {purchase.member.last_name}" if purchase.member else None,
+                'mother_plants_created': mother_count,
+                'flowering_plants_created': flowering_count
+            })
+        
+        return Response({
+            'total_purchased': total_purchased,
+            'total_available': total_available,
+            'mother_plants_count': mother_plants_count,
+            'flowering_plants_count': flowering_plants_count,
+            'purchase_count': purchase_count,
+            'purchase_details': purchase_details
+        })
