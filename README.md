@@ -17,7 +17,7 @@
 
 ## 📦 Was ist cannaUNITY?
 
-**cannaUNITY** ist eine umfassende kostenlose Open-Source-Plattform zur Organisation, Verwaltung und Automatisierung von Cannabis-Anbauvereinigungen gemäß dem Konsumcannabisgesetz (KCanG). Das System wird mit dem Ziel entwickelt, Datenschutz (DSGVO), Nachverfolgbarkeit und Mitwirkung der Mitglieder auf "höchstem" technischen Niveau umzusetzen.
+**cannaUNITY** ist eine professionelle Open-Source-Plattform zur Organisation, Verwaltung und Automatisierung von Cannabis-Anbauvereinigungen gemäß dem Konsumcannabisgesetz (KCanG). Das System wird mit dem Ziel entwickelt, Sicherheit, Datenschutz (DSGVO), Nachverfolgbarkeit und Mitwirkung der Mitglieder auf "höchstem" technischen Niveau umzusetzen.
 
 "Crescit sub pondere virtus." – "Tugend wächst unter Belastung."
 
