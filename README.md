@@ -156,7 +156,7 @@ Die Umsetzung folgt den Grundsätzen ordnungsgemäßer Buchführung (GoB) und bi
 ## 🌿 Warenwirtschaftssystem: Integrierte Cannabis-Genetikverwaltung mit Track & Trace
 
 <p align="center">
-  <img src="screenshots/WaWi/sorte_staffelpreise.png" alt="Vorschau" width="1195">
+  <img src="screenshots/WaWi/sorte_liste_detail.png" alt="Vorschau" width="1195">
 </p>
 
 Das Warenwirtschaftssystem bildet das Herzstück der Cannabis-Verwaltung und verbindet nahtlos Genetik-Stammdaten mit operativer Bestandsführung.
