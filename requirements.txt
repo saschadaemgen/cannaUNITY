@@ -17,7 +17,7 @@ colorama==0.4.6
 constantly==23.10.4
 cryptography==45.0.2
 daphne==4.2.0
-Django==5.2.1
+Django==5.2.2
 django-cors-headers==4.7.0
 django-filter==25.1
 djangorestframework==3.16.0
