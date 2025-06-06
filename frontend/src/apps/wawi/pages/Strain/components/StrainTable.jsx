@@ -62,14 +62,14 @@ const StrainTable = ({
   const getHeaderColumns = () => {
     return [
       { label: 'Sortenname', width: '14%', align: 'left', padding: '0 8px 0 28px' },
-      { label: 'Hersteller', width: '13%', align: 'left', padding: '0 10px' },
-      { label: 'Typ', width: '9%', align: 'left', padding: '0 10px' },
-      { label: 'Preis/Samen', width: '10%', align: 'center', padding: '0 10px' },
-      { label: 'THC/CBD (%)', width: '11%', align: 'center', padding: '0 10px' },
-      { label: 'Bestand', width: '12%', align: 'center', padding: '0 10px' },
-      { label: 'Blütezeit (Tage)', width: '12%', align: 'center', padding: '0 10px' },
-      { label: 'Bewertung', width: '9%', align: 'center', padding: '0 10px' },
-      { label: 'Aktionen', width: '10%', align: 'center', padding: '0 8px' }
+      { label: 'Hersteller', width: '12%', align: 'left', padding: '0 10px' },
+      { label: 'Typ', width: '8%', align: 'left', padding: '0 10px' },
+      { label: 'Preis/Samen', width: '9%', align: 'center', padding: '0 10px' },
+      { label: 'THC/CBD (%)', width: '10%', align: 'center', padding: '0 10px' },
+      { label: 'Bestand', width: '10%', align: 'center', padding: '0 10px' },
+      { label: 'Blütezeit (Tage)', width: '11%', align: 'center', padding: '0 10px' },
+      { label: 'Bewertung', width: '8%', align: 'center', padding: '0 10px' },
+      { label: 'Aktionen', width: '18%', align: 'center', padding: '0 8px' }
     ]
   }
 

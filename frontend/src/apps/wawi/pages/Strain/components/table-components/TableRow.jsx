@@ -25,23 +25,23 @@ const TableRow = ({
     },
     {
       content: item.breeder,
-      width: '13%',
+      width: '12%',
       padding: '0 10px'
     },
     {
       content: <StrainTypeChip strainType={item.strain_type} />,
-      width: '9%',
+      width: '8%',
       padding: '0 10px'
     },
     {
       content: <PriceRangeCell item={item} />,
-      width: '10%',
+      width: '9%',
       align: 'center',
       padding: '0 10px'
     },
     {
       content: `${item.thc_percentage_max}/${item.cbd_percentage_max}`,
-      width: '11%',
+      width: '10%',
       align: 'center',
       padding: '0 10px'
     },
@@ -59,13 +59,13 @@ const TableRow = ({
           {availableStock !== undefined ? availableStock : '-'}
         </Typography>
       ),
-      width: '12%',
+      width: '10%',
       align: 'center',
       padding: '0 10px'
     },
     {
       content: `${item.flowering_time_min}-${item.flowering_time_max}`,
-      width: '12%',
+      width: '11%',
       align: 'center',
       padding: '0 10px'
     },
@@ -78,7 +78,7 @@ const TableRow = ({
           size="small"
         />
       ),
-      width: '9%',
+      width: '8%',
       align: 'center',
       padding: '0 10px'
     },
@@ -92,7 +92,7 @@ const TableRow = ({
           onDestroy={onDestroy}
         />
       ),
-      width: '10%',
+      width: '18%',
       align: 'center',
       padding: '0 8px'
     }

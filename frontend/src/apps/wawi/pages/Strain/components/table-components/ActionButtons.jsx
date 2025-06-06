@@ -1,8 +1,11 @@
 // frontend/src/apps/wawi/pages/Strain/components/table-components/ActionButtons.jsx
 import { Box, IconButton, Tooltip } from '@mui/material'
+import { useNavigate } from 'react-router-dom'
 import EditIcon from '@mui/icons-material/Edit'
 import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
+import SeedIcon from '@mui/icons-material/Grass'
+import ReportProblemIcon from '@mui/icons-material/ReportProblem'
 
 const ActionButtons = ({ 
   item, 
@@ -11,9 +14,22 @@ const ActionButtons = ({
   onEdit, 
   onDestroy 
 }) => {
+  const navigate = useNavigate()
+  
   // Stoppt das Event-Bubbling, damit sich das Akkordeon nicht öffnet
   const stopPropagation = (e) => {
     if (e) e.stopPropagation()
+  }
+
+  const handleNavigateToSeedPurchase = (e) => {
+    stopPropagation(e)
+    navigate(`/trace/samen?strain=${item.id}&name=${encodeURIComponent(item.name)}`)
+  }
+
+  const handleBoardNotification = (e) => {
+    stopPropagation(e)
+    console.log('Vorstandsmeldung für Strain:', item.name)
+    alert(`Vorstandsmeldung für ${item.name} - Funktion wird noch implementiert`)
   }
 
   return (
@@ -23,7 +39,7 @@ const ActionButtons = ({
         alignItems: 'center',
         justifyContent: 'center',
         width: '100%', 
-        padding: '12px 16px',
+        padding: '12px 8px',
       }}
       onClick={stopPropagation}
     >
@@ -31,7 +47,7 @@ const ActionButtons = ({
       <IconButton 
         size="small" 
         onClick={onExpand}
-        sx={{ mr: 0.5 }}
+        sx={{ p: 0.5 }}
       >
         <ExpandMoreIcon 
           sx={{ 
@@ -50,9 +66,33 @@ const ActionButtons = ({
             stopPropagation(e)
             onEdit(item, e)
           }}
-          sx={{ mx: 0.5 }}
+          sx={{ p: 0.5 }}
         >
-          <EditIcon fontSize="small" />
+          <EditIcon sx={{ fontSize: '1.1rem' }} />
+        </IconButton>
+      </Tooltip>
+      
+      {/* Sameneinkauf Button */}
+      <Tooltip title="Sameneinkauf">
+        <IconButton 
+          size="small" 
+          color="success"
+          onClick={handleNavigateToSeedPurchase}
+          sx={{ p: 0.5 }}
+        >
+          <SeedIcon sx={{ fontSize: '1.1rem' }} />
+        </IconButton>
+      </Tooltip>
+      
+      {/* Vorstandsmeldung Button */}
+      <Tooltip title="Vorstandsmeldung">
+        <IconButton 
+          size="small" 
+          color="warning"
+          onClick={handleBoardNotification}
+          sx={{ p: 0.5 }}
+        >
+          <ReportProblemIcon sx={{ fontSize: '1.1rem' }} />
         </IconButton>
       </Tooltip>
       
@@ -66,9 +106,9 @@ const ActionButtons = ({
               stopPropagation(e)
               onDestroy(item, e)
             }}
-            sx={{ mx: 0.5 }}
+            sx={{ p: 0.5 }}
           >
-            <LocalFireDepartmentIcon fontSize="small" />
+            <LocalFireDepartmentIcon sx={{ fontSize: '1.1rem' }} />
           </IconButton>
         </Tooltip>
       )}
