@@ -17,7 +17,7 @@
 
 ## 📦 Was ist cannaUNITY?
 
-**cannaUNITY** ist eine umfassende kostenlose Open-Source-Plattform zur Organisation, Verwaltung und Automatisierung von Cannabis-Anbauvereinigungen gemäß dem Konsumcannabisgesetz (KCanG). Das System wird mit dem Ziel entwickelt, Datenschutz (DSGVO), Nachverfolgbarkeit und Mitwirkung der Mitglieder auf "höchstem" technischen Niveau umzusetzen.
+**cannaUNITY** ist eine professionelle Open-Source-Plattform zur Organisation, Verwaltung und Automatisierung von Cannabis-Anbauvereinigungen gemäß dem Konsumcannabisgesetz (KCanG). Das System wird mit dem Ziel entwickelt, Sicherheit, Datenschutz (DSGVO), Nachverfolgbarkeit und Mitwirkung der Mitglieder auf "höchstem" technischen Niveau umzusetzen.
 
 "Crescit sub pondere virtus." – "Tugend wächst unter Belastung."
 
@@ -174,8 +174,14 @@ Unterstützte Funktionen & Module:
 9. API-Schnittstellen – REST-basierte Kommunikation zwischen Systemen
 10. Echtzeit-Metriken – Verfügbare Samen, Pflanzenkonvertierungen, Verluste
 
+```
+Track&Trace DB → Django ORM → API Endpoint → React Component → UI Update
+     ↑                                              ↓
+     └──────────── User Actions ←───────────────────┘
+```
+
 Jede Bestellung durchläuft automatisch den Freigabeprozess der Buchhaltung, wird im Track & Trace als Wareneingang erfasst und aktualisiert sofort die Bestandsübersicht im Warenwirtschaftssystem.
-Die Lösung erfüllt alle regulatorischen Anforderungen des BtMG und ermöglicht eine revisionssichere Dokumentation der gesamten Supply Chain.
+Die Lösung erfüllt alle regulatorischen Anforderungen des Konsumcannabisgesetzes (KCanG) und ermöglicht eine revisionssichere Dokumentation der gesamten Supply Chain.
 
 ---
 
