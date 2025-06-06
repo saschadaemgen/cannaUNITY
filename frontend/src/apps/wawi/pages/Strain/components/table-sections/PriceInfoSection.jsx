@@ -31,11 +31,14 @@ const PriceInfoSection = ({ item }) => {
                     display: 'flex', 
                     justifyContent: 'space-between', 
                     mb: 0.5, 
-                    pl: 1 
+                    pl: 1,
+                    alignItems: 'center'
                   }}
                 >
-                  <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.87)' }}>
-                    {tier.tier_name || `${tier.quantity}er Packung`}
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.87)' }}>
+                      {tier.tier_name || `${tier.quantity}er Packung`}
+                    </Typography>
                     {tier.is_default && (
                       <Chip 
                         label="Standard" 
@@ -44,7 +47,7 @@ const PriceInfoSection = ({ item }) => {
                         sx={{ ml: 1, height: 16, fontSize: '0.7rem' }}
                       />
                     )}
-                  </Typography>
+                  </Box>
                   <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.87)' }}>
                     {parseFloat(tier.total_price).toFixed(2)}€ ({unitPrice}€/Samen)
                   </Typography>

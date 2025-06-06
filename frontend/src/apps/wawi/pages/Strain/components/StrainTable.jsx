@@ -1,11 +1,12 @@
 // frontend/src/apps/wawi/pages/Strain/components/StrainTable.jsx
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Box, Typography } from '@mui/material'
 import TableHeader from '@/components/common/TableHeader'
 import PaginationFooter from '@/components/common/PaginationFooter'
 import TableRow from './table-components/TableRow'
 import TableDetailView from './table-sections/TableDetailView'
 import ImageLightbox from './table-components/ImageLightbox'
+import api from '@/utils/api'
 
 /**
  * StrainTable Komponente für die Darstellung der Strain-Tabelle
@@ -30,6 +31,32 @@ const StrainTable = ({
   const [selectedImage, setSelectedImage] = useState(null)
   const [selectedImageIndex, setSelectedImageIndex] = useState(0)
   const [selectedStrainImages, setSelectedStrainImages] = useState([])
+  
+  // NEU: State für Bestandsdaten
+  const [stockData, setStockData] = useState({})
+
+  // NEU: Lade Bestandsdaten für alle sichtbaren Strains
+  useEffect(() => {
+    const loadStockData = async () => {
+      const newStockData = {}
+      
+      for (const strain of data) {
+        try {
+          const response = await api.get(`/wawi/strains/${strain.id}/track_and_trace_stats/`)
+          newStockData[strain.id] = response.data.total_available || 0
+        } catch (error) {
+          console.error(`Error loading stock for strain ${strain.id}:`, error)
+          newStockData[strain.id] = 0
+        }
+      }
+      
+      setStockData(newStockData)
+    }
+    
+    if (data && data.length > 0) {
+      loadStockData()
+    }
+  }, [data])
 
   // Spalten für den Tabellenkopf definieren
   const getHeaderColumns = () => {
@@ -39,7 +66,7 @@ const StrainTable = ({
       { label: 'Typ', width: '9%', align: 'left', padding: '0 10px' },
       { label: 'Preis/Samen', width: '10%', align: 'center', padding: '0 10px' },
       { label: 'THC/CBD (%)', width: '11%', align: 'center', padding: '0 10px' },
-      { label: 'Indica/Sativa (%)', width: '12%', align: 'center', padding: '0 10px' },
+      { label: 'Bestand', width: '12%', align: 'center', padding: '0 10px' },
       { label: 'Blütezeit (Tage)', width: '12%', align: 'center', padding: '0 10px' },
       { label: 'Bewertung', width: '9%', align: 'center', padding: '0 10px' },
       { label: 'Aktionen', width: '10%', align: 'center', padding: '0 8px' }
@@ -76,9 +103,10 @@ const StrainTable = ({
               border: expandedStrainId === item.id ? '1px solid rgba(76, 175, 80, 0.5)' : 'none'
             }}
           >
-            {/* Tabellenzeile */}
+            {/* Tabellenzeile mit Bestandsdaten */}
             <TableRow
               item={item}
+              availableStock={stockData[item.id]}
               isExpanded={expandedStrainId === item.id}
               onExpand={onExpandStrain}
               onEdit={onOpenEditForm}

@@ -7,6 +7,7 @@ import ActionButtons from './ActionButtons'
 
 const TableRow = ({ 
   item, 
+  availableStock,
   isExpanded, 
   onExpand, 
   onEdit, 
@@ -45,7 +46,19 @@ const TableRow = ({
       padding: '0 10px'
     },
     {
-      content: `${item.indica_percentage}/${item.sativa_percentage}`,
+      // Bestand statt Indica/Sativa
+      content: (
+        <Typography
+          variant="body2"
+          sx={{
+            fontSize: '0.8rem',
+            fontWeight: 'bold',
+            color: availableStock > 0 ? 'success.main' : 'error.main'
+          }}
+        >
+          {availableStock !== undefined ? availableStock : '-'}
+        </Typography>
+      ),
       width: '12%',
       align: 'center',
       padding: '0 10px'

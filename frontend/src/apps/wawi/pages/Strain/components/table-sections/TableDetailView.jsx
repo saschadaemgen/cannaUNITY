@@ -1,11 +1,10 @@
 // frontend/src/apps/wawi/pages/Strain/components/table-sections/TableDetailView.jsx
-import { Box, Typography, Grid, Button } from '@mui/material'
-import EditIcon from '@mui/icons-material/Edit'
-import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment'
+import { Box, Typography, Grid } from '@mui/material'
 import DetailInfoCards from './DetailInfoCards'
 import PriceInfoSection from './PriceInfoSection'
 import ImageGallery from './ImageGallery'
 import TrackTraceSection from './TrackTraceSection'
+import ActionsSection from './ActionsSection'
 
 const TableDetailView = ({ 
   item, 
@@ -64,53 +63,15 @@ const TableDetailView = ({
         />
       )}
       
-      {/* Track & Trace Bestandsübersicht - JETZT HIER POSITIONIERT */}
+      {/* Track & Trace Bestandsübersicht */}
       <TrackTraceSection strainId={item.id} />
       
-      {/* Aktionsbereich */}
-      <Box 
-        sx={{ 
-          mt: 3, 
-          p: 2, 
-          borderRadius: '4px', 
-          border: '1px solid rgba(0, 0, 0, 0.12)', 
-          backgroundColor: 'white'
-        }}
-      >
-        <Grid container spacing={2} alignItems="center" sx={{ width: '100%' }}>
-          <Grid size={{ xs: 12, sm: 4 }}>
-            <Typography variant="subtitle2" color="success.main" gutterBottom>
-              Verfügbare Aktionen
-            </Typography>
-          </Grid>
-          <Grid size={{ xs: 12, sm: 8 }} container spacing={1} justifyContent="flex-end" sx={{ width: '100%' }}>
-            <Grid>
-              <Button 
-                variant="outlined" 
-                color="primary"
-                onClick={() => onOpenEditForm(item)}
-                startIcon={<EditIcon />}
-                sx={{ mr: 1 }}
-              >
-                Bearbeiten
-              </Button>
-            </Grid>
-            
-            {item.is_active && (
-              <Grid>
-                <Button 
-                  variant="contained" 
-                  color="error"
-                  onClick={() => onOpenDestroyDialog(item)}
-                  startIcon={<LocalFireDepartmentIcon />}
-                >
-                  Deaktivieren
-                </Button>
-              </Grid>
-            )}
-          </Grid>
-        </Grid>
-      </Box>
+      {/* Aktionsbereich - JETZT AUSGELAGERT */}
+      <ActionsSection 
+        item={item}
+        onOpenEditForm={onOpenEditForm}
+        onOpenDestroyDialog={onOpenDestroyDialog}
+      />
     </>
   )
 }
