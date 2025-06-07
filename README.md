@@ -98,6 +98,10 @@ Jeder Verarbeitungsschritt ist dokumentiert und manipulationssicher protokollier
 
 Jeder Schritt wird über die Mitarbeiterkonten per RFID/NFC bestätigt und in Echtzeit dokumentiert.
 
+<p align="center">
+  <img src="screenshots/trackandtrace/track_and_trace.png" alt="Vorschau" width="1920">
+</p>
+
 ---
 
 ## 🔧 Integration & Automatisierung
