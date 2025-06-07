@@ -16,7 +16,7 @@ class MemberSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Member
-        fields = ['id', 'uuid', 'display_name']
+        fields = ['id', 'uuid', 'display_name', 'first_name', 'last_name']
     
     def get_display_name(self, obj):
         return f"{obj.first_name} {obj.last_name}"
@@ -25,8 +25,6 @@ class RoomSerializer(serializers.ModelSerializer):
     class Meta:
         model = Room
         fields = ['id', 'name']
-
-# Datei: backend/trackandtrace/serializers.py
 
 class SeedPurchaseSerializer(serializers.ModelSerializer):
     # Alte Mitglieder-Zuweisung (optional noch im Einsatz)
@@ -782,7 +780,7 @@ class PackagingBatchSerializer(serializers.ModelSerializer):
     
     def get_cbd_content(self, obj):
         return obj.cbd_content
-    
+
 class PackagingUnitSerializer(serializers.ModelSerializer):
     # Serializer für das Mitglied, das vernichtet hat
     destroyed_by = MemberSerializer(read_only=True)
@@ -794,16 +792,62 @@ class PackagingUnitSerializer(serializers.ModelSerializer):
         allow_null=True
     )
     
+    # ERWEITERT: Batch-Informationen hinzufügen für Frontend-Darstellung
+    batch = serializers.SerializerMethodField()
+    
     class Meta:
         model = PackagingUnit
         fields = [
             'id', 'batch_number', 'weight', 'notes', 
             'is_destroyed', 'destroy_reason', 'destroyed_at',
-            'created_at', 'destroyed_by', 'destroyed_by_id'
+            'created_at', 'destroyed_by', 'destroyed_by_id',
+            'batch'  # Hinzugefügtes Feld
         ]
+    
+    def get_batch(self, obj):
+        """
+        Erstellt ein Batch-Objekt mit allen nötigen Informationen
+        für die Frontend-Darstellung (Genetik, Produkttyp, THC/CBD)
+        """
+        if not obj.batch:
+            return {
+                'source_strain': 'Unbekannt',
+                'product_type': 'unknown',
+                'product_type_display': 'Unbekannt',
+                'thc_content': None,
+                'cbd_content': None
+            }
+            
+        batch = obj.batch
+        
+        # Sichere Ermittlung des Produkttyps
+        product_type = 'unknown'
+        product_type_display = 'Unbekannt'
+        
+        if batch.lab_testing_batch and batch.lab_testing_batch.processing_batch:
+            processing_batch = batch.lab_testing_batch.processing_batch
+            product_type = processing_batch.product_type
+            # Verwende die Django Choice-Methode für die Anzeige
+            product_type_display = processing_batch.get_product_type_display()
+        
+        # Sammle alle nötigen Informationen vom PackagingBatch-Modell
+        batch_data = {
+            'id': batch.id,
+            'batch_number': batch.batch_number,
+            'source_strain': batch.source_strain,  # Property vom PackagingBatch-Modell
+            'product_type': product_type,           # Direkt vom ProcessingBatch
+            'product_type_display': product_type_display,  # Django Choice Display
+            'thc_content': batch.thc_content,       # Property vom PackagingBatch-Modell
+            'cbd_content': batch.cbd_content,       # Property vom PackagingBatch-Modell
+            'total_weight': batch.total_weight,
+            'unit_count': batch.unit_count,
+            'unit_weight': batch.unit_weight,
+        }
+        
+        return batch_data
 
 class ProductDistributionSerializer(serializers.ModelSerializer):
-    # Einfache Darstellung der Verpackungseinheiten
+    # Einfache Darstellung der Verpackungseinheiten mit erweiterten Batch-Daten
     packaging_units = PackagingUnitSerializer(many=True, read_only=True)
     packaging_unit_ids = serializers.PrimaryKeyRelatedField(
         queryset=PackagingUnit.objects.filter(is_destroyed=False),

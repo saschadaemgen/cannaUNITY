@@ -1,4 +1,4 @@
-# /models.py
+# members/models.py
 from django.db import models
 import uuid
 from datetime import date
