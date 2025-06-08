@@ -3,39 +3,118 @@ import { useState, useEffect } from 'react'
 import { 
   Box, Typography, TextField, Autocomplete, Grid, Paper,
   Avatar, Chip, Alert, InputAdornment, Card, CardContent,
-  Divider, CircularProgress
+  Divider, CircularProgress, LinearProgress, Stack
 } from '@mui/material'
 import PersonIcon from '@mui/icons-material/Person'
 import SearchIcon from '@mui/icons-material/Search'
 import LocalHospitalIcon from '@mui/icons-material/LocalHospital'
 import AssignmentIndIcon from '@mui/icons-material/AssignmentInd'
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday'
+import WarningAmberIcon from '@mui/icons-material/WarningAmber'
+import CheckCircleIcon from '@mui/icons-material/CheckCircle'
+import ErrorIcon from '@mui/icons-material/Error'
 import api from '@/utils/api'
 
-export default function RecipientSelection({ members, recipientId, setRecipientId }) {
+// Cannabis-Limits Imports
+import { 
+  getMemberConsumptionStats,
+  getCachedMemberLimits 
+} from '../../../../utils/cannabisLimitsApi'
+import { 
+  formatWeight,
+  getConsumptionColor
+} from '../../../../utils/cannabisLimits'
+
+// Komponente für Limit-Anzeige
+const LimitDisplay = ({ label, consumed, limit, remaining, percentage }) => {
+  const color = getConsumptionColor(percentage)
+  
+  return (
+    <Box sx={{ mb: 2 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+        <Typography variant="body2" fontWeight="medium">
+          {label}
+        </Typography>
+        <Typography variant="body2" color={`${color}.main`}>
+          {formatWeight(consumed)} / {formatWeight(limit)}
+        </Typography>
+      </Box>
+      
+      <LinearProgress 
+        variant="determinate" 
+        value={Math.min(100, percentage)} 
+        color={color}
+        sx={{ height: 8, borderRadius: 1, mb: 1 }}
+      />
+      
+      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+        <Typography variant="caption" color="text.secondary">
+          Verbraucht: {percentage.toFixed(1)}%
+        </Typography>
+        <Typography 
+          variant="caption" 
+          color={remaining < 0 ? 'error.main' : 'text.secondary'}
+          fontWeight={remaining < 0 ? 'bold' : 'normal'}
+        >
+          Verfügbar: {formatWeight(Math.abs(remaining))}
+        </Typography>
+      </Box>
+    </Box>
+  )
+}
+
+export default function RecipientSelection({ members, recipientId, setRecipientId, onLimitsLoaded }) {
   const [searchValue, setSearchValue] = useState('')
   const [selectedMember, setSelectedMember] = useState(null)
   const [memberHistory, setMemberHistory] = useState(null)
+  const [memberLimits, setMemberLimits] = useState(null)
   const [loadingHistory, setLoadingHistory] = useState(false)
+  const [loadingLimits, setLoadingLimits] = useState(false)
+
+  // **NEU: Synchronisiere selectedMember mit recipientId**
+  useEffect(() => {
+    if (recipientId && (!selectedMember || selectedMember.id !== recipientId)) {
+      const found = members.find(m => m.id === recipientId)
+      if (found) setSelectedMember(found)
+    }
+    if (!recipientId && selectedMember) {
+      setSelectedMember(null)
+    }
+  }, [recipientId, members])
   
-  // Lade Mitglieder-Historie wenn ein Mitglied ausgewählt wird
+  // Lade Mitglieder-Historie und Limits wenn ein Mitglied ausgewählt wird
   useEffect(() => {
     if (recipientId) {
-      loadMemberHistory(recipientId)
+      loadMemberData(recipientId)
     } else {
       setMemberHistory(null)
+      setMemberLimits(null)
     }
   }, [recipientId])
+
   
-  const loadMemberHistory = async (memberId) => {
+  const loadMemberData = async (memberId) => {
     setLoadingHistory(true)
+    setLoadingLimits(true)
+    
     try {
-      const res = await api.get(`/trackandtrace/distributions/member_summary/?member_id=${memberId}`)
+      // Lade Historie
+      const res = await api.get(`/trackandtrace/distributions/member_consumption_summary/?member_id=${memberId}`)
       setMemberHistory(res.data)
+      
+      // Lade Limits und Verbrauchsdaten
+      const limitsData = await getCachedMemberLimits(memberId)
+      setMemberLimits(limitsData)
+      
+      // Callback für Parent-Komponente
+      if (onLimitsLoaded) {
+        onLimitsLoaded(limitsData)
+      }
     } catch (error) {
-      console.error('Fehler beim Laden der Mitglieder-Historie:', error)
+      console.error('Fehler beim Laden der Mitgliederdaten:', error)
     } finally {
       setLoadingHistory(false)
+      setLoadingLimits(false)
     }
   }
   
@@ -48,7 +127,7 @@ export default function RecipientSelection({ members, recipientId, setRecipientI
   const formattedMembers = members.map(member => ({
     ...member,
     displayName: `${member.first_name} ${member.last_name}`,
-    searchString: `${member.first_name} ${member.last_name} ${member.member_number || ''} ${member.email || ''}`.toLowerCase()
+    searchString: `${member.first_name} ${member.last_name} ${member.email || ''}`.toLowerCase()
   }))
   
   return (
@@ -73,7 +152,12 @@ export default function RecipientSelection({ members, recipientId, setRecipientI
             <Autocomplete
               id="recipient-select"
               options={formattedMembers}
-              getOptionLabel={(option) => option.displayName}
+              getOptionLabel={(option) =>
+                option?.displayName
+                  || [option?.first_name, option?.last_name].filter(Boolean).join(' ')
+                  || option?.email
+                  || ''
+              }
               value={selectedMember}
               onChange={handleMemberSelect}
               filterOptions={(options, { inputValue }) => {
@@ -90,8 +174,7 @@ export default function RecipientSelection({ members, recipientId, setRecipientI
                   <Box>
                     <Typography variant="body1">{option.displayName}</Typography>
                     <Typography variant="caption" color="text.secondary">
-                      {option.member_number && `Mitgliedsnr.: ${option.member_number}`}
-                      {option.email && ` • ${option.email}`}
+                      {option.email || 'Keine E-Mail hinterlegt'}
                     </Typography>
                   </Box>
                 </Box>
@@ -99,7 +182,7 @@ export default function RecipientSelection({ members, recipientId, setRecipientI
               renderInput={(params) => (
                 <TextField
                   {...params}
-                  label="Name, Mitgliedsnummer oder E-Mail eingeben"
+                  label="Name oder E-Mail eingeben"
                   variant="outlined"
                   fullWidth
                   InputProps={{
@@ -122,15 +205,25 @@ export default function RecipientSelection({ members, recipientId, setRecipientI
                     <Avatar sx={{ mr: 2, bgcolor: 'primary.main', width: 56, height: 56 }}>
                       <PersonIcon />
                     </Avatar>
-                    <Box>
+                    <Box sx={{ flexGrow: 1 }}>
                       <Typography variant="h6">{selectedMember.displayName}</Typography>
-                      <Chip 
-                        icon={<AssignmentIndIcon />}
-                        label={selectedMember.member_number || 'Keine Mitgliedsnr.'}
-                        size="small"
-                        color="primary"
-                        variant="outlined"
-                      />
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <Chip 
+                          icon={<AssignmentIndIcon />}
+                          label={selectedMember.email || 'Keine E-Mail'}
+                          size="small"
+                          color="primary"
+                          variant="outlined"
+                        />
+                        {memberLimits && (
+                          <Chip 
+                            label={memberLimits.member.ageClass}
+                            size="small"
+                            color={memberLimits.member.isU21 ? 'warning' : 'success'}
+                            variant="filled"
+                          />
+                        )}
+                      </Stack>
                     </Box>
                   </Box>
                   
@@ -156,6 +249,49 @@ export default function RecipientSelection({ members, recipientId, setRecipientI
                       </Typography>
                     </Grid>
                   </Grid>
+                  
+                  {/* Cannabis-Limits Anzeige */}
+                  {memberLimits && (
+                    <>
+                      <Divider sx={{ my: 2 }} />
+                      
+                      <Typography variant="subtitle2" gutterBottom fontWeight="bold">
+                        Cannabis-Limits
+                      </Typography>
+                      
+                      {loadingLimits ? (
+                        <Box sx={{ py: 2, display: 'flex', justifyContent: 'center' }}>
+                          <CircularProgress size={24} />
+                        </Box>
+                      ) : (
+                        <Box>
+                          <LimitDisplay
+                            label="Tageslimit"
+                            consumed={memberLimits.daily.consumed}
+                            limit={memberLimits.daily.limit}
+                            remaining={memberLimits.daily.remaining}
+                            percentage={memberLimits.daily.percentage}
+                          />
+                          
+                          <LimitDisplay
+                            label="Monatslimit"
+                            consumed={memberLimits.monthly.consumed}
+                            limit={memberLimits.monthly.limit}
+                            remaining={memberLimits.monthly.remaining}
+                            percentage={memberLimits.monthly.percentage}
+                          />
+                          
+                          {memberLimits.member.isU21 && (
+                            <Alert severity="warning" sx={{ mt: 2 }}>
+                              <Typography variant="caption">
+                                <strong>U21-Beschränkung:</strong> Max. 10% THC-Gehalt
+                              </Typography>
+                            </Alert>
+                          )}
+                        </Box>
+                      )}
+                    </>
+                  )}
                 </CardContent>
               </Card>
             )}
@@ -165,7 +301,7 @@ export default function RecipientSelection({ members, recipientId, setRecipientI
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 3, height: '100%', bgcolor: 'grey.50' }}>
             <Typography variant="subtitle1" gutterBottom fontWeight="bold">
-              Ausgabenhistorie
+              Ausgabenhistorie & Verbrauch
             </Typography>
             
             {!selectedMember ? (
@@ -186,7 +322,157 @@ export default function RecipientSelection({ members, recipientId, setRecipientI
               <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
                 <CircularProgress />
               </Box>
-            ) : memberHistory ? (
+            ) : memberHistory && memberLimits ? (
+              <Box>
+                {/* Verbrauchs-Übersicht */}
+                <Grid container spacing={2} sx={{ mb: 3 }}>
+                  <Grid item xs={6}>
+                    <Card 
+                      variant="outlined" 
+                      sx={{ 
+                        p: 2, 
+                        textAlign: 'center',
+                        borderColor: getConsumptionColor(memberLimits.daily.percentage) + '.main',
+                        borderWidth: 2
+                      }}
+                    >
+                      <Typography variant="h4" color={getConsumptionColor(memberLimits.daily.percentage) + '.main'}>
+                        {formatWeight(memberLimits.daily.consumed)}
+                      </Typography>
+                      <Typography variant="caption">
+                        Heute ausgegeben
+                      </Typography>
+                      <Typography variant="caption" display="block" color="text.secondary">
+                        von {formatWeight(memberLimits.daily.limit)}
+                      </Typography>
+                    </Card>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Card 
+                      variant="outlined" 
+                      sx={{ 
+                        p: 2, 
+                        textAlign: 'center',
+                        borderColor: getConsumptionColor(memberLimits.monthly.percentage) + '.main',
+                        borderWidth: 2
+                      }}
+                    >
+                      <Typography variant="h4" color={getConsumptionColor(memberLimits.monthly.percentage) + '.main'}>
+                        {formatWeight(memberLimits.monthly.consumed)}
+                      </Typography>
+                      <Typography variant="caption">
+                        Diesen Monat
+                      </Typography>
+                      <Typography variant="caption" display="block" color="text.secondary">
+                        von {formatWeight(memberLimits.monthly.limit)}
+                      </Typography>
+                    </Card>
+                  </Grid>
+                </Grid>
+                
+                {/* Limit-Warnungen */}
+                {(memberLimits.daily.percentage >= 80 || memberLimits.monthly.percentage >= 80) && (
+                  <Alert 
+                    severity={
+                      memberLimits.daily.percentage >= 100 || memberLimits.monthly.percentage >= 100 
+                        ? 'error' 
+                        : 'warning'
+                    }
+                    sx={{ mb: 2 }}
+                    icon={
+                      memberLimits.daily.percentage >= 100 || memberLimits.monthly.percentage >= 100
+                        ? <ErrorIcon />
+                        : <WarningAmberIcon />
+                    }
+                  >
+                    {memberLimits.daily.percentage >= 100 && (
+                      <Typography variant="body2">
+                        <strong>Tageslimit erreicht!</strong> Keine weiteren Ausgaben heute möglich.
+                      </Typography>
+                    )}
+                    {memberLimits.monthly.percentage >= 100 && (
+                      <Typography variant="body2">
+                        <strong>Monatslimit erreicht!</strong> Keine weiteren Ausgaben diesen Monat möglich.
+                      </Typography>
+                    )}
+                    {memberLimits.daily.percentage >= 80 && memberLimits.daily.percentage < 100 && (
+                      <Typography variant="body2">
+                        Tageslimit fast erreicht ({memberLimits.daily.percentage.toFixed(0)}%)
+                      </Typography>
+                    )}
+                    {memberLimits.monthly.percentage >= 80 && memberLimits.monthly.percentage < 100 && (
+                      <Typography variant="body2">
+                        Monatslimit fast erreicht ({memberLimits.monthly.percentage.toFixed(0)}%)
+                      </Typography>
+                    )}
+                  </Alert>
+                )}
+                
+                <Divider sx={{ my: 2 }} />
+                
+                {/* Gesamtstatistik */}
+                <Grid container spacing={2} sx={{ mb: 2 }}>
+                  <Grid item xs={6}>
+                    <Typography variant="caption" color="text.secondary">
+                      Gesamtausgaben
+                    </Typography>
+                    <Typography variant="h6" color="primary.main">
+                      {memberHistory.received?.total_count || 0}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="caption" color="text.secondary">
+                      Gesamtmenge
+                    </Typography>
+                    <Typography variant="h6" color="success.main">
+                      {memberHistory.received?.total_weight?.toFixed(2) || '0.00'}g
+                    </Typography>
+                  </Grid>
+                </Grid>
+                
+                {/* Letzte Ausgaben */}
+                <Typography variant="subtitle2" gutterBottom>
+                  Letzte Ausgaben (30 Tage)
+                </Typography>
+                
+                {memberHistory.received?.recent_distributions?.length > 0 ? (
+                  <Box sx={{ maxHeight: 200, overflowY: 'auto' }}>
+                    {memberHistory.received.recent_distributions.map((dist, idx) => (
+                      <Box 
+                        key={dist.id || idx}
+                        sx={{ 
+                          py: 1, 
+                          px: 2, 
+                          mb: 1, 
+                          bgcolor: 'background.paper',
+                          borderRadius: 1,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between'
+                        }}
+                      >
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <CalendarTodayIcon fontSize="small" color="action" />
+                          <Typography variant="body2">
+                            {new Date(dist.distribution_date).toLocaleDateString('de-DE')}
+                          </Typography>
+                        </Box>
+                        <Chip 
+                          label={`${dist.total_weight?.toFixed(2)}g`}
+                          size="small"
+                          color="primary"
+                        />
+                      </Box>
+                    ))}
+                  </Box>
+                ) : (
+                  <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 2 }}>
+                    Keine kürzlichen Ausgaben
+                  </Typography>
+                )}
+              </Box>
+            ) : memberHistory && !memberLimits ? (
+              // Fallback wenn nur Historie geladen wurde
               <Box>
                 <Grid container spacing={2} sx={{ mb: 3 }}>
                   <Grid item xs={6}>

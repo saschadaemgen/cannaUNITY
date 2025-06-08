@@ -52,7 +52,7 @@ export default function ReviewAndConfirm({
                       {recipient?.first_name} {recipient?.last_name}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      Mitgliedsnr.: {recipient?.member_number || 'k.A.'}
+                      E-Mail: {recipient?.email || 'k.A.'}
                     </Typography>
                   </Box>
                 </Box>
@@ -60,14 +60,6 @@ export default function ReviewAndConfirm({
                 <Divider sx={{ my: 2 }} />
                 
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                  <Typography variant="caption" color="text.secondary">
-                    E-Mail:
-                  </Typography>
-                  <Typography variant="caption">
-                    {recipient?.email || 'k.A.'}
-                  </Typography>
-                </Box>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                   <Typography variant="caption" color="text.secondary">
                     Status:
                   </Typography>

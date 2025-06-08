@@ -5,7 +5,8 @@ from .api_views import (
     SeedPurchaseViewSet, MotherPlantBatchViewSet, MotherPlantViewSet,
     FloweringPlantBatchViewSet, CuttingBatchViewSet, BloomingCuttingBatchViewSet,
     HarvestBatchViewSet, DryingBatchViewSet, ProcessingBatchViewSet, LabTestingBatchViewSet, 
-    PackagingBatchViewSet, PackagingUnitViewSet, ProductDistributionViewSet
+    PackagingBatchViewSet, PackagingUnitViewSet, ProductDistributionViewSet,
+    validate_distribution_limits  # NEU: Import der Funktion
 )
 
 router = DefaultRouter()
@@ -24,5 +25,10 @@ router.register(r'packaging-units', PackagingUnitViewSet, basename='packaging-un
 router.register(r'distributions', ProductDistributionViewSet, basename='distributions')
 
 urlpatterns = [
+    # Spezifische Endpunkte VOR dem Router registrieren
+    path('distributions/validate_distribution_limits/', 
+         validate_distribution_limits, 
+         name='validate_distribution_limits'),
+    # Router URLs danach
     path('', include(router.urls)),
 ]

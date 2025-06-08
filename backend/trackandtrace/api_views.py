@@ -1,26 +1,55 @@
-from rest_framework import viewsets, status, pagination
-from rest_framework.decorators import action
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from django.utils import timezone
+# Standard library imports
+from datetime import datetime, timedelta
+
+# Third-party imports
+from dateutil.relativedelta import relativedelta
 from django.db import models
-from django.db.models import Q
+from django.db.models import Q, Sum
+from django.utils import timezone
+from rest_framework import pagination, status, viewsets
+from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+
+# Local application imports
 from .models import (
-    SeedPurchase, MotherPlantBatch, MotherPlant, 
-    FloweringPlantBatch, FloweringPlant, Cutting, CuttingBatch,
-    BloomingCuttingBatch, BloomingCuttingPlant, HarvestBatch, 
-    DryingBatch, ProcessingBatch, LabTestingBatch, PackagingBatch, PackagingUnit, ProductDistribution
+    BloomingCuttingBatch,
+    BloomingCuttingPlant,
+    Cutting,
+    CuttingBatch,
+    DryingBatch,
+    FloweringPlant,
+    FloweringPlantBatch,
+    HarvestBatch,
+    LabTestingBatch,
+    MotherPlant,
+    MotherPlantBatch,
+    PackagingBatch,
+    PackagingUnit,
+    ProcessingBatch,
+    ProductDistribution,
+    SeedPurchase,
 )
 from .serializers import (
-    SeedPurchaseSerializer, MotherPlantBatchSerializer, 
-    MotherPlantSerializer, FloweringPlantBatchSerializer,
-    FloweringPlantSerializer, CuttingBatchSerializer, CuttingSerializer,
-    BloomingCuttingBatchSerializer, BloomingCuttingPlantSerializer, 
-    HarvestBatchSerializer, DryingBatchSerializer, ProcessingBatchSerializer,
-    LabTestingBatchSerializer, PackagingBatchSerializer, PackagingUnitSerializer, 
-    ProductDistributionSerializer
+    BloomingCuttingBatchSerializer,
+    BloomingCuttingPlantSerializer,
+    CuttingBatchSerializer,
+    CuttingSerializer,
+    DryingBatchSerializer,
+    FloweringPlantBatchSerializer,
+    FloweringPlantSerializer,
+    HarvestBatchSerializer,
+    LabTestingBatchSerializer,
+    MotherPlantBatchSerializer,
+    MotherPlantSerializer,
+    PackagingBatchSerializer,
+    PackagingUnitSerializer,
+    ProcessingBatchSerializer,
+    ProductDistributionSerializer,
+    SeedPurchaseSerializer,
 )
 
+# External app imports
 from wawi.models import CannabisStrain
 from wawi.serializers import CannabisStrainSerializer
 
@@ -2808,6 +2837,131 @@ class ProductDistributionViewSet(viewsets.ModelViewSet):
             
         return queryset
     
+    def create(self, request, *args, **kwargs):
+        """
+        Überschreiben der create-Methode um Limit-Validierung einzubauen
+        """
+        recipient_id = request.data.get('recipient_id')
+        packaging_unit_ids = request.data.get('packaging_unit_ids', [])
+        
+        if not recipient_id:
+            return Response(
+                {"error": "Empfänger-ID ist erforderlich"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Empfänger laden
+        try:
+            from members.models import Member
+            recipient = Member.objects.get(id=recipient_id)
+        except Member.DoesNotExist:
+            return Response(
+                {"error": "Empfänger nicht gefunden"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Altersklasse bestimmen
+        age_class = recipient.age_class if hasattr(recipient, 'age_class') else "21+"
+        is_u21 = age_class == "18+"
+        
+        # Limits basierend auf Altersklasse
+        daily_limit = 25.0
+        monthly_limit = 30.0 if is_u21 else 50.0
+        max_thc_percentage = 10.0 if is_u21 else None
+        
+        # Aktuelles Datum
+        today = timezone.now().date()
+        month_start = today.replace(day=1)
+        
+        # Bisherige Ausgaben abrufen
+        daily_consumption = ProductDistribution.objects.filter(
+            recipient_id=recipient_id,
+            distribution_date__date=today
+        ).aggregate(
+            total_weight=Sum('packaging_units__weight')
+        )['total_weight'] or 0
+        
+        monthly_consumption = ProductDistribution.objects.filter(
+            recipient_id=recipient_id,
+            distribution_date__date__gte=month_start,
+            distribution_date__date__lte=today
+        ).aggregate(
+            total_weight=Sum('packaging_units__weight')
+        )['total_weight'] or 0
+        
+        # Gewicht der ausgewählten Einheiten berechnen
+        selected_weight = 0
+        thc_violations = []
+        
+        for unit_id in packaging_unit_ids:
+            try:
+                unit = PackagingUnit.objects.select_related(
+                    'batch__lab_testing_batch'
+                ).get(id=unit_id)
+                
+                unit_weight = float(unit.weight)
+                selected_weight += unit_weight
+                
+                # THC-Prüfung für U21
+                if is_u21 and unit.batch and unit.batch.lab_testing_batch:
+                    thc_content = unit.batch.lab_testing_batch.thc_content
+                    if thc_content and float(thc_content) > max_thc_percentage:
+                        thc_violations.append({
+                            'unit_id': str(unit_id),
+                            'unit_number': unit.batch_number,
+                            'thc_content': float(thc_content),
+                            'strain': unit.batch.source_strain
+                        })
+                        
+            except PackagingUnit.DoesNotExist:
+                continue
+        
+        # Neue Gesamtwerte berechnen
+        new_daily_total = float(daily_consumption) + selected_weight
+        new_monthly_total = float(monthly_consumption) + selected_weight
+        
+        # Validierung
+        errors = []
+        
+        if new_daily_total > daily_limit:
+            remaining = daily_limit - float(daily_consumption)
+            errors.append(f"Tageslimit überschritten! Noch verfügbar: {remaining:.2f}g")
+            
+        if new_monthly_total > monthly_limit:
+            remaining = monthly_limit - float(monthly_consumption)
+            errors.append(f"Monatslimit überschritten! Noch verfügbar: {remaining:.2f}g")
+            
+        if thc_violations:
+            errors.append(f"THC-Limit überschritten! Max. 10% THC für Mitglieder unter 21 Jahren.")
+        
+        if errors:
+            return Response(
+                {
+                    "error": "Ausgabe nicht möglich",
+                    "details": errors,
+                    "validation": {
+                        "recipient": {
+                            "id": str(recipient.id),
+                            "name": f"{recipient.first_name} {recipient.last_name}",
+                            "age_class": age_class
+                        },
+                        "violations": {
+                            "exceeds_daily_limit": new_daily_total > daily_limit,
+                            "exceeds_monthly_limit": new_monthly_total > monthly_limit,
+                            "thc_violations": thc_violations
+                        },
+                        "remaining": {
+                            "daily_remaining": daily_limit - new_daily_total,
+                            "monthly_remaining": monthly_limit - new_monthly_total
+                        }
+                    }
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Wenn Validierung erfolgreich, fahre mit normalem create fort
+        return super().create(request, *args, **kwargs)
+    
     @action(detail=False, methods=['get'])
     def member_summary(self, request):
         """
@@ -2825,25 +2979,25 @@ class ProductDistributionViewSet(viewsets.ModelViewSet):
         distributed = ProductDistribution.objects.filter(distributor_id=member_id)
         
         # Zeitliche Begrenzung (z.B. letzte 30 Tage für Details)
-        thirty_days_ago = timezone.now() - timezone.timedelta(days=30)
+        thirty_days_ago = timezone.now() - timedelta(days=30)
         
         # Zusammenfassungen erstellen
         summary = {
             'received': {
                 'total_count': received.count(),
                 'recent_count': received.filter(distribution_date__gte=thirty_days_ago).count(),
-                'total_weight': sum(dist.total_weight for dist in received),
+                'total_weight': float(sum(dist.total_weight for dist in received)),
                 'recent_distributions': ProductDistributionSerializer(
-                    received.filter(distribution_date__gte=thirty_days_ago),
+                    received.filter(distribution_date__gte=thirty_days_ago)[:10],
                     many=True
                 ).data
             },
             'distributed': {
                 'total_count': distributed.count(),
                 'recent_count': distributed.filter(distribution_date__gte=thirty_days_ago).count(),
-                'total_weight': sum(dist.total_weight for dist in distributed),
+                'total_weight': float(sum(dist.total_weight for dist in distributed)),
                 'recent_distributions': ProductDistributionSerializer(
-                    distributed.filter(distribution_date__gte=thirty_days_ago),
+                    distributed.filter(distribution_date__gte=thirty_days_ago)[:10],
                     many=True
                 ).data if request.user.groups.filter(name__in=['teamleiter', 'admin']).exists() else []
             }
@@ -2852,33 +3006,265 @@ class ProductDistributionViewSet(viewsets.ModelViewSet):
         return Response(summary)
     
     @action(detail=False, methods=['get'])
+    def member_consumption_summary(self, request):
+        """
+        Erweiterte member_summary mit Limit-Informationen
+        """
+        member_id = request.query_params.get('member_id')
+        if not member_id:
+            return Response(
+                {"error": "Mitglieds-ID ist erforderlich"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            from members.models import Member
+            member = Member.objects.get(id=member_id)
+        except Member.DoesNotExist:
+            return Response(
+                {"error": "Mitglied nicht gefunden"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Zeiträume
+        today = timezone.now().date()
+        month_start = today.replace(day=1)
+        thirty_days_ago = today - timedelta(days=30)
+        
+        # Bestehende Abfragen
+        received = ProductDistribution.objects.filter(recipient_id=member_id)
+        distributed = ProductDistribution.objects.filter(distributor_id=member_id)
+        
+        # Tages- und Monatsverbrauch
+        daily_consumption = received.filter(
+            distribution_date__date=today
+        ).aggregate(
+            total_weight=Sum('packaging_units__weight')
+        )['total_weight'] or 0
+        
+        monthly_consumption = received.filter(
+            distribution_date__date__gte=month_start,
+            distribution_date__date__lte=today
+        ).aggregate(
+            total_weight=Sum('packaging_units__weight')
+        )['total_weight'] or 0
+        
+        # Limits basierend auf Alter
+        age_class = member.age_class if hasattr(member, 'age_class') else "21+"
+        age = member.age if hasattr(member, 'age') else None
+        is_u21 = age_class == "18+"
+        daily_limit = 25.0
+        monthly_limit = 30.0 if is_u21 else 50.0
+        max_thc = 10.0 if is_u21 else None
+        
+        summary = {
+            'member': {
+                'id': str(member.id),
+                'name': f"{member.first_name} {member.last_name}",
+                'age': age,
+                'age_class': age_class
+            },
+            'limits': {
+                'daily_limit': daily_limit,
+                'monthly_limit': monthly_limit,
+                'max_thc_percentage': max_thc
+            },
+            'consumption': {
+                'daily': {
+                    'consumed': float(daily_consumption),
+                    'remaining': daily_limit - float(daily_consumption),
+                    'percentage': (float(daily_consumption) / daily_limit * 100) if daily_limit > 0 else 0
+                },
+                'monthly': {
+                    'consumed': float(monthly_consumption),
+                    'remaining': monthly_limit - float(monthly_consumption),
+                    'percentage': (float(monthly_consumption) / monthly_limit * 100) if monthly_limit > 0 else 0
+                }
+            },
+            'received': {
+                'total_count': received.count(),
+                'recent_count': received.filter(distribution_date__gte=thirty_days_ago).count(),
+                'total_weight': float(sum(dist.total_weight for dist in received)),
+                'recent_distributions': ProductDistributionSerializer(
+                    received.filter(distribution_date__gte=thirty_days_ago)[:10],
+                    many=True
+                ).data
+            },
+            'distributed': {
+                'total_count': distributed.count(),
+                'recent_count': distributed.filter(distribution_date__gte=thirty_days_ago).count(),
+                'total_weight': float(sum(dist.total_weight for dist in distributed)),
+            }
+        }
+        
+        return Response(summary)
+    
+    @action(detail=False, methods=['get'])
     def available_units(self, request):
         """
-        Liefert alle verfügbaren (nicht vernichteten, nicht ausgegebenen) Verpackungseinheiten.
+        Erweiterte Version mit THC-Filter basierend auf Empfänger-Alter
         """
-        # Einheiten, die noch nicht ausgegeben wurden
+        # Basis-Query wie bisher
         units = PackagingUnit.objects.filter(
-            is_destroyed=False,                # Nicht vernichtet
+            is_destroyed=False,
         ).exclude(
-            distributions__isnull=False        # Nicht bereits ausgegeben
+            distributions__isnull=False
         )
         
-        # Optional: Filter nach Produkttyp
+        # THC-Filter basierend auf Empfänger
+        recipient_id = request.query_params.get('recipient_id')
+        if recipient_id:
+            try:
+                from members.models import Member
+                recipient = Member.objects.get(id=recipient_id)
+                
+                # Wenn U21, filtere Produkte mit >10% THC
+                if hasattr(recipient, 'age_class') and recipient.age_class == "18+":
+                    units = units.filter(
+                        Q(batch__lab_testing_batch__thc_content__lte=10.0) | 
+                        Q(batch__lab_testing_batch__thc_content__isnull=True)
+                    )
+            except Member.DoesNotExist:
+                pass
+        
+        # Weitere bestehende Filter...
         product_type = request.query_params.get('product_type')
         if product_type:
             units = units.filter(batch__lab_testing_batch__processing_batch__product_type=product_type)
             
-        # Optional: Filter nach maximaler THC-Konzentration (für jüngere Mitglieder)
-        max_thc = request.query_params.get('max_thc')
-        if max_thc:
-            try:
-                max_thc_value = float(max_thc)
-                units = units.filter(
-                    Q(batch__lab_testing_batch__thc_content__lte=max_thc_value) | 
-                    Q(batch__lab_testing_batch__thc_content__isnull=True)
-                )
-            except ValueError:
-                pass
-                
         serializer = PackagingUnitSerializer(units, many=True)
         return Response(serializer.data)
+
+
+# Cannabis-Limit Validierungs-API
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def validate_distribution_limits(request):
+    """
+    Validiert, ob eine geplante Ausgabe die Cannabis-Limits einhält.
+    
+    Input: 
+        - recipient_id: UUID des Empfängers
+        - selected_units: Array von Unit-IDs mit Gewichten
+    
+    Output: 
+        - validation_result mit Details zu Limits und Violations
+    """
+    recipient_id = request.data.get('recipient_id')
+    selected_units = request.data.get('selected_units', [])
+    
+    if not recipient_id:
+        return Response(
+            {"error": "Empfänger-ID ist erforderlich"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # Empfänger laden
+    try:
+        from members.models import Member
+        recipient = Member.objects.get(id=recipient_id)
+    except Member.DoesNotExist:
+        return Response(
+            {"error": "Empfänger nicht gefunden"},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    
+    # Altersklasse bestimmen
+    age_class = recipient.age_class  # Nutzt die property aus dem Member Model
+    is_u21 = age_class == "18+"
+    
+    # Limits basierend auf Altersklasse
+    daily_limit = 25.0  # Beide Altersklassen haben 25g/Tag
+    monthly_limit = 30.0 if is_u21 else 50.0
+    max_thc_percentage = 10.0 if is_u21 else None
+    
+    # Aktuelles Datum für Berechnungen
+    today = timezone.now().date()
+    month_start = today.replace(day=1)
+    
+    # Bisherige Ausgaben heute abrufen
+    daily_consumption = ProductDistribution.objects.filter(
+        recipient_id=recipient_id,
+        distribution_date__date=today
+    ).aggregate(
+        total_weight=Sum('packaging_units__weight')
+    )['total_weight'] or 0
+    
+    # Bisherige Ausgaben diesen Monat abrufen
+    monthly_consumption = ProductDistribution.objects.filter(
+        recipient_id=recipient_id,
+        distribution_date__date__gte=month_start,
+        distribution_date__date__lte=today
+    ).aggregate(
+        total_weight=Sum('packaging_units__weight')
+    )['total_weight'] or 0
+    
+    # Gewicht der ausgewählten Einheiten berechnen
+    selected_weight = 0
+    thc_violations = []
+    
+    for unit_data in selected_units:
+        unit_id = unit_data.get('id')
+        try:
+            unit = PackagingUnit.objects.select_related(
+                'batch__lab_testing_batch'
+            ).get(id=unit_id)
+            
+            unit_weight = float(unit.weight)
+            selected_weight += unit_weight
+            
+            # THC-Prüfung für U21
+            if is_u21 and unit.batch and unit.batch.lab_testing_batch:
+                thc_content = unit.batch.lab_testing_batch.thc_content
+                if thc_content and float(thc_content) > max_thc_percentage:
+                    thc_violations.append({
+                        'unit_id': unit_id,
+                        'unit_number': unit.batch_number,
+                        'thc_content': float(thc_content),
+                        'strain': unit.batch.source_strain
+                    })
+                    
+        except PackagingUnit.DoesNotExist:
+            continue
+    
+    # Neue Gesamtwerte berechnen
+    new_daily_total = float(daily_consumption) + selected_weight
+    new_monthly_total = float(monthly_consumption) + selected_weight
+    
+    # Validierungsergebnis
+    validation_result = {
+        'recipient': {
+            'id': str(recipient.id),
+            'name': f"{recipient.first_name} {recipient.last_name}",
+            'age_class': age_class,
+            'age': recipient.age
+        },
+        'limits': {
+            'daily_limit': daily_limit,
+            'monthly_limit': monthly_limit,
+            'max_thc_percentage': max_thc_percentage
+        },
+        'consumption': {
+            'daily_consumed': float(daily_consumption),
+            'monthly_consumed': float(monthly_consumption),
+            'selected_weight': selected_weight,
+            'new_daily_total': new_daily_total,
+            'new_monthly_total': new_monthly_total
+        },
+        'remaining': {
+            'daily_remaining': daily_limit - new_daily_total,
+            'monthly_remaining': monthly_limit - new_monthly_total
+        },
+        'violations': {
+            'exceeds_daily_limit': new_daily_total > daily_limit,
+            'exceeds_monthly_limit': new_monthly_total > monthly_limit,
+            'thc_violations': thc_violations
+        },
+        'is_valid': (
+            new_daily_total <= daily_limit and 
+            new_monthly_total <= monthly_limit and 
+            len(thc_violations) == 0
+        )
+    }
+    
+    return Response(validation_result)

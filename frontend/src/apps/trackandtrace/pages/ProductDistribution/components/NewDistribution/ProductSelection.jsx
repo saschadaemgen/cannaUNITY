@@ -1,11 +1,11 @@
 // frontend/src/apps/trackandtrace/pages/ProductDistribution/components/NewDistribution/ProductSelection.jsx
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { 
   Box, Typography, Paper, Grid, TextField, InputAdornment,
   FormControl, InputLabel, Select, MenuItem, Chip,
   Table, TableContainer, TableHead, TableRow, TableCell,
   TableBody, IconButton, Alert, Tooltip, Badge,
-  Card, CardContent, Divider
+  Card, CardContent, Divider, LinearProgress, Snackbar
 } from '@mui/material'
 import SearchIcon from '@mui/icons-material/Search'
 import LocalFloristIcon from '@mui/icons-material/LocalFlorist'
@@ -15,55 +15,197 @@ import RemoveCircleIcon from '@mui/icons-material/RemoveCircle'
 import ScienceIcon from '@mui/icons-material/Science'
 import ScaleIcon from '@mui/icons-material/Scale'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
+import BlockIcon from '@mui/icons-material/Block'
+import WarningIcon from '@mui/icons-material/Warning'
 
-export default function ProductSelection({ availableUnits, selectedUnits, setSelectedUnits }) {
+// Cannabis-Limits Imports
+import { 
+  formatWeight,
+  validateDistribution,
+  createWarningMessages,
+  getConsumptionColor
+} from '../../../../utils/cannabisLimits'
+
+// Limit-Status-Komponente
+const LimitStatus = ({ currentWeight, dailyLimit, monthlyLimit, dailyUsed, monthlyUsed }) => {
+  const dailyTotal = dailyUsed + currentWeight
+  const monthlyTotal = monthlyUsed + currentWeight
+  const dailyPercentage = (dailyTotal / dailyLimit) * 100
+  const monthlyPercentage = (monthlyTotal / monthlyLimit) * 100
+  
+  return (
+    <Card sx={{ mb: 2, p: 2, bgcolor: 'background.paper' }}>
+      <Typography variant="subtitle2" gutterBottom fontWeight="bold">
+        Aktuelle Limits
+      </Typography>
+      
+      <Box sx={{ mb: 2 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+          <Typography variant="body2">Tageslimit</Typography>
+          <Typography 
+            variant="body2" 
+            color={getConsumptionColor(dailyPercentage) + '.main'}
+            fontWeight="bold"
+          >
+            {formatWeight(dailyTotal)} / {formatWeight(dailyLimit)}
+          </Typography>
+        </Box>
+        <LinearProgress 
+          variant="determinate" 
+          value={Math.min(100, dailyPercentage)} 
+          color={getConsumptionColor(dailyPercentage)}
+          sx={{ height: 6, borderRadius: 1 }}
+        />
+      </Box>
+      
+      <Box>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+          <Typography variant="body2">Monatslimit</Typography>
+          <Typography 
+            variant="body2" 
+            color={getConsumptionColor(monthlyPercentage) + '.main'}
+            fontWeight="bold"
+          >
+            {formatWeight(monthlyTotal)} / {formatWeight(monthlyLimit)}
+          </Typography>
+        </Box>
+        <LinearProgress 
+          variant="determinate" 
+          value={Math.min(100, monthlyPercentage)} 
+          color={getConsumptionColor(monthlyPercentage)}
+          sx={{ height: 6, borderRadius: 1 }}
+        />
+      </Box>
+      
+      {dailyPercentage > 100 && (
+        <Alert severity="error" sx={{ mt: 2 }}>
+          <Typography variant="caption">
+            Tageslimit überschritten um {formatWeight(dailyTotal - dailyLimit)}
+          </Typography>
+        </Alert>
+      )}
+      
+      {monthlyPercentage > 100 && (
+        <Alert severity="error" sx={{ mt: 2 }}>
+          <Typography variant="caption">
+            Monatslimit überschritten um {formatWeight(monthlyTotal - monthlyLimit)}
+          </Typography>
+        </Alert>
+      )}
+    </Card>
+  )
+}
+
+export default function ProductSelection({ 
+  availableUnits, 
+  selectedUnits, 
+  setSelectedUnits,
+  recipientId,
+  memberLimits 
+}) {
   const [searchTerm, setSearchTerm] = useState('')
   const [productTypeFilter, setProductTypeFilter] = useState('')
   const [thcFilter, setThcFilter] = useState('')
+  const [showLimitWarning, setShowLimitWarning] = useState(false)
+  const [limitWarningMessage, setLimitWarningMessage] = useState('')
+  const [blockedUnits, setBlockedUnits] = useState(new Set())
   
-  // Filtere verfügbare Einheiten
-  const filteredUnits = availableUnits.filter(unit => {
-    const batch = unit.batch || {}
-    const labBatch = batch.lab_testing_batch || {}
-    const processingBatch = labBatch.processing_batch || {}
+  // Prüfe ob Empfänger U21 ist
+  const isU21 = memberLimits?.member?.isU21 || false
+  
+  // Filtere verfügbare Einheiten mit THC-Check für U21
+  const filteredUnits = useMemo(() => {
+    let units = availableUnits
     
-    // Produkttyp-Filter
-    if (productTypeFilter && processingBatch.product_type !== productTypeFilter) {
-      return false
+    // THC-Filter für U21-Mitglieder
+    if (isU21) {
+      units = units.filter(unit => {
+        const thcContent = unit.batch?.lab_testing_batch?.thc_content
+        return !thcContent || parseFloat(thcContent) <= 10
+      })
     }
     
-    // THC-Filter
-    if (thcFilter && labBatch.thc_content) {
-      const thcValue = parseFloat(labBatch.thc_content)
-      if (thcFilter === 'low' && thcValue >= 15) return false
-      if (thcFilter === 'medium' && (thcValue < 15 || thcValue >= 20)) return false
-      if (thcFilter === 'high' && thcValue < 20) return false
-    }
-    
-    // Suchbegriff
-    if (searchTerm) {
-      const search = searchTerm.toLowerCase()
-      const unitNumber = unit.batch_number?.toLowerCase() || ''
-      const strain = batch.source_strain?.toLowerCase() || ''
+    // Weitere Filter anwenden
+    return units.filter(unit => {
+      const batch = unit.batch || {}
+      const labBatch = batch.lab_testing_batch || {}
+      const processingBatch = labBatch.processing_batch || {}
       
-      if (!unitNumber.includes(search) && !strain.includes(search)) {
+      // Produkttyp-Filter
+      if (productTypeFilter && processingBatch.product_type !== productTypeFilter) {
         return false
       }
-    }
-    
-    return true
-  })
+      
+      // THC-Filter (zusätzlich zum U21-Filter)
+      if (thcFilter && labBatch.thc_content) {
+        const thcValue = parseFloat(labBatch.thc_content)
+        if (thcFilter === 'low' && thcValue >= 15) return false
+        if (thcFilter === 'medium' && (thcValue < 15 || thcValue >= 20)) return false
+        if (thcFilter === 'high' && thcValue < 20) return false
+      }
+      
+      // Suchbegriff
+      if (searchTerm) {
+        const search = searchTerm.toLowerCase()
+        const unitNumber = unit.batch_number?.toLowerCase() || ''
+        const strain = batch.source_strain?.toLowerCase() || ''
+        
+        if (!unitNumber.includes(search) && !strain.includes(search)) {
+          return false
+        }
+      }
+      
+      return true
+    })
+  }, [availableUnits, isU21, productTypeFilter, thcFilter, searchTerm])
   
-  // Einheit hinzufügen
+  // Validiere beim Hinzufügen einer Einheit
   const handleAddUnit = (unit) => {
     if (!selectedUnits.find(u => u.id === unit.id)) {
-      setSelectedUnits([...selectedUnits, unit])
+      // Prüfe Limits
+      const newUnits = [...selectedUnits, unit]
+      const totalWeight = newUnits.reduce((sum, u) => sum + parseFloat(u.weight || 0), 0)
+      
+      if (memberLimits) {
+        const validation = validateDistribution(
+          {
+            daily: memberLimits.daily.consumed,
+            monthly: memberLimits.monthly.consumed
+          },
+          {
+            daily: memberLimits.daily.limit,
+            monthly: memberLimits.monthly.limit,
+            maxThc: memberLimits.thcLimit
+          },
+          totalWeight,
+          newUnits
+        )
+        
+        if (!validation.isValid) {
+          // Zeige Warnung
+          const messages = createWarningMessages(validation.violations, validation.remaining)
+          setLimitWarningMessage(messages.join('\n'))
+          setShowLimitWarning(true)
+          
+          // Blockiere die Einheit visuell
+          setBlockedUnits(new Set([...blockedUnits, unit.id]))
+          
+          // Verhindere das Hinzufügen bei Limit-Überschreitung
+          return
+        }
+      }
+      
+      setSelectedUnits(newUnits)
     }
   }
   
   // Einheit entfernen
   const handleRemoveUnit = (unitId) => {
     setSelectedUnits(selectedUnits.filter(u => u.id !== unitId))
+    // Entferne aus blockierten Einheiten
+    const newBlocked = new Set(blockedUnits)
+    newBlocked.delete(unitId)
+    setBlockedUnits(newBlocked)
   }
   
   // Statistiken berechnen
@@ -80,7 +222,11 @@ export default function ProductSelection({ availableUnits, selectedUnits, setSel
       
       <Alert severity="info" sx={{ mb: 3 }}>
         Wählen Sie die Cannabis-Produkte aus, die ausgegeben werden sollen. 
-        Alle Produkte sind laborgeprüft und freigegeben.
+        {isU21 && (
+          <Typography variant="body2" sx={{ mt: 1 }}>
+            <strong>U21-Beschränkung:</strong> Es werden nur Produkte mit max. 10% THC angezeigt.
+          </Typography>
+        )}
       </Alert>
       
       {/* Filter-Bereich */}
@@ -102,44 +248,45 @@ export default function ProductSelection({ availableUnits, selectedUnits, setSel
             />
           </Grid>
           <Grid item xs={12} md={4}>
-            <FormControl fullWidth>
-              <InputLabel>Produkttyp</InputLabel>
-              <Select
-                value={productTypeFilter}
-                onChange={(e) => setProductTypeFilter(e.target.value)}
-                label="Produkttyp"
-              >
-                <MenuItem value="">Alle Typen</MenuItem>
-                <MenuItem value="marijuana">
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <LocalFloristIcon fontSize="small" color="success" />
-                    Marihuana
-                  </Box>
-                </MenuItem>
-                <MenuItem value="hashish">
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <FilterDramaIcon fontSize="small" color="warning" />
-                    Haschisch
-                  </Box>
-                </MenuItem>
-              </Select>
-            </FormControl>
-          </Grid>
-          <Grid item xs={12} md={4}>
-            <FormControl fullWidth>
-              <InputLabel>THC-Gehalt</InputLabel>
-              <Select
-                value={thcFilter}
-                onChange={(e) => setThcFilter(e.target.value)}
-                label="THC-Gehalt"
-              >
-                <MenuItem value="">Alle Stärken</MenuItem>
-                <MenuItem value="low">Niedrig (&lt; 15%)</MenuItem>
-                <MenuItem value="medium">Mittel (15-20%)</MenuItem>
-                <MenuItem value="high">Hoch (&gt; 20%)</MenuItem>
-              </Select>
-            </FormControl>
-          </Grid>
+  <FormControl fullWidth sx={{ minWidth: 220, maxWidth: 340 }}>
+    <InputLabel>Produkttyp</InputLabel>
+    <Select
+      value={productTypeFilter}
+      onChange={(e) => setProductTypeFilter(e.target.value)}
+      label="Produkttyp"
+    >
+      <MenuItem value="">Alle Typen</MenuItem>
+      <MenuItem value="marijuana">
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <LocalFloristIcon fontSize="small" color="success" />
+          Marihuana
+        </Box>
+      </MenuItem>
+      <MenuItem value="hashish">
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <FilterDramaIcon fontSize="small" color="warning" />
+          Haschisch
+        </Box>
+      </MenuItem>
+    </Select>
+  </FormControl>
+</Grid>
+<Grid item xs={12} md={4}>
+  <FormControl fullWidth sx={{ minWidth: 220, maxWidth: 340 }} disabled={isU21}>
+    <InputLabel>THC-Gehalt</InputLabel>
+    <Select
+      value={thcFilter}
+      onChange={(e) => setThcFilter(e.target.value)}
+      label="THC-Gehalt"
+    >
+      <MenuItem value="">Alle Stärken</MenuItem>
+      <MenuItem value="low">Niedrig (&lt; 15%)</MenuItem>
+      <MenuItem value="medium">Mittel (15-20%)</MenuItem>
+      <MenuItem value="high">Hoch (&gt; 20%)</MenuItem>
+    </Select>
+  </FormControl>
+</Grid>
+
         </Grid>
       </Paper>
       
@@ -178,13 +325,14 @@ export default function ProductSelection({ availableUnits, selectedUnits, setSel
                       const strain = batch.source_strain || 'Unbekannt'
                       const thcContent = batch.thc_content || 'k.A.'
                       const isSelected = selectedUnits.find(u => u.id === unit.id)
+                      const isBlocked = blockedUnits.has(unit.id)
                       
                       return (
                         <TableRow 
                           key={unit.id}
                           sx={{ 
                             opacity: isSelected ? 0.5 : 1,
-                            bgcolor: isSelected ? 'action.selected' : 'inherit'
+                            bgcolor: isSelected ? 'action.selected' : isBlocked ? 'error.light' : 'inherit'
                           }}
                         >
                           <TableCell>
@@ -217,14 +365,22 @@ export default function ProductSelection({ availableUnits, selectedUnits, setSel
                             </Typography>
                           </TableCell>
                           <TableCell align="center">
-                            <Tooltip title={isSelected ? "Bereits ausgewählt" : "Hinzufügen"}>
+                            <Tooltip 
+                              title={
+                                isSelected ? "Bereits ausgewählt" : 
+                                isBlocked ? "Würde Limit überschreiten" : 
+                                "Hinzufügen"
+                              }
+                            >
                               <IconButton 
                                 size="small"
-                                color="primary"
+                                color={isBlocked ? "error" : "primary"}
                                 onClick={() => handleAddUnit(unit)}
                                 disabled={isSelected}
                               >
-                                {isSelected ? <CheckCircleIcon /> : <AddCircleIcon />}
+                                {isSelected ? <CheckCircleIcon /> : 
+                                 isBlocked ? <BlockIcon /> : 
+                                 <AddCircleIcon />}
                               </IconButton>
                             </Tooltip>
                           </TableCell>
@@ -235,7 +391,9 @@ export default function ProductSelection({ availableUnits, selectedUnits, setSel
                     <TableRow>
                       <TableCell colSpan={5} align="center">
                         <Typography variant="body2" color="text.secondary" sx={{ py: 4 }}>
-                          Keine verfügbaren Produkte gefunden
+                          {isU21 ? 
+                            "Keine Produkte mit max. 10% THC verfügbar" : 
+                            "Keine verfügbaren Produkte gefunden"}
                         </Typography>
                       </TableCell>
                     </TableRow>
@@ -257,6 +415,17 @@ export default function ProductSelection({ availableUnits, selectedUnits, setSel
                 <ScaleIcon />
               </Badge>
             </Box>
+            
+            {/* Limit-Status anzeigen wenn Mitglied ausgewählt */}
+            {memberLimits && (
+              <LimitStatus
+                currentWeight={totalWeight}
+                dailyLimit={memberLimits.daily.limit}
+                monthlyLimit={memberLimits.monthly.limit}
+                dailyUsed={memberLimits.daily.consumed}
+                monthlyUsed={memberLimits.monthly.consumed}
+              />
+            )}
             
             {/* Zusammenfassung */}
             {selectedUnits.length > 0 && (
@@ -369,6 +538,23 @@ export default function ProductSelection({ availableUnits, selectedUnits, setSel
           </Paper>
         </Grid>
       </Grid>
+      
+      {/* Limit-Warnung Snackbar */}
+      <Snackbar
+        open={showLimitWarning}
+        autoHideDuration={6000}
+        onClose={() => setShowLimitWarning(false)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert 
+          onClose={() => setShowLimitWarning(false)} 
+          severity="error" 
+          sx={{ width: '100%' }}
+          icon={<WarningIcon />}
+        >
+          {limitWarningMessage}
+        </Alert>
+      </Snackbar>
     </Box>
   )
 }

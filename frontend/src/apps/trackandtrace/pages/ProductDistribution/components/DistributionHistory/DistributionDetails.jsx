@@ -77,7 +77,7 @@ export default function DistributionDetails({ distribution }) {
           {distribution.recipient?.first_name} {distribution.recipient?.last_name}
         </Typography>
         <Typography variant="caption" color="text.secondary">
-          Mitgliedsnr.: {distribution.recipient?.member_number || 'k.A.'}
+          {distribution.recipient?.email || 'Keine E-Mail hinterlegt'}
         </Typography>
       </Box>
       
