@@ -17,6 +17,7 @@ import CakeIcon from '@mui/icons-material/Cake'
 import EventIcon from '@mui/icons-material/Event'
 import VerifiedUserIcon from '@mui/icons-material/VerifiedUser'
 import ThumbDownIcon from '@mui/icons-material/ThumbDown'
+import ThumbUpIcon from '@mui/icons-material/ThumbUp'
 import api from '@/utils/api'
 import {
   getMemberConsumptionStats,
@@ -26,6 +27,25 @@ import {
   formatWeight,
   getConsumptionColor
 } from '../../../../utils/cannabisLimits'
+
+// Hilfsfunktion für Altersberechnung
+const calculateAge = (birthdate) => {
+  if (!birthdate) return null
+  try {
+    const today = new Date()
+    const birth = new Date(birthdate)
+    if (isNaN(birth.getTime())) return null
+    let age = today.getFullYear() - birth.getFullYear()
+    const monthDiff = today.getMonth() - birth.getMonth()
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--
+    }
+    if (age < 0 || age > 150) return null
+    return age
+  } catch (error) {
+    return null
+  }
+}
 
 const LimitDisplay = ({ label, consumed, limit, remaining, percentage }) => {
   const color = getConsumptionColor(percentage)
@@ -57,25 +77,6 @@ const LimitDisplay = ({ label, consumed, limit, remaining, percentage }) => {
       </Box>
     </Box>
   )
-}
-
-// Hilfsfunktion für Altersberechnung
-const calculateAge = (birthdate) => {
-  if (!birthdate) return null
-  try {
-    const today = new Date()
-    const birth = new Date(birthdate)
-    if (isNaN(birth.getTime())) return null
-    let age = today.getFullYear() - birth.getFullYear()
-    const monthDiff = today.getMonth() - birth.getMonth()
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-      age--
-    }
-    if (age < 0 || age > 150) return null
-    return age
-  } catch (error) {
-    return null
-  }
 }
 
 export default function RecipientSelection({ members, recipientId, setRecipientId, onLimitsLoaded }) {
@@ -130,6 +131,12 @@ export default function RecipientSelection({ members, recipientId, setRecipientI
     searchString: `${member.first_name} ${member.last_name} ${member.email || ''}`.toLowerCase()
   }))
 
+  // ---- LIMIT STATES ----
+  const isU21 = memberLimits?.member?.isU21
+  const isBlocked = memberLimits
+    ? (memberLimits.daily.percentage >= 100 || memberLimits.monthly.percentage >= 100)
+    : false
+
   return (
     <Box
       sx={{
@@ -141,7 +148,7 @@ export default function RecipientSelection({ members, recipientId, setRecipientI
         mt: 2,
       }}
     >
-      {/* Titel + Suche in einer Zeile */}
+      {/* Titel + Suche */}
       <Box sx={{
         display: 'flex',
         alignItems: 'center',
@@ -210,7 +217,7 @@ export default function RecipientSelection({ members, recipientId, setRecipientI
         </Box>
       </Box>
 
-      {/* Tageslimit-Warnung mit erweitertem Text */}
+      {/* Tageslimit-Warnung */}
       {memberLimits && memberLimits.daily.percentage >= 100 && (
         <Alert severity="error" sx={{ mb: 3, mt: 3 }}>
           <Typography variant="body2" sx={{ mb: 1 }}>
@@ -224,9 +231,9 @@ export default function RecipientSelection({ members, recipientId, setRecipientI
         </Alert>
       )}
 
-      {/* Flexbox für perfekte 50/50 Aufteilung */}
+      {/* Main Two Column Layout */}
       <Box sx={{ display: 'flex', gap: 3, width: '100%', mt: 3 }}>
-        {/* Mitglied-Karte: exakt 50% */}
+        {/* Links: Mitgliedsdaten */}
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Paper elevation={2} sx={{
             height: '100%',
@@ -266,10 +273,10 @@ export default function RecipientSelection({ members, recipientId, setRecipientI
                         {memberLimits && (
                           <Chip
                             icon={<VerifiedUserIcon sx={{ fontSize: 16 }} />}
-                            label={memberLimits.member.isU21 ? '18+ (max. 10% THC)' : '21+ (keine THC-Beschränkung)'}
+                            label={isU21 ? '18+ (max. 10% THC)' : '21+ (keine THC-Beschränkung)'}
                             size="small"
                             sx={{
-                              bgcolor: memberLimits.member.isU21 ? 'warning.main' : 'success.main',
+                              bgcolor: isU21 ? 'warning.main' : 'success.main',
                               color: 'white',
                               fontWeight: 'medium',
                               '& .MuiChip-icon': {
@@ -407,7 +414,7 @@ export default function RecipientSelection({ members, recipientId, setRecipientI
                             remaining={memberLimits.monthly.remaining}
                             percentage={memberLimits.monthly.percentage}
                           />
-                          {memberLimits.member.isU21 && (
+                          {isU21 && (
                             <Alert severity="warning" sx={{ mt: 2 }}>
                               <Typography variant="caption">
                                 <strong>U21-Beschränkung:</strong> Max. 10% THC-Gehalt
@@ -424,7 +431,7 @@ export default function RecipientSelection({ members, recipientId, setRecipientI
           </Paper>
         </Box>
 
-        {/* Historie & Verbrauch – exakt 50% */}
+        {/* Rechts: Ausgabenhistorie & Verbrauch */}
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Paper elevation={2} sx={{
             p: 4,
@@ -461,7 +468,7 @@ export default function RecipientSelection({ members, recipientId, setRecipientI
                     </Box>
                   ) : memberHistory && memberLimits ? (
                     <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                      {/* Vier kompakte Info-Karten, ohne Hintergrundfarbe! */}
+                      {/* Vier kompakte Info-Karten */}
                       <Box
                         sx={{
                           display: 'flex',
@@ -523,64 +530,123 @@ export default function RecipientSelection({ members, recipientId, setRecipientI
                             von {formatWeight(memberLimits.monthly.limit).replace('.00', '')}g
                           </Typography>
                         </Card>
-                        {/* 21+ */}
-                        <Card
-                          variant="outlined"
-                          sx={{
-                            height: 110,
-                            display: 'flex',
-                            flexDirection: 'column',
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            py: 2,
-                            px: 1,
-                            textAlign: 'center',
-                            borderColor: memberLimits.member.isU21 ? 'warning.main' : 'success.main',
-                            borderWidth: 2,
-                            bgcolor: 'transparent'
-                          }}
-                        >
-                          <VerifiedUserIcon sx={{ fontSize: 21, color: memberLimits.member.isU21 ? 'warning.dark' : 'success.dark', mb: 0.3 }} />
-                          <Typography variant="subtitle1" sx={{ fontWeight: 700, fontSize: '1.09rem', mb: 0.1 }} color={memberLimits.member.isU21 ? 'warning.dark' : 'success.dark'}>
-                            21+
-                          </Typography>
-                          <Typography variant="caption" sx={{ fontWeight: 700 }}>
-                            Vollzugriff
-                          </Typography>
-                          <Typography variant="caption" display="block" color="text.secondary" sx={{ fontSize: '0.77rem' }}>
-                            THC frei
-                          </Typography>
-                        </Card>
-                        {/* Gesperrt */}
-                        <Card
-                          variant="outlined"
-                          sx={{
-                            height: 110,
-                            display: 'flex',
-                            flexDirection: 'column',
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            py: 2,
-                            px: 1,
-                            textAlign: 'center',
-                            borderColor: memberLimits.daily.percentage >= 100 || memberLimits.monthly.percentage >= 100 ? 'error.main' : 'success.main',
-                            borderWidth: 2,
-                            bgcolor: 'transparent'
-                          }}
-                        >
-                          <ThumbDownIcon sx={{ fontSize: 21, color: 'error.dark', mb: 0.3 }} />
-                          <Typography
-                            variant="subtitle1"
-                            sx={{ fontWeight: 700, fontSize: '1.09rem', mb: 0.1 }}
-                            color="error.dark"
+                        {/* Alters-/THC-Beschränkung */}
+                        {isU21 ? (
+                          <Card
+                            variant="outlined"
+                            sx={{
+                              height: 110,
+                              display: 'flex',
+                              flexDirection: 'column',
+                              justifyContent: 'center',
+                              alignItems: 'center',
+                              py: 2,
+                              px: 1,
+                              textAlign: 'center',
+                              borderColor: 'warning.main',
+                              borderWidth: 2,
+                              bgcolor: 'transparent'
+                            }}
                           >
-                            Gesperrt
-                          </Typography>
-                          <Typography variant="caption" sx={{ fontWeight: 700 }}>Ausgabe aus</Typography>
-                          <Typography variant="caption" display="block" color="text.secondary" sx={{ fontSize: '0.77rem' }}>
-                            {memberLimits.daily.percentage >= 100 ? 'Tageslimit' : memberLimits.monthly.percentage >= 100 ? 'Monatslimit' : ''}
-                          </Typography>
-                        </Card>
+                            <VerifiedUserIcon sx={{ fontSize: 21, color: 'warning.dark', mb: 0.3 }} />
+                            <Typography variant="subtitle1" sx={{ fontWeight: 700, fontSize: '1.09rem', mb: 0.1 }} color="warning.dark">
+                              18+
+                            </Typography>
+                            <Typography variant="caption" sx={{ fontWeight: 700 }}>
+                              max. 10% THC
+                            </Typography>
+                          </Card>
+                        ) : (
+                          <Card
+                            variant="outlined"
+                            sx={{
+                              height: 110,
+                              display: 'flex',
+                              flexDirection: 'column',
+                              justifyContent: 'center',
+                              alignItems: 'center',
+                              py: 2,
+                              px: 1,
+                              textAlign: 'center',
+                              borderColor: 'success.main',
+                              borderWidth: 2,
+                              bgcolor: 'transparent'
+                            }}
+                          >
+                            <VerifiedUserIcon sx={{ fontSize: 21, color: 'success.dark', mb: 0.3 }} />
+                            <Typography variant="subtitle1" sx={{ fontWeight: 700, fontSize: '1.09rem', mb: 0.1 }} color="success.dark">
+                              21+
+                            </Typography>
+                            <Typography variant="caption" sx={{ fontWeight: 700 }}>
+                              Vollzugriff
+                            </Typography>
+                            <Typography variant="caption" display="block" color="text.secondary" sx={{ fontSize: '0.77rem' }}>
+                              THC frei
+                            </Typography>
+                          </Card>
+                        )}
+                        {/* Gesperrt/Freigegeben */}
+                        {isBlocked ? (
+                          <Card
+                            variant="outlined"
+                            sx={{
+                              height: 110,
+                              display: 'flex',
+                              flexDirection: 'column',
+                              justifyContent: 'center',
+                              alignItems: 'center',
+                              py: 2,
+                              px: 1,
+                              textAlign: 'center',
+                              borderColor: 'error.main',
+                              borderWidth: 2,
+                              bgcolor: 'transparent'
+                            }}
+                          >
+                            <ThumbDownIcon sx={{ fontSize: 21, color: 'error.dark', mb: 0.3 }} />
+                            <Typography
+                              variant="subtitle1"
+                              sx={{ fontWeight: 700, fontSize: '1.09rem', mb: 0.1 }}
+                              color="error.dark"
+                            >
+                              Gesperrt
+                            </Typography>
+                            <Typography variant="caption" sx={{ fontWeight: 700 }}>Ausgabe aus</Typography>
+                            <Typography variant="caption" display="block" color="text.secondary" sx={{ fontSize: '0.77rem' }}>
+                              {memberLimits.daily.percentage >= 100 ? 'Tageslimit' : memberLimits.monthly.percentage >= 100 ? 'Monatslimit' : ''}
+                            </Typography>
+                          </Card>
+                        ) : (
+                          <Card
+                            variant="outlined"
+                            sx={{
+                              height: 110,
+                              display: 'flex',
+                              flexDirection: 'column',
+                              justifyContent: 'center',
+                              alignItems: 'center',
+                              py: 2,
+                              px: 1,
+                              textAlign: 'center',
+                              borderColor: 'success.main',
+                              borderWidth: 2,
+                              bgcolor: 'transparent'
+                            }}
+                          >
+                            <ThumbUpIcon sx={{ fontSize: 21, color: 'success.dark', mb: 0.3 }} />
+                            <Typography
+                              variant="subtitle1"
+                              sx={{ fontWeight: 700, fontSize: '1.09rem', mb: 0.1 }}
+                              color="success.dark"
+                            >
+                              Freigegeben
+                            </Typography>
+                            <Typography variant="caption" sx={{ fontWeight: 700 }}>Ausgabe möglich</Typography>
+                            <Typography variant="caption" display="block" color="text.secondary" sx={{ fontSize: '0.77rem' }}>
+                              Limits OK
+                            </Typography>
+                          </Card>
+                        )}
                       </Box>
 
                       {(memberLimits.daily.percentage >= 80 || memberLimits.monthly.percentage >= 80) && 
@@ -659,10 +725,6 @@ export default function RecipientSelection({ members, recipientId, setRecipientI
                           </Box>
                         )}
                       </Box>
-                    </Box>
-                  ) : memberHistory && !memberLimits ? (
-                    <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                      {/* (Fallback-UI für fehlende Limits bleibt unverändert oder nach Bedarf) */}
                     </Box>
                   ) : (
                     <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
