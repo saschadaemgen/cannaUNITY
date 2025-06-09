@@ -777,7 +777,6 @@ class PackagingBatch(models.Model):
             return self.lab_testing_batch.cbd_content
         return None
     
-# models.py (neues Modell am Ende der Datei hinzufügen)
 
 class PackagingUnit(models.Model):
     """Modell für individuelle Verpackungseinheiten innerhalb eines Verpackungs-Batches"""

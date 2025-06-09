@@ -10,6 +10,8 @@ from rest_framework import pagination, status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from .models import SeedPurchase 
+from collections import OrderedDict
 
 # Local application imports
 from .models import (
@@ -2775,91 +2777,110 @@ class PackagingUnitViewSet(viewsets.ModelViewSet):
     serializer_class = PackagingUnitSerializer
     permission_classes = [IsAuthenticated]
     pagination_class = StandardResultsSetPagination
-    
+
     @action(detail=True, methods=['post'])
     def destroy_unit(self, request, pk=None):
         unit = self.get_object()
         reason = request.data.get('reason', '')
         destroyed_by_id = request.data.get('destroyed_by_id', None)
-        
         if not reason:
-            return Response(
-                {"error": "Ein Vernichtungsgrund ist erforderlich"}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
+            return Response({"error": "Ein Vernichtungsgrund ist erforderlich"}, status=status.HTTP_400_BAD_REQUEST)
         if not destroyed_by_id:
-            return Response(
-                {"error": "Ein verantwortliches Mitglied muss angegeben werden"}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
+            return Response({"error": "Ein verantwortliches Mitglied muss angegeben werden"}, status=status.HTTP_400_BAD_REQUEST)
         unit.is_destroyed = True
         unit.destroy_reason = reason
         unit.destroyed_at = timezone.now()
         unit.destroyed_by_id = destroyed_by_id
         unit.save()
-        
-        return Response({
-            "message": f"Verpackungseinheit {unit.batch_number} wurde vernichtet"
-        })
-    
-    @action(detail=False, methods=['get'])
-    def distinct_weights(self, request):
-        weights = (
-            PackagingUnit.objects.values_list('weight', flat=True)
-            .distinct()
-            .order_by('weight')
-        )
-        # Optional: auf sinnvolle Nachkommastellen runden, falls nötig
-        weights = sorted(set(float(w) for w in weights if w is not None))
-        return Response(weights)
-    
+        return Response({"message": f"Verpackungseinheit {unit.batch_number} wurde vernichtet"})
+
     @action(detail=False, methods=['get'])
     def distinct_strains(self, request):
-        # Alle PackagingUnits (optional: nur nicht-vernichtete Einheiten)
-        units = PackagingUnit.objects.select_related(
-            'batch__lab_testing_batch__processing_batch__drying_batch__harvest_batch__flowering_batch__seed_purchase'
-        ).all()
         strains = set()
-        for unit in units:
-            # Jetzt auf das Property zugreifen!
+        for unit in PackagingUnit.objects.all():
+            # Name extrahieren wie in der Tabelle
+            name = None
             try:
-                strain = unit.batch.source_strain
-                if strain and strain != "Unbekannt":
-                    strains.add(str(strain))
+                name = unit.batch.lab_testing_batch.processing_batch.drying_batch.harvest_batch.flowering_batch.seed_purchase.strain.name
             except Exception:
-                continue
-        return Response(sorted(strains))
-    
+                pass
+            if not name:
+                try:
+                    name = unit.batch.flowering_batch.seed_purchase.strain.name
+                except Exception:
+                    pass
+            if not name:
+                try:
+                    name = unit.batch.seed_purchase.strain.name
+                except Exception:
+                    pass
+            if not name:
+                name = getattr(unit.batch, "source_strain", None) or getattr(unit, "source_strain", None)
+            if not name:
+                name = getattr(unit, "strain_name", None)
+            if name and name != "Unbekannt":
+                strains.add(name)
+        return Response([{"name": n} for n in sorted(strains)])
+
     def get_queryset(self):
         queryset = PackagingUnit.objects.select_related(
-            'batch__lab_testing_batch__processing_batch__drying_batch__harvest_batch__flowering_batch__seed_purchase'
+            'batch',
+            'batch__lab_testing_batch',
+            'batch__lab_testing_batch__processing_batch',
+            'batch__lab_testing_batch__processing_batch__drying_batch',
+            'batch__lab_testing_batch__processing_batch__drying_batch__harvest_batch',
+            'batch__lab_testing_batch__processing_batch__drying_batch__harvest_batch__flowering_batch',
+            'batch__lab_testing_batch__processing_batch__drying_batch__harvest_batch__flowering_batch__seed_purchase',
+            'batch__lab_testing_batch__processing_batch__drying_batch__harvest_batch__flowering_batch__seed_purchase__strain',
         ).all()
 
-        # Gewicht (direktes Feld)
         weight = self.request.query_params.get('weight')
         if weight:
             queryset = queryset.filter(weight=weight)
 
-        # Produkttyp (ForeignKey-Kette)
         product_type = self.request.query_params.get('product_type')
         if product_type:
             queryset = queryset.filter(batch__product_type=product_type)
 
-        # Strain: Property, daher tricksen
-        strain = self.request.query_params.get('strain')
-        if strain:
-            # IDs der Einheiten holen, die passen
-            ids = [
-                unit.id for unit in queryset
-                if getattr(unit.batch, 'source_strain', None) == strain
-            ]
-            queryset = queryset.filter(id__in=ids)
+        min_thc = self.request.query_params.get('min_thc')
+        if min_thc:
+            queryset = queryset.filter(batch__lab_testing_batch__thc_content__gte=min_thc)
+        max_thc = self.request.query_params.get('max_thc')
+        if max_thc:
+            queryset = queryset.filter(batch__lab_testing_batch__thc_content__lte=max_thc)
+
+        # Filter nach Strain-Name
+        strain_name = self.request.query_params.get('strain_name')
+        if strain_name:
+            # Filter, indem du die gleiche Extraktion wie im Dropdown nutzt
+            pks = []
+            for unit in queryset:
+                name = None
+                try:
+                    name = unit.batch.lab_testing_batch.processing_batch.drying_batch.harvest_batch.flowering_batch.seed_purchase.strain.name
+                except Exception:
+                    pass
+                if not name:
+                    try:
+                        name = unit.batch.flowering_batch.seed_purchase.strain.name
+                    except Exception:
+                        pass
+                if not name:
+                    try:
+                        name = unit.batch.seed_purchase.strain.name
+                    except Exception:
+                        pass
+                if not name:
+                    name = getattr(unit.batch, "source_strain", None) or getattr(unit, "source_strain", None)
+                if not name:
+                    name = getattr(unit, "strain_name", None)
+                if name == strain_name:
+                    pks.append(unit.pk)
+            queryset = queryset.filter(pk__in=pks)
 
         return queryset
-
     
+
 class ProductDistributionViewSet(viewsets.ModelViewSet):
     queryset = ProductDistribution.objects.all().order_by('-distribution_date')
     serializer_class = ProductDistributionSerializer

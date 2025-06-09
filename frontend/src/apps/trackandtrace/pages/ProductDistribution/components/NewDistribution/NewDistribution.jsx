@@ -1,3 +1,5 @@
+// frontend/src/apps/trackandtrace/pages/ProductDistribution/components/NewDistribution/NewDistribution.jsx
+
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -15,7 +17,8 @@ import {
   DialogContentText,
   DialogActions,
   CircularProgress,
-  Backdrop
+  Backdrop,
+  Tooltip
 } from '@mui/material'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
@@ -323,15 +326,28 @@ export default function NewDistribution() {
               {activeStep === steps.length - 1 ? (
                 <Box />
               ) : (
-                <Button
-                  variant="contained"
-                  onClick={handleNext}
-                  endIcon={<ArrowForwardIcon />}
-                  color="success"
-                  disabled={processing}
+                <Tooltip 
+                  title={
+                    activeStep === 0 && memberLimits && memberLimits.daily.percentage >= 100 
+                      ? "Tageslimit erreicht - Gemäß § 9 Abs. 2 KCanG darf die Weitergabe 25g pro Tag nicht überschreiten" 
+                      : ""
+                  }
                 >
-                  {activeStep === steps.length - 2 ? 'Zur Autorisierung' : 'Weiter'}
-                </Button>
+                  <span>
+                    <Button
+                      variant="contained"
+                      onClick={handleNext}
+                      endIcon={<ArrowForwardIcon />}
+                      color="success"
+                      disabled={
+                        processing || 
+                        (activeStep === 0 && memberLimits && memberLimits.daily.percentage >= 100)
+                      }
+                    >
+                      {activeStep === steps.length - 2 ? 'Zur Autorisierung' : 'Weiter'}
+                    </Button>
+                  </span>
+                </Tooltip>
               )}
             </Box>
           </>

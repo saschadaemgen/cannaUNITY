@@ -1,11 +1,10 @@
-// frontend/src/apps/trackandtrace/pages/ProductDistribution/components/NewDistribution/ProductSelection.jsx
-import { useState, useEffect, useMemo, useCallback } from 'react'
-import { 
+import { useState, useEffect, useCallback } from 'react'
+import {
   Box, Typography, Paper, Grid, TextField, InputAdornment,
   FormControl, InputLabel, Select, MenuItem, Chip,
   Table, TableContainer, TableHead, TableRow, TableCell,
   TableBody, IconButton, Alert, Tooltip, Badge,
-  Card, CardContent, Divider, LinearProgress, Snackbar,
+  Card, CardContent, LinearProgress, Snackbar,
   Autocomplete, Pagination, CircularProgress
 } from '@mui/material'
 import SearchIcon from '@mui/icons-material/Search'
@@ -18,9 +17,7 @@ import ScaleIcon from '@mui/icons-material/Scale'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import BlockIcon from '@mui/icons-material/Block'
 import WarningIcon from '@mui/icons-material/Warning'
-
-// Cannabis-Limits Imports
-import { 
+import {
   formatWeight,
   validateDistribution,
   createWarningMessages,
@@ -30,71 +27,59 @@ import {
 // Debounce Hook für Suchfeld
 const useDebounce = (value, delay) => {
   const [debouncedValue, setDebouncedValue] = useState(value)
-  
   useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value)
-    }, delay)
-    
-    return () => {
-      clearTimeout(handler)
-    }
+    const handler = setTimeout(() => setDebouncedValue(value), delay)
+    return () => clearTimeout(handler)
   }, [value, delay])
-  
   return debouncedValue
 }
 
-// Limit-Status-Komponente (bleibt unverändert)
 const LimitStatus = ({ currentWeight, dailyLimit, monthlyLimit, dailyUsed, monthlyUsed }) => {
   const dailyTotal = dailyUsed + currentWeight
   const monthlyTotal = monthlyUsed + currentWeight
   const dailyPercentage = (dailyTotal / dailyLimit) * 100
   const monthlyPercentage = (monthlyTotal / monthlyLimit) * 100
-  
   return (
     <Card sx={{ mb: 2, p: 2, bgcolor: 'background.paper' }}>
       <Typography variant="subtitle2" gutterBottom fontWeight="bold">
         Aktuelle Limits
       </Typography>
-      
       <Box sx={{ mb: 2 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
           <Typography variant="body2">Tageslimit</Typography>
-          <Typography 
-            variant="body2" 
+          <Typography
+            variant="body2"
             color={getConsumptionColor(dailyPercentage) + '.main'}
             fontWeight="bold"
           >
             {formatWeight(dailyTotal)} / {formatWeight(dailyLimit)}
           </Typography>
         </Box>
-        <LinearProgress 
-          variant="determinate" 
-          value={Math.min(100, dailyPercentage)} 
+        <LinearProgress
+          variant="determinate"
+          value={Math.min(100, dailyPercentage)}
           color={getConsumptionColor(dailyPercentage)}
           sx={{ height: 6, borderRadius: 1 }}
         />
       </Box>
-      
       <Box>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
           <Typography variant="body2">Monatslimit</Typography>
-          <Typography 
-            variant="body2" 
+          <Typography
+            variant="body2"
             color={getConsumptionColor(monthlyPercentage) + '.main'}
             fontWeight="bold"
           >
             {formatWeight(monthlyTotal)} / {formatWeight(monthlyLimit)}
           </Typography>
         </Box>
-        <LinearProgress 
-          variant="determinate" 
-          value={Math.min(100, monthlyPercentage)} 
+        <LinearProgress
+          variant="determinate"
+          value={Math.min(100, monthlyPercentage)}
           color={getConsumptionColor(monthlyPercentage)}
           sx={{ height: 6, borderRadius: 1 }}
         />
       </Box>
-      
       {dailyPercentage > 100 && (
         <Alert severity="error" sx={{ mt: 2 }}>
           <Typography variant="caption">
@@ -102,7 +87,6 @@ const LimitStatus = ({ currentWeight, dailyLimit, monthlyLimit, dailyUsed, month
           </Typography>
         </Alert>
       )}
-      
       {monthlyPercentage > 100 && (
         <Alert severity="error" sx={{ mt: 2 }}>
           <Typography variant="caption">
@@ -114,48 +98,43 @@ const LimitStatus = ({ currentWeight, dailyLimit, monthlyLimit, dailyUsed, month
   )
 }
 
-export default function ProductSelection({ 
-  availableUnits: initialUnits, // Nur für Fallback, wenn API nicht funktioniert
-  selectedUnits, 
+export default function ProductSelection({
+  availableUnits: initialUnits,
+  selectedUnits,
   setSelectedUnits,
   recipientId,
-  memberLimits 
+  memberLimits
 }) {
   // Filter States
   const [searchTerm, setSearchTerm] = useState('')
   const [productTypeFilter, setProductTypeFilter] = useState('')
   const [thcFilter, setThcFilter] = useState('')
-  const [strainFilter, setStrainFilter] = useState('')
+  const [strainFilter, setStrainFilter] = useState(null)
   const [weightFilter, setWeightFilter] = useState('')
-  
   // Pagination States
   const [page, setPage] = useState(1)
-  const [pageSize] = useState(20) // Fixe Page Size
+  const [pageSize] = useState(20)
   const [totalCount, setTotalCount] = useState(0)
-  
   // Data States
   const [availableUnits, setAvailableUnits] = useState([])
   const [weightOptions, setWeightOptions] = useState([])
   const [strainOptions, setStrainOptions] = useState([])
   const [loading, setLoading] = useState(false)
-  
   // UI States
   const [showLimitWarning, setShowLimitWarning] = useState(false)
   const [limitWarningMessage, setLimitWarningMessage] = useState('')
   const [blockedUnits, setBlockedUnits] = useState(new Set())
-  
+  // Filter Change State
+  const [pendingFilterChange, setPendingFilterChange] = useState(false)
   // Debounced search term
   const debouncedSearchTerm = useDebounce(searchTerm, 500)
-  
   // Prüfe ob Empfänger U21 ist
   const isU21 = memberLimits?.member?.isU21 || false
-  
-  // Lade verfügbare Gewichte beim Start
+
   useEffect(() => {
     fetch('/api/trackandtrace/packaging-units/distinct_weights/')
       .then(res => res.json())
       .then(data => {
-        // Formatiere Gewichte für Anzeige (z.B. "1.00g", "2.50g")
         const formattedWeights = data.map(w => ({
           value: w,
           label: `${parseFloat(w).toFixed(2)}g`
@@ -164,36 +143,29 @@ export default function ProductSelection({
       })
       .catch(err => console.error('Sir, ich konnte die Gewichtsoptionen nicht laden:', err))
   }, [])
-  
-  // Lade verfügbare Sorten beim Start
+
   useEffect(() => {
     fetch('/api/trackandtrace/packaging-units/distinct_strains/')
       .then(res => res.json())
       .then(data => setStrainOptions(data))
       .catch(err => console.error('Sir, ich konnte die Sortenoptionen nicht laden:', err))
   }, [])
-  
+
   // Hauptdaten-Ladevorgang mit allen Filtern
   const loadPackagingUnits = useCallback(() => {
     setLoading(true)
-    
-    // Baue Query-Parameter auf
     const params = new URLSearchParams({
       page: page.toString(),
       page_size: pageSize.toString(),
     })
-    
-    // Füge Filter hinzu
     if (weightFilter) params.append('weight', weightFilter.value || weightFilter)
     if (productTypeFilter) params.append('product_type', productTypeFilter)
-    if (strainFilter) params.append('strain', strainFilter)
+    if (strainFilter && strainFilter.name) params.append('strain_name', strainFilter.name)
     if (debouncedSearchTerm) params.append('search', debouncedSearchTerm)
-    
-    // THC-Filter
     if (isU21) {
       params.append('max_thc', '10')
     } else if (thcFilter) {
-      switch(thcFilter) {
+      switch (thcFilter) {
         case 'low':
           params.append('max_thc', '15')
           break
@@ -206,7 +178,6 @@ export default function ProductSelection({
           break
       }
     }
-    
     fetch(`/api/trackandtrace/packaging-units/?${params.toString()}`)
       .then(res => res.json())
       .then(data => {
@@ -215,7 +186,6 @@ export default function ProductSelection({
       })
       .catch(err => {
         console.error('Sir, es gab einen Fehler beim Laden der Daten:', err)
-        // Fallback auf initial units
         if (initialUnits) {
           setAvailableUnits(initialUnits)
           setTotalCount(initialUnits.length)
@@ -223,23 +193,30 @@ export default function ProductSelection({
       })
       .finally(() => setLoading(false))
   }, [page, pageSize, weightFilter, productTypeFilter, strainFilter, thcFilter, debouncedSearchTerm, isU21, initialUnits])
-  
-  // Lade Daten bei Filter-Änderungen
+
   useEffect(() => {
-    loadPackagingUnits()
-  }, [loadPackagingUnits])
-  
-  // Reset auf Seite 1 bei Filter-Änderungen
-  useEffect(() => {
+    setPendingFilterChange(true)
     setPage(1)
   }, [productTypeFilter, thcFilter, strainFilter, weightFilter, debouncedSearchTerm])
-  
+
+  useEffect(() => {
+    if (pendingFilterChange && page === 1) {
+      loadPackagingUnits()
+      setPendingFilterChange(false)
+    }
+  }, [pendingFilterChange, page, loadPackagingUnits])
+
+  useEffect(() => {
+    if (!pendingFilterChange) {
+      loadPackagingUnits()
+    }
+  }, [page, loadPackagingUnits])
+
   // Validiere beim Hinzufügen einer Einheit
   const handleAddUnit = (unit) => {
     if (!selectedUnits.find(u => u.id === unit.id)) {
       const newUnits = [...selectedUnits, unit]
       const totalWeight = newUnits.reduce((sum, u) => sum + parseFloat(u.weight || 0), 0)
-      
       if (memberLimits) {
         const validation = validateDistribution(
           {
@@ -254,7 +231,6 @@ export default function ProductSelection({
           totalWeight,
           newUnits
         )
-        
         if (!validation.isValid) {
           const messages = createWarningMessages(validation.violations, validation.remaining)
           setLimitWarningMessage(messages.join('\n'))
@@ -263,11 +239,10 @@ export default function ProductSelection({
           return
         }
       }
-      
       setSelectedUnits(newUnits)
     }
   }
-  
+
   // Einheit entfernen
   const handleRemoveUnit = (unitId) => {
     setSelectedUnits(selectedUnits.filter(u => u.id !== unitId))
@@ -275,29 +250,27 @@ export default function ProductSelection({
     newBlocked.delete(unitId)
     setBlockedUnits(newBlocked)
   }
-  
+
   // Statistiken berechnen
   const totalWeight = selectedUnits.reduce((sum, unit) => sum + parseFloat(unit.weight || 0), 0)
   const marijuanaCount = selectedUnits.filter(u => u.batch?.product_type === 'marijuana').length
   const hashishCount = selectedUnits.filter(u => u.batch?.product_type === 'hashish').length
   const totalPages = Math.ceil(totalCount / pageSize)
-  
+
   return (
     <Box>
       <Typography variant="h6" gutterBottom sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
         <LocalFloristIcon color="primary" />
         Produkte auswählen
       </Typography>
-      
       <Alert severity="info" sx={{ mb: 3 }}>
-        Wählen Sie die Cannabis-Produkte aus, die ausgegeben werden sollen. 
+        Wählen Sie die Cannabis-Produkte aus, die ausgegeben werden sollen.
         {isU21 && (
           <Typography variant="body2" sx={{ mt: 1 }}>
             <strong>U21-Beschränkung:</strong> Es werden nur Produkte mit max. 10% THC angezeigt.
           </Typography>
         )}
       </Alert>
-      
       {/* Filter-Bereich */}
       <Paper sx={{ p: 2, mb: 3 }}>
         <Grid container spacing={2} alignItems="center">
@@ -361,16 +334,12 @@ export default function ProductSelection({
               fullWidth
               options={strainOptions}
               value={strainFilter}
-              onChange={(_, value) => setStrainFilter(value || '')}
-              sx={{ minWidth: 240, maxWidth: 340, width: '100%' }}
+              onChange={(_, value) => setStrainFilter(value || null)}
+              getOptionLabel={(option) => option?.name || ''}
+              isOptionEqualToValue={(option, value) => option?.name === value?.name}
               renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="Sorte/Genetik"
-                  placeholder="Sorte wählen"
-                />
+                <TextField {...params} label="Sorte/Genetik" placeholder="Sorte wählen" />
               )}
-              isOptionEqualToValue={(option, value) => option === value}
               clearOnEscape
             />
           </Grid>
@@ -389,7 +358,7 @@ export default function ProductSelection({
                   placeholder="Gewicht wählen"
                 />
               )}
-              isOptionEqualToValue={(option, value) => 
+              isOptionEqualToValue={(option, value) =>
                 option.value === value.value || option === value
               }
               clearOnEscape
@@ -397,7 +366,6 @@ export default function ProductSelection({
           </Grid>
         </Grid>
       </Paper>
-      
       {/* Verwende Flexbox für perfekte 50/50 Aufteilung */}
       <Box sx={{ display: 'flex', gap: 3, width: '100%' }}>
         {/* Verfügbare Produkte */}
@@ -409,14 +377,13 @@ export default function ProductSelection({
               </Typography>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 {loading && <CircularProgress size={20} />}
-                <Chip 
+                <Chip
                   label={`${totalCount} Einheiten`}
                   color="primary"
                   size="small"
                 />
               </Box>
             </Box>
-            
             <TableContainer sx={{ flexGrow: 1, px: 2 }}>
               <Table stickyHeader size="small">
                 <TableHead>
@@ -447,11 +414,10 @@ export default function ProductSelection({
                       const thcContent = batch.thc_content || 'k.A.'
                       const isSelected = selectedUnits.find(u => u.id === unit.id)
                       const isBlocked = blockedUnits.has(unit.id)
-                      
                       return (
-                        <TableRow 
+                        <TableRow
                           key={unit.id}
-                          sx={{ 
+                          sx={{
                             opacity: isSelected ? 0.5 : 1,
                             bgcolor: isSelected ? 'action.selected' : isBlocked ? 'error.light' : 'inherit'
                           }}
@@ -486,22 +452,22 @@ export default function ProductSelection({
                             </Typography>
                           </TableCell>
                           <TableCell align="center">
-                            <Tooltip 
+                            <Tooltip
                               title={
-                                isSelected ? "Bereits ausgewählt" : 
-                                isBlocked ? "Würde Limit überschreiten" : 
-                                "Hinzufügen"
+                                isSelected ? "Bereits ausgewählt" :
+                                  isBlocked ? "Würde Limit überschreiten" :
+                                    "Hinzufügen"
                               }
                             >
-                              <IconButton 
+                              <IconButton
                                 size="small"
                                 color={isBlocked ? "error" : "primary"}
                                 onClick={() => handleAddUnit(unit)}
                                 disabled={isSelected}
                               >
-                                {isSelected ? <CheckCircleIcon /> : 
-                                 isBlocked ? <BlockIcon /> : 
-                                 <AddCircleIcon />}
+                                {isSelected ? <CheckCircleIcon /> :
+                                  isBlocked ? <BlockIcon /> :
+                                    <AddCircleIcon />}
                               </IconButton>
                             </Tooltip>
                           </TableCell>
@@ -512,8 +478,8 @@ export default function ProductSelection({
                     <TableRow>
                       <TableCell colSpan={5} align="center">
                         <Typography variant="body2" color="text.secondary" sx={{ py: 4 }}>
-                          {isU21 ? 
-                            "Keine Produkte mit max. 10% THC verfügbar" : 
+                          {isU21 ?
+                            "Keine Produkte mit max. 10% THC verfügbar" :
                             "Keine verfügbaren Produkte gefunden"}
                         </Typography>
                       </TableCell>
@@ -522,13 +488,12 @@ export default function ProductSelection({
                 </TableBody>
               </Table>
             </TableContainer>
-            
             {/* Pagination */}
             {totalPages > 1 && (
               <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
-                <Pagination 
-                  count={totalPages} 
-                  page={page} 
+                <Pagination
+                  count={totalPages}
+                  page={page}
                   onChange={(_, value) => setPage(value)}
                   color="primary"
                   showFirstButton
@@ -538,7 +503,6 @@ export default function ProductSelection({
             )}
           </Paper>
         </Box>
-        
         {/* Ausgewählte Produkte */}
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Paper sx={{ height: '600px', display: 'flex', flexDirection: 'column', bgcolor: 'grey.50' }}>
@@ -550,7 +514,6 @@ export default function ProductSelection({
                 <ScaleIcon />
               </Badge>
             </Box>
-            
             <Box sx={{ px: 2, flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
               {memberLimits && (
                 <LimitStatus
@@ -561,7 +524,6 @@ export default function ProductSelection({
                   monthlyUsed={memberLimits.monthly.consumed}
                 />
               )}
-              
               {selectedUnits.length > 0 && (
                 <Card sx={{ mb: 2, bgcolor: 'primary.light' }}>
                   <CardContent sx={{ py: 1.5 }}>
@@ -600,7 +562,6 @@ export default function ProductSelection({
                   </CardContent>
                 </Card>
               )}
-              
               <TableContainer sx={{ flexGrow: 1, overflowY: 'auto' }}>
                 <Table size="small">
                   <TableHead>
@@ -617,7 +578,6 @@ export default function ProductSelection({
                         const batch = unit.batch || {}
                         const productType = batch.product_type_display || 'Unbekannt'
                         const isMarijuana = batch.product_type === 'marijuana'
-                        
                         return (
                           <TableRow key={unit.id}>
                             <TableCell>
@@ -640,7 +600,7 @@ export default function ProductSelection({
                               </Typography>
                             </TableCell>
                             <TableCell align="center">
-                              <IconButton 
+                              <IconButton
                                 size="small"
                                 color="error"
                                 onClick={() => handleRemoveUnit(unit.id)}
@@ -673,7 +633,6 @@ export default function ProductSelection({
           </Paper>
         </Box>
       </Box>
-      
       {/* Limit-Warnung Snackbar */}
       <Snackbar
         open={showLimitWarning}
@@ -681,9 +640,9 @@ export default function ProductSelection({
         onClose={() => setShowLimitWarning(false)}
         anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
       >
-        <Alert 
-          onClose={() => setShowLimitWarning(false)} 
-          severity="error" 
+        <Alert
+          onClose={() => setShowLimitWarning(false)}
+          severity="error"
           sx={{ width: '100%' }}
           icon={<WarningIcon />}
         >
