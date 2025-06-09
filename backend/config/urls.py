@@ -51,7 +51,8 @@ urlpatterns = [
     path('buchhaltung/journal/', BookingJournalAPIView.as_view(), name='booking-journal'),
 
     # 🌱 Track and Trace
-    path('api/trackandtrace/', include('trackandtrace.urls')),
+    path('api/trackandtrace/', include('trackandtrace.api_urls')),
+    path('trackandtrace/', include('trackandtrace.urls')),
     path('api/', include('rooms.api_urls')),
 
     # 🔑 WaWi

@@ -1,11 +1,12 @@
 // frontend/src/apps/trackandtrace/pages/ProductDistribution/components/NewDistribution/ProductSelection.jsx
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { 
   Box, Typography, Paper, Grid, TextField, InputAdornment,
   FormControl, InputLabel, Select, MenuItem, Chip,
   Table, TableContainer, TableHead, TableRow, TableCell,
   TableBody, IconButton, Alert, Tooltip, Badge,
-  Card, CardContent, Divider, LinearProgress, Snackbar
+  Card, CardContent, Divider, LinearProgress, Snackbar,
+  Autocomplete, Pagination, CircularProgress
 } from '@mui/material'
 import SearchIcon from '@mui/icons-material/Search'
 import LocalFloristIcon from '@mui/icons-material/LocalFlorist'
@@ -26,7 +27,24 @@ import {
   getConsumptionColor
 } from '../../../../utils/cannabisLimits'
 
-// Limit-Status-Komponente
+// Debounce Hook für Suchfeld
+const useDebounce = (value, delay) => {
+  const [debouncedValue, setDebouncedValue] = useState(value)
+  
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value)
+    }, delay)
+    
+    return () => {
+      clearTimeout(handler)
+    }
+  }, [value, delay])
+  
+  return debouncedValue
+}
+
+// Limit-Status-Komponente (bleibt unverändert)
 const LimitStatus = ({ currentWeight, dailyLimit, monthlyLimit, dailyUsed, monthlyUsed }) => {
   const dailyTotal = dailyUsed + currentWeight
   const monthlyTotal = monthlyUsed + currentWeight
@@ -97,72 +115,128 @@ const LimitStatus = ({ currentWeight, dailyLimit, monthlyLimit, dailyUsed, month
 }
 
 export default function ProductSelection({ 
-  availableUnits, 
+  availableUnits: initialUnits, // Nur für Fallback, wenn API nicht funktioniert
   selectedUnits, 
   setSelectedUnits,
   recipientId,
   memberLimits 
 }) {
+  // Filter States
   const [searchTerm, setSearchTerm] = useState('')
   const [productTypeFilter, setProductTypeFilter] = useState('')
   const [thcFilter, setThcFilter] = useState('')
+  const [strainFilter, setStrainFilter] = useState('')
+  const [weightFilter, setWeightFilter] = useState('')
+  
+  // Pagination States
+  const [page, setPage] = useState(1)
+  const [pageSize] = useState(20) // Fixe Page Size
+  const [totalCount, setTotalCount] = useState(0)
+  
+  // Data States
+  const [availableUnits, setAvailableUnits] = useState([])
+  const [weightOptions, setWeightOptions] = useState([])
+  const [strainOptions, setStrainOptions] = useState([])
+  const [loading, setLoading] = useState(false)
+  
+  // UI States
   const [showLimitWarning, setShowLimitWarning] = useState(false)
   const [limitWarningMessage, setLimitWarningMessage] = useState('')
   const [blockedUnits, setBlockedUnits] = useState(new Set())
   
+  // Debounced search term
+  const debouncedSearchTerm = useDebounce(searchTerm, 500)
+  
   // Prüfe ob Empfänger U21 ist
   const isU21 = memberLimits?.member?.isU21 || false
   
-  // Filtere verfügbare Einheiten mit THC-Check für U21
-  const filteredUnits = useMemo(() => {
-    let units = availableUnits
-    
-    // THC-Filter für U21-Mitglieder
-    if (isU21) {
-      units = units.filter(unit => {
-        const thcContent = unit.batch?.lab_testing_batch?.thc_content
-        return !thcContent || parseFloat(thcContent) <= 10
+  // Lade verfügbare Gewichte beim Start
+  useEffect(() => {
+    fetch('/api/trackandtrace/packaging-units/distinct_weights/')
+      .then(res => res.json())
+      .then(data => {
+        // Formatiere Gewichte für Anzeige (z.B. "1.00g", "2.50g")
+        const formattedWeights = data.map(w => ({
+          value: w,
+          label: `${parseFloat(w).toFixed(2)}g`
+        }))
+        setWeightOptions(formattedWeights)
       })
+      .catch(err => console.error('Sir, ich konnte die Gewichtsoptionen nicht laden:', err))
+  }, [])
+  
+  // Lade verfügbare Sorten beim Start
+  useEffect(() => {
+    fetch('/api/trackandtrace/packaging-units/distinct_strains/')
+      .then(res => res.json())
+      .then(data => setStrainOptions(data))
+      .catch(err => console.error('Sir, ich konnte die Sortenoptionen nicht laden:', err))
+  }, [])
+  
+  // Hauptdaten-Ladevorgang mit allen Filtern
+  const loadPackagingUnits = useCallback(() => {
+    setLoading(true)
+    
+    // Baue Query-Parameter auf
+    const params = new URLSearchParams({
+      page: page.toString(),
+      page_size: pageSize.toString(),
+    })
+    
+    // Füge Filter hinzu
+    if (weightFilter) params.append('weight', weightFilter.value || weightFilter)
+    if (productTypeFilter) params.append('product_type', productTypeFilter)
+    if (strainFilter) params.append('strain', strainFilter)
+    if (debouncedSearchTerm) params.append('search', debouncedSearchTerm)
+    
+    // THC-Filter
+    if (isU21) {
+      params.append('max_thc', '10')
+    } else if (thcFilter) {
+      switch(thcFilter) {
+        case 'low':
+          params.append('max_thc', '15')
+          break
+        case 'medium':
+          params.append('min_thc', '15')
+          params.append('max_thc', '20')
+          break
+        case 'high':
+          params.append('min_thc', '20')
+          break
+      }
     }
     
-    // Weitere Filter anwenden
-    return units.filter(unit => {
-      const batch = unit.batch || {}
-      const labBatch = batch.lab_testing_batch || {}
-      const processingBatch = labBatch.processing_batch || {}
-      
-      // Produkttyp-Filter
-      if (productTypeFilter && processingBatch.product_type !== productTypeFilter) {
-        return false
-      }
-      
-      // THC-Filter (zusätzlich zum U21-Filter)
-      if (thcFilter && labBatch.thc_content) {
-        const thcValue = parseFloat(labBatch.thc_content)
-        if (thcFilter === 'low' && thcValue >= 15) return false
-        if (thcFilter === 'medium' && (thcValue < 15 || thcValue >= 20)) return false
-        if (thcFilter === 'high' && thcValue < 20) return false
-      }
-      
-      // Suchbegriff
-      if (searchTerm) {
-        const search = searchTerm.toLowerCase()
-        const unitNumber = unit.batch_number?.toLowerCase() || ''
-        const strain = batch.source_strain?.toLowerCase() || ''
-        
-        if (!unitNumber.includes(search) && !strain.includes(search)) {
-          return false
+    fetch(`/api/trackandtrace/packaging-units/?${params.toString()}`)
+      .then(res => res.json())
+      .then(data => {
+        setAvailableUnits(data.results || [])
+        setTotalCount(data.count || 0)
+      })
+      .catch(err => {
+        console.error('Sir, es gab einen Fehler beim Laden der Daten:', err)
+        // Fallback auf initial units
+        if (initialUnits) {
+          setAvailableUnits(initialUnits)
+          setTotalCount(initialUnits.length)
         }
-      }
-      
-      return true
-    })
-  }, [availableUnits, isU21, productTypeFilter, thcFilter, searchTerm])
+      })
+      .finally(() => setLoading(false))
+  }, [page, pageSize, weightFilter, productTypeFilter, strainFilter, thcFilter, debouncedSearchTerm, isU21, initialUnits])
+  
+  // Lade Daten bei Filter-Änderungen
+  useEffect(() => {
+    loadPackagingUnits()
+  }, [loadPackagingUnits])
+  
+  // Reset auf Seite 1 bei Filter-Änderungen
+  useEffect(() => {
+    setPage(1)
+  }, [productTypeFilter, thcFilter, strainFilter, weightFilter, debouncedSearchTerm])
   
   // Validiere beim Hinzufügen einer Einheit
   const handleAddUnit = (unit) => {
     if (!selectedUnits.find(u => u.id === unit.id)) {
-      // Prüfe Limits
       const newUnits = [...selectedUnits, unit]
       const totalWeight = newUnits.reduce((sum, u) => sum + parseFloat(u.weight || 0), 0)
       
@@ -182,15 +256,10 @@ export default function ProductSelection({
         )
         
         if (!validation.isValid) {
-          // Zeige Warnung
           const messages = createWarningMessages(validation.violations, validation.remaining)
           setLimitWarningMessage(messages.join('\n'))
           setShowLimitWarning(true)
-          
-          // Blockiere die Einheit visuell
           setBlockedUnits(new Set([...blockedUnits, unit.id]))
-          
-          // Verhindere das Hinzufügen bei Limit-Überschreitung
           return
         }
       }
@@ -202,7 +271,6 @@ export default function ProductSelection({
   // Einheit entfernen
   const handleRemoveUnit = (unitId) => {
     setSelectedUnits(selectedUnits.filter(u => u.id !== unitId))
-    // Entferne aus blockierten Einheiten
     const newBlocked = new Set(blockedUnits)
     newBlocked.delete(unitId)
     setBlockedUnits(newBlocked)
@@ -212,6 +280,7 @@ export default function ProductSelection({
   const totalWeight = selectedUnits.reduce((sum, unit) => sum + parseFloat(unit.weight || 0), 0)
   const marijuanaCount = selectedUnits.filter(u => u.batch?.product_type === 'marijuana').length
   const hashishCount = selectedUnits.filter(u => u.batch?.product_type === 'hashish').length
+  const totalPages = Math.ceil(totalCount / pageSize)
   
   return (
     <Box>
@@ -232,12 +301,13 @@ export default function ProductSelection({
       {/* Filter-Bereich */}
       <Paper sx={{ p: 2, mb: 3 }}>
         <Grid container spacing={2} alignItems="center">
-          <Grid item xs={12} md={4}>
+          <Grid item xs={12} md={3} sx={{ minWidth: 240, maxWidth: 340 }}>
             <TextField
               fullWidth
               placeholder="Suche nach Einheitsnummer oder Genetik..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              sx={{ minWidth: 240, maxWidth: 340, width: '100%' }}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -247,65 +317,107 @@ export default function ProductSelection({
               }}
             />
           </Grid>
-          <Grid item xs={12} md={4}>
-  <FormControl fullWidth sx={{ minWidth: 220, maxWidth: 340 }}>
-    <InputLabel>Produkttyp</InputLabel>
-    <Select
-      value={productTypeFilter}
-      onChange={(e) => setProductTypeFilter(e.target.value)}
-      label="Produkttyp"
-    >
-      <MenuItem value="">Alle Typen</MenuItem>
-      <MenuItem value="marijuana">
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <LocalFloristIcon fontSize="small" color="success" />
-          Marihuana
-        </Box>
-      </MenuItem>
-      <MenuItem value="hashish">
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <FilterDramaIcon fontSize="small" color="warning" />
-          Haschisch
-        </Box>
-      </MenuItem>
-    </Select>
-  </FormControl>
-</Grid>
-<Grid item xs={12} md={4}>
-  <FormControl fullWidth sx={{ minWidth: 220, maxWidth: 340 }} disabled={isU21}>
-    <InputLabel>THC-Gehalt</InputLabel>
-    <Select
-      value={thcFilter}
-      onChange={(e) => setThcFilter(e.target.value)}
-      label="THC-Gehalt"
-    >
-      <MenuItem value="">Alle Stärken</MenuItem>
-      <MenuItem value="low">Niedrig (&lt; 15%)</MenuItem>
-      <MenuItem value="medium">Mittel (15-20%)</MenuItem>
-      <MenuItem value="high">Hoch (&gt; 20%)</MenuItem>
-    </Select>
-  </FormControl>
-</Grid>
-
+          <Grid item xs={12} md={2} sx={{ minWidth: 240, maxWidth: 340 }}>
+            <FormControl fullWidth sx={{ minWidth: 240, maxWidth: 340, width: '100%' }}>
+              <InputLabel>Produkttyp</InputLabel>
+              <Select
+                value={productTypeFilter}
+                onChange={(e) => setProductTypeFilter(e.target.value)}
+                label="Produkttyp"
+              >
+                <MenuItem value="">Alle Typen</MenuItem>
+                <MenuItem value="marijuana">
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <LocalFloristIcon fontSize="small" color="success" />
+                    Marihuana
+                  </Box>
+                </MenuItem>
+                <MenuItem value="hashish">
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <FilterDramaIcon fontSize="small" color="warning" />
+                    Haschisch
+                  </Box>
+                </MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} md={2} sx={{ minWidth: 240, maxWidth: 340 }}>
+            <FormControl fullWidth disabled={isU21} sx={{ minWidth: 240, maxWidth: 340, width: '100%' }}>
+              <InputLabel>THC-Gehalt</InputLabel>
+              <Select
+                value={thcFilter}
+                onChange={(e) => setThcFilter(e.target.value)}
+                label="THC-Gehalt"
+              >
+                <MenuItem value="">Alle Stärken</MenuItem>
+                <MenuItem value="low">Niedrig (&lt; 15%)</MenuItem>
+                <MenuItem value="medium">Mittel (15-20%)</MenuItem>
+                <MenuItem value="high">Hoch (&gt; 20%)</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} md={2} sx={{ minWidth: 240, maxWidth: 340 }}>
+            <Autocomplete
+              fullWidth
+              options={strainOptions}
+              value={strainFilter}
+              onChange={(_, value) => setStrainFilter(value || '')}
+              sx={{ minWidth: 240, maxWidth: 340, width: '100%' }}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Sorte/Genetik"
+                  placeholder="Sorte wählen"
+                />
+              )}
+              isOptionEqualToValue={(option, value) => option === value}
+              clearOnEscape
+            />
+          </Grid>
+          <Grid item xs={12} md={3} sx={{ minWidth: 240, maxWidth: 340 }}>
+            <Autocomplete
+              fullWidth
+              options={weightOptions}
+              value={weightFilter}
+              onChange={(_, value) => setWeightFilter(value || '')}
+              getOptionLabel={(option) => option.label || option}
+              sx={{ minWidth: 240, maxWidth: 340, width: '100%' }}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Verpackungsgröße"
+                  placeholder="Gewicht wählen"
+                />
+              )}
+              isOptionEqualToValue={(option, value) => 
+                option.value === value.value || option === value
+              }
+              clearOnEscape
+            />
+          </Grid>
         </Grid>
       </Paper>
       
-      <Grid container spacing={3}>
+      {/* Verwende Flexbox für perfekte 50/50 Aufteilung */}
+      <Box sx={{ display: 'flex', gap: 3, width: '100%' }}>
         {/* Verfügbare Produkte */}
-        <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 2, height: 600, display: 'flex', flexDirection: 'column' }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Paper sx={{ height: '600px', display: 'flex', flexDirection: 'column' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2, pb: 0 }}>
               <Typography variant="subtitle1" fontWeight="bold">
                 Verfügbare Produkte
               </Typography>
-              <Chip 
-                label={`${filteredUnits.length} Einheiten`}
-                color="primary"
-                size="small"
-              />
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                {loading && <CircularProgress size={20} />}
+                <Chip 
+                  label={`${totalCount} Einheiten`}
+                  color="primary"
+                  size="small"
+                />
+              </Box>
             </Box>
             
-            <TableContainer sx={{ flexGrow: 1, overflowY: 'auto' }}>
+            <TableContainer sx={{ flexGrow: 1, px: 2 }}>
               <Table stickyHeader size="small">
                 <TableHead>
                   <TableRow>
@@ -317,8 +429,17 @@ export default function ProductSelection({
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {filteredUnits.length > 0 ? (
-                    filteredUnits.map((unit) => {
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={5} align="center" sx={{ py: 8 }}>
+                        <CircularProgress />
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+                          Lade Daten...
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  ) : availableUnits.length > 0 ? (
+                    availableUnits.map((unit) => {
                       const batch = unit.batch || {}
                       const productType = batch.product_type_display || 'Unbekannt'
                       const isMarijuana = batch.product_type === 'marijuana'
@@ -401,13 +522,27 @@ export default function ProductSelection({
                 </TableBody>
               </Table>
             </TableContainer>
+            
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+                <Pagination 
+                  count={totalPages} 
+                  page={page} 
+                  onChange={(_, value) => setPage(value)}
+                  color="primary"
+                  showFirstButton
+                  showLastButton
+                />
+              </Box>
+            )}
           </Paper>
-        </Grid>
+        </Box>
         
         {/* Ausgewählte Produkte */}
-        <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 2, height: 600, display: 'flex', flexDirection: 'column', bgcolor: 'grey.50' }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Paper sx={{ height: '600px', display: 'flex', flexDirection: 'column', bgcolor: 'grey.50' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2, pb: 0 }}>
               <Typography variant="subtitle1" fontWeight="bold">
                 Ausgewählte Produkte
               </Typography>
@@ -416,128 +551,128 @@ export default function ProductSelection({
               </Badge>
             </Box>
             
-            {/* Limit-Status anzeigen wenn Mitglied ausgewählt */}
-            {memberLimits && (
-              <LimitStatus
-                currentWeight={totalWeight}
-                dailyLimit={memberLimits.daily.limit}
-                monthlyLimit={memberLimits.monthly.limit}
-                dailyUsed={memberLimits.daily.consumed}
-                monthlyUsed={memberLimits.monthly.consumed}
-              />
-            )}
-            
-            {/* Zusammenfassung */}
-            {selectedUnits.length > 0 && (
-              <Card sx={{ mb: 2, bgcolor: 'primary.light' }}>
-                <CardContent sx={{ py: 1.5 }}>
-                  <Grid container spacing={2} alignItems="center">
-                    <Grid item xs={4} textAlign="center">
-                      <Typography variant="h5" color="primary.contrastText">
-                        {totalWeight.toFixed(2)}g
-                      </Typography>
-                      <Typography variant="caption" color="primary.contrastText">
-                        Gesamtgewicht
-                      </Typography>
-                    </Grid>
-                    <Grid item xs={4} textAlign="center">
-                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
-                        <LocalFloristIcon sx={{ color: 'primary.contrastText', fontSize: 20 }} />
-                        <Typography variant="h6" color="primary.contrastText">
-                          {marijuanaCount}
+            <Box sx={{ px: 2, flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+              {memberLimits && (
+                <LimitStatus
+                  currentWeight={totalWeight}
+                  dailyLimit={memberLimits.daily.limit}
+                  monthlyLimit={memberLimits.monthly.limit}
+                  dailyUsed={memberLimits.daily.consumed}
+                  monthlyUsed={memberLimits.monthly.consumed}
+                />
+              )}
+              
+              {selectedUnits.length > 0 && (
+                <Card sx={{ mb: 2, bgcolor: 'primary.light' }}>
+                  <CardContent sx={{ py: 1.5 }}>
+                    <Grid container spacing={2} alignItems="center">
+                      <Grid item xs={4} textAlign="center">
+                        <Typography variant="h5" color="primary.contrastText">
+                          {totalWeight.toFixed(2)}g
                         </Typography>
-                      </Box>
-                      <Typography variant="caption" color="primary.contrastText">
-                        Marihuana
-                      </Typography>
-                    </Grid>
-                    <Grid item xs={4} textAlign="center">
-                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
-                        <FilterDramaIcon sx={{ color: 'primary.contrastText', fontSize: 20 }} />
-                        <Typography variant="h6" color="primary.contrastText">
-                          {hashishCount}
+                        <Typography variant="caption" color="primary.contrastText">
+                          Gesamtgewicht
                         </Typography>
-                      </Box>
-                      <Typography variant="caption" color="primary.contrastText">
-                        Haschisch
-                      </Typography>
-                    </Grid>
-                  </Grid>
-                </CardContent>
-              </Card>
-            )}
-            
-            <TableContainer sx={{ flexGrow: 1, overflowY: 'auto' }}>
-              <Table size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Einheit</TableCell>
-                    <TableCell>Typ</TableCell>
-                    <TableCell align="center">Gewicht</TableCell>
-                    <TableCell align="center">Entfernen</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {selectedUnits.length > 0 ? (
-                    selectedUnits.map((unit) => {
-                      const batch = unit.batch || {}
-                      const productType = batch.product_type_display || 'Unbekannt'
-                      const isMarijuana = batch.product_type === 'marijuana'
-                      
-                      return (
-                        <TableRow key={unit.id}>
-                          <TableCell>
-                            <Typography variant="body2" fontWeight="bold">
-                              {unit.batch_number}
-                            </Typography>
-                          </TableCell>
-                          <TableCell>
-                            <Chip
-                              icon={isMarijuana ? <LocalFloristIcon /> : <FilterDramaIcon />}
-                              label={productType}
-                              size="small"
-                              color={isMarijuana ? 'success' : 'warning'}
-                              variant="outlined"
-                            />
-                          </TableCell>
-                          <TableCell align="center">
-                            <Typography variant="body2" fontWeight="medium">
-                              {parseFloat(unit.weight).toFixed(2)}g
-                            </Typography>
-                          </TableCell>
-                          <TableCell align="center">
-                            <IconButton 
-                              size="small"
-                              color="error"
-                              onClick={() => handleRemoveUnit(unit.id)}
-                            >
-                              <RemoveCircleIcon />
-                            </IconButton>
-                          </TableCell>
-                        </TableRow>
-                      )
-                    })
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={4} align="center">
-                        <Box sx={{ py: 8, opacity: 0.5 }}>
-                          <ScienceIcon sx={{ fontSize: 60, color: 'text.disabled', mb: 2 }} />
-                          <Typography variant="body2" color="text.secondary">
-                            Keine Produkte ausgewählt
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            Wählen Sie Produkte aus der linken Liste aus
+                      </Grid>
+                      <Grid item xs={4} textAlign="center">
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
+                          <LocalFloristIcon sx={{ color: 'primary.contrastText', fontSize: 20 }} />
+                          <Typography variant="h6" color="primary.contrastText">
+                            {marijuanaCount}
                           </Typography>
                         </Box>
-                      </TableCell>
+                        <Typography variant="caption" color="primary.contrastText">
+                          Marihuana
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={4} textAlign="center">
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
+                          <FilterDramaIcon sx={{ color: 'primary.contrastText', fontSize: 20 }} />
+                          <Typography variant="h6" color="primary.contrastText">
+                            {hashishCount}
+                          </Typography>
+                        </Box>
+                        <Typography variant="caption" color="primary.contrastText">
+                          Haschisch
+                        </Typography>
+                      </Grid>
+                    </Grid>
+                  </CardContent>
+                </Card>
+              )}
+              
+              <TableContainer sx={{ flexGrow: 1, overflowY: 'auto' }}>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Einheit</TableCell>
+                      <TableCell>Typ</TableCell>
+                      <TableCell align="center">Gewicht</TableCell>
+                      <TableCell align="center">Entfernen</TableCell>
                     </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
+                  </TableHead>
+                  <TableBody>
+                    {selectedUnits.length > 0 ? (
+                      selectedUnits.map((unit) => {
+                        const batch = unit.batch || {}
+                        const productType = batch.product_type_display || 'Unbekannt'
+                        const isMarijuana = batch.product_type === 'marijuana'
+                        
+                        return (
+                          <TableRow key={unit.id}>
+                            <TableCell>
+                              <Typography variant="body2" fontWeight="bold">
+                                {unit.batch_number}
+                              </Typography>
+                            </TableCell>
+                            <TableCell>
+                              <Chip
+                                icon={isMarijuana ? <LocalFloristIcon /> : <FilterDramaIcon />}
+                                label={productType}
+                                size="small"
+                                color={isMarijuana ? 'success' : 'warning'}
+                                variant="outlined"
+                              />
+                            </TableCell>
+                            <TableCell align="center">
+                              <Typography variant="body2" fontWeight="medium">
+                                {parseFloat(unit.weight).toFixed(2)}g
+                              </Typography>
+                            </TableCell>
+                            <TableCell align="center">
+                              <IconButton 
+                                size="small"
+                                color="error"
+                                onClick={() => handleRemoveUnit(unit.id)}
+                              >
+                                <RemoveCircleIcon />
+                              </IconButton>
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={4} align="center">
+                          <Box sx={{ py: 8, opacity: 0.5 }}>
+                            <ScienceIcon sx={{ fontSize: 60, color: 'text.disabled', mb: 2 }} />
+                            <Typography variant="body2" color="text.secondary">
+                              Keine Produkte ausgewählt
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              Wählen Sie Produkte aus der linken Liste aus
+                            </Typography>
+                          </Box>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Box>
           </Paper>
-        </Grid>
-      </Grid>
+        </Box>
+      </Box>
       
       {/* Limit-Warnung Snackbar */}
       <Snackbar

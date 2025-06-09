@@ -2804,6 +2804,62 @@ class PackagingUnitViewSet(viewsets.ModelViewSet):
             "message": f"Verpackungseinheit {unit.batch_number} wurde vernichtet"
         })
     
+    @action(detail=False, methods=['get'])
+    def distinct_weights(self, request):
+        weights = (
+            PackagingUnit.objects.values_list('weight', flat=True)
+            .distinct()
+            .order_by('weight')
+        )
+        # Optional: auf sinnvolle Nachkommastellen runden, falls nötig
+        weights = sorted(set(float(w) for w in weights if w is not None))
+        return Response(weights)
+    
+    @action(detail=False, methods=['get'])
+    def distinct_strains(self, request):
+        # Alle PackagingUnits (optional: nur nicht-vernichtete Einheiten)
+        units = PackagingUnit.objects.select_related(
+            'batch__lab_testing_batch__processing_batch__drying_batch__harvest_batch__flowering_batch__seed_purchase'
+        ).all()
+        strains = set()
+        for unit in units:
+            # Jetzt auf das Property zugreifen!
+            try:
+                strain = unit.batch.source_strain
+                if strain and strain != "Unbekannt":
+                    strains.add(str(strain))
+            except Exception:
+                continue
+        return Response(sorted(strains))
+    
+    def get_queryset(self):
+        queryset = PackagingUnit.objects.select_related(
+            'batch__lab_testing_batch__processing_batch__drying_batch__harvest_batch__flowering_batch__seed_purchase'
+        ).all()
+
+        # Gewicht (direktes Feld)
+        weight = self.request.query_params.get('weight')
+        if weight:
+            queryset = queryset.filter(weight=weight)
+
+        # Produkttyp (ForeignKey-Kette)
+        product_type = self.request.query_params.get('product_type')
+        if product_type:
+            queryset = queryset.filter(batch__product_type=product_type)
+
+        # Strain: Property, daher tricksen
+        strain = self.request.query_params.get('strain')
+        if strain:
+            # IDs der Einheiten holen, die passen
+            ids = [
+                unit.id for unit in queryset
+                if getattr(unit.batch, 'source_strain', None) == strain
+            ]
+            queryset = queryset.filter(id__in=ids)
+
+        return queryset
+
+    
 class ProductDistributionViewSet(viewsets.ModelViewSet):
     queryset = ProductDistribution.objects.all().order_by('-distribution_date')
     serializer_class = ProductDistributionSerializer
