@@ -49,6 +49,7 @@ Darüber hinaus haben wir eine vollständig integrierte Warenwirtschaft und Buch
 - ✅ Einzel- und Mehrfachbuchungen inkl. Subtransaktionen & Kontenwahl
 - ✅ Vollständige Verknüpfung zu Mitgliedskonten & Mitgliedsbeiträgen
 - ✅ Filterbare Journalansicht nach Jahr, Monat, Typ & Stornostatus
+- ✅ Multi-Chain ForeignKey Track&Trace: Lückenlose Rückverfolgung aller Produkte („Chain-of-Custody“) per ForeignKey 
 
 <p align="center">
   <img src="screenshots/trackandtrace/produktausgabe_step_2.png" alt="Vorschau" width="1920">
@@ -60,8 +61,19 @@ Darüber hinaus haben wir eine vollständig integrierte Warenwirtschaft und Buch
 
 - **Backend:** Django 5.x (API-only), Django REST Framework, PostgreSQL (P) / SQLite (E)
 - **Frontend:** React + Vite + Material UI (SPA)
+- **Datenmodell:** Multi-Chain ForeignKey-Verknüpfung aller Track&Trace-Objekte (von der Verpackungseinheit bis zur Ur-Saat oder Mutterpflanze), mit dynamischer UI-Filterung und garantiert konsistenter Herkunftskette. Einzigartige Flexibilität, maximale Nachvollziehbarkeit.
 - **Schnittstellen:** UniFi Access/Protect (native), Joomla 5, Siemens SIMATIC S7 1200 G2, Loxone Mini Server, Agilent 1260 Infinity HPLC, TSC TC200, Evolis Primacy, MQTTS, REST, 
 - **Technologien:** TokenAuth, WebSocket, Axios, passkey-auth, Container-kompatibel
+
+```
+flowchart LR
+    PU[Verpackungseinheit] --> PVB[Verarbeitungschargen]
+    PVB --> DRY[Trocknung]
+    DRY --> HRV[Ernte]
+    HRV --> BLF[Blühpflanze]
+    BLF --> SEED[SeedPurchase/Mutterpflanze]
+    SEED --> STR[Genetik / Strain]
+```
 
 ---
 
@@ -99,6 +111,11 @@ Jeder Verarbeitungsschritt ist dokumentiert und manipulationssicher protokollier
 10. **Vernichtung** (optional, wenn nötig)
 
 Jeder Schritt wird über die Mitarbeiterkonten per RFID/NFC bestätigt und in Echtzeit dokumentiert.
+
+- 🚦 **Einzigartig bei cannaUNITY:**  
+> Dank Multi-Chain ForeignKey-Architektur werden sämtliche Verarbeitungswege (Samen, Stecklinge, Mischkulturen) vollständig lückenlos abgebildet – von der Verpackungseinheit bis zum Ursprung der Genetik.  
+> Jede Verarbeitungskette bleibt auch nach Migration, Umbenennung oder Anpassung nachvollziehbar und referenziert immer auf die echten Objekte – keine Redundanzen, keine „Schattenfelder“, keine Datenverluste.
+
 
 <p align="center">
   <img src="screenshots/trackandtrace/track_and_trace.png" alt="Vorschau" width="1920">
