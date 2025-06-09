@@ -17,7 +17,9 @@
 
 ## 📦 Was ist cannaUNITY?
 
-**cannaUNITY** ist eine professionelle Open-Source-Plattform zur Organisation, Verwaltung und Automatisierung von Cannabis-Anbauvereinigungen gemäß dem Konsumcannabisgesetz (KCanG). Das System wird mit dem Ziel entwickelt, Sicherheit, Datenschutz (DSGVO), Nachverfolgbarkeit und Mitwirkung der Mitglieder auf "höchstem" technischen Niveau umzusetzen.
+**cannaUNITY** ist eine professionelle Open-Source-Plattform zur Organisation, Verwaltung und Automatisierung von Cannabis-Anbauvereinigungen gemäß dem Konsumcannabisgesetz (KCanG). cannaUNITY entstand, weil wir keine Lösung gefunden haben, die die Möglichkeiten moderner Technologie wirklich nutzt und die gesetzlichen Anforderungen an Sicherheit, Transparenz und Nachvollziehbarkeit umfassend abdeckt. Unser Ansatz ist es, den gesamten Betrieb einer Cannabis-Anbauvereinigung nicht nur zu verwalten, sondern zu automatisieren und digital abzusichern – von der alters- und THC-gerechten Zugangskontrolle mit UniFi Access, über KI-gestützte, datenschutzkonforme Protokollierung der Anwesenheit mit UniFi Protect, bis hin zur smarten Steuerung aller Anlagen per SIMATIC S7. Damit können sowohl Zutritt, als auch Arbeits- und Produktionsprozesse jederzeit lückenlos dokumentiert, kontrolliert und behördengerecht nachgewiesen werden.
+
+Darüber hinaus haben wir eine vollständig integrierte Warenwirtschaft und Buchhaltung geschaffen, die automatisch mit allen Vorgängen im System verknüpft ist. Jeder Produktionsschritt, jede Ausgabe und jede Buchung ist zentral erfasst und lässt sich sofort nachvollziehen – effizient, sicher und GoB-konform. Dank nahtloser Verbindung von Aufgabenplanung, Track&Trace, Warenwirtschaft und Finanzbuchhaltung entsteht eine All-in-One-Plattform, die sowohl operative Abläufe als auch die gesetzlichen Vorgaben optimal erfüllt und gleichzeitig modernste Technologien in einem System vereint.
 
 "Crescit sub pondere virtus." – "Tugend wächst unter Belastung."
 
@@ -49,7 +51,7 @@
 - ✅ Filterbare Journalansicht nach Jahr, Monat, Typ & Stornostatus
 
 <p align="center">
-  <img src="screenshots/mitglieder/ausgabelimit_18plus.png" alt="Vorschau" width="1920">
+  <img src="screenshots/trackandtrace/produktausgabe_step_2.png" alt="Vorschau" width="1920">
 </p>
 
 ---
