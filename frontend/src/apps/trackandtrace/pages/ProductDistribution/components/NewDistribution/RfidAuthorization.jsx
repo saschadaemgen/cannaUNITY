@@ -1,5 +1,5 @@
 // frontend/src/apps/trackandtrace/pages/ProductDistribution/components/NewDistribution/RfidAuthorization.jsx
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { 
   Box, Typography, Paper, Button, CircularProgress,
   Alert, Fade, Zoom, Card, CardContent, Grid
@@ -25,9 +25,15 @@ export default function RfidAuthorization({
   const [isAborting, setIsAborting] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   
-  // Auto-Start beim Mount
+  // NEU: Ref um zu tracken ob bereits gestartet wurde
+  const hasStarted = useRef(false)
+  
+  // Auto-Start beim Mount - aber nur einmal!
   useEffect(() => {
-    startRfidScan()
+    if (!hasStarted.current) {
+      hasStarted.current = true
+      startRfidScan()
+    }
     
     // Cleanup beim Unmount
     return () => {
@@ -81,6 +87,10 @@ export default function RfidAuthorization({
       )
       
       const { member_id, member_name } = verifyRes.data
+      
+      if (!member_id || !member_name) {
+        throw new Error('Mitgliedsverifizierung fehlgeschlagen: Unvollständige Daten')
+      }
       
       // Erfolg setzen und Mitgliedsdaten speichern
       setScannedMemberName(member_name)

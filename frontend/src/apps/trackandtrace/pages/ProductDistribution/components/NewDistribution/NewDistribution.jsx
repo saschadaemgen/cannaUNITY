@@ -18,7 +18,8 @@ import {
   DialogActions,
   CircularProgress,
   Backdrop,
-  Tooltip
+  Tooltip,
+  Snackbar
 } from '@mui/material'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
@@ -56,7 +57,9 @@ export default function NewDistribution() {
   const [showErrorDialog, setShowErrorDialog] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
   const [processing, setProcessing] = useState(false)
-  const [showAbortDialog, setShowAbortDialog] = useState(false)
+  const [showSuccessSnackbar, setShowSuccessSnackbar] = useState(false)
+  const [successSnackbarMessage, setSuccessSnackbarMessage] = useState('')
+  const [isResetting, setIsResetting] = useState(false)
 
   useEffect(() => {
     loadMembers()
@@ -115,19 +118,35 @@ export default function NewDistribution() {
     setShowErrorDialog(true)
   }
 
-  const handleComplete = () => {
+  const handleComplete = async () => {
     setSuccess(true)
     setCompleted(true)
+    
+    setSuccessSnackbarMessage('Produktausgabe wurde erfolgreich dokumentiert!')
+    setShowSuccessSnackbar(true)
+    
+    try {
+      await api.post('/unifi_api_debug/cancel-rfid-session/')
+      console.log('RFID-Session erfolgreich beendet')
+    } catch (err) {
+      console.log('Session cleanup fehlgeschlagen:', err)
+    }
+    
     setTimeout(() => {
-      navigate('/trackandtrace/distributions')
-    }, 2000)
+      handleReset()
+    }, 3000)
   }
 
   const handleNext = () => {
     switch (activeStep) {
       case 0:
         if (!recipientId) {
-          handleError('Bitte wählen Sie einen Empfänger aus')
+          handleError('Bitte scannen Sie zuerst einen Mitgliedsausweis')
+          return
+        }
+        // Prüfen ob Tageslimit erreicht
+        if (memberLimits && memberLimits.daily.percentage >= 100) {
+          handleError('Tageslimit erreicht! Eine weitere Ausgabe ist heute nicht möglich.')
           return
         }
         break
@@ -170,14 +189,27 @@ export default function NewDistribution() {
 
   const handleBack = () => setActiveStep(prevStep => prevStep - 1)
 
-  const handleReset = () => {
+  const handleReset = async () => {
+    setIsResetting(true)
+    
     setActiveStep(0)
+    
+    await new Promise(resolve => setTimeout(resolve, 100))
+    
     setRecipientId('')
     setSelectedUnits([])
     setNotes('')
     setMemberLimits(null)
     setSuccess(false)
     setCompleted(false)
+    setError(null)
+    
+    await Promise.all([
+      loadMembers(),
+      loadAvailableUnits()
+    ])
+    
+    setIsResetting(false)
   }
 
   const productSummary = selectedUnits.reduce((summary, unit) => {
@@ -192,6 +224,14 @@ export default function NewDistribution() {
   }, {})
 
   const renderStepContent = (step) => {
+    if (isResetting) {
+      return (
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
+          <CircularProgress />
+        </Box>
+      )
+    }
+    
     switch (step) {
       case 0:
         return (
@@ -225,7 +265,7 @@ export default function NewDistribution() {
           />
         )
       case 3:
-        return (
+        return !isResetting ? (
           <RfidAuthorization
             recipientId={recipientId}
             selectedUnits={selectedUnits}
@@ -233,7 +273,7 @@ export default function NewDistribution() {
             onComplete={handleComplete}
             onError={handleError}
           />
-        )
+        ) : null
       default:
         return null
     }
@@ -249,42 +289,56 @@ export default function NewDistribution() {
 
   return (
     <Box sx={{
-      py: 4,
+      py: 3,
       mx: 'auto',
       width: '100%',
       maxWidth: '1700px',
-      minHeight: 'calc(100vh - 80px)'
+      minHeight: 'calc(100vh - 100px)'
     }}>
-      <Paper elevation={3} sx={{ p: 5 }}>
-        {/* Header */}
-        <Box sx={{ mb: 4 }}>
-          <Typography variant="h4" component="h1" gutterBottom>
-            Neue Produktausgabe
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Dokumentieren Sie die Ausgabe von Cannabis-Produkten an Mitglieder
-          </Typography>
+      {/* Erfolgs-Snackbar */}
+      <Snackbar 
+        open={showSuccessSnackbar} 
+        autoHideDuration={6000} 
+        onClose={() => setShowSuccessSnackbar(false)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert 
+          onClose={() => setShowSuccessSnackbar(false)} 
+          severity="success" 
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          {successSnackbarMessage}
+        </Alert>
+      </Snackbar>
+      
+      <Paper elevation={3} sx={{ p: 3 }}>
+        {/* Stepper mit Hintergrund */}
+        <Box sx={{ 
+          bgcolor: 'grey.100', 
+          borderRadius: 2, 
+          p: 3, 
+          mb: 3 
+        }}>
+          <Stepper activeStep={activeStep}>
+            {steps.map((label, index) => (
+              <Step key={label} completed={completed || index < activeStep}>
+                <StepLabel
+                  StepIconProps={{
+                    completed: completed || index < activeStep,
+                    error: false
+                  }}
+                >
+                  {label}
+                </StepLabel>
+              </Step>
+            ))}
+          </Stepper>
         </Box>
-
-        {/* Stepper */}
-        <Stepper activeStep={activeStep} sx={{ mb: 4 }}>
-          {steps.map((label, index) => (
-            <Step key={label} completed={completed || index < activeStep}>
-              <StepLabel
-                StepIconProps={{
-                  completed: completed || index < activeStep,
-                  error: false
-                }}
-              >
-                {label}
-              </StepLabel>
-            </Step>
-          ))}
-        </Stepper>
 
         {/* Content */}
         {success ? (
-          <Box sx={{ textAlign: 'center', py: 8 }}>
+          <Box sx={{ textAlign: 'center', py: 6 }}>
             <CheckCircleIcon sx={{ fontSize: 80, color: 'success.main', mb: 2 }} />
             <Typography variant="h5" gutterBottom>
               Ausgabe erfolgreich dokumentiert!
@@ -292,64 +346,98 @@ export default function NewDistribution() {
             <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
               Die Produktausgabe wurde erfolgreich im System erfasst.
             </Typography>
-            <Button 
-              variant="contained" 
-              onClick={() => navigate('/trackandtrace/distributions')}
-            >
-              Zur Übersicht
-            </Button>
+            <Typography variant="body2" color="text.secondary">
+              Das System wird in wenigen Sekunden für eine neue Ausgabe zurückgesetzt...
+            </Typography>
+            <CircularProgress 
+              size={40} 
+              sx={{ 
+                mt: 3,
+                color: 'success.main' 
+              }} 
+            />
           </Box>
         ) : (
           <>
-            <Box sx={{ minHeight: 400, mb: 4 }}>
+            <Box sx={{ minHeight: 350, mb: 3 }}>
               {renderStepContent(activeStep)}
             </Box>
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
-              <Button
-                disabled={activeStep === 0}
-                onClick={handleBack}
-                startIcon={<ArrowBackIcon />}
-                variant="outlined"
-                color="secondary"
-              >
-                Zurück
-              </Button>
-              {(activeStep > 0 && activeStep < steps.length - 1) && (
-                <Button
-                  onClick={() => setShowAbortDialog(true)}
-                  variant="outlined"
-                  color="error"
-                >
-                  Abbrechen
-                </Button>
-              )}
-              {activeStep === steps.length - 1 ? (
-                <Box />
-              ) : (
-                <Tooltip 
-                  title={
-                    activeStep === 0 && memberLimits && memberLimits.daily.percentage >= 100 
-                      ? "Tageslimit erreicht - Gemäß § 9 Abs. 2 KCanG darf die Weitergabe 25g pro Tag nicht überschreiten" 
-                      : ""
-                  }
-                >
-                  <span>
+            
+            {/* Button-Bereich */}
+            {activeStep < steps.length - 1 && (
+              <Box sx={{ mt: 3 }}>
+                {activeStep === 0 ? (
+                  // Schritt 1: Nur Weiter-Button
+                  <Tooltip 
+                    title={
+                      memberLimits && memberLimits.daily.percentage >= 100 
+                        ? "Tageslimit erreicht - Gemäß § 9 Abs. 2 KCanG darf die Weitergabe 25g pro Tag nicht überschreiten" 
+                        : ""
+                    }
+                  >
+                    <span style={{ display: 'block' }}>
+                      <Button
+                        variant="contained"
+                        onClick={handleNext}
+                        endIcon={<ArrowForwardIcon />}
+                        color="success"
+                        fullWidth
+                        disabled={
+                          processing || 
+                          (memberLimits && memberLimits.daily.percentage >= 100) ||
+                          !recipientId
+                        }
+                        sx={{ 
+                          height: 64, 
+                          fontSize: '1.1rem',
+                          fontWeight: 'bold'
+                        }}
+                      >
+                        Weiter zur Produktauswahl
+                      </Button>
+                    </span>
+                  </Tooltip>
+                ) : (
+                  // Schritt 2 & 3: Zurück und Weiter nebeneinander
+                  <Box sx={{ display: 'flex', gap: 2 }}>
                     <Button
-                      variant="contained"
-                      onClick={handleNext}
-                      endIcon={<ArrowForwardIcon />}
-                      color="success"
-                      disabled={
-                        processing || 
-                        (activeStep === 0 && memberLimits && memberLimits.daily.percentage >= 100)
+                      onClick={handleBack}
+                      startIcon={<ArrowBackIcon />}
+                      variant="outlined"
+                      color="secondary"
+                      fullWidth
+                      sx={{ height: 56, fontSize: '1rem' }}
+                    >
+                      Zurück
+                    </Button>
+                    
+                    <Tooltip 
+                      title={
+                        activeStep === 0 && memberLimits && memberLimits.daily.percentage >= 100 
+                          ? "Tageslimit erreicht - Gemäß § 9 Abs. 2 KCanG darf die Weitergabe 25g pro Tag nicht überschreiten" 
+                          : ""
                       }
                     >
-                      {activeStep === steps.length - 2 ? 'Zur Autorisierung' : 'Weiter'}
-                    </Button>
-                  </span>
-                </Tooltip>
-              )}
-            </Box>
+                      <span style={{ flex: 1 }}>
+                        <Button
+                          variant="contained"
+                          onClick={handleNext}
+                          endIcon={<ArrowForwardIcon />}
+                          color="success"
+                          fullWidth
+                          disabled={processing}
+                          sx={{ height: 56, fontSize: '1rem' }}
+                        >
+                          {activeStep === 1 ? 'Weiter zur Überprüfung' :
+                           activeStep === 2 ? 'Zur RFID-Autorisierung' : 
+                           'Weiter'}
+                        </Button>
+                      </span>
+                    </Tooltip>
+                  </Box>
+                )}
+              </Box>
+            )}
           </>
         )}
 
@@ -371,37 +459,6 @@ export default function NewDistribution() {
           <DialogActions>
             <Button onClick={() => setShowErrorDialog(false)} autoFocus>
               OK
-            </Button>
-          </DialogActions>
-        </Dialog>
-        <Dialog
-          open={showAbortDialog}
-          onClose={() => setShowAbortDialog(false)}
-          aria-labelledby="abort-dialog-title"
-        >
-          <DialogTitle id="abort-dialog-title" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <ErrorIcon color="error" />
-            Vorgang abbrechen?
-          </DialogTitle>
-          <DialogContent>
-            <DialogContentText>
-              Sind Sie sicher, dass Sie die Produktausgabe abbrechen und zum Start zurückkehren möchten?<br />
-              Nicht gespeicherte Eingaben gehen verloren.
-            </DialogContentText>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setShowAbortDialog(false)} autoFocus>
-              Nein, zurück
-            </Button>
-            <Button 
-              onClick={() => { 
-                setShowAbortDialog(false); 
-                handleReset();
-              }} 
-              color="error"
-              variant="contained"
-            >
-              Ja, abbrechen
             </Button>
           </DialogActions>
         </Dialog>
