@@ -1,4 +1,4 @@
-# cannaUNITY Balance Display Plugin v1.0
+# cannaUNITY Balance Display Plugin v1.2
 
 ![WordPress Plugin](https://img.shields.io/badge/WordPress-Plugin-blue.svg)
 ![Version](https://img.shields.io/badge/version-1.0.0-green.svg)
@@ -228,7 +228,7 @@ Das Plugin unterstützt spezielle cannaUNITY Meta-Felder:
 
 ## 📝 Changelog
 
-### Version 1.0.0
+### Version 1.2.0
 - ✅ Initiale Veröffentlichung
 - ✅ Basis Shortcodes implementiert
 - ✅ Widget-Support hinzugefügt

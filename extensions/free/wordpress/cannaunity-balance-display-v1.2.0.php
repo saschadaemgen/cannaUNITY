@@ -1,9 +1,9 @@
 <?php
 /**
- * Plugin Name: cannaUNITY Balance Display
+ * Plugin Name: cannaUNITY Balance Display v1.2.0
  * Plugin URI: https://cannaunity.de
  * Description: Zeigt Kontostände und Benutzerinformationen für cannaUNITY-Mitglieder im WordPress Frontend an.
- * Version: 1.1.0
+ * Version: 1.2.0
  * Author: Sascha Dämgen IT and More
  * Author URI: https://itandmore.de
  * License: GPL v2 or later
@@ -14,6 +14,8 @@
  * Tested up to: 6.4
  * Requires PHP: 7.4
  * Network: false
+ * 
+ * Plugin File: cannaunity-balance-display-v1.2.0.php
  * 
  * Copyright (C) 2024 Sascha Dämgen IT and More
  * 
@@ -52,7 +54,7 @@ class CannaUnityBalancePlugin {
         add_shortcode('user_balance', array($this, 'display_balance_shortcode'));
         add_shortcode('user_dashboard', array($this, 'display_dashboard_shortcode'));
         add_shortcode('user_profile', array($this, 'display_profile_shortcode'));
-        add_shortcode('cannaunity_balance', array($this, 'display_balance_shortcode')); // Alternative
+        add_shortcode('cannaunity_balance', array($this, 'display_balance_shortcode'));
         
         // AJAX für dynamische Updates
         add_action('wp_ajax_get_user_balance', array($this, 'ajax_get_balance'));
@@ -65,7 +67,7 @@ class CannaUnityBalancePlugin {
             'cannaunity-balance-style',
             plugin_dir_url(__FILE__) . 'style.css',
             array(),
-            '1.0.0'
+            '1.2.0'
         );
         
         // cannaUNITY Design CSS
@@ -208,12 +210,20 @@ class CannaUnityBalancePlugin {
             border-left-color: #2196F3 !important;
         }
         
-        .cannaunity-logo {
-            width: 30px;
-            height: 30px;
-            display: inline-block;
-            margin-right: 10px;
-            vertical-align: middle;
+        .cannaunity-financial {
+            border-left-color: #4CAF50 !important;
+        }
+        
+        .cannaunity-health {
+            border-left-color: #9C27B0 !important;
+        }
+        
+        .cannaunity-mental {
+            border-left-color: #673AB7 !important;
+        }
+        
+        .cannaunity-hours {
+            border-left-color: #795548 !important;
         }
         ";
         
@@ -278,9 +288,13 @@ class CannaUnityBalancePlugin {
         
         // cannaUNITY Meta-Felder abrufen
         $kontostand = $this->get_user_meta_safe($user_id, 'kontostand', 0);
+        $monatsbeitrag = $this->get_user_meta_safe($user_id, 'monatsbeitrag', 0);
         $thc_limit = $this->get_user_meta_safe($user_id, 'thc_limit');
         $daily_limit = $this->get_user_meta_safe($user_id, 'daily_limit');
         $monthly_limit = $this->get_user_meta_safe($user_id, 'monthly_limit');
+        $koerperliche_einschraenkungen = $this->get_user_meta_safe($user_id, 'koerperliche_einschraenkungen');
+        $geistliche_einschraenkungen = $this->get_user_meta_safe($user_id, 'geistliche_einschraenkungen');
+        $pflichtstunden = $this->get_user_meta_safe($user_id, 'pflichtstunden');
         
         $output = '<div class="cannaunity-balance-container">';
         $output .= '<div class="cannaunity-header">';
@@ -296,38 +310,59 @@ class CannaUnityBalancePlugin {
         // Weitere Informationen in Grid
         $output .= '<div class="cannaunity-info-grid">';
         
-        // Benutzerdaten
+        // Benutzerdaten mit UUID-Anonymisierung
+        $user_uuid = $this->get_user_meta_safe($user_id, 'uuid');
+        $display_name = $user_uuid ? substr($user_uuid, 0, 8) : substr($current_user->user_login, 0, 8);
+        
         $output .= '<div class="cannaunity-info-card">';
-        $output .= '<span class="info-label">👤 Mitgliedsname:</span>';
-        $output .= '<span class="info-value">' . esc_html($current_user->display_name) . '</span>';
+        $output .= '<span class="info-label">🆔 Benutzer-ID:</span>';
+        $output .= '<span class="info-value">' . esc_html($display_name) . '</span>';
         $output .= '</div>';
         
+        // E-Mail wird nicht angezeigt (Anonymisierung)
         $output .= '<div class="cannaunity-info-card">';
         $output .= '<span class="info-label">📧 E-Mail:</span>';
-        $output .= '<span class="info-value">' . esc_html($current_user->user_email) . '</span>';
+        $output .= '<span class="info-value">***@cannaunity.de</span>';
         $output .= '</div>';
         
-        // cannaUNITY Meta-Felder falls vorhanden
-        if ($thc_limit) {
-            $output .= '<div class="cannaunity-info-card cannaunity-thc-limit">';
-            $output .= '<span class="info-label">🌿 THC-Limit:</span>';
-            $output .= '<span class="info-value">' . esc_html($thc_limit) . ' %</span>';
-            $output .= '</div>';
-        }
+        // Finanzielle Informationen
+        $output .= '<div class="cannaunity-info-card cannaunity-financial">';
+        $output .= '<span class="info-label">💰 Monatsbeitrag:</span>';
+        $output .= '<span class="info-value">' . ($monatsbeitrag ? number_format($monatsbeitrag, 2, ',', '.') . ' €' : 'Nicht gesetzt') . '</span>';
+        $output .= '</div>';
         
-        if ($daily_limit) {
-            $output .= '<div class="cannaunity-info-card cannaunity-daily-limit">';
-            $output .= '<span class="info-label">📅 Tageslimit:</span>';
-            $output .= '<span class="info-value">' . esc_html($daily_limit) . ' g</span>';
-            $output .= '</div>';
-        }
+        // cannaUNITY Meta-Felder - immer anzeigen
+        $output .= '<div class="cannaunity-info-card cannaunity-thc-limit">';
+        $output .= '<span class="info-label">🌿 THC-Limit:</span>';
+        $output .= '<span class="info-value">' . ($thc_limit ? esc_html($thc_limit) . ' %' : 'Nicht gesetzt') . '</span>';
+        $output .= '</div>';
         
-        if ($monthly_limit) {
-            $output .= '<div class="cannaunity-info-card cannaunity-monthly-limit">';
-            $output .= '<span class="info-label">📊 Monatslimit:</span>';
-            $output .= '<span class="info-value">' . esc_html($monthly_limit) . ' g</span>';
-            $output .= '</div>';
-        }
+        $output .= '<div class="cannaunity-info-card cannaunity-daily-limit">';
+        $output .= '<span class="info-label">📅 Tageslimit:</span>';
+        $output .= '<span class="info-value">' . ($daily_limit ? esc_html($daily_limit) . ' g' : 'Nicht gesetzt') . '</span>';
+        $output .= '</div>';
+        
+        $output .= '<div class="cannaunity-info-card cannaunity-monthly-limit">';
+        $output .= '<span class="info-label">📊 Monatslimit:</span>';
+        $output .= '<span class="info-value">' . ($monthly_limit ? esc_html($monthly_limit) . ' g' : 'Nicht gesetzt') . '</span>';
+        $output .= '</div>';
+        
+        // Gesundheitliche Informationen - immer anzeigen
+        $output .= '<div class="cannaunity-info-card cannaunity-health">';
+        $output .= '<span class="info-label">🦽 Körperliche Einschränkungen:</span>';
+        $output .= '<span class="info-value">' . ($koerperliche_einschraenkungen ? esc_html($koerperliche_einschraenkungen) : 'Keine Angabe') . '</span>';
+        $output .= '</div>';
+        
+        $output .= '<div class="cannaunity-info-card cannaunity-mental">';
+        $output .= '<span class="info-label">🧠 Geistige Einschränkungen:</span>';
+        $output .= '<span class="info-value">' . ($geistliche_einschraenkungen ? esc_html($geistliche_einschraenkungen) : 'Keine Angabe') . '</span>';
+        $output .= '</div>';
+        
+        // Pflichtstunden - immer anzeigen
+        $output .= '<div class="cannaunity-info-card cannaunity-hours">';
+        $output .= '<span class="info-label">⏰ Pflichtstunden:</span>';
+        $output .= '<span class="info-value">' . ($pflichtstunden ? esc_html($pflichtstunden) . ' Stunden' : 'Nicht gesetzt') . '</span>';
+        $output .= '</div>';
         
         // Mitgliedschaft seit
         $user_registered = get_userdata($user_id)->user_registered;
@@ -504,7 +539,7 @@ class CannaUnityBalancePlugin {
         <div class="wrap">
             <h1 style="display: flex; align-items: center; gap: 10px;">
                 🌿 <span style="color: #2E7D32;">cannaUNITY Balance Display</span> 
-                <span style="background: #4CAF50; color: white; padding: 4px 12px; border-radius: 15px; font-size: 14px;">v1.1.0</span>
+                <span style="background: #4CAF50; color: white; padding: 4px 12px; border-radius: 15px; font-size: 14px;">v1.2.0</span>
             </h1>
             
             <div class="cannaunity-admin-container">
@@ -585,40 +620,88 @@ class CannaUnityBalancePlugin {
                     <!-- Rechte Spalte - Sidebar-Inhalte -->
                     <div class="cannaunity-admin-right">
                         
-                        <!-- Sicherheitsfeatures -->
+                        <!-- Sicherheitsarchitektur -->
                         <div class="cannaunity-card">
-                            <h2>🔒 Zero-Knowledge Sicherheitsprinzip</h2>
+                            <h2>🔒 Zero-Knowledge Sicherheitsarchitektur</h2>
                             <div style="background: #e8f5e8; border: 1px solid #4CAF50; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
                                 <p style="margin: 0; color: #2E7D32; font-weight: 500;">
-                                    ✅ <strong>Maximale Sicherheit für Ihre WordPress-Installation</strong>
+                                    ✅ <strong>WordPress kennt keine Django-Backend-Credentials</strong>
                                 </p>
                             </div>
                             
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                                 <div style="background: #f8f9fa; padding: 15px; border-radius: 6px; border-left: 4px solid #4CAF50;">
-                                    <h4 style="margin: 0 0 8px 0; color: #2E7D32;">🛡️ Was wir NICHT kennen:</h4>
+                                    <h4 style="margin: 0 0 8px 0; color: #2E7D32;">✅ Django-Backend HAT:</h4>
                                     <ul style="margin: 0; padding-left: 15px; font-size: 13px; color: #666;">
-                                        <li>Ihre WordPress-Zugangsdaten</li>
-                                        <li>Ihre Server-Passwörter</li>
-                                        <li>Lokale Benutzerdaten</li>
-                                        <li>Interne WordPress-Konfiguration</li>
+                                        <li>WordPress-DB-Zugang via SSH-Tunnel</li>
+                                        <li>Schreib-/Lesezugriff auf wp_usermeta</li>
+                                        <li>Sichere Kontostand-Updates</li>
+                                        <li>Vollständige Backend-Kontrolle</li>
                                     </ul>
                                 </div>
                                 
-                                <div style="background: #f8f9fa; padding: 15px; border-radius: 6px; border-left: 4px solid #2196F3;">
-                                    <h4 style="margin: 0 0 8px 0; color: #1976D2;">🔗 Was Sie haben:</h4>
+                                <div style="background: #f8f9fa; padding: 15px; border-radius: 6px; border-left: 4px solid #FF5722;">
+                                    <h4 style="margin: 0 0 8px 0; color: #D84315;">❌ WordPress KENNT NICHT:</h4>
                                     <ul style="margin: 0; padding-left: 15px; font-size: 13px; color: #666;">
-                                        <li>Zugang zu cannaUNITY-API</li>
-                                        <li>Ihre eigenen Server-Credentials</li>
-                                        <li>Kontrolle über alle Daten</li>
-                                        <li>Lokale WordPress-Sicherheit</li>
+                                        <li>Django-Datenbank-Credentials</li>
+                                        <li>Backend-Server-Zugangsdaten</li>
+                                        <li>SSH-Tunnel-Konfiguration</li>
+                                        <li>Interne Systemarchitektur</li>
                                     </ul>
                                 </div>
                             </div>
                             
-                            <div style="background: #fff3e0; border: 1px solid #FF9800; border-radius: 6px; padding: 12px; margin-top: 15px;">
+                            <div style="background: #e3f2fd; border: 1px solid #2196F3; border-radius: 6px; padding: 12px; margin-top: 15px;">
+                                <p style="margin: 0; font-size: 13px; color: #1565C0;">
+                                    <strong>🔒 SSH-Tunnel-Sicherheit:</strong> Keine direkten externen IP-Zugriffe auf Datenbanken möglich. Alle Verbindungen laufen verschlüsselt über SSH.
+                                </p>
+                            </div>
+                            
+                            <div style="background: #fff3e0; border: 1px solid #FF9800; border-radius: 6px; padding: 12px; margin-top: 10px;">
                                 <p style="margin: 0; font-size: 13px; color: #E65100;">
-                                    <strong>🔒 Einseitige Kommunikation:</strong> Das Plugin fragt nur Daten ab - der cannaUNITY-Server hat KEINEN Zugriff auf Ihre WordPress-Installation.
+                                    <strong>🛡️ Einseitige Kommunikation:</strong> Django → WordPress (via SSH). WordPress kann nicht auf Django-Backend zugreifen.
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <!-- Daten-Anonymisierung -->
+                        <div class="cannaunity-card">
+                            <h2>🕶️ Online-Portal Anonymisierung</h2>
+                            <div style="background: #f3e5f5; border: 1px solid #9C27B0; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
+                                <p style="margin: 0; color: #7B1FA2; font-weight: 500;">
+                                    🔐 <strong>Keine personenbezogenen Daten online entschlüsselbar</strong>
+                                </p>
+                            </div>
+                            
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                                <div style="background: #ffebee; padding: 15px; border-radius: 6px; border-left: 4px solid #F44336;">
+                                    <h4 style="margin: 0 0 8px 0; color: #C62828;">❌ NICHT Online gespeichert:</h4>
+                                    <ul style="margin: 0; padding-left: 15px; font-size: 13px; color: #666;">
+                                        <li>Echte E-Mail-Adressen</li>
+                                        <li>Telefonnummern</li>
+                                        <li>Wohnadressen</li>
+                                        <li>Echte Namen</li>
+                                        <li>Geburtsdaten</li>
+                                        <li>Entschlüsselungs-Schlüssel</li>
+                                    </ul>
+                                </div>
+                                
+                                <div style="background: #e8f5e8; padding: 15px; border-radius: 6px; border-left: 4px solid #4CAF50;">
+                                    <h4 style="margin: 0 0 8px 0; color: #2E7D32;">✅ Online anonymisiert:</h4>
+                                    <ul style="margin: 0; padding-left: 15px; font-size: 13px; color: #666;">
+                                        <li>Name = Erste 8 UUID-Stellen</li>
+                                        <li>Nur Altersgruppe (18-21 / 21+)</li>
+                                        <li>Verschlüsselte Referenzen</li>
+                                        <li>Kontostand & Limits</li>
+                                        <li>Anonymisierte Metadaten</li>
+                                        <li>Keine Rückschlüsse möglich</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            
+                            <div style="background: #fce4ec; border: 1px solid #E91E63; border-radius: 6px; padding: 12px; margin-top: 15px;">
+                                <p style="margin: 0; font-size: 13px; color: #AD1457;">
+                                    <strong>🔐 Verschlüsselungs-Prinzip:</strong> Echte Daten bleiben lokal - Online nur anonymisierte UUID-Referenzen ohne Entschlüsselungs-Schlüssel.
                                 </p>
                             </div>
                         </div>
@@ -634,6 +717,11 @@ class CannaUnityBalancePlugin {
                             </div>
                             
                             <div class="cannaunity-meta-field">
+                                <strong>monatsbeitrag</strong>
+                                <p style="margin: 5px 0 0 0; font-size: 13px; color: #666;">Monatsbeitrag in Euro</p>
+                            </div>
+                            
+                            <div class="cannaunity-meta-field">
                                 <strong>thc_limit</strong>
                                 <p style="margin: 5px 0 0 0; font-size: 13px; color: #666;">THC-Limit in Prozent</p>
                             </div>
@@ -646,16 +734,21 @@ class CannaUnityBalancePlugin {
                             <div class="cannaunity-meta-field">
                                 <strong>monthly_limit</strong>
                                 <p style="margin: 5px 0 0 0; font-size: 13px; color: #666;">Monatslimit in Gramm</p>
-                            </div>>
-                            
-                            <div class="cannaunity-meta-field">
-                                <strong>thc_limit</strong>
-                                <p style="margin: 5px 0 0 0; font-size: 13px; color: #666;">THC-Limit in Gramm</p>
                             </div>
                             
                             <div class="cannaunity-meta-field">
-                                <strong>monthly_limit</strong>
-                                <p style="margin: 5px 0 0 0; font-size: 13px; color: #666;">Monatslimit in Gramm</p>
+                                <strong>koerperliche_einschraenkungen</strong>
+                                <p style="margin: 5px 0 0 0; font-size: 13px; color: #666;">Körperliche Einschränkungen</p>
+                            </div>
+                            
+                            <div class="cannaunity-meta-field">
+                                <strong>geistliche_einschraenkungen</strong>
+                                <p style="margin: 5px 0 0 0; font-size: 13px; color: #666;">Geistige Einschränkungen</p>
+                            </div>
+                            
+                            <div class="cannaunity-meta-field">
+                                <strong>pflichtstunden</strong>
+                                <p style="margin: 5px 0 0 0; font-size: 13px; color: #666;">Pflichtstunden</p>
                             </div>
                         </div>
                         
@@ -665,7 +758,7 @@ class CannaUnityBalancePlugin {
                             <div style="display: flex; flex-direction: column; gap: 10px;">
                                 <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee;">
                                     <strong>Version:</strong>
-                                    <span class="cannaunity-info-badge">1.0.0</span>
+                                    <span class="cannaunity-info-badge">1.2.0</span>
                                 </div>
                                 <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee;">
                                     <strong>Entwickler:</strong>
@@ -725,7 +818,7 @@ class CannaUnityBalancePlugin {
     
     // Plugin-Aktivierung
     public function activate() {
-        add_option('cannaunity_balance_version', '1.1.0');
+        add_option('cannaunity_balance_version', '1.2.0');
         add_option('cannaunity_balance_activated', current_time('mysql'));
         
         // Flush rewrite rules
