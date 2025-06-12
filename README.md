@@ -29,6 +29,7 @@ Darüber hinaus haben wir eine vollständig integrierte Warenwirtschaft und Buch
 
 - ✅ Echtzeit UUID-Track & Trace von Pflanzen, Verarbeitung & Produktausgabe
 - ✅ Erzeugung von Batch und Chargenummern inkl. 128 Bit UUID Anbindung
+- ✅ WordPress oder Joomla CMS Online Anbindung über ZKP/SSH Tunnel
 - ✅ Digitalisierte Produktausgabe mit Limitkontrolle
 - ✅ RFID/NFC Arbeitszeiterfassung mit Minijob/Pflichtstunden & Ehrenamt Erkennung
 - ✅ Automatische KI Personenerkennung per UniFi Protect AI Key API / Webhook Anbindung
@@ -62,7 +63,7 @@ Darüber hinaus haben wir eine vollständig integrierte Warenwirtschaft und Buch
 - **Backend:** Django 5.x (API-only), Django REST Framework, PostgreSQL (P) / SQLite (E)
 - **Frontend:** React + Vite + Material UI (SPA)
 - **Datenmodell:** Multi-Chain ForeignKey-Verknüpfung aller Track&Trace-Objekte (von der Verpackungseinheit bis zur Ur-Saat oder Mutterpflanze), mit dynamischer UI-Filterung und garantiert konsistenter Herkunftskette. Einzigartige Flexibilität, maximale Nachvollziehbarkeit.
-- **Schnittstellen:** UniFi Access/Protect (native), Joomla 5, Siemens SIMATIC S7 1200 G2, Loxone Mini Server, Agilent 1260 Infinity HPLC, TSC TC200, Evolis Primacy, MQTTS, REST, 
+- **Schnittstellen:** UniFi Access/Protect (native), Wordpress, Joomla, Siemens SIMATIC S7 1200 G2, Loxone Mini Server, Agilent 1260 Infinity HPLC, TSC TC200, Evolis Primacy, MQTTS, REST, 
 - **Technologien:** TokenAuth, WebSocket, Axios, passkey-auth, Container-kompatibel
 
 ```
