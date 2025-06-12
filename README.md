@@ -75,6 +75,10 @@ flowchart LR
     SEED --> STR[Genetik / Strain]
 ```
 
+<p align="center">
+  <img src="screenshots/mitglieder/joomla_unifi_integration.png" alt="Vorschau" width="1920">
+</p>
+
 ---
 
 ## 🛡️ § KCanG konform, Datenschutz & Anonymisierungskonzept
