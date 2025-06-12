@@ -3,7 +3,7 @@
  * Plugin Name: cannaUNITY Balance Display
  * Plugin URI: https://cannaunity.de
  * Description: Zeigt Kontostände und Benutzerinformationen für cannaUNITY-Mitglieder im WordPress Frontend an.
- * Version: 1.0.0
+ * Version: 1.1.0
  * Author: Sascha Dämgen IT and More
  * Author URI: https://itandmore.de
  * License: GPL v2 or later
@@ -200,6 +200,10 @@ class CannaUnityBalancePlugin {
             border-left-color: #FF9800 !important;
         }
         
+        .cannaunity-daily-limit {
+            border-left-color: #E91E63 !important;
+        }
+        
         .cannaunity-monthly-limit {
             border-left-color: #2196F3 !important;
         }
@@ -275,6 +279,7 @@ class CannaUnityBalancePlugin {
         // cannaUNITY Meta-Felder abrufen
         $kontostand = $this->get_user_meta_safe($user_id, 'kontostand', 0);
         $thc_limit = $this->get_user_meta_safe($user_id, 'thc_limit');
+        $daily_limit = $this->get_user_meta_safe($user_id, 'daily_limit');
         $monthly_limit = $this->get_user_meta_safe($user_id, 'monthly_limit');
         
         $output = '<div class="cannaunity-balance-container">';
@@ -306,13 +311,20 @@ class CannaUnityBalancePlugin {
         if ($thc_limit) {
             $output .= '<div class="cannaunity-info-card cannaunity-thc-limit">';
             $output .= '<span class="info-label">🌿 THC-Limit:</span>';
-            $output .= '<span class="info-value">' . esc_html($thc_limit) . ' g</span>';
+            $output .= '<span class="info-value">' . esc_html($thc_limit) . ' %</span>';
+            $output .= '</div>';
+        }
+        
+        if ($daily_limit) {
+            $output .= '<div class="cannaunity-info-card cannaunity-daily-limit">';
+            $output .= '<span class="info-label">📅 Tageslimit:</span>';
+            $output .= '<span class="info-value">' . esc_html($daily_limit) . ' g</span>';
             $output .= '</div>';
         }
         
         if ($monthly_limit) {
             $output .= '<div class="cannaunity-info-card cannaunity-monthly-limit">';
-            $output .= '<span class="info-label">📅 Monatslimit:</span>';
+            $output .= '<span class="info-label">📊 Monatslimit:</span>';
             $output .= '<span class="info-value">' . esc_html($monthly_limit) . ' g</span>';
             $output .= '</div>';
         }
@@ -377,120 +389,343 @@ class CannaUnityBalancePlugin {
     // Admin-Seite
     public function admin_page() {
         ?>
+        <style>
+        .cannaunity-admin-container {
+            max-width: 100%;
+            margin-top: 20px;
+        }
+        
+        .cannaunity-admin-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 30px;
+            margin-top: 20px;
+        }
+        
+        .cannaunity-admin-left {
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+        
+        .cannaunity-admin-right {
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+        
+        .cannaunity-card {
+            background: #fff;
+            border: 1px solid #c3c4c7;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            padding: 20px;
+        }
+        
+        .cannaunity-card h2 {
+            margin-top: 0;
+            color: #2E7D32;
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        
+        .cannaunity-shortcode-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .cannaunity-shortcode-item {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 15px;
+            border-left: 4px solid #4CAF50;
+        }
+        
+        .cannaunity-shortcode-item h4 {
+            margin: 0 0 8px 0;
+            color: #2E7D32;
+        }
+        
+        .cannaunity-shortcode-item p {
+            margin: 0;
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .cannaunity-example-box {
+            background: #f1f8e9;
+            border: 1px solid #c5e1a5;
+            border-radius: 4px;
+            padding: 12px;
+            margin: 8px 0;
+            font-family: monospace;
+            font-size: 13px;
+        }
+        
+        .cannaunity-info-badge {
+            display: inline-block;
+            background: #4CAF50;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-right: 5px;
+        }
+        
+        .cannaunity-meta-field {
+            background: #fff;
+            border: 1px solid #4CAF50;
+            border-radius: 6px;
+            padding: 12px;
+            margin: 8px 0;
+        }
+        
+        .cannaunity-meta-field strong {
+            color: #2E7D32;
+        }
+        
+        @media (max-width: 1200px) {
+            .cannaunity-admin-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .cannaunity-shortcode-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        </style>
+        
         <div class="wrap">
-            <h1>🌿 cannaUNITY Balance Display Einstellungen</h1>
+            <h1 style="display: flex; align-items: center; gap: 10px;">
+                🌿 <span style="color: #2E7D32;">cannaUNITY Balance Display</span> 
+                <span style="background: #4CAF50; color: white; padding: 4px 12px; border-radius: 15px; font-size: 14px;">v1.1.0</span>
+            </h1>
             
-            <div class="card" style="max-width: none;">
-                <h2>Verfügbare Shortcodes</h2>
-                <table class="wp-list-table widefat fixed striped">
-                    <thead>
-                        <tr>
-                            <th>Shortcode</th>
-                            <th>Beschreibung</th>
-                            <th>Verwendung</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><code>[user_balance]</code></td>
-                            <td>Zeigt nur den Kontostand</td>
-                            <td>Für einzelne Seiten oder Posts</td>
-                        </tr>
-                        <tr>
-                            <td><code>[user_dashboard]</code></td>
-                            <td>Vollständiges Mitglieder-Dashboard</td>
-                            <td>Für Mitgliederbereich oder Profilseiten</td>
-                        </tr>
-                        <tr>
-                            <td><code>[user_profile]</code></td>
-                            <td>Kompakte Profilanzeige</td>
-                            <td>Für Widgets oder kleine Bereiche</td>
-                        </tr>
-                        <tr>
-                            <td><code>[cannaunity_balance]</code></td>
-                            <td>Alternative zu [user_balance]</td>
-                            <td>Für cannaUNITY-spezifische Anwendungen</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-            
-            <div class="card">
-                <h2>Parameter für [user_balance] und [cannaunity_balance]</h2>
-                <table class="wp-list-table widefat fixed striped">
-                    <thead>
-                        <tr>
-                            <th>Parameter</th>
-                            <th>Standard</th>
-                            <th>Beschreibung</th>
-                            <th>Beispiel</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><code>field</code></td>
-                            <td>"kontostand"</td>
-                            <td>Name des Meta-Feldes</td>
-                            <td><code>field="guthaben"</code></td>
-                        </tr>
-                        <tr>
-                            <td><code>currency</code></td>
-                            <td>"€"</td>
-                            <td>Währungssymbol</td>
-                            <td><code>currency="USD"</code></td>
-                        </tr>
-                        <tr>
-                            <td><code>decimals</code></td>
-                            <td>"2"</td>
-                            <td>Nachkommastellen</td>
-                            <td><code>decimals="0"</code></td>
-                        </tr>
-                        <tr>
-                            <td><code>show_label</code></td>
-                            <td>"true"</td>
-                            <td>Label anzeigen</td>
-                            <td><code>show_label="false"</code></td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-            
-            <div class="card">
-                <h2>Beispiele</h2>
-                <h3>Basis-Verwendung:</h3>
-                <p><code>[user_balance]</code> - Zeigt Kontostand mit Standard-Einstellungen</p>
-                <p><code>[user_dashboard]</code> - Komplettes Dashboard</p>
-                
-                <h3>Mit benutzerdefinierten Parametern:</h3>
-                <p><code>[user_balance currency="USD" decimals="0"]</code> - US-Dollar ohne Nachkommastellen</p>
-                <p><code>[cannaunity_balance show_label="false"]</code> - Nur Betrag ohne Label</p>
-                <p><code>[user_balance field="mein_guthaben" currency="CHF"]</code> - Anderes Feld in Schweizer Franken</p>
-            </div>
-            
-            <div class="card">
-                <h2>cannaUNITY Meta-Felder</h2>
-                <p>Das Plugin erkennt automatisch diese von Django erstellten Meta-Felder:</p>
-                <ul>
-                    <li><strong>kontostand</strong> - Hauptkontostand in Euro</li>
-                    <li><strong>thc_limit</strong> - THC-Limit in Gramm</li>
-                    <li><strong>monthly_limit</strong> - Monatslimit in Gramm</li>
-                </ul>
-            </div>
-            
-            <div class="card">
-                <h2>Plugin-Information</h2>
-                <p><strong>Version:</strong> 1.0.0</p>
-                <p><strong>Entwickler:</strong> Sascha Dämgen IT and More</p>
-                <p><strong>Für:</strong> cannaUNITY Community</p>
-                <p><strong>Support:</strong> <a href="https://itandmore.de" target="_blank">itandmore.de</a></p>
+            <div class="cannaunity-admin-container">
+                <div class="cannaunity-admin-grid">
+                    
+                    <!-- Linke Spalte - Hauptinhalte -->
+                    <div class="cannaunity-admin-left">
+                        
+                        <!-- Verfügbare Shortcodes -->
+                        <div class="cannaunity-card">
+                            <h2>📝 Verfügbare Shortcodes</h2>
+                            <div class="cannaunity-shortcode-grid">
+                                <div class="cannaunity-shortcode-item">
+                                    <h4><code>[user_balance]</code></h4>
+                                    <p><strong>Zeigt nur den Kontostand</strong><br>
+                                    Für einzelne Seiten oder Posts</p>
+                                </div>
+                                <div class="cannaunity-shortcode-item">
+                                    <h4><code>[user_dashboard]</code></h4>
+                                    <p><strong>Vollständiges Mitglieder-Dashboard</strong><br>
+                                    Für Mitgliederbereich oder Profilseiten</p>
+                                </div>
+                                <div class="cannaunity-shortcode-item">
+                                    <h4><code>[user_profile]</code></h4>
+                                    <p><strong>Kompakte Profilanzeige</strong><br>
+                                    Für Widgets oder kleine Bereiche</p>
+                                </div>
+                                <div class="cannaunity-shortcode-item">
+                                    <h4><code>[cannaunity_balance]</code></h4>
+                                    <p><strong>Alternative zu [user_balance]</strong><br>
+                                    Für cannaUNITY-spezifische Anwendungen</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Parameter -->
+                        <div class="cannaunity-card">
+                            <h2>⚙️ Parameter für [user_balance] und [cannaunity_balance]</h2>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
+                                <div style="background: #f8f9fa; padding: 15px; border-radius: 6px; border-left: 4px solid #FF9800;">
+                                    <h4 style="margin: 0 0 8px 0; color: #FF9800;">field</h4>
+                                    <p style="margin: 0; font-size: 13px;"><strong>Standard:</strong> "kontostand"<br>
+                                    <strong>Beispiel:</strong> <code>field="guthaben"</code></p>
+                                </div>
+                                <div style="background: #f8f9fa; padding: 15px; border-radius: 6px; border-left: 4px solid #2196F3;">
+                                    <h4 style="margin: 0 0 8px 0; color: #2196F3;">currency</h4>
+                                    <p style="margin: 0; font-size: 13px;"><strong>Standard:</strong> "€"<br>
+                                    <strong>Beispiel:</strong> <code>currency="USD"</code></p>
+                                </div>
+                                <div style="background: #f8f9fa; padding: 15px; border-radius: 6px; border-left: 4px solid #9C27B0;">
+                                    <h4 style="margin: 0 0 8px 0; color: #9C27B0;">decimals</h4>
+                                    <p style="margin: 0; font-size: 13px;"><strong>Standard:</strong> "2"<br>
+                                    <strong>Beispiel:</strong> <code>decimals="0"</code></p>
+                                </div>
+                                <div style="background: #f8f9fa; padding: 15px; border-radius: 6px; border-left: 4px solid #795548;">
+                                    <h4 style="margin: 0 0 8px 0; color: #795548;">show_label</h4>
+                                    <p style="margin: 0; font-size: 13px;"><strong>Standard:</strong> "true"<br>
+                                    <strong>Beispiel:</strong> <code>show_label="false"</code></p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Beispiele -->
+                        <div class="cannaunity-card">
+                            <h2>💡 Beispiele</h2>
+                            <h3 style="color: #2E7D32;">Basis-Verwendung:</h3>
+                            <div class="cannaunity-example-box">[user_balance] <span style="color: #666;">– Zeigt Kontostand mit Standard-Einstellungen</span></div>
+                            <div class="cannaunity-example-box">[user_dashboard] <span style="color: #666;">– Komplettes Dashboard</span></div>
+                            
+                            <h3 style="color: #2E7D32;">Mit benutzerdefinierten Parametern:</h3>
+                            <div class="cannaunity-example-box">[user_balance currency="USD" decimals="0"] <span style="color: #666;">– US-Dollar ohne Nachkommastellen</span></div>
+                            <div class="cannaunity-example-box">[cannaunity_balance show_label="false"] <span style="color: #666;">– Nur Betrag ohne Label</span></div>
+                            <div class="cannaunity-example-box">[user_balance field="mein_guthaben" currency="CHF"] <span style="color: #666;">– Anderes Feld in Schweizer Franken</span></div>
+                        </div>
+                        
+                    </div>
+                    
+                    <!-- Rechte Spalte - Sidebar-Inhalte -->
+                    <div class="cannaunity-admin-right">
+                        
+                        <!-- Sicherheitsfeatures -->
+                        <div class="cannaunity-card">
+                            <h2>🔒 Zero-Knowledge Sicherheitsprinzip</h2>
+                            <div style="background: #e8f5e8; border: 1px solid #4CAF50; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
+                                <p style="margin: 0; color: #2E7D32; font-weight: 500;">
+                                    ✅ <strong>Maximale Sicherheit für Ihre WordPress-Installation</strong>
+                                </p>
+                            </div>
+                            
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                                <div style="background: #f8f9fa; padding: 15px; border-radius: 6px; border-left: 4px solid #4CAF50;">
+                                    <h4 style="margin: 0 0 8px 0; color: #2E7D32;">🛡️ Was wir NICHT kennen:</h4>
+                                    <ul style="margin: 0; padding-left: 15px; font-size: 13px; color: #666;">
+                                        <li>Ihre WordPress-Zugangsdaten</li>
+                                        <li>Ihre Server-Passwörter</li>
+                                        <li>Lokale Benutzerdaten</li>
+                                        <li>Interne WordPress-Konfiguration</li>
+                                    </ul>
+                                </div>
+                                
+                                <div style="background: #f8f9fa; padding: 15px; border-radius: 6px; border-left: 4px solid #2196F3;">
+                                    <h4 style="margin: 0 0 8px 0; color: #1976D2;">🔗 Was Sie haben:</h4>
+                                    <ul style="margin: 0; padding-left: 15px; font-size: 13px; color: #666;">
+                                        <li>Zugang zu cannaUNITY-API</li>
+                                        <li>Ihre eigenen Server-Credentials</li>
+                                        <li>Kontrolle über alle Daten</li>
+                                        <li>Lokale WordPress-Sicherheit</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            
+                            <div style="background: #fff3e0; border: 1px solid #FF9800; border-radius: 6px; padding: 12px; margin-top: 15px;">
+                                <p style="margin: 0; font-size: 13px; color: #E65100;">
+                                    <strong>🔒 Einseitige Kommunikation:</strong> Das Plugin fragt nur Daten ab - der cannaUNITY-Server hat KEINEN Zugriff auf Ihre WordPress-Installation.
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <!-- cannaUNITY Meta-Felder -->
+                        <div class="cannaunity-card">
+                            <h2>🌿 cannaUNITY Meta-Felder</h2>
+                            <p style="margin-bottom: 15px; color: #666;">Das Plugin erkennt automatisch diese von Django erstellten Meta-Felder:</p>
+                            
+                            <div class="cannaunity-meta-field">
+                                <strong>kontostand</strong>
+                                <p style="margin: 5px 0 0 0; font-size: 13px; color: #666;">Hauptkontostand in Euro</p>
+                            </div>
+                            
+                            <div class="cannaunity-meta-field">
+                                <strong>thc_limit</strong>
+                                <p style="margin: 5px 0 0 0; font-size: 13px; color: #666;">THC-Limit in Prozent</p>
+                            </div>
+                            
+                            <div class="cannaunity-meta-field">
+                                <strong>daily_limit</strong>
+                                <p style="margin: 5px 0 0 0; font-size: 13px; color: #666;">Tageslimit in Gramm</p>
+                            </div>
+                            
+                            <div class="cannaunity-meta-field">
+                                <strong>monthly_limit</strong>
+                                <p style="margin: 5px 0 0 0; font-size: 13px; color: #666;">Monatslimit in Gramm</p>
+                            </div>>
+                            
+                            <div class="cannaunity-meta-field">
+                                <strong>thc_limit</strong>
+                                <p style="margin: 5px 0 0 0; font-size: 13px; color: #666;">THC-Limit in Gramm</p>
+                            </div>
+                            
+                            <div class="cannaunity-meta-field">
+                                <strong>monthly_limit</strong>
+                                <p style="margin: 5px 0 0 0; font-size: 13px; color: #666;">Monatslimit in Gramm</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Plugin-Information -->
+                        <div class="cannaunity-card">
+                            <h2>ℹ️ Plugin-Information</h2>
+                            <div style="display: flex; flex-direction: column; gap: 10px;">
+                                <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee;">
+                                    <strong>Version:</strong>
+                                    <span class="cannaunity-info-badge">1.0.0</span>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee;">
+                                    <strong>Entwickler:</strong>
+                                    <span style="color: #2E7D32;">Sascha Dämgen IT and More</span>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee;">
+                                    <strong>Für:</strong>
+                                    <span style="color: #4CAF50;">cannaUNITY Community</span>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; padding: 8px 0;">
+                                    <strong>Support:</strong>
+                                    <a href="https://cannaunity.de" target="_blank" style="color: #2E7D32; text-decoration: none;">cannaunity.de</a>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Quick Actions -->
+                        <div class="cannaunity-card">
+                            <h2>🚀 Quick Actions</h2>
+                            <div style="display: flex; flex-direction: column; gap: 10px;">
+                                <button type="button" class="button button-secondary" onclick="navigator.clipboard.writeText('[user_balance]')" style="width: 100%;">
+                                    📋 [user_balance] kopieren
+                                </button>
+                                <button type="button" class="button button-secondary" onclick="navigator.clipboard.writeText('[user_dashboard]')" style="width: 100%;">
+                                    📋 [user_dashboard] kopieren
+                                </button>
+                                <button type="button" class="button button-primary" onclick="window.open('https://cannaunity.de', '_blank')" style="width: 100%;">
+                                    🌐 Support kontaktieren
+                                </button>
+                            </div>
+                        </div>
+                        
+                    </div>
+                    
+                </div>
             </div>
         </div>
+        
+        <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Smooth scroll für bessere UX
+            const buttons = document.querySelectorAll('.button');
+            buttons.forEach(button => {
+                button.addEventListener('click', function() {
+                    if (this.textContent.includes('kopieren')) {
+                        this.textContent = '✅ Kopiert!';
+                        setTimeout(() => {
+                            this.textContent = this.textContent.replace('✅ Kopiert!', '📋 ' + this.textContent.split('📋 ')[1]);
+                        }, 2000);
+                    }
+                });
+            });
+        });
+        </script>
         <?php
     }
     
     // Plugin-Aktivierung
     public function activate() {
-        add_option('cannaunity_balance_version', '1.0.0');
+        add_option('cannaunity_balance_version', '1.1.0');
         add_option('cannaunity_balance_activated', current_time('mysql'));
         
         // Flush rewrite rules
