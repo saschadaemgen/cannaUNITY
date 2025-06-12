@@ -8,7 +8,8 @@ from .api_views import (
     regenerate_joomla_password_api, delete_joomla_user_api,
     create_unifi_user_api, update_unifi_user_api, 
     delete_unifi_user_api, reactivate_unifi_user_api,
-    check_unifi_status_api, debug_member_creation  # Debug-Endpoint hinzugefügt
+    check_unifi_status_api, debug_member_creation,
+    create_nfc_session_api, get_nfc_token_api, assign_nfc_card_api
 )
 
 # REST API Router für CRUD-Operationen
@@ -53,6 +54,17 @@ urlpatterns = [
     path('api/members/<int:member_id>/unifi/status/', 
          check_unifi_status_api, 
          name='check_unifi_status'),
+
+         # NFC-Karten Management
+    path('api/members/<int:member_id>/nfc/session/create/', 
+         create_nfc_session_api, 
+         name='create_nfc_session'),
+    path('api/members/<int:member_id>/nfc/session/<str:session_id>/token/', 
+         get_nfc_token_api, 
+         name='get_nfc_token'),
+    path('api/members/<int:member_id>/nfc/assign/', 
+         assign_nfc_card_api, 
+         name='assign_nfc_card'),
     
     # Router für Standard CRUD-Operationen einbinden
     path('api/', include(router.urls)),

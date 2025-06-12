@@ -37,29 +37,43 @@ const ExternalIntegration = ({ memberId }) => {
     unifiUpdate: false,
     unifiDelete: false,
     unifiStatus: false,
-    unifiReactivate: false
+    unifiReactivate: false,
+    unifiNfcAssign: false
   });
+  
   const [alert, setAlert] = useState({
     open: false,
     message: '',
     severity: 'info'
   });
+  
   const [passwordDialog, setPasswordDialog] = useState({
     open: false,
     password: '',
     username: ''
   });
+  
   const [confirmDialog, setConfirmDialog] = useState({
     open: false,
     type: '',
     service: '',
     message: ''
   });
+  
   const [unifiStatus, setUnifiStatus] = useState({
     checked: false,
     status: null,
     isActive: false,
     id: null // UniFi-ID speichern
+  });
+
+  // NFC-Workflow State
+  const [nfcWorkflow, setNfcWorkflow] = useState({
+    sessionId: null,
+    isScanning: false,
+    step: 'idle', // 'idle', 'session-created', 'scanning', 'token-received', 'assigning'
+    token: null,
+    cardId: null
   });
 
   // Referenz, um zu erkennen, ob es die erste Statusprüfung ist
@@ -167,6 +181,136 @@ const ExternalIntegration = ({ memberId }) => {
       setLoading(prev => ({ ...prev, unifiStatus: false }));
       initialCheck.current = false; // Nach dem ersten Check zurücksetzen
     }
+  };
+
+  // ===== NFC-WORKFLOW FUNKTIONEN =====
+
+  // NFC-Karten-Workflow
+  const handleNfcCardWorkflow = async () => {
+    try {
+      // Schritt 1: Session erstellen
+      setNfcWorkflow(prev => ({ ...prev, step: 'session-created', isScanning: true }));
+      setLoading(prev => ({ ...prev, unifiNfcAssign: true }));
+      
+      showAlert('NFC-Reader wird aktiviert...', 'info');
+      
+      const sessionResponse = await api.post(`/members/${memberId}/nfc/session/create/`, {
+        reset_ua_card: false
+      });
+      
+      if (!sessionResponse.data.success) {
+        throw new Error(sessionResponse.data.error || 'Session-Erstellung fehlgeschlagen');
+      }
+      
+      const sessionId = sessionResponse.data.session_id;
+      setNfcWorkflow(prev => ({ 
+        ...prev, 
+        sessionId, 
+        step: 'scanning',
+        isScanning: true 
+      }));
+      
+      showAlert('NFC-Reader aktiviert! Halten Sie die Karte jetzt 5+ Sekunden an den Reader.', 'info');
+      
+      // Schritt 2: Auf Token warten (Polling)
+      let attempts = 0;
+      const maxAttempts = 30; // 30 Sekunden warten
+      
+      const pollForToken = async () => {
+        try {
+          const tokenResponse = await api.get(`/members/${memberId}/nfc/session/${sessionId}/token/`);
+          
+          if (tokenResponse.data.success && tokenResponse.data.token) {
+            // Token erhalten!
+            setNfcWorkflow(prev => ({
+              ...prev,
+              step: 'token-received',
+              token: tokenResponse.data.token,
+              cardId: tokenResponse.data.card_id,
+              isScanning: false
+            }));
+            
+            showAlert('Karte erfolgreich gescannt! Weise Karte zu...', 'success');
+            
+            // Schritt 3: Token dem Benutzer zuweisen
+            await assignTokenToUser(tokenResponse.data.token, tokenResponse.data.card_id);
+            
+          } else if (tokenResponse.status === 202) {
+            // Noch kein Token - weiter warten
+            attempts++;
+            if (attempts < maxAttempts) {
+              setTimeout(pollForToken, 1000); // Alle 1 Sekunde prüfen
+            } else {
+              throw new Error('Timeout: Karte wurde nicht innerhalb von 30 Sekunden erkannt');
+            }
+          } else {
+            throw new Error(tokenResponse.data.error || 'Token-Abruf fehlgeschlagen');
+          }
+        } catch (error) {
+          if (attempts < maxAttempts) {
+            attempts++;
+            setTimeout(pollForToken, 1000);
+          } else {
+            throw error;
+          }
+        }
+      };
+      
+      // Starte Polling
+      setTimeout(pollForToken, 2000); // Nach 2 Sekunden starten
+      
+    } catch (error) {
+      console.error('NFC-Workflow Fehler:', error);
+      showAlert(error.message || 'Fehler beim NFC-Workflow', 'error');
+      
+      // Reset workflow
+      resetNfcWorkflow();
+    }
+  };
+
+  // Hilfsfunktion für Token-Zuweisung
+  const assignTokenToUser = async (token, cardId) => {
+    try {
+      setNfcWorkflow(prev => ({ ...prev, step: 'assigning' }));
+      
+      const assignResponse = await api.post(`/members/${memberId}/nfc/assign/`, {
+        token: token,
+        card_id: cardId,
+        force_add: true
+      });
+      
+      if (assignResponse.data.success) {
+        showAlert('NFC-Karte erfolgreich zugewiesen!', 'success');
+      } else {
+        throw new Error(assignResponse.data.error || 'Zuweisung fehlgeschlagen');
+      }
+      
+    } catch (error) {
+      console.error('Token-Zuweisung Fehler:', error);
+      showAlert(error.response?.data?.error || error.message || 'Fehler bei der Kartenzuweisung', 'error');
+    } finally {
+      // Workflow zurücksetzen
+      resetNfcWorkflow();
+    }
+  };
+
+  // Workflow zurücksetzen
+  const resetNfcWorkflow = () => {
+    setNfcWorkflow({
+      sessionId: null,
+      isScanning: false,
+      step: 'idle',
+      token: null,
+      cardId: null
+    });
+    
+    setLoading(prev => ({ ...prev, unifiNfcAssign: false }));
+  };
+
+  // Workflow abbrechen
+  const cancelNfcWorkflow = () => {
+    resetNfcWorkflow();
+    showAlert('NFC-Workflow abgebrochen', 'info');
   };
 
   // ===== JOOMLA FUNKTIONEN =====
@@ -364,9 +508,6 @@ const ExternalIntegration = ({ memberId }) => {
 
   // UniFi-Benutzer deaktivieren
   const handleDeactivateUnifiUser = async () => {
-    // Speichern der aktuellen unifi_id bevor wir deaktivieren
-    const currentUnifiId = unifiStatus.id;
-    
     setConfirmDialog({
       open: true,
       type: 'delete',
@@ -702,6 +843,54 @@ const ExternalIntegration = ({ memberId }) => {
                 </Grid>
               )}
             </Grid>
+
+            {/* NFC-Kartenzuweisung */}
+            {unifiStatus.isActive && (
+              <Box sx={{ mt: 2 }}>
+                {nfcWorkflow.step === 'idle' ? (
+                  <Button 
+                    variant="outlined" 
+                    color="secondary" 
+                    startIcon={<FingerprintIcon />} 
+                    onClick={handleNfcCardWorkflow} 
+                    disabled={!unifiStatus.isActive || loading.unifiNfcAssign}
+                    sx={{ mr: 2 }}
+                  >
+                    NFC-Karte zuweisen/ersetzen
+                  </Button>
+                ) : (
+                  <Box>
+                    <Button 
+                      variant="contained" 
+                      color="warning"
+                      startIcon={loading.unifiNfcAssign ? <CircularProgress size={16} /> : <FingerprintIcon />}
+                      disabled={true}
+                      sx={{ mr: 2 }}
+                    >
+                      {nfcWorkflow.step === 'session-created' && 'Reader wird aktiviert...'}
+                      {nfcWorkflow.step === 'scanning' && 'Warte auf Karte...'}
+                      {nfcWorkflow.step === 'token-received' && 'Karte erkannt!'}
+                      {nfcWorkflow.step === 'assigning' && 'Weise zu...'}
+                    </Button>
+                    
+                    <Button 
+                      variant="outlined" 
+                      color="error"
+                      size="small"
+                      onClick={cancelNfcWorkflow}
+                    >
+                      Abbrechen
+                    </Button>
+                    
+                    {nfcWorkflow.step === 'scanning' && (
+                      <Typography variant="caption" sx={{ display: 'block', mt: 1, color: 'text.secondary' }}>
+                        Halten Sie die NFC-Karte mindestens 5 Sekunden lang an den Reader
+                      </Typography>
+                    )}
+                  </Box>
+                )}
+              </Box>
+            )}
 
             {/* UniFi-ID Anzeige */}
             {unifiStatus.id && (
