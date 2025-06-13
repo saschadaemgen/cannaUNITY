@@ -191,11 +191,8 @@ export default function NewDistribution() {
 
   const handleReset = async () => {
     setIsResetting(true)
-    
     setActiveStep(0)
-    
-    await new Promise(resolve => setTimeout(resolve, 100))
-    
+    await new Promise(r => setTimeout(r, 100))
     setRecipientId('')
     setSelectedUnits([])
     setNotes('')
@@ -203,12 +200,7 @@ export default function NewDistribution() {
     setSuccess(false)
     setCompleted(false)
     setError(null)
-    
-    await Promise.all([
-      loadMembers(),
-      loadAvailableUnits()
-    ])
-    
+    await Promise.all([ loadMembers(), loadAvailableUnits() ])
     setIsResetting(false)
   }
 
@@ -240,6 +232,8 @@ export default function NewDistribution() {
             recipientId={recipientId}
             setRecipientId={handleRecipientChange}
             onLimitsLoaded={handleLimitsLoaded}
+            onContinue={handleNext}
+            onReset={handleReset}  
           />
         )
       case 1:
@@ -293,7 +287,11 @@ export default function NewDistribution() {
       mx: 'auto',
       width: '100%',
       maxWidth: '1700px',
-      minHeight: 'calc(100vh - 100px)'
+      minHeight: 'auto',
+      flex: 1,
+      display: 'flex',
+      flexDirection: 'column'
+
     }}>
       {/* Erfolgs-Snackbar */}
       <Snackbar 
@@ -364,78 +362,27 @@ export default function NewDistribution() {
             </Box>
             
             {/* Button-Bereich */}
-            {activeStep < steps.length - 1 && (
-              <Box sx={{ mt: 3 }}>
-                {activeStep === 0 ? (
-                  // Schritt 1: Nur Weiter-Button
-                  <Tooltip 
-                    title={
-                      memberLimits && memberLimits.daily.percentage >= 100 
-                        ? "Tageslimit erreicht - Gemäß § 9 Abs. 2 KCanG darf die Weitergabe 25g pro Tag nicht überschreiten" 
-                        : ""
-                    }
-                  >
-                    <span style={{ display: 'block' }}>
-                      <Button
-                        variant="contained"
-                        onClick={handleNext}
-                        endIcon={<ArrowForwardIcon />}
-                        color="success"
-                        fullWidth
-                        disabled={
-                          processing || 
-                          (memberLimits && memberLimits.daily.percentage >= 100) ||
-                          !recipientId
-                        }
-                        sx={{ 
-                          height: 64, 
-                          fontSize: '1.1rem',
-                          fontWeight: 'bold'
-                        }}
-                      >
-                        Weiter zur Produktauswahl
-                      </Button>
-                    </span>
-                  </Tooltip>
-                ) : (
-                  // Schritt 2 & 3: Zurück und Weiter nebeneinander
-                  <Box sx={{ display: 'flex', gap: 2 }}>
-                    <Button
-                      onClick={handleBack}
-                      startIcon={<ArrowBackIcon />}
-                      variant="outlined"
-                      color="secondary"
-                      fullWidth
-                      sx={{ height: 56, fontSize: '1rem' }}
-                    >
-                      Zurück
-                    </Button>
-                    
-                    <Tooltip 
-                      title={
-                        activeStep === 0 && memberLimits && memberLimits.daily.percentage >= 100 
-                          ? "Tageslimit erreicht - Gemäß § 9 Abs. 2 KCanG darf die Weitergabe 25g pro Tag nicht überschreiten" 
-                          : ""
-                      }
-                    >
-                      <span style={{ flex: 1 }}>
-                        <Button
-                          variant="contained"
-                          onClick={handleNext}
-                          endIcon={<ArrowForwardIcon />}
-                          color="success"
-                          fullWidth
-                          disabled={processing}
-                          sx={{ height: 56, fontSize: '1rem' }}
-                        >
-                          {activeStep === 1 ? 'Weiter zur Überprüfung' :
-                           activeStep === 2 ? 'Zur RFID-Autorisierung' : 
-                           'Weiter'}
-                        </Button>
-                      </span>
-                    </Tooltip>
-                  </Box>
-                )}
+            {activeStep > 0 && activeStep < steps.length - 1 && (
+              <Box sx={{ mt: 3, display: 'flex', gap: 2 }}>
+                <Button
+                  onClick={handleBack}
+                  startIcon={<ArrowBackIcon />}
+                  variant="outlined"
+                  fullWidth
+                  sx={{ height: 56 }}
+                >
+                  Zurück
+                </Button>
+                <Button
+                  onClick={handleNext}
+                  endIcon={<ArrowForwardIcon />}
+                  variant="contained"
+                  color="success"
+                  fullWidth
+                  sx={{ height: 56 }}
+                >
+                  {activeStep === 1 ? 'Weiter zur Überprüfung' : 'Zur RFID-Autorisierung'}
+                </Button>
               </Box>
             )}
           </>
