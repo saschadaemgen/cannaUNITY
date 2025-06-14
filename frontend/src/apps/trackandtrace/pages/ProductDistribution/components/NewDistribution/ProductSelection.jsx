@@ -158,7 +158,9 @@ export default function ProductSelection({
       page: page.toString(),
       page_size: pageSize.toString(),
     })
-    if (weightFilter) params.append('weight', weightFilter.value || weightFilter)
+    if (weightFilter && weightFilter.value) {
+     params.append('weight', weightFilter.value)
+    }
     if (productTypeFilter) params.append('product_type', productTypeFilter)
     if (strainFilter && strainFilter.name) params.append('strain_name', strainFilter.name)
     if (debouncedSearchTerm) params.append('search', debouncedSearchTerm)

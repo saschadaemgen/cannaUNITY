@@ -1,5 +1,5 @@
 // frontend/src/apps/trackandtrace/pages/ProductDistribution/ProductDistributionPage.jsx
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Container, Box, Typography, Fade, Paper, Tabs, Tab } from '@mui/material'
 import LocalShippingIcon from '@mui/icons-material/LocalShipping'
 import HistoryIcon from '@mui/icons-material/History'
@@ -76,22 +76,40 @@ export default function ProductDistributionPage() {
     marijuanaDistributed: 0,
     hashishDistributed: 0
   })
+
+  // KORRIGIERT: Refs um mehrfache Aufrufe zu verhindern
+  const loadingRef = useRef(false)
+  const baseDataLoadedRef = useRef(false)
   
-  // Basis-Daten laden
-  const loadBaseData = async () => {
+  // KORRIGIERT: Basis-Daten laden mit Guards und parallelen Aufrufen
+  const loadBaseData = useCallback(async () => {
+    // Verhindere mehrfache gleichzeitige Aufrufe
+    if (loadingRef.current || baseDataLoadedRef.current) {
+      console.log('🔒 Sir, Basis-Daten werden bereits geladen oder sind geladen')
+      return
+    }
+    
+    loadingRef.current = true
     setLoading(true)
+    console.log('🚀 Sir, lade Basis-Daten...')
+    
     try {
-      // Mitglieder laden
-      const membersRes = await api.get('/members/?limit=1000')
-      setMembers(membersRes.data.results || membersRes.data || [])
+      // KORRIGIERT: Parallele API-Aufrufe für bessere Performance
+      const [membersRes, roomsRes, unitsRes] = await Promise.all([
+        api.get('/members/?limit=1000'),
+        api.get('/rooms/'),
+        api.get('/trackandtrace/distributions/available_units/')
+      ])
       
-      // Räume laden
-      const roomsRes = await api.get('/rooms/')
-      setRooms(roomsRes.data.results || roomsRes.data || [])
+      console.log('✅ Sir, Basis-Daten geladen')
       
-      // Verfügbare Einheiten laden
-      const unitsRes = await api.get('/trackandtrace/distributions/available_units/')
+      // State updates batchen
+      const membersData = membersRes.data.results || membersRes.data || []
+      const roomsData = roomsRes.data.results || roomsRes.data || []
       const unitsData = unitsRes.data || []
+      
+      setMembers(membersData)
+      setRooms(roomsData)
       setAvailableUnits(unitsData)
       
       // Setze die Anzahl der verfügbaren Einheiten in den Statistiken
@@ -100,23 +118,32 @@ export default function ProductDistributionPage() {
         availableUnits: unitsData.length
       }))
       
-      // Statistiken berechnen
-      await loadStatistics()
+      baseDataLoadedRef.current = true
+      
+      // Statistiken nur einmal laden, wenn noch nicht geladen
+      if (statistics.todayCount === 0) {
+        console.log('📊 Sir, lade Statistiken...')
+        await loadStatisticsOnce()
+      }
       
     } catch (error) {
-      console.error('Fehler beim Laden der Basisdaten:', error)
+      console.error('❌ Sir, Fehler beim Laden der Basisdaten:', error)
+      baseDataLoadedRef.current = false
     } finally {
+      loadingRef.current = false
       setLoading(false)
     }
-  }
+  }, []) // KORRIGIERT: Leere Dependencies, da alle nötigen Daten intern verwaltet werden
   
-  // Statistiken laden
-  const loadStatistics = async () => {
+  // KORRIGIERT: Statistiken laden - nur einmalig
+  const loadStatisticsOnce = useCallback(async () => {
     try {
       const today = new Date()
       const year = today.getFullYear()
       const month = today.getMonth() + 1
       const day = today.getDate()
+      
+      console.log('📈 Sir, lade Statistiken für:', { year, month, day })
       
       // Lade Daten für verschiedene Zeiträume parallel
       const [todayRes, monthRes, yearRes] = await Promise.all([
@@ -147,7 +174,7 @@ export default function ProductDistributionPage() {
       setStatistics(prev => ({
         // Heute
         todayCount: todayDistributions.length,
-        todayWeight: yearWeight.toFixed(2),
+        todayWeight: todayWeight.toFixed(2),
         todayActiveMembers: todayActiveMembers,
         // Monat
         monthCount: monthDistributions.length,
@@ -166,13 +193,16 @@ export default function ProductDistributionPage() {
           d.product_type_summary?.some(p => p.type.includes('Haschisch'))
         ).length
       }))
+      
+      console.log('✅ Sir, Statistiken geladen')
+      
     } catch (error) {
-      console.error('Fehler beim Laden der Statistiken:', error)
+      console.error('❌ Sir, Fehler beim Laden der Statistiken:', error)
     }
-  }
+  }, [])
   
-  // Historie laden
-  const loadDistributions = async () => {
+  // KORRIGIERT: Historie laden nur bei Bedarf
+  const loadDistributions = useCallback(async () => {
     try {
       let url = '/trackandtrace/distributions/?'
       
@@ -183,24 +213,33 @@ export default function ProductDistributionPage() {
       if (recipientFilter) url += `recipient_id=${recipientFilter}&`
       if (distributorFilter) url += `distributor_id=${distributorFilter}&`
       
+      console.log('📜 Sir, lade Distributionen:', url)
+      
       const res = await api.get(url)
       setDistributions(res.data.results || res.data || [])
     } catch (error) {
-      console.error('Fehler beim Laden der Distributionen:', error)
+      console.error('❌ Sir, Fehler beim Laden der Distributionen:', error)
     }
-  }
+  }, [yearFilter, monthFilter, dayFilter, recipientFilter, distributorFilter])
   
+  // KORRIGIERT: Initialer Load nur einmal
   useEffect(() => {
-    loadBaseData()
-  }, [])
+    if (!baseDataLoadedRef.current && !loadingRef.current) {
+      console.log('🎯 Sir, starte initialen Daten-Load...')
+      loadBaseData()
+    }
+  }, [loadBaseData])
   
+  // KORRIGIERT: Distributionen nur laden wenn Tab 1 aktiv ist
   useEffect(() => {
-    if (tabValue === 1) {
+    if (tabValue === 1 && baseDataLoadedRef.current) {
+      console.log('📋 Sir, lade Distributionen für Historie-Tab...')
       loadDistributions()
     }
-  }, [tabValue, yearFilter, monthFilter, dayFilter, recipientFilter, distributorFilter])
+  }, [tabValue, loadDistributions])
   
   const handleTabChange = (event, newValue) => {
+    console.log('🏷️ Sir, Tab gewechselt zu:', newValue)
     setTabValue(newValue)
   }
   
@@ -221,12 +260,35 @@ export default function ProductDistributionPage() {
     }
   }
   
-  const refreshData = async () => {
-    await loadBaseData()
-    if (tabValue === 1) {
-      await loadDistributions()
+  // KORRIGIERT: Refresh-Funktion optimiert
+  const refreshData = useCallback(async () => {
+    console.log('🔄 Sir, aktualisiere Daten...')
+    
+    // Nur Statistiken und Units neu laden, nicht alles
+    try {
+      const unitsRes = await api.get('/trackandtrace/distributions/available_units/')
+      const unitsData = unitsRes.data || []
+      setAvailableUnits(unitsData)
+      
+      setStatistics(prev => ({
+        ...prev,
+        availableUnits: unitsData.length
+      }))
+      
+      // Statistiken neu laden
+      await loadStatisticsOnce()
+      
+      // Distributionen nur neu laden wenn History-Tab aktiv
+      if (tabValue === 1) {
+        await loadDistributions()
+      }
+      
+      console.log('✅ Sir, Daten aktualisiert')
+      
+    } catch (error) {
+      console.error('❌ Sir, Fehler beim Aktualisieren:', error)
     }
-  }
+  }, [tabValue, loadDistributions, loadStatisticsOnce])
   
   return (
     <Container maxWidth="xl" sx={{ 
@@ -566,7 +628,7 @@ export default function ProductDistributionPage() {
       sx: {
         height: '4px',
         backgroundColor: 'primary.main',
-        borderRadius: 0, // ❗ verhindert abgerundete grüne Linie
+        borderRadius: 0,
       }
     }}
     sx={{
@@ -581,7 +643,7 @@ export default function ProductDistributionPage() {
         minHeight: 44,
         px: 3,
         py: 1.5,
-        borderRadius: 0, // ❗ verhindert Rundung der Tabs selbst
+        borderRadius: 0,
         borderRight: '1px solid',
         borderColor: 'divider',
         '&:last-of-type': {
@@ -595,7 +657,7 @@ export default function ProductDistributionPage() {
         },
       },
       '& .MuiTabScrollButton-root': {
-        borderRadius: 0, // ❗ wichtig bei Scroll-Buttons
+        borderRadius: 0,
       }
     }}
   >
@@ -619,9 +681,6 @@ export default function ProductDistributionPage() {
     />
   </Tabs>
 </Box>
-
-
-
 
         {loading ? (
           <Box sx={{ p: 4, textAlign: 'center' }}>

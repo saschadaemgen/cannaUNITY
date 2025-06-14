@@ -2793,6 +2793,26 @@ class PackagingUnitViewSet(viewsets.ModelViewSet):
         unit.destroyed_by_id = destroyed_by_id
         unit.save()
         return Response({"message": f"Verpackungseinheit {unit.batch_number} wurde vernichtet"})
+    
+    @action(detail=False, methods=['get'])
+    def distinct_weights(self, request):
+        """
+        Liefert eine Liste aller verfügbaren Gewichte für die Dropdown-Auswahl
+        """
+        try:
+            # Hole alle einzigartigen Gewichte aus PackagingUnit
+            weights = PackagingUnit.objects.values_list('weight', flat=True).distinct().order_by('weight')
+            
+            # Filtere None-Werte heraus und konvertiere zu Liste
+            valid_weights = [str(weight) for weight in weights if weight is not None]
+            
+            print(f"🔍 Sir, gefundene Gewichte: {valid_weights}")
+            
+            return Response(valid_weights)
+            
+        except Exception as e:
+            print(f"❌ Fehler beim Laden der Gewichte: {str(e)}")
+            return Response([], status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=False, methods=['get'])
     def distinct_strains(self, request):
@@ -2836,23 +2856,38 @@ class PackagingUnitViewSet(viewsets.ModelViewSet):
 
         weight = self.request.query_params.get('weight')
         if weight:
-            queryset = queryset.filter(weight=weight)
+            try:
+                from decimal import Decimal, InvalidOperation
+                weight_value = Decimal(str(weight).strip())
+                queryset = queryset.filter(weight=weight_value)
+            except (ValueError, TypeError, InvalidOperation):
+                pass
 
+        # Produkttyp-Filter
         product_type = self.request.query_params.get('product_type')
         if product_type:
-            queryset = queryset.filter(batch__product_type=product_type)
+            queryset = queryset.filter(batch__lab_testing_batch__processing_batch__product_type=product_type)
 
+        # THC-Filter
         min_thc = self.request.query_params.get('min_thc')
         if min_thc:
-            queryset = queryset.filter(batch__lab_testing_batch__thc_content__gte=min_thc)
+            try:
+                min_thc_value = float(min_thc)
+                queryset = queryset.filter(batch__lab_testing_batch__thc_content__gte=min_thc_value)
+            except (ValueError, TypeError):
+                pass
+
         max_thc = self.request.query_params.get('max_thc')
         if max_thc:
-            queryset = queryset.filter(batch__lab_testing_batch__thc_content__lte=max_thc)
+            try:
+                max_thc_value = float(max_thc)
+                queryset = queryset.filter(batch__lab_testing_batch__thc_content__lte=max_thc_value)
+            except (ValueError, TypeError):
+                pass
 
-        # Filter nach Strain-Name
+        # Strain-Filter (bestehende Logik beibehalten)
         strain_name = self.request.query_params.get('strain_name')
         if strain_name:
-            # Filter, indem du die gleiche Extraktion wie im Dropdown nutzt
             pks = []
             for unit in queryset:
                 name = None
@@ -2878,6 +2913,18 @@ class PackagingUnitViewSet(viewsets.ModelViewSet):
                     pks.append(unit.pk)
             queryset = queryset.filter(pk__in=pks)
 
+        # Suchfilter
+        search = self.request.query_params.get('search')
+        if search:
+            queryset = queryset.filter(
+                Q(batch_number__icontains=search) |
+                Q(batch__source_strain__icontains=search) |
+                Q(batch__lab_testing_batch__processing_batch__drying_batch__harvest_batch__flowering_batch__seed_purchase__strain__name__icontains=search)
+            )
+
+        # Debug-Ausgabe für Entwicklung
+        print(f"📊 Queryset Count nach Filterung: {queryset.count()}")
+        
         return queryset
     
 
