@@ -41,6 +41,7 @@ import ProcessingPage from '@/apps/trackandtrace/pages/Processing/ProcessingPage
 import LabTestingPage from '@/apps/trackandtrace/pages/LabTesting/LabTestingPage'
 import PackagingPage from '@/apps/trackandtrace/pages/Packaging/PackagingPage'
 import ProductDistributionPage from '@/apps/trackandtrace/pages/ProductDistribution/ProductDistributionPage';
+import DistributionKioskMain from '@/apps/trackandtrace/pages/DistributionKiosk/DistributionKioskMain'
 import ProtectSensorPage from '@/apps/unifi_protect/pages/ProtectSensorPage'
 import StrainPage from '@/apps/wawi/pages/Strain/StrainPage'
 import ControllerDashboard from '../apps/controller/pages/ControllerDashboard'
@@ -122,6 +123,7 @@ export const router = createBrowserRouter([
       { path: 'trace/laborkontrolle', element: <LabTestingPage /> },
       { path: 'trace/verpackung', element: <PackagingPage /> },
       { path: 'trace/ausgabe', element: <ProductDistributionPage /> },
+      
 
       // WAWI - Cannabis-Sortenverwaltung
       { path: 'wawi/strains', element: <StrainPage /> },
@@ -169,8 +171,13 @@ export const router = createBrowserRouter([
     ],
   },
 
+  // Standalone Routes (außerhalb des MainLayout)
   {
     path: '/login',
     element: <Login />,
+  },
+  {
+    path: '/trace/distribution-ui',
+    element: <DistributionKioskMain />,
   },
 ])
