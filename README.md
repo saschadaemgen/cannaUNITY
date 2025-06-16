@@ -5,6 +5,14 @@
   <img src="screenshots\WaWi\sorte_bearbeiten.png" alt="Vorschau" width="1920">
 </p>
 
+---
+
+(Touscscreen Ansicht "Produktausgabe" für "festes" UI Panel 1920x1080p)
+
+<p align="center">
+  <img src="screenshots\WaWi\sorte_bearbeiten.png" alt="Vorschau" width="1920">
+</p>
+
 > **Modulare Open-Source-Software Suite für Cannabis Social Clubs und Anbauvereinigungen gemäß dem Konsumcannabisgesetz § (KCanG)**
 
 > Mitgliederverwaltung · eVereinsverwaltung · Berichtsverwaltung · Aufgabenplanung ·  Growcontroller · Zutrittskontrolle · eStempelkarte · Track & Trace · Buchhaltung · WaWi · Raumautomation · Sicherheitssystem
