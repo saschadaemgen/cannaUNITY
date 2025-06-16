@@ -1,23 +1,50 @@
 // frontend/src/apps/trackandtrace/pages/DistributionKiosk/DistributionKioskMain.jsx
 
 import { useState, useEffect } from 'react'
+import CreditCardIcon from '@mui/icons-material/CreditCard'
+import CheckCircleIcon from '@mui/icons-material/CheckCircle'
+import InfoIcon from '@mui/icons-material/Info'
+import DescriptionIcon from '@mui/icons-material/Description'
+import PersonIcon from '@mui/icons-material/Person'
+import InventoryIcon from '@mui/icons-material/Inventory'
+import VerifiedUserIcon from '@mui/icons-material/VerifiedUser'
+import TouchAppIcon from '@mui/icons-material/TouchApp'
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline'
 import MemberScanStep from './components/MemberScanStep'
 import ProductSelectionStep from './components/ProductSelectionStep'
 import ReviewStep from './components/ReviewStep'
-import AuthorizationStep from './components/AuthorizationStep'
 import SuccessStep from './components/SuccessStep'
 import StepIndicator from './components/StepIndicator'
+import ThemeToggle from './components/ThemeToggle'
 import ErrorAlert from './components/ErrorAlert'
 import './DistributionKiosk.css'
 
 const STEPS = [
   'Mitglied scannen',
   'Produkte wählen', 
-  'Bestätigen',
-  'Autorisierung'
+  'Bestätigen & Autorisieren'
 ]
 
+// Material UI Icons für Child Components
+export const MaterialIcons = {
+  CreditCard: CreditCardIcon,
+  CheckCircle: CheckCircleIcon,
+  Info: InfoIcon,
+  Description: DescriptionIcon,
+  Person: PersonIcon,
+  Inventory: InventoryIcon,
+  VerifiedUser: VerifiedUserIcon,
+  TouchApp: TouchAppIcon,
+  HelpOutline: HelpOutlineIcon
+}
+
 export default function DistributionKioskMain() {
+  // Theme State
+  const [darkMode, setDarkMode] = useState(() => {
+    const saved = localStorage.getItem('kiosk-theme')
+    return saved ? JSON.parse(saved) : false
+  })
+  
   // Workflow States
   const [currentStep, setCurrentStep] = useState(0)
   const [isCompleted, setIsCompleted] = useState(false)
@@ -30,6 +57,12 @@ export default function DistributionKioskMain() {
   
   // UI States
   const [error, setError] = useState('')
+  
+  // Theme Effect
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light')
+    localStorage.setItem('kiosk-theme', JSON.stringify(darkMode))
+  }, [darkMode])
   
   // Reset function
   const resetWorkflow = () => {
@@ -62,8 +95,8 @@ export default function DistributionKioskMain() {
     setCurrentStep(1)
   }
 
-  // Handle successful authorization
-  const handleAuthorizationSuccess = () => {
+  // Handle successful review/authorization - directly process the distribution
+  const handleReviewSuccess = () => {
     setIsCompleted(true)
   }
 
@@ -72,7 +105,9 @@ export default function DistributionKioskMain() {
       return (
         <SuccessStep 
           selectedMember={selectedMember}
+          selectedUnits={selectedUnits}
           totalWeight={totalWeight}
+          icons={MaterialIcons}
         />
       )
     }
@@ -83,6 +118,7 @@ export default function DistributionKioskMain() {
           <MemberScanStep 
             onSuccess={handleMemberScanSuccess}
             onError={setError}
+            icons={MaterialIcons}
           />
         )
       case 1:
@@ -95,6 +131,7 @@ export default function DistributionKioskMain() {
             onNext={() => setCurrentStep(2)}
             onReset={resetWorkflow}
             onError={setError}
+            icons={MaterialIcons}
           />
         )
       case 2:
@@ -106,17 +143,9 @@ export default function DistributionKioskMain() {
             notes={notes}
             setNotes={setNotes}
             onBack={() => setCurrentStep(1)}
-            onNext={() => setCurrentStep(3)}
-          />
-        )
-      case 3:
-        return (
-          <AuthorizationStep
-            selectedMember={selectedMember}
-            selectedUnits={selectedUnits}
-            notes={notes}
-            onSuccess={handleAuthorizationSuccess}
+            onSuccess={handleReviewSuccess}
             onError={setError}
+            icons={MaterialIcons}
           />
         )
       default:
@@ -126,22 +155,49 @@ export default function DistributionKioskMain() {
 
   return (
     <div className="distribution-kiosk">
-      {/* Header */}
-      <div className="kiosk-header">
-        <h1 className="kiosk-title">Cannabis Produktausgabe</h1>
-        <StepIndicator 
-          steps={STEPS}
-          currentStep={currentStep}
-          isCompleted={isCompleted}
-        />
-      </div>
+      {/* Theme Toggle */}
+      <ThemeToggle 
+        darkMode={darkMode}
+        onToggle={() => setDarkMode(!darkMode)}
+      />
 
-      {/* Error Alert */}
+      {/* Global Error Alert */}
       {error && (
-        <ErrorAlert 
-          message={error}
-          onClose={() => setError('')}
-        />
+        <div style={{ 
+          position: 'fixed', 
+          top: '24px', 
+          right: '24px',
+          zIndex: 1001,
+          width: '400px',
+          maxWidth: 'calc(100vw - 48px)'
+        }}>
+          <ErrorAlert 
+            message={error}
+            onClose={() => setError('')}
+          />
+        </div>
+      )}
+
+      {/* Step Indicator for Review Step */}
+      {currentStep === 2 && !isCompleted && (
+        <div style={{
+          position: 'fixed',
+          top: '24px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 1000,
+          background: 'var(--bg-paper)',
+          padding: '16px 24px',
+          borderRadius: '16px',
+          boxShadow: '0 8px 32px var(--shadow-medium)',
+          border: '1px solid var(--border-light)'
+        }}>
+          <StepIndicator 
+            steps={STEPS}
+            currentStep={currentStep}
+            isCompleted={isCompleted}
+          />
+        </div>
       )}
 
       {/* Main Content */}

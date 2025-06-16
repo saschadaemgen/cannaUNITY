@@ -17,7 +17,13 @@ export default function StepIndicator({ steps, currentStep, isCompleted }) {
         return (
           <div key={index} className={stepClass}>
             <div className="step-number">
-              {isCompleted || index < currentStep ? '✓' : index + 1}
+              {isCompleted || index < currentStep ? (
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                  <path d="m9 12 2 2 4-4"/>
+                </svg>
+              ) : (
+                index + 1
+              )}
             </div>
             <div className="step-label">{step}</div>
           </div>
