@@ -15,7 +15,6 @@ import ProductSelectionStep from './components/ProductSelectionStep'
 import ReviewStep from './components/ReviewStep'
 import SuccessStep from './components/SuccessStep'
 import StepIndicator from './components/StepIndicator'
-import ThemeToggle from './components/ThemeToggle'
 import ErrorAlert from './components/ErrorAlert'
 import './DistributionKiosk.css'
 
@@ -155,12 +154,6 @@ export default function DistributionKioskMain() {
 
   return (
     <div className="distribution-kiosk">
-      {/* Theme Toggle */}
-      <ThemeToggle 
-        darkMode={darkMode}
-        onToggle={() => setDarkMode(!darkMode)}
-      />
-
       {/* Global Error Alert */}
       {error && (
         <div style={{ 

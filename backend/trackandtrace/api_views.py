@@ -1,10 +1,11 @@
 # Standard library imports
 from datetime import datetime, timedelta
+from collections import OrderedDict, defaultdict
 
 # Third-party imports
 from dateutil.relativedelta import relativedelta
 from django.db import models
-from django.db.models import Q, Sum
+from django.db.models import Q, Sum, Count, Avg, Min, F, Case, When, Value, CharField
 from django.utils import timezone
 from rest_framework import pagination, status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
@@ -90,6 +91,11 @@ class StandardResultsSetPagination(pagination.PageNumberPagination):
         # Kein page_size-Parameter, verwende Standard
         return self.page_size
 
+class StrainCardPagination(pagination.PageNumberPagination):
+    """Pagination speziell für StrainCards"""
+    page_size = 12
+    page_size_query_param = 'page_size'
+    max_page_size = 50
 
 class SeedPurchaseViewSet(viewsets.ModelViewSet):
     queryset = SeedPurchase.objects.all().order_by('-created_at')
@@ -2772,6 +2778,295 @@ class PackagingBatchViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
     
 
+class StrainCardViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    🚀 KORRIGIERTE StrainCard API - funktioniert mit bestehender DB-Struktur
+    Verwendet die gleiche Strain-Logik wie PackagingUnitViewSet.distinct_strains()
+    """
+    permission_classes = [IsAuthenticated]
+    pagination_class = StrainCardPagination
+    
+    def get_queryset(self):
+        """
+        Da source_strain eine Property ist, müssen wir die Aggregation in Python machen
+        """
+        # Basis-Query: Nur verfügbare Units mit allen nötigen Relations
+        base_queryset = PackagingUnit.objects.filter(
+            is_destroyed=False
+        ).exclude(
+            distributions__isnull=False
+        ).select_related(
+            'batch',
+            'batch__lab_testing_batch',
+            'batch__lab_testing_batch__processing_batch',
+            'batch__lab_testing_batch__processing_batch__drying_batch',
+            'batch__lab_testing_batch__processing_batch__drying_batch__harvest_batch',
+            'batch__lab_testing_batch__processing_batch__drying_batch__harvest_batch__flowering_batch',
+            'batch__lab_testing_batch__processing_batch__drying_batch__harvest_batch__flowering_batch__seed_purchase',
+            'batch__lab_testing_batch__processing_batch__drying_batch__harvest_batch__flowering_batch__seed_purchase__strain',
+        )
+        
+        # Empfänger-basierte THC-Filterung
+        recipient_id = self.request.query_params.get('recipient_id')
+        if recipient_id:
+            try:
+                from members.models import Member
+                recipient = Member.objects.get(id=recipient_id)
+                if hasattr(recipient, 'age_class') and recipient.age_class == "18+":
+                    base_queryset = base_queryset.filter(
+                        Q(batch__lab_testing_batch__thc_content__lte=10.0) | 
+                        Q(batch__lab_testing_batch__thc_content__isnull=True)
+                    )
+            except Member.DoesNotExist:
+                pass
+        
+        # Backend-Filter anwenden (alles außer strain_name)
+        base_queryset = self._apply_backend_filters(base_queryset)
+        
+        return base_queryset
+    
+    def _apply_backend_filters(self, queryset):
+        """Backend-Filter die in SQL funktionieren"""
+        
+        # Produkttyp-Filter
+        product_type = self.request.query_params.get('product_type')
+        if product_type:
+            queryset = queryset.filter(
+                batch__lab_testing_batch__processing_batch__product_type=product_type
+            )
+        
+        # Gewichts-Filter
+        weight = self.request.query_params.get('weight')
+        if weight:
+            try:
+                weight_value = float(weight)
+                queryset = queryset.filter(weight=weight_value)
+            except (ValueError, TypeError):
+                pass
+        
+        # THC-Filter (zusätzlich zu recipient-basierten)
+        min_thc = self.request.query_params.get('min_thc')
+        if min_thc:
+            try:
+                queryset = queryset.filter(
+                    batch__lab_testing_batch__thc_content__gte=float(min_thc)
+                )
+            except (ValueError, TypeError):
+                pass
+                
+        max_thc = self.request.query_params.get('max_thc')
+        if max_thc:
+            try:
+                queryset = queryset.filter(
+                    batch__lab_testing_batch__thc_content__lte=float(max_thc)
+                )
+            except (ValueError, TypeError):
+                pass
+        
+        # Such-Filter für Batch-Nummer
+        search = self.request.query_params.get('search')
+        if search:
+            queryset = queryset.filter(
+                Q(batch__batch_number__icontains=search) |
+                Q(batch_number__icontains=search)
+            )
+        
+        return queryset
+    
+    def _extract_strain_name(self, unit):
+        """
+        Extrahiert Strain-Namen wie in PackagingUnitViewSet.distinct_strains()
+        """
+        name = None
+        try:
+            name = unit.batch.lab_testing_batch.processing_batch.drying_batch.harvest_batch.flowering_batch.seed_purchase.strain.name
+        except Exception:
+            pass
+        if not name:
+            try:
+                name = unit.batch.flowering_batch.seed_purchase.strain.name
+            except Exception:
+                pass
+        if not name:
+            try:
+                name = unit.batch.seed_purchase.strain.name
+            except Exception:
+                pass
+        if not name:
+            name = getattr(unit.batch, "source_strain", None) or getattr(unit, "source_strain", None)
+        if not name:
+            name = getattr(unit, "strain_name", None)
+        
+        return name if name and name != "Unbekannt" else "Unbekannte Sorte"
+    
+    def _group_units_to_strain_cards(self, units):
+        """
+        Gruppiert Units nach strain_name + weight und erstellt StrainCards
+        """
+        strain_filter = self.request.query_params.get('strain_name', '').strip()
+        
+        # Gruppierung in Python (da source_strain Property ist)
+        card_groups = defaultdict(list)
+        
+        for unit in units:
+            strain_name = self._extract_strain_name(unit)
+            
+            # Client-seitige Strain-Filterung (da nicht in DB möglich)
+            if strain_filter and strain_name != strain_filter:
+                continue
+            
+            weight = float(unit.weight) if unit.weight else 0
+            card_key = f"{strain_name}_{weight}"
+            
+            card_groups[card_key].append(unit)
+        
+        # Konvertiere zu StrainCard-Format
+        strain_cards = []
+        for card_key, unit_list in card_groups.items():
+            if not unit_list:
+                continue
+                
+            # Erste Unit für Daten
+            first_unit = unit_list[0]
+            strain_name = self._extract_strain_name(first_unit)
+            weight = float(first_unit.weight) if first_unit.weight else 0
+            
+            # THC-Werte sammeln
+            thc_values = []
+            for unit in unit_list:
+                if (unit.batch and 
+                    unit.batch.lab_testing_batch and 
+                    unit.batch.lab_testing_batch.thc_content):
+                    thc_values.append(float(unit.batch.lab_testing_batch.thc_content))
+            
+            # Produkttyp ermitteln
+            product_type = 'unknown'
+            product_type_display = 'Unbekannt'
+            if (first_unit.batch and 
+                first_unit.batch.lab_testing_batch and 
+                first_unit.batch.lab_testing_batch.processing_batch):
+                processing_batch = first_unit.batch.lab_testing_batch.processing_batch
+                product_type = processing_batch.product_type
+                product_type_display = processing_batch.get_product_type_display()
+            
+            strain_card = {
+                'cardKey': card_key,
+                'strain_name': strain_name,
+                'weight': weight,
+                'product_type': product_type,
+                'product_type_display': product_type_display,
+                'unit_count': len(unit_list),
+                'avg_thc_content': f"{sum(thc_values) / len(thc_values):.1f}" if thc_values else "k.A.",
+                'first_unit': {
+                    'id': str(first_unit.id),
+                    'batch_number': first_unit.batch_number,
+                    'weight': weight
+                }
+            }
+            
+            strain_cards.append(strain_card)
+        
+        # Sortiere nach strain_name, dann weight
+        strain_cards.sort(key=lambda x: (x['strain_name'], x['weight']))
+        
+        return strain_cards
+    
+    def list(self, request, *args, **kwargs):
+        """Custom List Response mit manueller Pagination"""
+        # Hole alle Units (mit Filtern)
+        units_queryset = self.get_queryset()
+        
+        print(f"🔍 StrainCard: {units_queryset.count()} verfügbare Units gefunden")
+        
+        # Konvertiere zu StrainCards (in Python, da source_strain Property ist)
+        all_strain_cards = self._group_units_to_strain_cards(units_queryset)
+        
+        print(f"🌿 StrainCard: {len(all_strain_cards)} Strain-Karten erstellt")
+        
+        # Manuelle Pagination
+        page_size = int(request.query_params.get('page_size', 12))
+        page_number = int(request.query_params.get('page', 1))
+        
+        start_index = (page_number - 1) * page_size
+        end_index = start_index + page_size
+        
+        paginated_cards = all_strain_cards[start_index:end_index]
+        
+        # Response im DRF-Pagination-Format
+        has_next = end_index < len(all_strain_cards)
+        has_previous = page_number > 1
+        
+        response_data = {
+            'count': len(all_strain_cards),
+            'next': f"?page={page_number + 1}&page_size={page_size}" if has_next else None,
+            'previous': f"?page={page_number - 1}&page_size={page_size}" if has_previous else None,
+            'results': paginated_cards
+        }
+        
+        return Response(response_data)
+    
+    @action(detail=False, methods=['get'])
+    def filter_options(self, request):
+        """Lade verfügbare Filter-Optionen"""
+        
+        # Basis-Query ohne Strain-Filter
+        base_queryset = PackagingUnit.objects.filter(
+            is_destroyed=False
+        ).exclude(
+            distributions__isnull=False
+        ).select_related(
+            'batch__lab_testing_batch__processing_batch'
+        )
+        
+        # Empfänger-Filter anwenden
+        recipient_id = request.query_params.get('recipient_id')
+        if recipient_id:
+            try:
+                from members.models import Member
+                recipient = Member.objects.get(id=recipient_id)
+                if hasattr(recipient, 'age_class') and recipient.age_class == "18+":
+                    base_queryset = base_queryset.filter(
+                        Q(batch__lab_testing_batch__thc_content__lte=10.0) | 
+                        Q(batch__lab_testing_batch__thc_content__isnull=True)
+                    )
+            except Member.DoesNotExist:
+                pass
+        
+        # Verfügbare Gewichte (SQL-Abfrage möglich)
+        available_weights = base_queryset.values_list(
+            'weight', flat=True
+        ).distinct().order_by('weight')
+        
+        weight_options = [
+            {'value': str(weight), 'label': f'{weight}g'}
+            for weight in available_weights if weight is not None
+        ]
+        
+        # Verfügbare Sorten (PYTHON-basiert, da source_strain Property ist)
+        available_strains = set()
+        
+        # Nehme eine begrenzte Anzahl Units für Performance
+        sample_units = base_queryset[:500]  # Limitiere für Performance
+        
+        for unit in sample_units:
+            strain_name = self._extract_strain_name(unit)
+            if strain_name and strain_name != 'Unbekannte Sorte':
+                available_strains.add(strain_name)
+        
+        strain_options = [
+            {'name': strain} 
+            for strain in sorted(available_strains)
+        ]
+        
+        print(f"🔍 Filter-Optionen: {len(weight_options)} Gewichte, {len(strain_options)} Sorten")
+        
+        return Response({
+            'weight_options': weight_options,
+            'strain_options': strain_options,
+            'total_available_units': base_queryset.count()
+        })
+
+
 class PackagingUnitViewSet(viewsets.ModelViewSet):
     queryset = PackagingUnit.objects.all().order_by('-created_at')
     serializer_class = PackagingUnitSerializer
@@ -2841,6 +3136,82 @@ class PackagingUnitViewSet(viewsets.ModelViewSet):
             if name and name != "Unbekannt":
                 strains.add(name)
         return Response([{"name": n} for n in sorted(strains)])
+
+    @action(detail=False, methods=['get'])
+    def get_units_for_strain_card(self, request):
+        """
+        Lade alle verfügbaren Units für eine spezifische Strain+Weight Kombination
+        """
+        strain_name = request.query_params.get('strain_name')
+        weight = request.query_params.get('weight')
+        
+        if not strain_name or not weight:
+            return Response(
+                {"error": "strain_name und weight sind erforderlich"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            weight_value = float(weight)
+        except (ValueError, TypeError):
+            return Response(
+                {"error": "Ungültiges Gewicht"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Alle verfügbaren Units
+        units = PackagingUnit.objects.filter(
+            is_destroyed=False,
+            weight=weight_value
+        ).exclude(
+            distributions__isnull=False
+        ).select_related(
+            'batch',
+            'batch__lab_testing_batch',
+            'batch__lab_testing_batch__processing_batch',
+            'batch__lab_testing_batch__processing_batch__drying_batch',
+            'batch__lab_testing_batch__processing_batch__drying_batch__harvest_batch',
+            'batch__lab_testing_batch__processing_batch__drying_batch__harvest_batch__flowering_batch',
+            'batch__lab_testing_batch__processing_batch__drying_batch__harvest_batch__flowering_batch__seed_purchase',
+            'batch__lab_testing_batch__processing_batch__drying_batch__harvest_batch__flowering_batch__seed_purchase__strain',
+        )
+        
+        # Filtere Units nach Strain-Namen (in Python)
+        matching_units = []
+        for unit in units:
+            unit_strain_name = self._extract_strain_name_for_unit(unit)
+            if unit_strain_name == strain_name:
+                matching_units.append(unit)
+        
+        # Limitiere für Performance
+        matching_units = matching_units[:10]
+        
+        serializer = PackagingUnitSerializer(matching_units, many=True)
+        return Response(serializer.data)
+    
+    def _extract_strain_name_for_unit(self, unit):
+        """Hilfsfunktion für Strain-Name-Extraktion"""
+        name = None
+        try:
+            name = unit.batch.lab_testing_batch.processing_batch.drying_batch.harvest_batch.flowering_batch.seed_purchase.strain.name
+        except Exception:
+            pass
+        if not name:
+            try:
+                name = unit.batch.flowering_batch.seed_purchase.strain.name
+            except Exception:
+                pass
+        if not name:
+            try:
+                name = unit.batch.seed_purchase.strain.name
+            except Exception:
+                pass
+        if not name:
+            name = getattr(unit.batch, "source_strain", None) or getattr(unit, "source_strain", None)
+        if not name:
+            name = getattr(unit, "strain_name", None)
+        
+        return name if name and name != "Unbekannt" else "Unbekannte Sorte"
 
     def get_queryset(self):
         queryset = PackagingUnit.objects.select_related(

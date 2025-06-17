@@ -422,7 +422,7 @@ export default function MemberScanStep({ onSuccess, onError, icons }) {
               fontSize: '0.8rem' 
             }}>
               Wählen Sie aus den verfügbaren Produkten nach Ihren 
-              persönlichen Limits aus.
+              persönlichen Limits, Vorlieben und Buget aus.
             </div>
           </div>
           

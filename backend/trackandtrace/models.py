@@ -529,6 +529,15 @@ class ProcessingBatch(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
+    class Meta:
+        indexes = [
+            # Index für Produkttyp-Filter
+            models.Index(
+                fields=['product_type'], 
+                name='processing_batch_type_idx'
+            ),
+        ]
+    
     def save(self, *args, **kwargs):
         # Generiere Batch-Nummer falls nicht vorhanden
         if not self.batch_number:
@@ -631,6 +640,21 @@ class LabTestingBatch(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
+    class Meta:
+        indexes = [
+            # Index für THC-Gehalt (für Filter und Sortierung)
+            models.Index(
+                fields=['thc_content'], 
+                name='lab_testing_thc_idx'
+            ),
+            
+            # Index für Processing-Batch Relations
+            models.Index(
+                fields=['processing_batch'], 
+                name='lab_testing_processing_idx'
+            )
+        ]
+    
     def save(self, *args, **kwargs):
         # Generiere Batch-Nummer falls nicht vorhanden
         if not self.batch_number:
@@ -709,6 +733,27 @@ class PackagingBatch(models.Model):
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        indexes = [
+            # Index für Lab-Testing-Batch Relations
+            models.Index(
+                fields=['lab_testing_batch'], 
+                name='packaging_batch_lab_idx'
+            ),
+            
+            # Index für Batch-Nummer
+            models.Index(
+                fields=['batch_number'], 
+                name='packaging_batch_number_idx'
+            ),
+            
+            # Index für Erstellungsdatum
+            models.Index(
+                fields=['-created_at'], 
+                name='packaging_batch_created_idx'
+            )
+        ]
     
     def save(self, *args, **kwargs):
         # Speichere zuerst den Status, bevor der erste save
@@ -796,6 +841,43 @@ class PackagingUnit(models.Model):
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        # 🔧 KORRIGIERTE INDIZES - nur existierende Fields verwenden
+        indexes = [
+            # Basis-Index für Verfügbarkeits-Filter
+            models.Index(
+                fields=['is_destroyed'], 
+                name='packaging_unit_available_idx'
+            ),
+            
+            # Index für Gewichts-Filter
+            models.Index(
+                fields=['weight'], 
+                name='packaging_unit_weight_idx'
+            ),
+            
+            # Index für Batch-Relation
+            models.Index(
+                fields=['batch'], 
+                name='packaging_unit_batch_idx'
+            ),
+            
+            # Composite Index für häufige Kombinationen
+            models.Index(
+                fields=['is_destroyed', 'weight'], 
+                name='packaging_unit_filters_idx'
+            ),
+            
+            # Index für Erstellungsdatum (für Sortierung)
+            models.Index(
+                fields=['-created_at'], 
+                name='packaging_unit_created_idx'
+            )
+        ]
+        
+        # 🔧 KORRIGIERTES ORDERING - nur direkte Fields
+        ordering = ['-created_at', 'batch_number']
     
     def save(self, *args, **kwargs):
         # Generiere Batch-Nummer falls nicht vorhanden

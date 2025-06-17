@@ -1,4 +1,5 @@
-# backend/trackandtrace/api_urls.py
+# backend/trackandtrace/api_urls.py - ERWEITERT
+
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .api_views import (
@@ -6,7 +7,8 @@ from .api_views import (
     FloweringPlantBatchViewSet, CuttingBatchViewSet, BloomingCuttingBatchViewSet,
     HarvestBatchViewSet, DryingBatchViewSet, ProcessingBatchViewSet, LabTestingBatchViewSet, 
     PackagingBatchViewSet, PackagingUnitViewSet, ProductDistributionViewSet,
-    validate_distribution_limits  # NEU: Import der Funktion
+    StrainCardViewSet,  # NEU: StrainCard API
+    validate_distribution_limits
 )
 
 router = DefaultRouter()
@@ -24,11 +26,15 @@ router.register(r'packaging', PackagingBatchViewSet, basename='packaging')
 router.register(r'packaging-units', PackagingUnitViewSet, basename='packaging-units')
 router.register(r'distributions', ProductDistributionViewSet, basename='distributions')
 
+# NEU: StrainCard API für optimierte Performance
+router.register(r'strain-cards', StrainCardViewSet, basename='strain-cards')
+
 urlpatterns = [
-    # Spezifische Endpunkte VOR dem Router registrieren
+    # Spezifische Endpunkte
     path('distributions/validate_distribution_limits/', 
          validate_distribution_limits, 
          name='validate_distribution_limits'),
-    # Router URLs danach
+    
+    # Router URLs
     path('', include(router.urls)),
 ]
