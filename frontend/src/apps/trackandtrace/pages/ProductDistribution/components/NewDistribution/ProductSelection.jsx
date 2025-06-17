@@ -17,20 +17,81 @@ import ScaleIcon from '@mui/icons-material/Scale'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import BlockIcon from '@mui/icons-material/Block'
 import WarningIcon from '@mui/icons-material/Warning'
-import {
-  formatWeight,
-  validateDistribution,
-  createWarningMessages,
-  getConsumptionColor
-} from '../../../../utils/cannabisLimits'
+import SpeedIcon from '@mui/icons-material/Speed'
+// 🔧 LOKALE UTILITY-FUNKTIONEN (ersetzt fehlenden Import)
+const formatWeight = (weight) => {
+  if (typeof weight !== 'number') return '0.00'
+  return weight.toFixed(2)
+}
 
-// Debounce Hook für Suchfeld
+const getConsumptionColor = (percentage) => {
+  if (percentage >= 90) return 'error'
+  if (percentage >= 75) return 'warning'
+  return 'success'
+}
+
+const validateDistribution = (consumed, limits, totalWeight, units) => {
+  const newDailyTotal = consumed.daily + totalWeight
+  const newMonthlyTotal = consumed.monthly + totalWeight
+  
+  const violations = {
+    exceedsDailyLimit: newDailyTotal > limits.daily,
+    exceedsMonthlyLimit: newMonthlyTotal > limits.monthly,
+    thcViolations: []
+  }
+  
+  // THC-Violations prüfen
+  if (limits.maxThc && units) {
+    violations.thcViolations = units.filter(unit => {
+      const thc = unit.batch?.lab_testing_batch?.thc_content
+      return thc && parseFloat(thc) > limits.maxThc
+    })
+  }
+  
+  const remaining = {
+    daily: limits.daily - newDailyTotal,
+    monthly: limits.monthly - newMonthlyTotal
+  }
+  
+  return {
+    isValid: !violations.exceedsDailyLimit && !violations.exceedsMonthlyLimit && violations.thcViolations.length === 0,
+    violations,
+    remaining
+  }
+}
+
+const createWarningMessages = (violations, remaining) => {
+  const messages = []
+  
+  if (violations.exceedsDailyLimit) {
+    messages.push(`Tageslimit überschritten! Noch verfügbar: ${formatWeight(Math.max(0, remaining.daily))}g`)
+  }
+  
+  if (violations.exceedsMonthlyLimit) {
+    messages.push(`Monatslimit überschritten! Noch verfügbar: ${formatWeight(Math.max(0, remaining.monthly))}g`)
+  }
+  
+  if (violations.thcViolations && violations.thcViolations.length > 0) {
+    messages.push(`${violations.thcViolations.length} Produkt(e) überschreiten das THC-Limit`)
+  }
+  
+  return messages
+}
+
+// 🚀 NEUE OPTIMIERUNG: Debounce Hook für Performance
 const useDebounce = (value, delay) => {
   const [debouncedValue, setDebouncedValue] = useState(value)
+  
   useEffect(() => {
-    const handler = setTimeout(() => setDebouncedValue(value), delay)
-    return () => clearTimeout(handler)
+    const handler = setTimeout(() => {
+      setDebouncedValue(value)
+    }, delay)
+    
+    return () => {
+      clearTimeout(handler)
+    }
   }, [value, delay])
+  
   return debouncedValue
 }
 
@@ -111,26 +172,33 @@ export default function ProductSelection({
   const [thcFilter, setThcFilter] = useState('')
   const [strainFilter, setStrainFilter] = useState(null)
   const [weightFilter, setWeightFilter] = useState('')
-  // Pagination States
+  
+  // 🚀 OPTIMIERUNG: Kleinere Page-Size für bessere Performance
   const [page, setPage] = useState(1)
-  const [pageSize] = useState(20)
+  const [pageSize] = useState(8) // REDUZIERT: 20 → 8 Units pro Seite
   const [totalCount, setTotalCount] = useState(0)
+  
   // Data States
   const [availableUnits, setAvailableUnits] = useState([])
   const [weightOptions, setWeightOptions] = useState([])
   const [strainOptions, setStrainOptions] = useState([])
   const [loading, setLoading] = useState(false)
+  
   // UI States
   const [showLimitWarning, setShowLimitWarning] = useState(false)
   const [limitWarningMessage, setLimitWarningMessage] = useState('')
   const [blockedUnits, setBlockedUnits] = useState(new Set())
-  // Filter Change State
+  
+  // 🚀 NEUE OPTIMIERUNG: Filter Change State für bessere UX
   const [pendingFilterChange, setPendingFilterChange] = useState(false)
-  // Debounced search term
+  
+  // 🚀 NEUE OPTIMIERUNG: Debounced search term (500ms delay)
   const debouncedSearchTerm = useDebounce(searchTerm, 500)
+  
   // Prüfe ob Empfänger U21 ist
   const isU21 = memberLimits?.member?.isU21 || false
 
+  // Lade Gewichtsoptionen einmalig
   useEffect(() => {
     fetch('/api/trackandtrace/packaging-units/distinct_weights/')
       .then(res => res.json())
@@ -144,6 +212,7 @@ export default function ProductSelection({
       .catch(err => console.error('Sir, ich konnte die Gewichtsoptionen nicht laden:', err))
   }, [])
 
+  // Lade Sortenoptionen einmalig
   useEffect(() => {
     fetch('/api/trackandtrace/packaging-units/distinct_strains/')
       .then(res => res.json())
@@ -151,19 +220,37 @@ export default function ProductSelection({
       .catch(err => console.error('Sir, ich konnte die Sortenoptionen nicht laden:', err))
   }, [])
 
-  // Hauptdaten-Ladevorgang mit allen Filtern
+  // 🚀 OPTIMIERTE API-FUNKTION: Hauptdaten-Ladevorgang mit allen Backend-Filtern
   const loadPackagingUnits = useCallback(() => {
     setLoading(true)
+    console.log('🔍 Admin: Lade PackagingUnits...', { 
+      page, 
+      pageSize, 
+      search: debouncedSearchTerm,
+      productType: productTypeFilter,
+      strain: strainFilter?.name
+    })
+    
     const params = new URLSearchParams({
       page: page.toString(),
-      page_size: pageSize.toString(),
+      page_size: pageSize.toString(), // Nutzt optimierte page_size (8)
     })
+    
+    // Backend-Filter anwenden
     if (weightFilter && weightFilter.value) {
-     params.append('weight', weightFilter.value)
+      params.append('weight', weightFilter.value)
     }
-    if (productTypeFilter) params.append('product_type', productTypeFilter)
-    if (strainFilter && strainFilter.name) params.append('strain_name', strainFilter.name)
-    if (debouncedSearchTerm) params.append('search', debouncedSearchTerm)
+    if (productTypeFilter) {
+      params.append('product_type', productTypeFilter)
+    }
+    if (strainFilter && strainFilter.name) {
+      params.append('strain_name', strainFilter.name)
+    }
+    if (debouncedSearchTerm) { // 🚀 NUTZT DEBOUNCED SEARCH
+      params.append('search', debouncedSearchTerm)
+    }
+    
+    // THC-Filter basierend auf U21-Status
     if (isU21) {
       params.append('max_thc', '10')
     } else if (thcFilter) {
@@ -180,45 +267,60 @@ export default function ProductSelection({
           break
       }
     }
-    fetch(`/api/trackandtrace/packaging-units/?${params.toString()}`)
+    
+    const finalUrl = `/api/trackandtrace/packaging-units/?${params.toString()}`
+    console.log('📡 Admin API-Call:', finalUrl)
+    
+    fetch(finalUrl)
       .then(res => res.json())
       .then(data => {
+        console.log('✅ Admin: PackagingUnits geladen:', data.results?.length, 'von', data.count)
         setAvailableUnits(data.results || [])
         setTotalCount(data.count || 0)
       })
       .catch(err => {
-        console.error('Sir, es gab einen Fehler beim Laden der Daten:', err)
+        console.error('❌ Admin: Fehler beim Laden der Daten:', err)
+        // Fallback auf initialUnits wenn API fehlschlägt
         if (initialUnits) {
+          console.log('🔄 Admin: Fallback auf initialUnits')
           setAvailableUnits(initialUnits)
           setTotalCount(initialUnits.length)
         }
       })
-      .finally(() => setLoading(false))
+      .finally(() => {
+        setLoading(false)
+        setPendingFilterChange(false) // 🚀 RESET PENDING STATE
+      })
   }, [page, pageSize, weightFilter, productTypeFilter, strainFilter, thcFilter, debouncedSearchTerm, isU21, initialUnits])
 
+  // 🚀 OPTIMIERUNG: Filter-Änderungen lösen Page-Reset aus
   useEffect(() => {
+    console.log('🔄 Admin: Filter geändert, reset page zu 1')
     setPendingFilterChange(true)
     setPage(1)
   }, [productTypeFilter, thcFilter, strainFilter, weightFilter, debouncedSearchTerm])
 
+  // 🚀 OPTIMIERUNG: Lade nur wenn Filter-Change abgeschlossen oder Page geändert
   useEffect(() => {
     if (pendingFilterChange && page === 1) {
+      console.log('🎯 Admin: Lade Daten nach Filter-Change')
       loadPackagingUnits()
-      setPendingFilterChange(false)
     }
   }, [pendingFilterChange, page, loadPackagingUnits])
 
   useEffect(() => {
     if (!pendingFilterChange) {
+      console.log('📄 Admin: Lade Daten für Page', page)
       loadPackagingUnits()
     }
-  }, [page, loadPackagingUnits])
+  }, [page, loadPackagingUnits, pendingFilterChange])
 
   // Validiere beim Hinzufügen einer Einheit
   const handleAddUnit = (unit) => {
     if (!selectedUnits.find(u => u.id === unit.id)) {
       const newUnits = [...selectedUnits, unit]
       const totalWeight = newUnits.reduce((sum, u) => sum + parseFloat(u.weight || 0), 0)
+      
       if (memberLimits) {
         const validation = validateDistribution(
           {
@@ -233,6 +335,7 @@ export default function ProductSelection({
           totalWeight,
           newUnits
         )
+        
         if (!validation.isValid) {
           const messages = createWarningMessages(validation.violations, validation.remaining)
           setLimitWarningMessage(messages.join('\n'))
@@ -242,6 +345,7 @@ export default function ProductSelection({
         }
       }
       setSelectedUnits(newUnits)
+      console.log('✅ Admin: Unit hinzugefügt:', unit.batch_number)
     }
   }
 
@@ -251,6 +355,7 @@ export default function ProductSelection({
     const newBlocked = new Set(blockedUnits)
     newBlocked.delete(unitId)
     setBlockedUnits(newBlocked)
+    console.log('🗑️ Admin: Unit entfernt:', unitId)
   }
 
   // Statistiken berechnen
@@ -264,15 +369,28 @@ export default function ProductSelection({
       <Typography variant="h6" gutterBottom sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
         <LocalFloristIcon color="primary" />
         Produkte auswählen
+        {/* 🚀 PERFORMANCE-INDICATOR */}
+        <Chip 
+          icon={<SpeedIcon />}
+          label={`Optimiert: ${pageSize} Units/Seite`}
+          size="small" 
+          color="success" 
+          variant="outlined"
+        />
       </Typography>
+      
       <Alert severity="info" sx={{ mb: 3 }}>
-        Wählen Sie die Cannabis-Produkte aus, die ausgegeben werden sollen.
+        <Typography variant="body2">
+          <strong>Admin-Interface:</strong> Wählen Sie die Cannabis-Produkte für die manuelle Ausgabe aus.
+          Maximale Anzeige: {pageSize} Einheiten pro Seite für optimale Performance.
+        </Typography>
         {isU21 && (
           <Typography variant="body2" sx={{ mt: 1 }}>
             <strong>U21-Beschränkung:</strong> Es werden nur Produkte mit max. 10% THC angezeigt.
           </Typography>
         )}
       </Alert>
+
       {/* Filter-Bereich */}
       <Paper sx={{ p: 2, mb: 3 }}>
         <Grid container spacing={2} alignItems="center">
@@ -281,7 +399,10 @@ export default function ProductSelection({
               fullWidth
               placeholder="Suche nach Einheitsnummer oder Genetik..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                setSearchTerm(e.target.value)
+                console.log('🔍 Admin: Search term geändert:', e.target.value)
+              }}
               sx={{ minWidth: 240, maxWidth: 340, width: '100%' }}
               InputProps={{
                 startAdornment: (
@@ -289,15 +410,25 @@ export default function ProductSelection({
                     <SearchIcon />
                   </InputAdornment>
                 ),
+                endAdornment: pendingFilterChange && (
+                  <InputAdornment position="end">
+                    <CircularProgress size={16} />
+                  </InputAdornment>
+                )
               }}
+              helperText="🚀 Debounced Search (500ms)"
             />
           </Grid>
+          
           <Grid item xs={12} md={2} sx={{ minWidth: 240, maxWidth: 340 }}>
             <FormControl fullWidth sx={{ minWidth: 240, maxWidth: 340, width: '100%' }}>
               <InputLabel>Produkttyp</InputLabel>
               <Select
                 value={productTypeFilter}
-                onChange={(e) => setProductTypeFilter(e.target.value)}
+                onChange={(e) => {
+                  setProductTypeFilter(e.target.value)
+                  console.log('🏷️ Admin: Produkttyp geändert:', e.target.value)
+                }}
                 label="Produkttyp"
               >
                 <MenuItem value="">Alle Typen</MenuItem>
@@ -316,12 +447,16 @@ export default function ProductSelection({
               </Select>
             </FormControl>
           </Grid>
+          
           <Grid item xs={12} md={2} sx={{ minWidth: 240, maxWidth: 340 }}>
             <FormControl fullWidth disabled={isU21} sx={{ minWidth: 240, maxWidth: 340, width: '100%' }}>
               <InputLabel>THC-Gehalt</InputLabel>
               <Select
                 value={thcFilter}
-                onChange={(e) => setThcFilter(e.target.value)}
+                onChange={(e) => {
+                  setThcFilter(e.target.value)
+                  console.log('🌿 Admin: THC-Filter geändert:', e.target.value)
+                }}
                 label="THC-Gehalt"
               >
                 <MenuItem value="">Alle Stärken</MenuItem>
@@ -331,12 +466,16 @@ export default function ProductSelection({
               </Select>
             </FormControl>
           </Grid>
+          
           <Grid item xs={12} md={2} sx={{ minWidth: 240, maxWidth: 340 }}>
             <Autocomplete
               fullWidth
               options={strainOptions}
               value={strainFilter}
-              onChange={(_, value) => setStrainFilter(value || null)}
+              onChange={(_, value) => {
+                setStrainFilter(value || null)
+                console.log('🧬 Admin: Strain-Filter geändert:', value?.name)
+              }}
               getOptionLabel={(option) => option?.name || ''}
               isOptionEqualToValue={(option, value) => option?.name === value?.name}
               renderInput={(params) => (
@@ -345,12 +484,16 @@ export default function ProductSelection({
               clearOnEscape
             />
           </Grid>
+          
           <Grid item xs={12} md={3} sx={{ minWidth: 240, maxWidth: 340 }}>
             <Autocomplete
               fullWidth
               options={weightOptions}
               value={weightFilter}
-              onChange={(_, value) => setWeightFilter(value || '')}
+              onChange={(_, value) => {
+                setWeightFilter(value || '')
+                console.log('⚖️ Admin: Gewicht-Filter geändert:', value?.label)
+              }}
               getOptionLabel={(option) => option.label || option}
               sx={{ minWidth: 240, maxWidth: 340, width: '100%' }}
               renderInput={(params) => (
@@ -368,6 +511,7 @@ export default function ProductSelection({
           </Grid>
         </Grid>
       </Paper>
+
       {/* Verwende Flexbox für perfekte 50/50 Aufteilung */}
       <Box sx={{ display: 'flex', gap: 3, width: '100%' }}>
         {/* Verfügbare Produkte */}
@@ -375,17 +519,24 @@ export default function ProductSelection({
           <Paper sx={{ height: '600px', display: 'flex', flexDirection: 'column' }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2, pb: 0 }}>
               <Typography variant="subtitle1" fontWeight="bold">
-                Verfügbare Produkte
+                Verfügbare Produkte (Admin)
               </Typography>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                {loading && <CircularProgress size={20} />}
+                {(loading || pendingFilterChange) && <CircularProgress size={20} />}
                 <Chip
-                  label={`${totalCount} Einheiten`}
+                  label={`${totalCount} Einheiten gesamt`}
                   color="primary"
                   size="small"
                 />
+                <Chip
+                  label={`${pageSize}/Seite`}
+                  color="success"
+                  size="small"
+                  variant="outlined"
+                />
               </Box>
             </Box>
+            
             <TableContainer sx={{ flexGrow: 1, px: 2 }}>
               <Table stickyHeader size="small">
                 <TableHead>
@@ -398,12 +549,12 @@ export default function ProductSelection({
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {loading ? (
+                  {(loading || pendingFilterChange) ? (
                     <TableRow>
                       <TableCell colSpan={5} align="center" sx={{ py: 8 }}>
                         <CircularProgress />
                         <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-                          Lade Daten...
+                          {pendingFilterChange ? 'Filter werden angewendet...' : 'Lade Daten...'}
                         </Typography>
                       </TableCell>
                     </TableRow>
@@ -416,6 +567,7 @@ export default function ProductSelection({
                       const thcContent = batch.thc_content || 'k.A.'
                       const isSelected = selectedUnits.find(u => u.id === unit.id)
                       const isBlocked = blockedUnits.has(unit.id)
+                      
                       return (
                         <TableRow
                           key={unit.id}
@@ -490,21 +642,30 @@ export default function ProductSelection({
                 </TableBody>
               </Table>
             </TableContainer>
-            {/* Pagination */}
+            
+            {/* 🚀 OPTIMIERTE PAGINATION */}
             {totalPages > 1 && (
-              <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', p: 2, gap: 2 }}>
+                <Typography variant="caption" color="text.secondary">
+                  Seite {page} von {totalPages} • {totalCount} Einheiten gesamt
+                </Typography>
                 <Pagination
                   count={totalPages}
                   page={page}
-                  onChange={(_, value) => setPage(value)}
+                  onChange={(_, value) => {
+                    console.log('📄 Admin: Page geändert zu:', value)
+                    setPage(value)
+                  }}
                   color="primary"
                   showFirstButton
                   showLastButton
+                  disabled={loading || pendingFilterChange}
                 />
               </Box>
             )}
           </Paper>
         </Box>
+        
         {/* Ausgewählte Produkte */}
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Paper sx={{ height: '600px', display: 'flex', flexDirection: 'column', bgcolor: 'grey.50' }}>
@@ -516,6 +677,7 @@ export default function ProductSelection({
                 <ScaleIcon />
               </Badge>
             </Box>
+            
             <Box sx={{ px: 2, flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
               {memberLimits && (
                 <LimitStatus
@@ -526,6 +688,7 @@ export default function ProductSelection({
                   monthlyUsed={memberLimits.monthly.consumed}
                 />
               )}
+              
               {selectedUnits.length > 0 && (
                 <Card sx={{ mb: 2, bgcolor: 'primary.light' }}>
                   <CardContent sx={{ py: 1.5 }}>
@@ -564,6 +727,7 @@ export default function ProductSelection({
                   </CardContent>
                 </Card>
               )}
+              
               <TableContainer sx={{ flexGrow: 1, overflowY: 'auto' }}>
                 <Table size="small">
                   <TableHead>
@@ -635,6 +799,7 @@ export default function ProductSelection({
           </Paper>
         </Box>
       </Box>
+
       {/* Limit-Warnung Snackbar */}
       <Snackbar
         open={showLimitWarning}
