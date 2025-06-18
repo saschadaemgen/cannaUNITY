@@ -57,17 +57,19 @@ export default function MemberScanStep({ onSuccess, onError, icons }) {
       const limitsRes = await api.get(
         `/trackandtrace/distributions/member_consumption_summary/?member_id=${member_id}`
       )
-      
-      const member = { 
+
+      // ✅ KORREKTUR: Verwende Member-Daten aus der API-Response
+      const member = limitsRes.data.member || { 
         id: member_id, 
         name: unifi_name,
         first_name: unifi_name.split(' ')[0] || unifi_name,
         last_name: unifi_name.split(' ').slice(1).join(' ') || '',
-        email: `${unifi_name.toLowerCase().replace(/\s+/g, '.')}@example.com`
+        email: `${unifi_name.toLowerCase().replace(/\s+/g, '.')}@example.com`,
+        kontostand: 0,
+        beitrag: 0
       }
 
-      // Direkt zum nächsten Schritt ohne Bestätigungsanzeige
-      onSuccess(member, limitsRes.data)
+onSuccess(member, limitsRes.data)
       
     } catch (err) {
       console.error('Card Scan Error:', err)

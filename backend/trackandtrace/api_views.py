@@ -3717,7 +3717,12 @@ class ProductDistributionViewSet(viewsets.ModelViewSet):
                 'id': str(member.id),
                 'name': f"{member.first_name} {member.last_name}",
                 'age': age,
-                'age_class': age_class
+                'age_class': age_class,
+                'kontostand': float(member.kontostand),
+                'beitrag': float(member.beitrag),
+                'first_name': member.first_name,
+                'last_name': member.last_name,
+                'email': member.email
             },
             'limits': {
                 'daily_limit': daily_limit,
