@@ -2780,8 +2780,7 @@ class PackagingBatchViewSet(viewsets.ModelViewSet):
 
 class StrainCardViewSet(viewsets.ReadOnlyModelViewSet):
     """
-    🚀 KORRIGIERTE StrainCard API - funktioniert mit bestehender DB-Struktur
-    Verwendet die gleiche Strain-Logik wie PackagingUnitViewSet.distinct_strains()
+    🚀 VOLLSTÄNDIG KORRIGIERTE StrainCard API - Intelligente Sorten-Gruppierung
     """
     permission_classes = [IsAuthenticated]
     pagination_class = StrainCardPagination
@@ -2899,45 +2898,80 @@ class StrainCardViewSet(viewsets.ReadOnlyModelViewSet):
         
         return name if name and name != "Unbekannt" else "Unbekannte Sorte"
     
+    def _get_cannabis_batch_id(self, unit):
+        """🔧 NEU: Ermittelt die echte Cannabis-Charge-ID"""
+        try:
+            # Versuche über harvest_batch (die echte Cannabis-Charge)
+            if (unit.batch and 
+                unit.batch.lab_testing_batch and 
+                unit.batch.lab_testing_batch.processing_batch and
+                unit.batch.lab_testing_batch.processing_batch.drying_batch and
+                unit.batch.lab_testing_batch.processing_batch.drying_batch.harvest_batch):
+                harvest_batch = unit.batch.lab_testing_batch.processing_batch.drying_batch.harvest_batch
+                return f"harvest_{harvest_batch.id}"
+        except Exception:
+            pass
+        
+        # Fallback: processing_batch
+        try:
+            if (unit.batch and 
+                unit.batch.lab_testing_batch and 
+                unit.batch.lab_testing_batch.processing_batch):
+                processing_batch = unit.batch.lab_testing_batch.processing_batch
+                return f"processing_{processing_batch.id}"
+        except Exception:
+            pass
+        
+        # Notfall-Fallback
+        return f"packaging_{unit.batch.id}" if unit.batch else None
+    
     def _group_units_to_strain_cards(self, units):
         """
-        Gruppiert Units nach strain_name + weight und erstellt StrainCards
+        🎯 ERWEITERTE LOGIK: THC-Bereich bei mehreren Cannabis-Chargen
         """
         strain_filter = self.request.query_params.get('strain_name', '').strip()
         
-        # Gruppierung in Python (da source_strain Property ist)
-        card_groups = defaultdict(list)
+        # Gruppierung nach Sorte
+        strain_groups = defaultdict(lambda: {
+            'units': [],
+            'available_weights': set(),
+            'weight_counts': defaultdict(int),
+            'thc_values_by_batch': defaultdict(list),  # 🆕 THC-Werte pro Cannabis-Charge
+            'cannabis_batches': set()
+        })
         
         for unit in units:
             strain_name = self._extract_strain_name(unit)
             
-            # Client-seitige Strain-Filterung (da nicht in DB möglich)
             if strain_filter and strain_name != strain_filter:
                 continue
             
             weight = float(unit.weight) if unit.weight else 0
-            card_key = f"{strain_name}_{weight}"
             
-            card_groups[card_key].append(unit)
-        
-        # Konvertiere zu StrainCard-Format
-        strain_cards = []
-        for card_key, unit_list in card_groups.items():
-            if not unit_list:
-                continue
+            strain_data = strain_groups[strain_name]
+            strain_data['units'].append(unit)
+            strain_data['available_weights'].add(weight)
+            strain_data['weight_counts'][weight] += 1
+            
+            # Cannabis-Charge-ID ermitteln
+            cannabis_batch_id = self._get_cannabis_batch_id(unit)
+            if cannabis_batch_id:
+                strain_data['cannabis_batches'].add(cannabis_batch_id)
                 
-            # Erste Unit für Daten
-            first_unit = unit_list[0]
-            strain_name = self._extract_strain_name(first_unit)
-            weight = float(first_unit.weight) if first_unit.weight else 0
-            
-            # THC-Werte sammeln
-            thc_values = []
-            for unit in unit_list:
+                # 🆕 THC-Werte pro Cannabis-Charge sammeln
                 if (unit.batch and 
                     unit.batch.lab_testing_batch and 
                     unit.batch.lab_testing_batch.thc_content):
-                    thc_values.append(float(unit.batch.lab_testing_batch.thc_content))
+                    thc_value = float(unit.batch.lab_testing_batch.thc_content)
+                    strain_data['thc_values_by_batch'][cannabis_batch_id].append(thc_value)
+        
+        # Konvertiere zu StrainCard-Format
+        strain_cards = []
+        for strain_name, data in strain_groups.items():
+            if not data['units']:
+                continue
+            
+            first_unit = data['units'][0]
             
             # Produkttyp ermitteln
             product_type = 'unknown'
@@ -2949,26 +2983,73 @@ class StrainCardViewSet(viewsets.ReadOnlyModelViewSet):
                 product_type = processing_batch.product_type
                 product_type_display = processing_batch.get_product_type_display()
             
+            # 🆕 THC-BEREICH BERECHNEN
+            thc_display = "k.A."
+            if data['thc_values_by_batch']:
+                # Sammle alle einzigartigen THC-Werte von allen Cannabis-Chargen
+                all_thc_values = set()
+                for cannabis_batch_id, thc_list in data['thc_values_by_batch'].items():
+                    if thc_list:
+                        # Nimm den Durchschnitt pro Cannabis-Charge
+                        avg_thc_for_batch = sum(thc_list) / len(thc_list)
+                        all_thc_values.add(round(avg_thc_for_batch, 1))
+                
+                if len(all_thc_values) == 1:
+                    # Nur eine Cannabis-Charge → exakter Wert
+                    thc_display = f"{list(all_thc_values)[0]}"
+                elif len(all_thc_values) > 1:
+                    # Mehrere Cannabis-Chargen → Bereich anzeigen
+                    min_thc = min(all_thc_values)
+                    max_thc = max(all_thc_values)
+                    thc_display = f"{min_thc} - {max_thc}"
+            
+            # 🔧 DEBUG: THC-Berechnung anzeigen
+            cannabis_batch_count = len(data['cannabis_batches'])
+            print(f"🔍 THC-Berechnung für {strain_name}:")
+            print(f"   - Cannabis-Chargen: {cannabis_batch_count}")
+            print(f"   - THC-Werte pro Charge: {dict(data['thc_values_by_batch'])}")
+            print(f"   - THC-Anzeige: {thc_display}%")
+            
+            # Gewichts-Optionen
+            size_options = []
+            for weight in sorted(data['available_weights']):
+                count = data['weight_counts'][weight]
+                size_options.append(f"{weight}g ({count}x)")
+            
+            # Available units
+            available_units = []
+            for unit in data['units']:
+                available_units.append({
+                    'id': str(unit.id),
+                    'batch_number': unit.batch_number,
+                    'weight': float(unit.weight) if unit.weight else 0,
+                    'packaging_batch_id': unit.batch.id if unit.batch else None,
+                    'cannabis_batch_id': self._get_cannabis_batch_id(unit)
+                })
+            
+            # 🔧 KORRIGIERTE strain_card Struktur mit allen benötigten Keys
             strain_card = {
-                'cardKey': card_key,
+                'id': f"strain_{strain_name.replace(' ', '_')}",
                 'strain_name': strain_name,
-                'weight': weight,
                 'product_type': product_type,
                 'product_type_display': product_type_display,
-                'unit_count': len(unit_list),
-                'avg_thc_content': f"{sum(thc_values) / len(thc_values):.1f}" if thc_values else "k.A.",
+                'total_unit_count': len(data['units']),  # 🔧 HINZUGEFÜGT
+                'avg_thc_content': thc_display,
+                'size_options': size_options,  # 🔧 HINZUGEFÜGT (für Kompatibilität)
+                'available_weights': sorted(data['available_weights']),
+                'batch_count': cannabis_batch_count,
+                'cannabis_batches': list(data['cannabis_batches']),  # 🔧 HINZUGEFÜGT
+                'available_units': available_units,
                 'first_unit': {
                     'id': str(first_unit.id),
                     'batch_number': first_unit.batch_number,
-                    'weight': weight
+                    'weight': float(first_unit.weight) if first_unit.weight else 0
                 }
             }
             
             strain_cards.append(strain_card)
         
-        # Sortiere nach strain_name, dann weight
-        strain_cards.sort(key=lambda x: (x['strain_name'], x['weight']))
-        
+        strain_cards.sort(key=lambda x: x['strain_name'])
         return strain_cards
     
     def list(self, request, *args, **kwargs):
@@ -2982,6 +3063,16 @@ class StrainCardViewSet(viewsets.ReadOnlyModelViewSet):
         all_strain_cards = self._group_units_to_strain_cards(units_queryset)
         
         print(f"🌿 StrainCard: {len(all_strain_cards)} Strain-Karten erstellt")
+        
+        # 🔧 DEBUG: Zeige erste Karte für Diagnose
+        if all_strain_cards:
+            first_card = all_strain_cards[0]
+            print(f"🔍 Erste Karte: {first_card['strain_name']}")
+            print(f"   - Gewichte: {first_card['available_weights']}")
+            print(f"   - Units: {first_card['total_unit_count']}")
+            print(f"   - Cannabis-Chargen: {first_card['batch_count']}")
+            print(f"   - Chargen-IDs: {first_card['cannabis_batches']}")
+            print(f"   - Available Units: {len(first_card['available_units'])}")
         
         # Manuelle Pagination
         page_size = int(request.query_params.get('page_size', 12))
@@ -3065,7 +3156,76 @@ class StrainCardViewSet(viewsets.ReadOnlyModelViewSet):
             'strain_options': strain_options,
             'total_available_units': base_queryset.count()
         })
-
+    
+    @action(detail=False, methods=['get'])
+    def available_units_for_strain(self, request):
+        """
+        🎯 KORRIGIERTER ENDPOINT: Alle verfügbaren Units einer bestimmten Sorte
+        Ermöglicht das Abrufen aller Units einer Sorte über alle Batches hinweg
+        """
+        strain_name = request.query_params.get('strain_name')
+        weight = request.query_params.get('weight')
+        
+        if not strain_name:
+            return Response(
+                {"error": "strain_name ist erforderlich"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Alle verfügbaren Units der Sorte
+        units = self.get_queryset()
+        
+        # Filtere nach Strain-Namen (in Python, da Property)
+        matching_units = []
+        cannabis_batches = set()
+        
+        for unit in units:
+            unit_strain_name = self._extract_strain_name(unit)
+            if unit_strain_name == strain_name:
+                # Optional: Auch nach Gewicht filtern
+                if weight:
+                    try:
+                        weight_value = float(weight)
+                        if float(unit.weight) == weight_value:
+                            matching_units.append(unit)
+                            # Cannabis-Charge tracken
+                            cannabis_batch_id = self._get_cannabis_batch_id(unit)
+                            if cannabis_batch_id:
+                                cannabis_batches.add(cannabis_batch_id)
+                    except (ValueError, TypeError):
+                        pass
+                else:
+                    matching_units.append(unit)
+                    # Cannabis-Charge tracken
+                    cannabis_batch_id = self._get_cannabis_batch_id(unit)
+                    if cannabis_batch_id:
+                        cannabis_batches.add(cannabis_batch_id)
+        
+        # Gruppiere nach Gewicht für bessere Übersicht
+        weight_groups = defaultdict(list)
+        for unit in matching_units:
+            weight_key = float(unit.weight) if unit.weight else 0
+            weight_groups[weight_key].append(unit)
+        
+        response_data = {
+            'strain_name': strain_name,
+            'total_units': len(matching_units),
+            'cannabis_batch_count': len(cannabis_batches),  # 🔧 NEU: Cannabis-Chargen-Anzahl
+            'cannabis_batches': list(cannabis_batches),     # 🔧 NEU: Liste der Cannabis-Chargen
+            'weight_groups': {}
+        }
+        
+        # 🔧 KORREKTUR: Alle Units zurückgeben (keine Limitierung!)
+        for weight, units_list in weight_groups.items():
+            response_data['weight_groups'][f"{weight}g"] = {
+                'count': len(units_list),
+                'units': PackagingUnitSerializer(units_list, many=True).data  # 🔧 ALLE Units!
+            }
+        
+        print(f"🎯 Units für Sorte '{strain_name}': {len(matching_units)} gefunden, {len(weight_groups)} Gewichtsgruppen, {len(cannabis_batches)} Cannabis-Chargen")
+        
+        return Response(response_data)
+    
 
 class PackagingUnitViewSet(viewsets.ModelViewSet):
     queryset = PackagingUnit.objects.all().order_by('-created_at')
