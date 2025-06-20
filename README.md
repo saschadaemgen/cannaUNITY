@@ -1,4 +1,8 @@
 # 🌿 cannaUNITY v0.6.20 (Pre-Alpha)
+
+> **Modulare Open-Source-Software Suite für Cannabis Social Clubs und Anbauvereinigungen gemäß dem deutschem Konsumcannabisgesetz § (KCanG)**
+> Mitgliederverwaltung · eVereinsverwaltung · Berichtsverwaltung · Aufgabenplanung ·  Growcontroller · Zutrittskontrolle · eStempelkarte · Track & Trace · Buchhaltung · WaWi · Raumautomation · Sicherheitssystem
+
 (Masteransicht für "festes" UI Panel 1920x1080p)
 
 <p align="center">
@@ -12,10 +16,6 @@
 <p align="center">
   <img src="screenshots/touchscreen-ui/produktausgabe_kiosk_modus_step_1.png" alt="Vorschau" width="1920">
 </p>
-
-> **Modulare Open-Source-Software Suite für Cannabis Social Clubs und Anbauvereinigungen gemäß dem Konsumcannabisgesetz § (KCanG)**
-
-> Mitgliederverwaltung · eVereinsverwaltung · Berichtsverwaltung · Aufgabenplanung ·  Growcontroller · Zutrittskontrolle · eStempelkarte · Track & Trace · Buchhaltung · WaWi · Raumautomation · Sicherheitssystem
 
 ![GitHub Repo stars](https://img.shields.io/github/stars/saschadaemgen/cannaUNITY?style=social)
 ![GitHub license](https://img.shields.io/github/license/saschadaemgen/cannaUNITY)
