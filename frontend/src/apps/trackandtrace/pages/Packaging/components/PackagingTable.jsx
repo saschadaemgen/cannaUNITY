@@ -10,6 +10,9 @@ import ScienceIcon from '@mui/icons-material/Science'
 import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment'
 import LocalFloristIcon from '@mui/icons-material/LocalFlorist'
 import FilterDramaIcon from '@mui/icons-material/FilterDrama'
+import EuroIcon from '@mui/icons-material/Euro'
+import AttachMoneyIcon from '@mui/icons-material/AttachMoney'
+import TrendingUpIcon from '@mui/icons-material/TrendingUp'
 
 import TableHeader from '@/components/common/TableHeader'
 import AccordionRow from '@/components/common/AccordionRow'
@@ -20,6 +23,7 @@ import api from '@/utils/api'
 
 /**
  * PackagingTable Komponente für die Darstellung der Verpackungs-Tabelle
+ * 🆕 ERWEITERT: Mit vollständiger Preisanzeige und Wertberechnung
  */
 const PackagingTable = ({
   tabValue,
@@ -112,22 +116,25 @@ const PackagingTable = ({
     return item.product_type || 'Unbekannt';
   };
 
-  // Spalten für den Tabellenkopf definieren
+  // 🆕 ERWEITERTE SPALTEN FÜR DEN TABELLENKOPF (MIT PREISEN):
   const getHeaderColumns = () => {
     return [
-      { label: 'Genetik', width: '14%', align: 'left' },
-      { label: 'Produkttyp', width: '12%', align: 'left' },
-      { label: 'Charge-Nummer', width: '20%', align: 'left' }, // Mehr Platz für Charge-Nummern
-      { label: 'Gesamtgewicht', width: '10%', align: 'center' },
-      { label: 'Einheitenzahl', width: '10%', align: 'center' },
-      { label: 'Einheitsgewicht', width: '8%', align: 'center' },
-      { label: 'Verpackt von', width: '12%', align: 'left' },
+      { label: 'Genetik', width: '12%', align: 'left' },
+      { label: 'Produkttyp', width: '10%', align: 'left' },
+      { label: 'Charge-Nummer', width: '16%', align: 'left' },
+      { label: 'Gewicht', width: '8%', align: 'center' },
+      { label: 'Einheiten', width: '7%', align: 'center' },
+      { label: 'Einheitsgewicht', width: '7%', align: 'center' },
+      // 🆕 NEUE PREISSPALTEN:
+      { label: '€/g', width: '7%', align: 'center' },
+      { label: 'Gesamtwert', width: '9%', align: 'center' },
+      { label: 'Verpackt von', width: '10%', align: 'left' },
       { label: 'Erstellt am', width: '10%', align: 'left' },
       { label: '', width: '4%', align: 'center' }
     ]
   }
 
-  // Funktion zum Erstellen der Spalten für eine Zeile
+  // 🆕 ERWEITERTE FUNKTION ZUM ERSTELLEN DER SPALTEN FÜR EINE ZEILE (MIT PREISEN):
   const getRowColumns = (packaging) => {
     // Bestimme Icon und Farbe für den Produkttyp
     let productIcon = LocalFloristIcon;
@@ -144,14 +151,14 @@ const PackagingTable = ({
     return [
       {
         content: packaging.source_strain || "Unbekannt",
-        width: '15%',
+        width: '12%',
         bold: true,
         icon: ScienceIcon,
         iconColor: tabValue === 3 ? 'error.main' : 'secondary.main'
       },
       {
         content: getProductTypeDisplay(packaging),
-        width: '12%',
+        width: '10%',
         bold: true,
         icon: productIcon,
         iconColor: tabValue === 3 ? 'error.main' : productColor
@@ -197,16 +204,16 @@ const PackagingTable = ({
             )}
           </Box>
         ),
-        width: '20%' // Die Breite beibehalten
+        width: '16%' // Die Breite beibehalten
       },
       {
         content: `${parseFloat(packaging.total_weight).toLocaleString('de-DE')}g`,
-        width: '10%',
+        width: '8%',
         align: 'center'
       },
       {
         content: packaging.unit_count,
-        width: '10%',
+        width: '7%',
         align: 'center',
         bold: true,
         icon: InventoryIcon,
@@ -214,14 +221,41 @@ const PackagingTable = ({
       },
       {
         content: `${parseFloat(packaging.unit_weight).toLocaleString('de-DE')}g`,
-        width: '8%',
+        width: '7%',
         align: 'center'
       },
+      
+      // 🆕 PREIS PRO GRAMM SPALTE:
+      {
+        content: packaging.price_per_gram ? 
+          `${parseFloat(packaging.price_per_gram).toFixed(2)}€` : 
+          "—",
+        width: '7%',
+        align: 'center',
+        bold: true,
+        icon: packaging.price_per_gram ? EuroIcon : null,
+        iconColor: tabValue === 3 ? 'error.main' : 'success.main',
+        color: packaging.price_per_gram ? (tabValue === 3 ? 'error.main' : 'success.main') : 'text.secondary'
+      },
+      
+      // 🆕 GESAMTWERT SPALTE:
+      {
+        content: packaging.total_batch_price ? 
+          `${parseFloat(packaging.total_batch_price).toFixed(2)}€` : 
+          "—",
+        width: '9%',
+        align: 'center',
+        bold: true,
+        icon: packaging.total_batch_price ? AttachMoneyIcon : null,
+        iconColor: tabValue === 3 ? 'error.main' : 'primary.main',
+        color: packaging.total_batch_price ? (tabValue === 3 ? 'error.main' : 'primary.main') : 'text.secondary'
+      },
+      
       {
         content: packaging.member ? 
           (packaging.member.display_name || `${packaging.member.first_name} ${packaging.member.last_name}`) 
           : "Nicht zugewiesen",
-        width: '12%'
+        width: '10%'
       },
       {
         content: new Date(packaging.created_at).toLocaleDateString('de-DE'),
@@ -229,7 +263,7 @@ const PackagingTable = ({
       },
       {
         content: '',  // Platz für das Aufklapp-Symbol
-        width: '3%'
+        width: '4%'
       }
     ]
   }
@@ -247,18 +281,23 @@ const PackagingTable = ({
     const productType = getProductTypeDisplay(packaging);
     const labTestingInfo = packaging.lab_testing_batch_number || "Unbekannte Charge";
     
+    // 🆕 PREISINFO IN AKTIVITÄTSMELDUNG:
+    const priceInfo = packaging.total_batch_price ? 
+      ` Gesamtwert: ${parseFloat(packaging.total_batch_price).toFixed(2)}€` : 
+      "";
+    
     if (tabValue !== 3) {
-      return `${productType} ${packaging.batch_number} mit Genetik ${packaging.source_strain} wurde am ${date} von ${processor} im Raum ${roomName} verpackt. Gesamtgewicht: ${totalWeight}g, Anzahl Einheiten: ${unitCount}, Gewicht pro Einheit: ${unitWeight}g. Quelle: Laborkontrolle ${labTestingInfo}.`;
+      return `${productType} ${packaging.batch_number} mit Genetik ${packaging.source_strain} wurde am ${date} von ${processor} im Raum ${roomName} verpackt. Gesamtgewicht: ${totalWeight}g, Anzahl Einheiten: ${unitCount}, Gewicht pro Einheit: ${unitWeight}g.${priceInfo} Quelle: Laborkontrolle ${labTestingInfo}.`;
     } else {
       const destroyDate = packaging.destroyed_at ? new Date(packaging.destroyed_at).toLocaleDateString('de-DE') : "unbekanntem Datum";
       const destroyer = packaging.destroyed_by ? 
         (packaging.destroyed_by.display_name || `${packaging.destroyed_by.first_name} ${packaging.destroyed_by.last_name}`) 
         : "Unbekannt";
-      return `Verpackung ${productType} ${packaging.batch_number} mit Genetik ${packaging.source_strain} wurde am ${destroyDate} von ${destroyer} vernichtet. Grund: ${packaging.destroy_reason || "Kein Grund angegeben"}. Gesamtgewicht: ${totalWeight}g, Anzahl Einheiten: ${unitCount}.`;
+      return `Verpackung ${productType} ${packaging.batch_number} mit Genetik ${packaging.source_strain} wurde am ${destroyDate} von ${destroyer} vernichtet. Grund: ${packaging.destroy_reason || "Kein Grund angegeben"}. Gesamtgewicht: ${totalWeight}g, Anzahl Einheiten: ${unitCount}.${priceInfo}`;
     }
   };
 
-  // Neue Funktion zur Anzeige der Verpackungseinheiten-Tabelle
+  // 🆕 ERWEITERTE FUNKTION ZUR ANZEIGE DER VERPACKUNGSEINHEITEN-TABELLE (MIT PREISEN):
   const renderUnitTable = (packaging) => {
     const packagingId = packaging.id;
     const isLoading = loadingUnits[packagingId];
@@ -267,8 +306,26 @@ const PackagingTable = ({
     return (
       <Box sx={{ width: '100%', mt: 2, mb: 2 }}>
         <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
-          <Typography variant="subtitle2" color="secondary">
+          <Typography variant="subtitle2" color="secondary" sx={{ display: 'flex', alignItems: 'center' }}>
+            <InventoryIcon sx={{ mr: 1 }} />
             Verpackungseinheiten
+            {/* 🆕 GESAMTWERT-ANZEIGE: */}
+            {packaging.total_batch_price && (
+              <Typography 
+                variant="caption" 
+                sx={{ 
+                  ml: 2, 
+                  color: 'primary.main', 
+                  fontWeight: 'bold',
+                  backgroundColor: 'primary.light',
+                  px: 1,
+                  py: 0.5,
+                  borderRadius: 1
+                }}
+              >
+                💰 Gesamtwert: {parseFloat(packaging.total_batch_price).toFixed(2)}€
+              </Typography>
+            )}
           </Typography>
         </Box>
         
@@ -283,6 +340,11 @@ const PackagingTable = ({
                     <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Einheits-Nummer</TableCell>
                     <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>UUID</TableCell>
                     <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Gewicht</TableCell>
+                    {/* 🆕 PREIS-SPALTE: */}
+                    <TableCell sx={{ color: 'white', fontWeight: 'bold', display: 'flex', alignItems: 'center' }}>
+                      <EuroIcon sx={{ mr: 0.5, fontSize: 16 }} />
+                      Stückpreis
+                    </TableCell>
                     <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Erstellt am</TableCell>
                     <TableCell align="right" sx={{ color: 'white', fontWeight: 'bold' }}>Aktionen</TableCell>
                   </TableRow>
@@ -304,6 +366,21 @@ const PackagingTable = ({
                       </TableCell>
                       <TableCell>
                         {parseFloat(unit.weight).toLocaleString('de-DE')}g
+                      </TableCell>
+                      {/* 🆕 PREIS-ZELLE: */}
+                      <TableCell sx={{ fontWeight: 'bold' }}>
+                        {unit.unit_price ? (
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <EuroIcon sx={{ mr: 0.5, fontSize: 14, color: 'success.main' }} />
+                            <Typography variant="body2" sx={{ color: 'success.main', fontWeight: 'bold' }}>
+                              {parseFloat(unit.unit_price).toFixed(2)}€
+                            </Typography>
+                          </Box>
+                        ) : (
+                          <Typography variant="body2" sx={{ color: 'text.secondary', fontStyle: 'italic' }}>
+                            k.A.
+                          </Typography>
+                        )}
                       </TableCell>
                       <TableCell>
                         {new Date(unit.created_at).toLocaleString('de-DE')}
@@ -353,7 +430,7 @@ const PackagingTable = ({
     );
   };
 
-  // Detailansicht für eine Verpackung rendern
+  // 🆕 ERWEITERTE DETAILANSICHT FÜR EINE VERPACKUNG MIT PREISEN:
   const renderPackagingDetails = (packaging) => {
     // Bestimme Icon, Farbe und Text für den Produkttyp
     let productIcon = LocalFloristIcon;
@@ -431,6 +508,7 @@ const PackagingTable = ({
       </Box>
     )
 
+    // 🆕 ERWEITERTE VERPACKUNGSDETAILS MIT PREISEN:
     const packagingDetails = (
       <Box>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
@@ -465,6 +543,56 @@ const PackagingTable = ({
             {parseFloat(packaging.unit_weight).toLocaleString('de-DE')}g
           </Typography>
         </Box>
+        
+        {/* 🆕 PREISDETAILS HINZUFÜGEN: */}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+          <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)', display: 'flex', alignItems: 'center' }}>
+            <EuroIcon sx={{ mr: 0.5, fontSize: 16 }} />
+            Preis pro Gramm:
+          </Typography>
+          <Typography variant="body2" sx={{ 
+            color: packaging.price_per_gram ? 'success.main' : 'text.secondary', 
+            fontWeight: 'bold' 
+          }}>
+            {packaging.price_per_gram ? 
+              `${parseFloat(packaging.price_per_gram).toFixed(2)} €` : 
+              "Nicht festgelegt"
+            }
+          </Typography>
+        </Box>
+        
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+          <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)', display: 'flex', alignItems: 'center' }}>
+            <AttachMoneyIcon sx={{ mr: 0.5, fontSize: 16 }} />
+            Preis pro Einheit:
+          </Typography>
+          <Typography variant="body2" sx={{ 
+            color: packaging.unit_price ? 'primary.main' : 'text.secondary', 
+            fontWeight: 'bold' 
+          }}>
+            {packaging.unit_price ? 
+              `${parseFloat(packaging.unit_price).toFixed(2)} €` : 
+              "Nicht berechnet"
+            }
+          </Typography>
+        </Box>
+        
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2, p: 1, bgcolor: 'primary.lighter', borderRadius: 1 }}>
+          <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'primary.main', display: 'flex', alignItems: 'center' }}>
+            <TrendingUpIcon sx={{ mr: 0.5, fontSize: 16 }} />
+            Gesamtwert:
+          </Typography>
+          <Typography variant="h6" sx={{ 
+            color: packaging.total_batch_price ? 'primary.main' : 'text.secondary', 
+            fontWeight: 'bold'
+          }}>
+            {packaging.total_batch_price ? 
+              `${parseFloat(packaging.total_batch_price).toFixed(2)} €` : 
+              "Nicht berechnet"
+            }
+          </Typography>
+        </Box>
+        
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
           <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)' }}>
             THC-Gehalt:

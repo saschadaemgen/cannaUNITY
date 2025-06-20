@@ -15,7 +15,6 @@ import {
   Box,
   IconButton,
   Paper,
-  Grid,
   Divider,
   Table,
   TableBody,
@@ -28,7 +27,8 @@ import {
   Alert,
   CircularProgress,
   Fade,
-  Zoom
+  Zoom,
+  InputAdornment
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import CreditCardIcon from '@mui/icons-material/CreditCard';
@@ -39,6 +39,9 @@ import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import CalculateIcon from '@mui/icons-material/Calculate';
+import EuroIcon from '@mui/icons-material/Euro';
+import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import api from '@/utils/api';
 
 const EnhancedConvertToPackagingDialog = ({
@@ -78,6 +81,11 @@ const EnhancedConvertToPackagingDialog = ({
   // Gesamtberechnungen
   const [totalPackages, setTotalPackages] = useState(0);
   const [totalPackagedWeight, setTotalPackagedWeight] = useState(0);
+  
+  // NEUE STATE-VARIABLEN FÜR PREIS:
+  const [pricePerGram, setPricePerGram] = useState('');
+  const [totalPackageValue, setTotalPackageValue] = useState(0);
+  const [remainingValue, setRemainingValue] = useState(0);
   
   // RFID-States
   const [scanMode, setScanMode] = useState(false);
@@ -121,6 +129,11 @@ const EnhancedConvertToPackagingDialog = ({
       setTotalPackages(0);
       setTotalPackagedWeight(0);
       
+      // PREISE ZURÜCKSETZEN:
+      setPricePerGram('');
+      setTotalPackageValue(0);
+      setRemainingValue(0);
+      
       // RFID-States zurücksetzen
       setScanMode(false);
       setScanSuccess(false);
@@ -157,15 +170,25 @@ const EnhancedConvertToPackagingDialog = ({
     const remaining = Math.max(0, parseFloat(availableWeight) - calculatedTotalWeight);
     setRemainingWeight(remaining);
     
+    // WERT-BERECHNUNG:
+    const priceValue = parseFloat(pricePerGram) || 0;
+    const calculatedTotalValue = calculatedTotalWeight * priceValue;
+    const calculatedRemainingValue = remaining * priceValue;
+    
+    setTotalPackageValue(calculatedTotalValue);
+    setRemainingValue(calculatedRemainingValue);
+    
     // Aktualisiere Notizen
     setNotes(`Verpackung in verschiedenen Einheitsgrößen. Verbleibende ${remaining.toFixed(2)}g werden vorschriftsgemäß vernichtet.`);
     
     debugLog('Neuberechnung:', {
       totalUnits: calculatedTotalUnits,
       totalWeight: calculatedTotalWeight,
-      remainingWeight: remaining
+      remainingWeight: remaining,
+      totalValue: calculatedTotalValue,
+      remainingValue: calculatedRemainingValue
     });
-  }, [packagingLines, availableWeight]);
+  }, [packagingLines, availableWeight, pricePerGram]);
   
   // Aktualisiere eine Verpackungszeile und berechne das Gesamtgewicht neu
   const updatePackagingLine = (id, field, value) => {
@@ -227,6 +250,12 @@ const EnhancedConvertToPackagingDialog = ({
   
   // Füge eine neue Verpackungszeile hinzu
   const addPackagingLine = () => {
+    // MAXIMAL 5 VERPACKUNGSLINIEN
+    if (packagingLines.length >= 5) {
+      setError('Maximal 5 verschiedene Verpackungsgrößen können gleichzeitig erstellt werden.');
+      return;
+    }
+
     // Finde die nächste verfügbare ID
     const nextId = Math.max(...packagingLines.map(line => line.id), 0) + 1;
     
@@ -477,6 +506,12 @@ const EnhancedConvertToPackagingDialog = ({
       return;
     }
     
+    // PREIS-VALIDIERUNG:
+    if (!pricePerGram || parseFloat(pricePerGram) <= 0) {
+      setError('Bitte geben Sie einen gültigen Preis pro Gramm ein');
+      return;
+    }
+    
     const packagingRequests = validPackagings.map(line => {
       const unitSize = line.packageSize === 'custom' 
         ? (parseFloat(line.customSize) || 0) 
@@ -499,7 +534,8 @@ const EnhancedConvertToPackagingDialog = ({
       member_id: rfidMemberId,
       room_id: roomId,
       notes: notes,
-      total_weight: calculatedTotalWeight
+      total_weight: calculatedTotalWeight,
+      price_per_gram: parseFloat(pricePerGram)
     };
     
     onConvert(formData, rfidMemberId);
@@ -543,6 +579,12 @@ const EnhancedConvertToPackagingDialog = ({
       return;
     }
     
+    // PREIS-VALIDIERUNG:
+    if (!pricePerGram || parseFloat(pricePerGram) <= 0) {
+      setError('Bitte geben Sie einen gültigen Preis pro Gramm ein (> 0)');
+      return;
+    }
+    
     // Erstelle ein Array von Verpackungen für die API
     const packagingRequests = validPackagings.map(line => {
       // Bestimme die tatsächliche Größe
@@ -573,7 +615,8 @@ const EnhancedConvertToPackagingDialog = ({
       room_id: roomId,
       notes: notes,
       // WICHTIG: Füge zusätzlich Gesamtgewicht für ältere API-Versionen hinzu
-      total_weight: calculatedTotalWeight
+      total_weight: calculatedTotalWeight,
+      price_per_gram: parseFloat(pricePerGram)
     };
     
     debugLog('API-Anfragedaten:', formData);
@@ -594,12 +637,17 @@ const EnhancedConvertToPackagingDialog = ({
         }
       }}
       fullWidth
-      maxWidth="xl"
+      maxWidth={false}
       disableEscapeKeyDown
       PaperProps={{
         sx: { 
           position: 'relative',
-          overflow: scanMode ? 'hidden' : 'visible'
+          overflow: scanMode ? 'hidden' : 'visible',
+          // 🎯 OPTIMIERT FÜR 1920x1080 - MEHR PLATZ GENUTZT
+          width: '95vw',
+          height: '88vh',
+          maxWidth: '1820px',
+          maxHeight: '940px'
         }
       }}
     >
@@ -640,7 +688,7 @@ const EnhancedConvertToPackagingDialog = ({
             <Fade in={scanSuccess}>
               <Box sx={{ textAlign: 'center' }}>
                 <Zoom in={scanSuccess}>
-                  <CheckCircleOutlineIcon sx={{ fontSize: 120, color: 'white', mb: 3 }} />
+                  <CheckCircleOutlineIcon sx={{ fontSize: 100, color: 'white', mb: 2 }} />
                 </Zoom>
                 
                 <Typography variant="h5" align="center" color="white" fontWeight="bold" gutterBottom>
@@ -651,6 +699,17 @@ const EnhancedConvertToPackagingDialog = ({
                   {totalPackages} Verpackung{totalPackages > 1 ? 'en wurden' : ' wurde'} erstellt
                 </Typography>
                 
+                {totalPackageValue > 0 && (
+                  <Box sx={{ textAlign: 'center', mt: 2 }}>
+                    <Typography variant="h6" align="center" color="white" fontWeight="bold">
+                      💰 Gesamtwert: {totalPackageValue.toFixed(2)} €
+                    </Typography>
+                    <Typography variant="caption" align="center" color="white" sx={{ opacity: 0.9 }}>
+                      (inkl. 19% MwSt.)
+                    </Typography>
+                  </Box>
+                )}
+                
                 <Typography variant="h6" align="center" color="white" fontWeight="bold" sx={{ mt: 1 }}>
                   Verantwortlich: {scannedMemberName}
                 </Typography>
@@ -658,7 +717,7 @@ const EnhancedConvertToPackagingDialog = ({
             </Fade>
           ) : (
             <>
-              <CreditCardIcon sx={{ fontSize: 120, color: 'white', mb: 4 }} />
+              <CreditCardIcon sx={{ fontSize: 100, color: 'white', mb: 3 }} />
               
               <Typography variant="h5" align="center" color="white" fontWeight="bold" gutterBottom>
                 Bitte Ausweis jetzt scannen
@@ -670,11 +729,11 @@ const EnhancedConvertToPackagingDialog = ({
               
               {loading && (
                 <CircularProgress 
-                  size={60} 
+                  size={50} 
                   thickness={5} 
                   sx={{ 
                     color: 'white', 
-                    mt: 4 
+                    mt: 3 
                   }} 
                 />
               )}
@@ -683,81 +742,139 @@ const EnhancedConvertToPackagingDialog = ({
         </Box>
       )}
       
-      <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      {/* 🎯 VERBESSERTE HEADER-GRÖSSE */}
+      <DialogTitle sx={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center',
+        py: 1.5,
+        px: 2.5,
+        borderBottom: '1px solid',
+        borderColor: 'divider',
+        minHeight: '56px'
+      }}>
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <InventoryIcon sx={{ mr: 1, color: 'success.main' }} />
-          <Typography variant="h6">Erweiterte Verpackungserstellung</Typography>
+          <InventoryIcon sx={{ mr: 1.5, color: 'success.main', fontSize: '1.4rem' }} />
+          <Typography variant="h6" sx={{ fontSize: '1.2rem', fontWeight: 'bold' }}>Erweiterte Verpackungserstellung</Typography>
         </Box>
-        <IconButton onClick={handleDialogClose} size="small">
+        <IconButton onClick={handleDialogClose} size="medium">
           <CloseIcon />
         </IconButton>
       </DialogTitle>
       
       <form onSubmit={handleSubmit}>
-        <DialogContent dividers>
-          <Box sx={{ display: 'flex', width: '100%' }}>
-            {/* Linke Spalte */}
-            <Box sx={{ width: '350px', flexShrink: 0, pr: 3 }}>
+        <DialogContent 
+          dividers 
+          sx={{ 
+            p: 2,
+            height: 'calc(88vh - 160px)',
+            overflow: 'hidden'
+          }}
+        >
+          <Box sx={{ display: 'flex', width: '100%', height: '100%', gap: 2 }}>
+            
+            {/* 🎯 LINKE SPALTE - VERGRÖSSERT */}
+            <Box sx={{ width: '360px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+              
+              {/* Laborkontrolle-Information - VERGRÖSSERT */}
               {labTesting && (
-                <Paper sx={{ p: 2, mb: 2, bgcolor: 'background.paper', borderRadius: 1 }}>
-                  <Typography variant="subtitle2" color="textSecondary" gutterBottom>
+                <Paper sx={{ p: 1.5, bgcolor: 'background.paper' }}>
+                  <Typography variant="subtitle2" color="textSecondary" sx={{ fontSize: '0.85rem', mb: 1, fontWeight: 'bold' }}>
                     Laborkontrolle-Information
                   </Typography>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                    <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, fontSize: '0.8rem' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '0.8rem' }}>
                       Genetik:
                     </Typography>
-                    <Typography variant="body2">
+                    <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
                       {labTesting.source_strain || "Unbekannt"}
                     </Typography>
-                  </Box>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                    <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                      Produkttyp:
-                    </Typography>
-                    <Typography variant="body2">
-                      {labTesting.product_type === 'marijuana' ? 'Marihuana' : 
-                       labTesting.product_type === 'hashish' ? 'Haschisch' : 
-                       labTesting.product_type || "Unbekannt"}
-                    </Typography>
-                  </Box>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                    <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '0.8rem' }}>
                       THC-Gehalt:
                     </Typography>
-                    <Typography variant="body2">
+                    <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
                       {labTesting.thc_content ? `${labTesting.thc_content}%` : "Nicht getestet"}
                     </Typography>
                   </Box>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', 
-                        p: 1, bgcolor: 'info.lighter', borderRadius: 1, mt: 1 }}>
-                    <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                  <Box sx={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    p: 1, 
+                    bgcolor: 'info.lighter', 
+                    borderRadius: 1, 
+                    mt: 1 
+                  }}>
+                    <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '0.8rem' }}>
                       Verfügbares Gewicht:
                     </Typography>
-                    <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '0.8rem' }}>
                       {availableWeight.toFixed(3)}g
                     </Typography>
                   </Box>
                 </Paper>
               )}
               
-              {/* RFID-Hinweis statt Mitglieder-Dropdown */}
-              <Box 
-                sx={{ 
-                  p: 2, 
-                  mb: 2,
-                  bgcolor: 'info.light', 
-                  color: 'info.contrastText',
-                  borderRadius: 1
-                }}
-              >
-                <Typography variant="body2">
-                  <strong>Hinweis:</strong> Die Zuordnung des verantwortlichen Mitglieds erfolgt automatisch per RFID-Autorisierung.
+              {/* 🎯 PREISEINGABE - VERGRÖSSERT */}
+              <Paper sx={{ p: 1.5, bgcolor: 'warning.lighter' }}>
+                <Typography variant="subtitle2" color="warning.main" sx={{ mb: 1.5, fontSize: '0.85rem', fontWeight: 'bold', display: 'flex', alignItems: 'center' }}>
+                  <EuroIcon sx={{ mr: 1, fontSize: '1.1rem' }} />
+                  Preisfestlegung
                 </Typography>
-              </Box>
+                <TextField
+                  fullWidth
+                  size="small"
+                  type="number"
+                  label="Preis pro Gramm"
+                  value={pricePerGram}
+                  onChange={(e) => setPricePerGram(e.target.value)}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <EuroIcon />
+                      </InputAdornment>
+                    ),
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <Typography variant="body2">/g</Typography>
+                      </InputAdornment>
+                    ),
+                  }}
+                  InputLabelProps={{
+                    sx: { fontSize: '0.9rem' }
+                  }}
+                  inputProps={{ 
+                    min: 0, 
+                    step: 0.01,
+                    placeholder: "z.B. 12.50",
+                    sx: { fontSize: '0.9rem' }
+                  }}
+                  required
+                  FormHelperTextProps={{
+                    sx: { fontSize: '0.75rem' }
+                  }}
+                  helperText="Verkaufspreis pro Gramm (inkl. 19% MwSt.)"
+                  error={pricePerGram !== '' && parseFloat(pricePerGram) <= 0}
+                />
+                
+                {/* PREIS-VORSCHAU - VERGRÖSSERT */}
+                {pricePerGram && parseFloat(pricePerGram) > 0 && (
+                  <Box sx={{ mt: 1.5, p: 1, bgcolor: 'rgba(255,255,255,0.7)', borderRadius: 1 }}>
+                    <Typography variant="body2" color="text.secondary" display="block" sx={{ fontSize: '0.75rem' }}>
+                      Erwarteter Gesamtwert:
+                    </Typography>
+                    <Typography variant="h6" color="success.main" sx={{ fontWeight: 'bold', fontSize: '1.1rem' }}>
+                      {totalPackageValue.toFixed(2)} €
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                      (inkl. 19% MwSt.)
+                    </Typography>
+                  </Box>
+                )}
+              </Paper>
               
-              <FormControl fullWidth margin="dense" sx={{ mb: 2 }}>
-                <InputLabel id="room-label">Raum</InputLabel>
+              {/* Raum-Auswahl - VERGRÖSSERT */}
+              <FormControl fullWidth size="small">
+                <InputLabel id="room-label" sx={{ fontSize: '0.9rem' }}>Raum</InputLabel>
                 <Select
                   labelId="room-label"
                   id="room"
@@ -766,94 +883,145 @@ const EnhancedConvertToPackagingDialog = ({
                   label="Raum"
                   required
                   disabled={loadingOptions}
+                  sx={{ fontSize: '0.9rem' }}
                 >
                   {rooms.map((room) => (
-                    <MenuItem key={room.id} value={room.id}>
+                    <MenuItem key={room.id} value={room.id} sx={{ fontSize: '0.9rem' }}>
                       {room.name}
                     </MenuItem>
                   ))}
                 </Select>
               </FormControl>
               
+              {/* Notizen - VERGRÖSSERT */}
               <TextField
-                margin="dense"
+                size="small"
                 id="notes"
                 label="Notizen"
                 multiline
-                rows={3}
+                rows={2}
                 fullWidth
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 variant="outlined"
-                sx={{ mb: 2 }}
+                InputLabelProps={{
+                  sx: { fontSize: '0.9rem' }
+                }}
+                inputProps={{
+                  sx: { fontSize: '0.85rem' }
+                }}
               />
               
-              {/* Zusammenfassung und Restmenge */}
-              <Paper sx={{ p: 2, bgcolor: 'success.lighter', borderRadius: 1 }}>
-                <Typography variant="subtitle2" color="success.main" sx={{ mb: 1 }}>
+              {/* 🎯 ZUSAMMENFASSUNG - VERGRÖSSERT */}
+              <Paper sx={{ p: 1.5, bgcolor: 'success.lighter', flex: 1 }}>
+                <Typography variant="subtitle2" color="success.main" sx={{ mb: 1, fontSize: '0.85rem', fontWeight: 'bold', display: 'flex', alignItems: 'center' }}>
+                  <TrendingUpIcon sx={{ mr: 1, fontSize: '1.1rem' }} />
                   Zusammenfassung
                 </Typography>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                  <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                    Gesamtanzahl Verpackungen:
+                
+                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 0.5, fontSize: '0.8rem' }}>
+                  <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '0.8rem' }}>
+                    Verpackungen:
                   </Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                  <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '0.8rem' }}>
                     {totalPackages}
                   </Typography>
-                </Box>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                  <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                    Gesamtgewicht (verpackt):
+                  
+                  <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '0.8rem' }}>
+                    Gewicht (verpackt):
                   </Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                  <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '0.8rem' }}>
                     {totalPackagedWeight.toFixed(2)}g
                   </Typography>
+                  
+                  {pricePerGram && parseFloat(pricePerGram) > 0 && (
+                    <>
+                      <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '0.8rem' }}>
+                        Preis pro Gramm:
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'warning.main', fontSize: '0.8rem' }}>
+                        {parseFloat(pricePerGram).toFixed(2)} €/g
+                      </Typography>
+                      
+                      <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '0.8rem' }}>
+                        💰 Gesamtwert:
+                      </Typography>
+                      <Typography variant="h6" sx={{ fontWeight: 'bold', color: 'success.main', fontSize: '1rem' }}>
+                        {totalPackageValue.toFixed(2)} €
+                      </Typography>
+                    </>
+                  )}
                 </Box>
+                
+                {pricePerGram && parseFloat(pricePerGram) > 0 && (
+                  <Typography variant="caption" sx={{ fontSize: '0.7rem', color: 'text.secondary', display: 'block', textAlign: 'center', mt: 0.5 }}>
+                    (inkl. 19% MwSt.)
+                  </Typography>
+                )}
+                
                 <Divider sx={{ my: 1 }} />
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                  <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                    Restmenge (wird vernichtet):
+                
+                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 0.5 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '0.8rem' }}>
+                    Restmenge:
                   </Typography>
                   <Typography variant="body2" sx={{ 
                     color: remainingWeight > 0 ? 'error.main' : 'inherit', 
-                    fontWeight: 'bold' 
+                    fontWeight: 'bold',
+                    fontSize: '0.8rem'
                   }}>
                     {remainingWeight.toFixed(2)}g
                   </Typography>
+                  
+                  {remainingWeight > 0 && pricePerGram && parseFloat(pricePerGram) > 0 && (
+                    <>
+                      <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '0.8rem' }}>
+                        ⚠️ Wert Restmenge:
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: 'error.main', fontWeight: 'bold', fontSize: '0.8rem' }}>
+                        {remainingValue.toFixed(2)} €
+                      </Typography>
+                    </>
+                  )}
                 </Box>
                 
                 {remainingWeight > 0 && (
                   <Box sx={{ mt: 1, display: 'flex', alignItems: 'center' }}>
-                    <LocalFireDepartmentIcon sx={{ mr: 1, fontSize: 16, color: 'error.main' }} />
-                    <Typography variant="caption" color="error">
-                      Die Restmenge wird automatisch zur Vernichtung markiert
+                    <LocalFireDepartmentIcon sx={{ mr: 1, fontSize: 14, color: 'error.main' }} />
+                    <Typography variant="caption" color="error" sx={{ fontSize: '0.7rem' }}>
+                      Restmenge → automatische Vernichtung
                     </Typography>
                   </Box>
                 )}
               </Paper>
               
               {error && (
-                <Alert severity="error" sx={{ mt: 2 }}>
+                <Alert severity="error" sx={{ 
+                  py: 1,
+                  '& .MuiAlert-message': { fontSize: '0.8rem' },
+                  '& .MuiAlert-icon': { fontSize: '1.2rem' }
+                }}>
                   {error}
                 </Alert>
               )}
             </Box>
             
-            {/* Rechte Spalte - Verpackungslinien */}
-            <Box sx={{ flex: 1 }}>
-              <Paper sx={{ p: 2, mb: 2 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                  <Typography variant="h6">
+            {/* 🎯 RECHTE SPALTE - TABELLE VERGRÖSSERT + SCROLLING */}
+            <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+              <Paper sx={{ p: 2, flex: 1, display: 'flex', flexDirection: 'column' }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+                  <Typography variant="h6" sx={{ fontSize: '1.1rem', fontWeight: 'bold' }}>
                     Verpackungslinien
                   </Typography>
                   <Box>
-                    <Tooltip title="Gewicht intelligent auf vorhandene Zeilen verteilen">
+                    <Tooltip title="Gewicht intelligent verteilen">
                       <Button
                         variant="outlined"
                         color="primary"
+                        size="small"
                         startIcon={<CalculateIcon />}
                         onClick={smartDistribute}
-                        sx={{ mr: 1 }}
+                        sx={{ mr: 1, fontSize: '0.8rem' }}
                       >
                         Auto-Verteilung
                       </Button>
@@ -861,129 +1029,179 @@ const EnhancedConvertToPackagingDialog = ({
                     <Button
                       variant="contained"
                       color="primary"
+                      size="small"
                       startIcon={<AddCircleOutlineIcon />}
                       onClick={addPackagingLine}
+                      disabled={packagingLines.length >= 5}
+                      sx={{ fontSize: '0.8rem' }}
                     >
-                      Neue Zeile
+                      + Neue Zeile {packagingLines.length >= 5 && '(Max. 5)'}
                     </Button>
                   </Box>
                 </Box>
                 
-                <TableContainer>
-                  <Table>
+                {/* 🎯 VERBESSERTE TABELLE MIT SCROLLING AB 6 ZEILEN */}
+                <TableContainer sx={{ 
+                  flex: 1,
+                  maxHeight: packagingLines.length > 5 ? '400px' : 'none',
+                  overflow: packagingLines.length > 5 ? 'auto' : 'visible'
+                }}>
+                  <Table size="small" sx={{ '& .MuiTableCell-root': { py: 1, px: 1.5 } }}>
                     <TableHead>
                       <TableRow>
-                        <TableCell sx={{ width: '30%' }}>Verpackungsgröße</TableCell>
-                        <TableCell sx={{ width: '25%' }}>Anzahl</TableCell>
-                        <TableCell sx={{ width: '25%' }}>Gesamtgewicht</TableCell>
-                        <TableCell sx={{ width: '20%' }}>Aktionen</TableCell>
+                        <TableCell sx={{ width: '30%', fontSize: '0.85rem', fontWeight: 'bold' }}>
+                          Verpackungsgröße
+                        </TableCell>
+                        <TableCell sx={{ width: '15%', fontSize: '0.85rem', fontWeight: 'bold' }}>
+                          Anzahl
+                        </TableCell>
+                        <TableCell sx={{ width: '18%', fontSize: '0.85rem', fontWeight: 'bold' }}>
+                          Gesamtgewicht
+                        </TableCell>
+                        <TableCell sx={{ width: '20%', fontSize: '0.85rem', fontWeight: 'bold' }}>
+                          Wert (inkl. MwSt.)
+                        </TableCell>
+                        <TableCell sx={{ width: '17%', fontSize: '0.85rem', fontWeight: 'bold' }}>
+                          Aktionen
+                        </TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {packagingLines.map((line) => (
-                        <TableRow key={line.id}>
-                          <TableCell>
-                            <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
-                              <FormControl fullWidth size="small">
-                                <Select
-                                  value={line.packageSize}
-                                  onChange={(e) => updatePackagingLine(line.id, 'packageSize', e.target.value)}
-                                >
-                                  {packageSizeOptions.map(option => (
-                                    <MenuItem key={option.value} value={option.value}>
-                                      {option.label}
-                                    </MenuItem>
-                                  ))}
-                                </Select>
-                              </FormControl>
-                              
-                              {line.packageSize === 'custom' && (
-                                <TextField
-                                  size="small"
-                                  type="number"
-                                  value={line.customSize}
-                                  onChange={(e) => updatePackagingLine(line.id, 'customSize', e.target.value)}
-                                  InputProps={{
-                                    endAdornment: <Typography variant="caption">g</Typography>,
-                                  }}
-                                  inputProps={{ min: 5, step: 0.1 }}
-                                  sx={{ ml: 1, width: '80px' }}
-                                  error={line.customSize !== '' && parseFloat(line.customSize) < 5}
-                                />
+                      {packagingLines.map((line) => {
+                        const lineValue = parseFloat(line.totalWeight) * (parseFloat(pricePerGram) || 0);
+                        
+                        return (
+                          <TableRow key={line.id}>
+                            <TableCell>
+                              <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                                <FormControl fullWidth size="small">
+                                  <Select
+                                    value={line.packageSize}
+                                    onChange={(e) => updatePackagingLine(line.id, 'packageSize', e.target.value)}
+                                    sx={{ fontSize: '0.8rem', minHeight: '32px' }}
+                                  >
+                                    {packageSizeOptions.map(option => (
+                                      <MenuItem key={option.value} value={option.value} sx={{ fontSize: '0.8rem' }}>
+                                        {option.label}
+                                      </MenuItem>
+                                    ))}
+                                  </Select>
+                                </FormControl>
+                                
+                                {line.packageSize === 'custom' && (
+                                  <TextField
+                                    size="small"
+                                    type="number"
+                                    value={line.customSize}
+                                    onChange={(e) => updatePackagingLine(line.id, 'customSize', e.target.value)}
+                                    InputProps={{
+                                      endAdornment: <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>g</Typography>,
+                                      sx: { fontSize: '0.8rem' }
+                                    }}
+                                    inputProps={{ 
+                                      min: 5, 
+                                      step: 0.1,
+                                      sx: { fontSize: '0.8rem' }
+                                    }}
+                                    sx={{ width: '70px' }}
+                                    error={line.customSize !== '' && parseFloat(line.customSize) < 5}
+                                  />
+                                )}
+                              </Box>
+                              {line.packageSize === 'custom' && line.customSize !== '' && parseFloat(line.customSize) < 5 && (
+                                <FormHelperText error sx={{ fontSize: '0.7rem', mt: 0.5 }}>Min. 5g</FormHelperText>
                               )}
-                            </Box>
-                            {line.packageSize === 'custom' && line.customSize !== '' && parseFloat(line.customSize) < 5 && (
-                              <FormHelperText error>Min. 5g</FormHelperText>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <TextField
-                              fullWidth
-                              size="small"
-                              type="number"
-                              value={line.unitCount}
-                              onChange={(e) => updatePackagingLine(line.id, 'unitCount', e.target.value)}
-                              inputProps={{ min: 0 }}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Typography>
-                              {parseFloat(line.totalWeight).toFixed(2)}g
-                            </Typography>
-                          </TableCell>
-                          <TableCell>
-                            <IconButton 
-                              color="error"
-                              onClick={() => removePackagingLine(line.id)}
-                              disabled={packagingLines.length <= 1}
-                            >
-                              <DeleteOutlineIcon />
-                            </IconButton>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                            </TableCell>
+                            <TableCell>
+                              <TextField
+                                fullWidth
+                                size="small"
+                                type="number"
+                                value={line.unitCount}
+                                onChange={(e) => updatePackagingLine(line.id, 'unitCount', e.target.value)}
+                                inputProps={{ 
+                                  min: 0,
+                                  sx: { fontSize: '0.8rem' }
+                                }}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Typography sx={{ fontSize: '0.8rem', fontWeight: 'bold' }}>
+                                {parseFloat(line.totalWeight).toFixed(2)}g
+                              </Typography>
+                            </TableCell>
+                            <TableCell>
+                              <Box>
+                                <Typography sx={{ 
+                                  color: lineValue > 0 ? 'success.main' : 'text.secondary',
+                                  fontWeight: lineValue > 0 ? 'bold' : 'normal',
+                                  fontSize: '0.8rem'
+                                }}>
+                                  {lineValue > 0 ? `${lineValue.toFixed(2)} €` : '—'}
+                                </Typography>
+                                {lineValue > 0 && (
+                                  <Typography variant="caption" sx={{ 
+                                    fontSize: '0.7rem', 
+                                    color: 'text.secondary',
+                                    display: 'block'
+                                  }}>
+                                    (inkl. MwSt.)
+                                  </Typography>
+                                )}
+                              </Box>
+                            </TableCell>
+                            <TableCell>
+                              <IconButton 
+                                color="error"
+                                size="small"
+                                onClick={() => removePackagingLine(line.id)}
+                                disabled={packagingLines.length <= 1}
+                                sx={{ p: 0.5 }}
+                              >
+                                <DeleteOutlineIcon />
+                              </IconButton>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </TableContainer>
               </Paper>
-              
-              {/* Informationsbereich */}
-              <Paper sx={{ p: 2, bgcolor: 'info.lighter', borderRadius: 1 }}>
-                <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
-                  <InfoIcon sx={{ mr: 1, color: 'info.main', mt: 0.5 }} />
-                  <Box>
-                    <Typography variant="body2" sx={{ mb: 1 }}>
-                      <strong>Hinweise zur Verpackungserstellung:</strong>
-                    </Typography>
-                    <Typography variant="body2" sx={{ mb: 0.5 }}>
-                      • Für jede Verpackungszeile wird im Backend eine separate Batch-Nummer mit eigener UUID generiert
-                    </Typography>
-                    <Typography variant="body2" sx={{ mb: 0.5 }}>
-                      • Die Mindestgröße für Verpackungen beträgt 5g
-                    </Typography>
-                    <Typography variant="body2" sx={{ mb: 0.5 }}>
-                      • Mit "Auto-Verteilung" können Sie das verfügbare Gewicht automatisch auf die vorhandenen Zeilen verteilen
-                    </Typography>
-                    <Typography variant="body2">
-                      • Übrige Restmengen werden automatisch als vernichtet markiert
-                    </Typography>
-                  </Box>
-                </Box>
-              </Paper>
             </Box>
+          </Box>
+          
+          {/* 🎯 RFID-HINWEIS VERGRÖSSERT */}
+          <Box sx={{ 
+            mt: 1.5, 
+            p: 1.5, 
+            bgcolor: 'info.lighter', 
+            borderRadius: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            <CreditCardIcon sx={{ mr: 1, color: 'info.main', fontSize: '1.1rem' }} />
+            <Typography variant="body2" sx={{ fontSize: '0.8rem', textAlign: 'center' }}>
+              <strong>Hinweis:</strong> Zuordnung per RFID-Autorisierung. Preise inkl. 19% MwSt. 
+              Max. 5 Verpackungsgrößen empfohlen - bei mehr erscheint automatisch ein Scrollbalken.
+            </Typography>
           </Box>
         </DialogContent>
         
-        <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button onClick={handleDialogClose} color="inherit">
+        {/* 🎯 VERBESSERTER FOOTER */}
+        <DialogActions sx={{ px: 2.5, py: 2, borderTop: '1px solid', borderColor: 'divider', minHeight: '60px' }}>
+          <Button onClick={handleDialogClose} color="inherit" size="medium" sx={{ fontSize: '0.9rem' }}>
             Abbrechen
           </Button>
           <Button 
             onClick={startRfidScan}
             variant="contained" 
             color="success"
-            startIcon={loading ? <CircularProgress size={16} /> : <InventoryIcon />}
-            disabled={loading || totalPackagedWeight <= 0 || !roomId}
+            size="medium"
+            startIcon={loading ? <CircularProgress size={16} /> : <AttachMoneyIcon />}
+            disabled={loading || totalPackagedWeight <= 0 || !roomId || !pricePerGram || parseFloat(pricePerGram) <= 0}
+            sx={{ fontSize: '0.9rem', px: 3 }}
           >
             Mit RFID autorisieren & Verpackungen erstellen
           </Button>

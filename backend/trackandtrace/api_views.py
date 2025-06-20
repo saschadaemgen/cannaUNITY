@@ -2418,7 +2418,7 @@ class LabTestingBatchViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def convert_to_packaging(self, request, pk=None):
         """
-        Konvertiert eine freigegebene Laborkontrolle zu mehreren Verpackungen.
+        🆕 ERWEITERT: Konvertiert eine freigegebene Laborkontrolle zu mehreren Verpackungen MIT PREISUNTERSTÜTZUNG.
         Unterstützt sowohl Einzelverpackungen als auch mehrere Verpackungslinien.
         """
         lab_batch = self.get_object()
@@ -2449,6 +2449,24 @@ class LabTestingBatchViewSet(viewsets.ModelViewSet):
         remaining_weight = float(request.data.get('remaining_weight', 0) or 0)
         auto_destroy_remainder = request.data.get('auto_destroy_remainder', False)
         
+        # 🆕 PREIS AUS REQUEST LESEN:
+        price_per_gram = request.data.get('price_per_gram')
+        
+        # 🆕 PREIS-VALIDIERUNG:
+        if price_per_gram is not None:
+            try:
+                price_per_gram = float(price_per_gram)
+                if price_per_gram < 0:
+                    return Response(
+                        {"error": "Der Preis pro Gramm kann nicht negativ sein"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            except (ValueError, TypeError):
+                return Response(
+                    {"error": "Ungültiger Preis pro Gramm. Bitte geben Sie eine gültige Zahl ein."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        
         # Überprüfen, ob es sich um eine Multi-Packaging-Anfrage handelt
         if 'packagings' in request.data and isinstance(request.data['packagings'], list):
             # Multi-Packaging-Verarbeitung
@@ -2462,6 +2480,25 @@ class LabTestingBatchViewSet(viewsets.ModelViewSet):
                     unit_count = int(packaging_data.get('unit_count', 0))
                     unit_weight = float(packaging_data.get('unit_weight', 0))
                     total_line_weight = float(packaging_data.get('total_weight', 0))
+                    
+                    # 🆕 INDIVIDUELLER PREIS PRO LINIE (OPTIONAL):
+                    line_price_per_gram = packaging_data.get('price_per_gram')
+                    if line_price_per_gram is not None:
+                        try:
+                            line_price_per_gram = float(line_price_per_gram)
+                            if line_price_per_gram < 0:
+                                return Response(
+                                    {"error": f"Der Preis pro Gramm in Zeile {idx+1} kann nicht negativ sein"},
+                                    status=status.HTTP_400_BAD_REQUEST
+                                )
+                        except (ValueError, TypeError):
+                            return Response(
+                                {"error": f"Ungültiger Preis pro Gramm in Zeile {idx+1}"},
+                                status=status.HTTP_400_BAD_REQUEST
+                            )
+                    else:
+                        # Fallback auf globalen Preis
+                        line_price_per_gram = price_per_gram
                     
                     # Validierung für diese Verpackungslinie
                     if unit_count <= 0:
@@ -2484,16 +2521,23 @@ class LabTestingBatchViewSet(viewsets.ModelViewSet):
                             status=status.HTTP_400_BAD_REQUEST
                         )
                     
+                    # 🆕 KWARGS FÜR VERPACKUNG MIT PREIS VORBEREITEN:
+                    packaging_kwargs = {
+                        'lab_testing_batch': lab_batch,
+                        'total_weight': total_line_weight,
+                        'unit_count': unit_count,
+                        'unit_weight': unit_weight,
+                        'member_id': member_id,
+                        'room_id': room_id,
+                        'notes': f"{notes} - Zeile {idx+1} von {len(packagings)}: {unit_count}× {unit_weight}g"
+                    }
+                    
+                    # 🆕 PREIS HINZUFÜGEN, FALLS VORHANDEN:
+                    if line_price_per_gram is not None:
+                        packaging_kwargs['price_per_gram'] = line_price_per_gram
+                    
                     # Erstelle die Verpackung für diese Linie
-                    packaging = PackagingBatch.objects.create(
-                        lab_testing_batch=lab_batch,
-                        total_weight=total_line_weight,
-                        unit_count=unit_count,
-                        unit_weight=unit_weight,
-                        member_id=member_id,
-                        room_id=room_id,
-                        notes=f"{notes} - Zeile {idx+1} von {len(packagings)}: {unit_count}× {unit_weight}g"
-                    )
+                    packaging = PackagingBatch.objects.create(**packaging_kwargs)
                     
                     created_packagings.append(packaging)
                     total_weight_used += total_line_weight
@@ -2523,28 +2567,54 @@ class LabTestingBatchViewSet(viewsets.ModelViewSet):
             
             # Erstelle Restbetrag als vernichtete Verpackung, wenn gewünscht
             if auto_destroy_remainder and remaining_weight > 0:
-                PackagingBatch.objects.create(
-                    lab_testing_batch=lab_batch,
-                    total_weight=remaining_weight,
-                    unit_count=1,
-                    unit_weight=remaining_weight,
-                    member_id=member_id,
-                    room_id=room_id,
-                    notes=f"Restmenge aus der Verpackung von {lab_batch.batch_number}. Automatisch zur Vernichtung markiert.",
-                    is_destroyed=True,
-                    destroy_reason=f"Automatische Vernichtung der Restmenge bei Verpackung von {lab_batch.batch_number}",
-                    destroyed_at=timezone.now(),
-                    destroyed_by_id=member_id
-                )
+                remainder_kwargs = {
+                    'lab_testing_batch': lab_batch,
+                    'total_weight': remaining_weight,
+                    'unit_count': 1,
+                    'unit_weight': remaining_weight,
+                    'member_id': member_id,
+                    'room_id': room_id,
+                    'notes': f"Restmenge aus der Verpackung von {lab_batch.batch_number}. Automatisch zur Vernichtung markiert.",
+                    'is_destroyed': True,
+                    'destroy_reason': f"Automatische Vernichtung der Restmenge bei Verpackung von {lab_batch.batch_number}",
+                    'destroyed_at': timezone.now(),
+                    'destroyed_by_id': member_id
+                }
+                
+                # 🆕 AUCH RESTMENGE MIT PREIS VERSEHEN (FÜR BUCHHALTUNG):
+                if price_per_gram is not None:
+                    remainder_kwargs['price_per_gram'] = price_per_gram
+                
+                PackagingBatch.objects.create(**remainder_kwargs)
             
-            # Erfolgsmeldung mit Zusammenfassung
-            return Response({
+            # 🆕 ERWEITERTE ERFOLGSMELDUNG MIT PREISINFORMATIONEN:
+            response_data = {
                 "message": f"{len(created_packagings)} Verpackungsbatches mit insgesamt {total_weight_used}g wurden erstellt",
+                "packaging_count": len(created_packagings),
+                "total_weight": total_weight_used,
                 "packagings": [PackagingBatchSerializer(pkg).data for pkg in created_packagings]
-            })
+            }
+            
+            # 🆕 PREISINFORMATIONEN HINZUFÜGEN:
+            if price_per_gram is not None:
+                total_value = 0
+                for packaging in created_packagings:
+                    if packaging.total_batch_price:
+                        total_value += float(packaging.total_batch_price)
+                
+                response_data.update({
+                    "pricing_info": {
+                        "base_price_per_gram": price_per_gram,
+                        "total_estimated_value": round(total_value, 2),
+                        "currency": "EUR",
+                        "note": "Preise wurden automatisch berechnet"
+                    }
+                })
+            
+            return Response(response_data)
             
         else:
-            # Fallback für Einzelverpackung (bestehender Code, leicht angepasst)
+            # Fallback für Einzelverpackung (bestehender Code, erweitert mit Preis)
             total_weight = float(request.data.get('total_weight', 0) or 0)
             unit_count = int(request.data.get('unit_count', 0) or 0)
             unit_weight = float(request.data.get('unit_weight', 0) or 0)
@@ -2567,17 +2637,78 @@ class LabTestingBatchViewSet(viewsets.ModelViewSet):
                     {"error": "Das Gewicht pro Einheit muss mindestens 5g betragen"},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-                
+            
+            # Prüfen, ob das Gesamtgewicht verfügbar ist
+            available_weight = lab_batch.remaining_weight
+            if total_weight > available_weight:
+                return Response(
+                    {"error": f"Das Gesamtgewicht ({total_weight}g) überschreitet das verfügbare Gewicht ({available_weight}g)"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # 🆕 KWARGS FÜR EINZELVERPACKUNG MIT PREIS VORBEREITEN:
+            packaging_kwargs = {
+                'lab_testing_batch': lab_batch,
+                'total_weight': total_weight,
+                'unit_count': unit_count,
+                'unit_weight': unit_weight,
+                'member_id': member_id,
+                'room_id': room_id,
+                'notes': notes
+            }
+            
+            # 🆕 PREIS HINZUFÜGEN, FALLS VORHANDEN:
+            if price_per_gram is not None:
+                packaging_kwargs['price_per_gram'] = price_per_gram
+            
             # Erstelle die Einzelverpackung
-            packaging = PackagingBatch.objects.create(
-                lab_testing_batch=lab_batch,
-                total_weight=total_weight,
-                unit_count=unit_count,
-                unit_weight=unit_weight,
-                member_id=member_id,
-                room_id=room_id,
-                notes=notes
-            )
+            packaging = PackagingBatch.objects.create(**packaging_kwargs)
+            
+            # Markiere Laborcharge als zu Verpackung konvertiert
+            lab_batch.converted_to_packaging = True
+            lab_batch.converted_to_packaging_at = timezone.now()
+            lab_batch.save()
+            
+            # Erstelle Restbetrag als vernichtete Verpackung, wenn gewünscht
+            if auto_destroy_remainder and remaining_weight > 0:
+                remainder_kwargs = {
+                    'lab_testing_batch': lab_batch,
+                    'total_weight': remaining_weight,
+                    'unit_count': 1,
+                    'unit_weight': remaining_weight,
+                    'member_id': member_id,
+                    'room_id': room_id,
+                    'notes': f"Restmenge aus der Verpackung von {lab_batch.batch_number}. Automatisch zur Vernichtung markiert.",
+                    'is_destroyed': True,
+                    'destroy_reason': f"Automatische Vernichtung der Restmenge bei Verpackung von {lab_batch.batch_number}",
+                    'destroyed_at': timezone.now(),
+                    'destroyed_by_id': member_id
+                }
+                
+                # 🆕 AUCH RESTMENGE MIT PREIS VERSEHEN:
+                if price_per_gram is not None:
+                    remainder_kwargs['price_per_gram'] = price_per_gram
+                
+                PackagingBatch.objects.create(**remainder_kwargs)
+            
+            # 🆕 ERWEITERTE ERFOLGSMELDUNG FÜR EINZELVERPACKUNG:
+            response_data = {
+                "message": f"Verpackung mit {total_weight}g wurde erfolgreich erstellt",
+                "packaging": PackagingBatchSerializer(packaging).data
+            }
+            
+            # 🆕 PREISINFORMATIONEN HINZUFÜGEN:
+            if price_per_gram is not None and packaging.total_batch_price:
+                response_data.update({
+                    "pricing_info": {
+                        "price_per_gram": price_per_gram,
+                        "total_value": float(packaging.total_batch_price),
+                        "unit_price": float(packaging.unit_price) if packaging.unit_price else None,
+                        "currency": "EUR"
+                    }
+                })
+            
+            return Response(response_data)
 
 class PackagingBatchViewSet(viewsets.ModelViewSet):
     queryset = PackagingBatch.objects.all().order_by('-created_at')

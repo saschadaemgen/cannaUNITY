@@ -718,6 +718,29 @@ class PackagingBatch(models.Model):
     unit_count = models.PositiveIntegerField()  # Anzahl der Verpackungseinheiten
     unit_weight = models.DecimalField(max_digits=6, decimal_places=2)  # Gewicht pro Einheit in Gramm
     
+    # 🆕 NEUE PREISFELDER HINZUFÜGEN:
+    price_per_gram = models.DecimalField(
+        max_digits=8, 
+        decimal_places=2, 
+        null=True, 
+        blank=True,
+        help_text="Preis pro Gramm in Euro"
+    )
+    total_batch_price = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        null=True, 
+        blank=True,
+        help_text="Gesamtpreis für diese Verpackung (automatisch berechnet)"
+    )
+    unit_price = models.DecimalField(
+        max_digits=8, 
+        decimal_places=2, 
+        null=True, 
+        blank=True,
+        help_text="Preis pro Verpackungseinheit (automatisch berechnet)"
+    )
+    
     # Mitglieder- und Raumzuordnung
     member = models.ForeignKey(Member, on_delete=models.SET_NULL, null=True, blank=True,
                               related_name='packaging_batches')
@@ -772,6 +795,15 @@ class PackagingBatch(models.Model):
             ).count() + 1
             
             self.batch_number = f"charge:{prefix}:{today.strftime('%d:%m:%Y')}:{count:04d}"
+        
+        # 🆕 AUTOMATISCHE PREISBERECHNUNG:
+        if self.price_per_gram and self.total_weight:
+            # Berechne Gesamtpreis der Verpackung
+            self.total_batch_price = float(self.price_per_gram) * float(self.total_weight)
+            
+            # Berechne Preis pro Verpackungseinheit
+            if self.unit_weight:
+                self.unit_price = float(self.price_per_gram) * float(self.unit_weight)
         
         super().save(*args, **kwargs)
         
@@ -830,6 +862,15 @@ class PackagingUnit(models.Model):
     batch_number = models.CharField(max_length=50, unique=True, blank=True, null=True)
     weight = models.DecimalField(max_digits=6, decimal_places=2)  # Gewicht in Gramm
     notes = models.TextField(blank=True, null=True)
+    
+    # 🆕 NEUES PREISFELD HINZUFÜGEN:
+    unit_price = models.DecimalField(
+        max_digits=8, 
+        decimal_places=2, 
+        null=True, 
+        blank=True,
+        help_text="Preis für diese Verpackungseinheit in Euro"
+    )
     
     # Mitgliederzuordnung für Vernichtung
     destroyed_by = models.ForeignKey(Member, on_delete=models.SET_NULL, null=True, blank=True,
@@ -899,7 +940,18 @@ class PackagingUnit(models.Model):
             # Generiere Batch-Nummer
             self.batch_number = f"unit:{product_type_prefix}:{today.strftime('%d:%m:%Y')}:{count:04d}"
         
+        # 🆕 PREISBERECHNUNG AUS DEM BATCH, FALLS NICHT GESETZT:
+        if not self.unit_price and self.batch and self.batch.price_per_gram and self.weight:
+            self.unit_price = float(self.batch.price_per_gram) * float(self.weight)
+        
         super().save(*args, **kwargs)
+    
+    @property
+    def price_per_gram_calculated(self):
+        """Berechnet den Preis pro Gramm für diese Einheit"""
+        if self.unit_price and self.weight and float(self.weight) > 0:
+            return float(self.unit_price) / float(self.weight)
+        return None
 
 class ProductDistribution(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

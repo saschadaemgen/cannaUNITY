@@ -746,11 +746,21 @@ class PackagingBatchSerializer(serializers.ModelSerializer):
     thc_content = serializers.SerializerMethodField()
     cbd_content = serializers.SerializerMethodField()
     
+    # 🆕 NEUE PREISFELD-ANZEIGEN HINZUFÜGEN:
+    price_per_gram_display = serializers.SerializerMethodField()
+    total_batch_price_display = serializers.SerializerMethodField()
+    unit_price_display = serializers.SerializerMethodField()
+    
     class Meta:
         model = PackagingBatch
         fields = [
             'id', 'batch_number', 'lab_testing_batch', 'lab_testing_batch_number',
             'total_weight', 'unit_count', 'unit_weight',
+            
+            # 🆕 PREISFELDER HINZUFÜGEN:
+            'price_per_gram', 'total_batch_price', 'unit_price',
+            'price_per_gram_display', 'total_batch_price_display', 'unit_price_display',
+            
             'source_strain', 'product_type', 'product_type_display',
             'thc_content', 'cbd_content',
             'member', 'member_id', 'room', 'room_id',
@@ -780,6 +790,22 @@ class PackagingBatchSerializer(serializers.ModelSerializer):
     
     def get_cbd_content(self, obj):
         return obj.cbd_content
+    
+    # 🆕 PREIS-FORMATIERUNG FÜR FRONTEND:
+    def get_price_per_gram_display(self, obj):
+        if obj.price_per_gram:
+            return f"{float(obj.price_per_gram):.2f} €"
+        return "Nicht festgelegt"
+    
+    def get_total_batch_price_display(self, obj):
+        if obj.total_batch_price:
+            return f"{float(obj.total_batch_price):.2f} €"
+        return "Nicht berechnet"
+    
+    def get_unit_price_display(self, obj):
+        if obj.unit_price:
+            return f"{float(obj.unit_price):.2f} €"
+        return "Nicht berechnet"
 
 class PackagingUnitSerializer(serializers.ModelSerializer):
     # Serializer für das Mitglied, das vernichtet hat
@@ -795,14 +821,34 @@ class PackagingUnitSerializer(serializers.ModelSerializer):
     # ERWEITERT: Batch-Informationen hinzufügen für Frontend-Darstellung
     batch = serializers.SerializerMethodField()
     
+    # 🆕 PREISFELD-ANZEIGEN HINZUFÜGEN:
+    unit_price_display = serializers.SerializerMethodField()
+    price_per_gram_calculated = serializers.SerializerMethodField()
+    
     class Meta:
         model = PackagingUnit
         fields = [
-            'id', 'batch_number', 'weight', 'notes', 
+            'id', 'batch_number', 'weight', 'notes',
+            
+            # 🆕 PREIS HINZUFÜGEN:
+            'unit_price', 'unit_price_display', 'price_per_gram_calculated',
+            
             'is_destroyed', 'destroy_reason', 'destroyed_at',
             'created_at', 'destroyed_by', 'destroyed_by_id',
             'batch'  # Hinzugefügtes Feld
         ]
+    
+    # 🆕 PREIS-FORMATIERUNG:
+    def get_unit_price_display(self, obj):
+        if obj.unit_price:
+            return f"{float(obj.unit_price):.2f} €"
+        return "Nicht festgelegt"
+    
+    def get_price_per_gram_calculated(self, obj):
+        price_per_gram = obj.price_per_gram_calculated  # Property aus Model
+        if price_per_gram:
+            return f"{price_per_gram:.2f} €/g"
+        return "Nicht berechnet"
     
     def get_batch(self, obj):
         """
@@ -842,6 +888,10 @@ class PackagingUnitSerializer(serializers.ModelSerializer):
             'total_weight': batch.total_weight,
             'unit_count': batch.unit_count,
             'unit_weight': batch.unit_weight,
+            # 🆕 PREISFELDER HINZUFÜGEN:
+            'price_per_gram': batch.price_per_gram,
+            'total_batch_price': batch.total_batch_price,
+            'unit_price': batch.unit_price,
         }
         
         return batch_data
@@ -874,6 +924,8 @@ class ProductDistributionSerializer(serializers.ModelSerializer):
     # Berechnete Felder
     total_weight = serializers.SerializerMethodField()
     product_type_summary = serializers.SerializerMethodField()
+    # 🆕 NEUES PREISFELD HINZUFÜGEN:
+    total_value = serializers.SerializerMethodField()
     
     class Meta:
         model = ProductDistribution
@@ -881,7 +933,7 @@ class ProductDistributionSerializer(serializers.ModelSerializer):
             'id', 'batch_number', 'packaging_units', 'packaging_unit_ids',
             'distributor', 'distributor_id', 'recipient', 'recipient_id',
             'distribution_date', 'notes', 'created_at', 'updated_at',
-            'total_weight', 'product_type_summary'
+            'total_weight', 'product_type_summary', 'total_value'  # 🆕 total_value hinzugefügt
         ]
     
     def get_total_weight(self, obj):
@@ -895,3 +947,12 @@ class ProductDistributionSerializer(serializers.ModelSerializer):
                 "Haschisch" if product_type == "hashish" else product_type)
             result.append({"type": display_type, "weight": weight})
         return result
+    
+    # 🆕 GESAMTWERT DER VERTEILUNG BERECHNEN:
+    def get_total_value(self, obj):
+        """Berechnet den Gesamtwert aller verteilten Verpackungseinheiten."""
+        total = 0.0
+        for unit in obj.packaging_units.all():
+            if unit.unit_price:
+                total += float(unit.unit_price)
+        return total if total > 0 else None
