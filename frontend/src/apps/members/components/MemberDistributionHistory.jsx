@@ -6,7 +6,8 @@ import {
   TableHead, TableRow, Accordion, AccordionSummary, 
   AccordionDetails, Tab, Tabs, useTheme, alpha,
   Card, CardContent, Grid, IconButton, MenuItem,
-  LinearProgress, Tooltip, Stack, Menu
+  LinearProgress, Tooltip, Stack, Menu, Switch,
+  FormControlLabel
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import LocalFloristIcon from '@mui/icons-material/LocalFlorist';
@@ -24,6 +25,10 @@ import GppGoodIcon from '@mui/icons-material/GppGood';
 import FingerprintIcon from '@mui/icons-material/Fingerprint';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import TodayIcon from '@mui/icons-material/Today';
+import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
+import EuroIcon from '@mui/icons-material/Euro';
+import TrendingDownIcon from '@mui/icons-material/TrendingDown';
+import HistoryIcon from '@mui/icons-material/History';
 import ReactECharts from 'echarts-for-react';
 import api from '@/utils/api';
 
@@ -57,14 +62,16 @@ const AGE_LIMITS = {
  * @param {string} props.memberId - Die ID des Mitglieds
  * @param {number} [props.memberAge] - Das Alter des Mitglieds (optional)
  * @param {string} [props.memberBirthDate] - Das Geburtsdatum des Mitglieds (optional)
+ * @param {Object} [props.member] - Das komplette Mitgliedsobjekt (optional, für Kontostand)
  * @returns {JSX.Element} Die gerenderte Komponente
  */
-const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate }) => {
+const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate, member }) => {
   const theme = useTheme();
   const [distributionData, setDistributionData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState(0);
+  const [showPriceHistory, setShowPriceHistory] = useState(false);
   
   // Zeitauswahl-State mit aktuellem Monat/Jahr als Standardwert
   const currentDate = new Date();
@@ -73,7 +80,7 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate }) => 
   const [anchorEl, setAnchorEl] = useState(null);
   
   // Debug-Logging aktivieren
-  const DEBUG = true;
+  const DEBUG = false;
   const logDebug = (message, data) => {
     if (DEBUG) {
       console.log(`[DEBUG] ${message}`, data);
@@ -210,11 +217,23 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate }) => 
         // API-Anfrage mit Jahr/Monat-Parameter
         const response = await api.get(`/trackandtrace/distributions/member_summary/?member_id=${memberId}&year=${year}&month=${month}`);
         
+        // Falls member_summary keinen Kontostand liefert, hole ihn separat
+        let memberData = null;
+        if (!response.data.member || !response.data.member.kontostand) {
+          try {
+            const memberResponse = await api.get(`/members/${memberId}/`);
+            memberData = memberResponse.data;
+            logDebug('Member-Daten separat geholt:', memberData);
+          } catch (err) {
+            logDebug('Fehler beim Holen der Member-Daten:', err);
+          }
+        }
+        
         // Debugging der API-Antwort
         logDebug('API-Antwort erhalten:', response.data);
         
         // Verarbeite die Daten und füge eine Produktzusammenfassung hinzu, falls sie fehlt
-        const processedData = processApiResponse(response.data);
+        const processedData = processApiResponse(response.data, memberData);
         setDistributionData(processedData);
         setError(null);
       } catch (err) {
@@ -229,13 +248,17 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate }) => 
   }, [memberId, selectedMonth, selectedYear]);
   
   // Hilfsfunktion zur Verarbeitung der API-Antwort
-  const processApiResponse = (apiData) => {
+  const processApiResponse = (apiData, memberData = null) => {
     if (!apiData) return null;
     
     // Tiefe Kopie der API-Daten erstellen
     const processedData = JSON.parse(JSON.stringify(apiData));
     
-    // Für empfangene Distributionen
+    // Falls memberData separat geholt wurde, füge es hinzu
+    if (memberData && !processedData.member) {
+      processedData.member = memberData;
+    }
+    
     if (processedData.received) {
       // Stellen Sie sicher, dass alle Distributionen ein Array sind
       if (!Array.isArray(processedData.received.recent_distributions)) {
@@ -293,6 +316,106 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate }) => 
         remainingMonthly: Math.max(0, limits.monthly - monthlyConsumption),
         remainingDaily: Math.max(0, limits.daily - todayConsumption)
       };
+      
+      // 🆕 Kontostand-Historie berechnen
+      if (processedData.received.recent_distributions && processedData.received.recent_distributions.length > 0) {
+        // Kontostand aus verschiedenen Quellen versuchen zu holen
+        let currentBalance = 0;
+        let foundBalance = false;
+        
+        // 1. Aus processedData.member (wenn hinzugefügt)
+        if (processedData.member && processedData.member.kontostand !== undefined) {
+          currentBalance = parseFloat(processedData.member.kontostand);
+          foundBalance = true;
+          logDebug('Kontostand aus processedData.member:', currentBalance);
+        }
+        // 2. Aus apiData.member
+        else if (apiData.member && apiData.member.kontostand !== undefined) {
+          currentBalance = parseFloat(apiData.member.kontostand);
+          foundBalance = true;
+          logDebug('Kontostand aus apiData.member:', currentBalance);
+        }
+        // 3. Aus memberData (separat geholt)
+        else if (memberData && memberData.kontostand !== undefined) {
+          currentBalance = parseFloat(memberData.kontostand);
+          foundBalance = true;
+          logDebug('Kontostand aus memberData:', currentBalance);
+        }
+        // 4. Aus member Prop
+        else if (member?.kontostand !== undefined) {
+          currentBalance = parseFloat(member.kontostand);
+          foundBalance = true;
+          logDebug('Kontostand aus member Prop:', currentBalance);
+        }
+        
+        if (!foundBalance) {
+          console.error('❌ Kein Kontostand gefunden! Berechnung nicht möglich.');
+          logDebug('Verfügbare Daten:', {
+            apiData,
+            memberData,
+            member,
+            processedData
+          });
+          return processedData; // Beende hier, da keine sinnvolle Berechnung möglich
+        }
+        
+        logDebug('Start-Kontostand für Berechnung:', currentBalance);
+        logDebug('Anzahl Distributionen:', processedData.received.recent_distributions.length);
+        
+        // Sortiere Distributionen chronologisch (älteste zuerst für die Berechnung)
+        const sortedDistributions = [...processedData.received.recent_distributions]
+          .sort((a, b) => new Date(a.distribution_date) - new Date(b.distribution_date));
+        
+        // Berechne rückwärts vom aktuellen Kontostand
+        let runningBalance = currentBalance;
+        
+        // Gehe rückwärts durch die Distributionen (von neu nach alt)
+        for (let i = sortedDistributions.length - 1; i >= 0; i--) {
+          const dist = sortedDistributions[i];
+          
+          // Berechne total_price falls nicht vorhanden
+          if (dist.total_price === undefined || dist.total_price === null) {
+            if (dist.packaging_units && dist.packaging_units.length > 0) {
+              dist.total_price = dist.packaging_units.reduce((sum, unit) => {
+                const unitPrice = parseFloat(unit.unit_price || 0);
+                return sum + (isNaN(unitPrice) ? 0 : unitPrice);
+              }, 0);
+              logDebug(`Berechneter total_price für Distribution ${i}:`, dist.total_price);
+            } else {
+              dist.total_price = 0;
+              logDebug(`Keine packaging_units für Distribution ${i}, setze total_price auf 0`);
+            }
+          } else {
+            dist.total_price = parseFloat(dist.total_price);
+            if (isNaN(dist.total_price)) {
+              console.warn(`total_price ist NaN für Distribution ${i}, setze auf 0`);
+              dist.total_price = 0;
+            }
+          }
+          
+          // Balance-Informationen berechnen
+          // Nach der Ausgabe = aktueller runningBalance
+          dist.balance_after = runningBalance;
+          // Vor der Ausgabe = runningBalance + Ausgabebetrag
+          dist.balance_before = runningBalance + dist.total_price;
+          
+          logDebug(`Distribution ${i} (${dist.distribution_date}):`, {
+            total_price: dist.total_price,
+            balance_before: dist.balance_before,
+            balance_after: dist.balance_after
+          });
+          
+          // Für die nächste (ältere) Distribution
+          runningBalance = dist.balance_before;
+        }
+        
+        logDebug('Finale Distributions mit Balance:', processedData.received.recent_distributions);
+      }
+      
+      // Member-Daten aus der API-Response übernehmen, falls vorhanden
+      if (apiData.member) {
+        processedData.member = apiData.member;
+      }
     }
     
     return processedData;
@@ -505,14 +628,18 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate }) => 
         id: dist.id,
         date: new Date(dist.distribution_date),
         dateFormatted: formatDate(dist.distribution_date),
-        totalWeight: dist.total_weight,
+        totalWeight: parseFloat(dist.total_weight || 0),
         batchNumber: dist.batch_number,
         distributor: dist.distributor ? 
           (dist.distributor.display_name || `${dist.distributor.first_name || ''} ${dist.distributor.last_name || ''}`) :
           'Unbekannt',
         notes: dist.notes || '',
         productSummary: productTypeSummary,
-        packagingUnits: dist.packaging_units || []
+        packagingUnits: dist.packaging_units || [],
+        totalPrice: parseFloat(dist.total_price || dist.calculated_total_price || 0),
+        balanceBefore: dist.balance_before !== undefined ? parseFloat(dist.balance_before) : undefined,
+        balanceAfter: dist.balance_after !== undefined ? parseFloat(dist.balance_after) : undefined,
+        pricePerGram: dist.total_weight > 0 ? parseFloat((dist.total_price || 0) / dist.total_weight) : 0
       };
     }).sort((a, b) => b.date - a.date); // Neueste zuerst
   }, [distributionData]);
@@ -544,12 +671,16 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate }) => 
     // Kumulatives Gesamtgewicht berechnen
     let cumulativeTotal = 0;
     const cumulativeData = chartData.map(item => {
-      cumulativeTotal += item.totalWeight;
+      cumulativeTotal += parseFloat(item.totalWeight || 0);
       return +(cumulativeTotal.toFixed(2));
     });
     
     // Monatslimit als horizontale Linie
     const monthlyLimitData = new Array(dates.length).fill(limits.monthly);
+    
+    // 🆕 Preisdaten
+    const priceData = chartData.map(item => item.totalPrice);
+    const balanceData = chartData.map(item => item.balanceAfter !== undefined ? item.balanceAfter : 0);
     
     return {
       tooltip: {
@@ -561,6 +692,7 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate }) => 
           
           // Variable für Gesamtgewicht der Ausgabe
           let totalDayWeight = 0;
+          let totalDayPrice = 0;
           
           params.forEach(param => {
             if (param.seriesName === 'Monatslimit') return;  // Limit nicht im Tooltip anzeigen
@@ -568,9 +700,10 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate }) => 
             const color = param.color;
             const name = param.seriesName;
             const value = param.value;
-            const unit = name === 'Kumulativ' ? 'g gesamt' : 'g';
+            const unit = name === 'Kumulativ' ? 'g gesamt' : 
+                        (name === 'Kosten' || name === 'Kontostand') ? '€' : 'g';
             
-            if (value > 0) {
+            if (value > 0 || name === 'Kontostand') {
               tooltip += `<div style="display:flex;align-items:center;margin:3px 0;">
                 <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color};margin-right:5px;"></span>
                 <span style="margin-right:5px;">${name}:</span>
@@ -582,6 +715,10 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate }) => 
             if (name === 'Marihuana' || name === 'Haschisch') {
               totalDayWeight += value;
             }
+            
+            if (name === 'Kosten') {
+              totalDayPrice = value;
+            }
           });
           
           // Zeige Tageslimit an, wenn Daten vorhanden sind
@@ -591,6 +728,12 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate }) => 
             tooltip += `<div style="margin-top:5px;padding-top:5px;border-top:1px dashed rgba(255,255,255,0.3);">
               <div>Tageslimit: ${totalDayWeight}/${limits.daily}g (${limitPercent}%)</div>
             </div>`;
+          }
+          
+          // Zeige Preis pro Gramm
+          if (totalDayPrice > 0 && totalDayWeight > 0) {
+            const pricePerGram = (totalDayPrice / totalDayWeight).toFixed(2);
+            tooltip += `<div>Preis pro Gramm: ${pricePerGram} €/g</div>`;
           }
           
           // Zeige Monatslimit an, wenn Kumulativdaten vorhanden sind
@@ -607,16 +750,18 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate }) => 
         }
       },
       legend: {
-        data: ['Marihuana', 'Haschisch', 'Kumulativ', 'Monatslimit'],
+        data: ['Marihuana', 'Haschisch', 'Kumulativ', 'Monatslimit', 'Kosten', 'Kontostand'],
         icon: 'circle',
         bottom: 0,
         selected: {
-          'Monatslimit': true // Standardmäßig ausgewählt
+          'Monatslimit': true,
+          'Kosten': showPriceHistory,
+          'Kontostand': showPriceHistory
         }
       },
       grid: {
         left: '3%',
-        right: '4%',
+        right: '6%',
         bottom: '15%',
         top: '10%',
         containLabel: true
@@ -637,6 +782,15 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate }) => 
           axisLabel: {
             formatter: '{value} g'
           }
+        },
+        {
+          type: 'value',
+          name: 'Euro',
+          position: 'right',
+          axisLabel: {
+            formatter: '{value} €'
+          },
+          splitLine: { show: false }
         }
       ],
       series: [
@@ -677,10 +831,26 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate }) => 
             width: 2
           },
           data: monthlyLimitData
+        },
+        {
+          name: 'Kosten',
+          type: 'bar',
+          yAxisIndex: 1,
+          data: priceData,
+          itemStyle: { color: alpha(theme.palette.primary.main, 0.5) }
+        },
+        {
+          name: 'Kontostand',
+          type: 'line',
+          yAxisIndex: 1,
+          smooth: true,
+          data: balanceData,
+          itemStyle: { color: theme.palette.secondary.main },
+          lineStyle: { width: 2 }
         }
       ]
     };
-  }, [consumptionTableData, theme, limits]);
+  }, [consumptionTableData, theme, limits, showPriceHistory]);
   
   // Debug-Logging für die Chart-Optionen
   useEffect(() => {
@@ -919,20 +1089,49 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate }) => 
                   })()
                 },
                 
-                // Karte 6: Alterslimits - mit speziellem Format für Tages- und Monatslimit
+                // 🆕 Karte 6: Kontostand
                 {
-                  icon: <FingerprintIcon />,
-                  title: limits.category === 'young-adult' ? 'U21-Limits' : 'Ü21-Limits',
-                  value: calculateMemberAge,
-                  unit: "Jahre",
-                  color: limits.category === 'young-adult' ? theme.palette.warning.main : theme.palette.primary.main,
-                  additionalInfo: {
-                    dailyLimit: limits.daily,
-                    monthlyLimit: limits.monthly,
-                    thcInfo: limits.category === 'young-adult' ? `Max. THC: ${limits.maxThc}%` : 'Keine THC-Begrenzung'
-                  },
-                  // Leerer infoText, da wir ein eigenes Format verwenden
-                  infoText: ""
+                  icon: <AccountBalanceWalletIcon />,
+                  title: "Kontostand",
+                  value: (() => {
+                    // Versuche Kontostand aus verschiedenen Quellen zu holen
+                    let kontostand = 0;
+                    if (distributionData.member?.kontostand !== undefined) {
+                      kontostand = parseFloat(distributionData.member.kontostand);
+                    } else if (member?.kontostand !== undefined) {
+                      kontostand = parseFloat(member.kontostand);
+                    }
+                    return kontostand.toFixed(2);
+                  })(),
+                  unit: "€",
+                  color: (() => {
+                    let kontostand = 0;
+                    if (distributionData.member?.kontostand !== undefined) {
+                      kontostand = parseFloat(distributionData.member.kontostand);
+                    } else if (member?.kontostand !== undefined) {
+                      kontostand = parseFloat(member.kontostand);
+                    }
+                    return kontostand >= 0 ? theme.palette.success.main : theme.palette.error.main;
+                  })(),
+                  infoText: `Monatsbeitrag: ${distributionData.member?.beitrag || member?.beitrag || 0} €`,
+                  badge: (() => {
+                    let kontostand = 0;
+                    if (distributionData.member?.kontostand !== undefined) {
+                      kontostand = parseFloat(distributionData.member.kontostand);
+                    } else if (member?.kontostand !== undefined) {
+                      kontostand = parseFloat(member.kontostand);
+                    }
+                    return kontostand < 0 ? 'Negativ' : null;
+                  })(),
+                  additionalAction: (
+                    <IconButton 
+                      size="small" 
+                      onClick={() => setShowPriceHistory(!showPriceHistory)}
+                      sx={{ ml: 1 }}
+                    >
+                      <HistoryIcon fontSize="small" />
+                    </IconButton>
+                  )
                 }
               ].map((card, index) => (
                 <Box 
@@ -1019,6 +1218,9 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate }) => 
                           />
                         </Tooltip>
                       )}
+                      
+                      {/* Zusätzliche Aktion falls vorhanden */}
+                      {card.additionalAction}
                     </Box>
                     
                     {/* Karteninhalt mit Speziallayout für Alterslimits */}
@@ -1088,7 +1290,7 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate }) => 
                         </Box>
                         
                         {/* Fortschrittsbalken falls vorhanden */}
-                        {card.percentage && (
+                        {card.percentage !== undefined && (
                           <Box sx={{ my: 1 }}>
                             <LinearProgress
                               variant="determinate"
@@ -1134,6 +1336,60 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate }) => 
                 </Box>
               ))}
             </Box>
+            
+            {/* 🆕 Kontostand-Historie Modal/Accordion */}
+            {showPriceHistory && (
+              <Card sx={{ mt: 2, mb: 3, p: 2 }}>
+                <Typography variant="h6" gutterBottom>
+                  Kontostand-Historie
+                </Typography>
+                <TableContainer>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Datum</TableCell>
+                        <TableCell>Transaktion</TableCell>
+                        <TableCell align="right">Betrag</TableCell>
+                        <TableCell align="right">Saldo</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {/* Aktueller Kontostand als erste Zeile */}
+                      <TableRow sx={{ bgcolor: alpha(theme.palette.primary.main, 0.02) }}>
+                        <TableCell sx={{ fontWeight: 600 }}>Heute</TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>Aktueller Stand</TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 600 }}>—</TableCell>
+                        <TableCell align="right" sx={{ 
+                          fontWeight: 700,
+                          fontSize: '1rem',
+                          color: (distributionData.member?.kontostand !== undefined ? parseFloat(distributionData.member.kontostand) : 0) >= 0 ? 'success.main' : 'error.main'
+                        }}>
+                          {distributionData.member?.kontostand !== undefined ? parseFloat(distributionData.member.kontostand).toFixed(2) : '0.00'} €
+                        </TableCell>
+                      </TableRow>
+                      {/* Transaktionen - neueste zuerst */}
+                      {consumptionTableData
+                        .sort((a, b) => b.date - a.date)
+                        .map((item) => (
+                        <TableRow key={item.id}>
+                          <TableCell>{formatShortDate(item.date)}</TableCell>
+                          <TableCell>Cannabis-Ausgabe</TableCell>
+                          <TableCell align="right" sx={{ color: 'error.main' }}>
+                            -{item.totalPrice.toFixed(2)} €
+                          </TableCell>
+                          <TableCell align="right" sx={{ 
+                            fontWeight: 600,
+                            color: (item.balanceAfter !== undefined ? item.balanceAfter : 0) >= 0 ? 'success.main' : 'error.main'
+                          }}>
+                            {item.balanceAfter !== undefined ? item.balanceAfter.toFixed(2) : '—'} €
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Card>
+            )}
           </CardContent>
         </Card>
         
@@ -1212,9 +1468,23 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate }) => 
                   Grafischer Konsumverlauf
                 </Typography>
                 
-                <Tooltip title="Die Balken zeigen die täglichen Ausgaben, die Linie den kumulativen Monatskonsum. Die gestrichelte Linie markiert das Monatslimit.">
-                  <InfoOutlinedIcon sx={{ color: 'text.secondary', fontSize: '1.1rem' }} />
-                </Tooltip>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={showPriceHistory}
+                        onChange={(e) => setShowPriceHistory(e.target.checked)}
+                        size="small"
+                      />
+                    }
+                    label="Preise anzeigen"
+                    sx={{ m: 0 }}
+                  />
+                  
+                  <Tooltip title="Die Balken zeigen die täglichen Ausgaben, die Linie den kumulativen Monatskonsum. Die gestrichelte Linie markiert das Monatslimit.">
+                    <InfoOutlinedIcon sx={{ color: 'text.secondary', fontSize: '1.1rem' }} />
+                  </Tooltip>
+                </Box>
               </Box>
               
               {echartsOptions && consumptionTableData.length > 0 ? (
@@ -1242,9 +1512,18 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate }) => 
                       <TableCell>Chargennummer</TableCell>
                       <TableCell>Marihuana</TableCell>
                       <TableCell>Haschisch</TableCell>
-                      <TableCell align="right">Gesamtgewicht</TableCell>
-                      <TableCell align="right">Tageslimit</TableCell>
-                      <TableCell>Ausgegeben von</TableCell>
+                      <TableCell align="right">Gewicht</TableCell>
+                      <TableCell align="right">Preis</TableCell>
+                      <TableCell align="right">€/g</TableCell>
+                      <TableCell align="right">
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.5 }}>
+                          <Typography>Kontostand nach Ausgabe</Typography>
+                          <Tooltip title="Zeigt den Kontostand nach der Cannabis-Ausgabe. Der Pfeil zeigt die Änderung: vorher → nachher">
+                            <InfoOutlinedIcon sx={{ fontSize: '0.875rem', color: 'text.secondary' }} />
+                          </Tooltip>
+                        </Box>
+                      </TableCell>
+                      <TableCell>Ausgeber</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -1294,39 +1573,49 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate }) => 
                             <TableCell align="right" sx={{ fontWeight: 500 }}>
                               {item.totalWeight.toFixed(2)}g
                             </TableCell>
+                            
+                            {/* 🆕 Preis-Zellen */}
                             <TableCell align="right">
-                              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 1 }}>
-                                <Typography variant="body2">
-                                  {dayWeight.toFixed(1)}/{limits.daily}g
+                              <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
+                                {item.totalPrice.toFixed(2)} €
+                              </Typography>
+                            </TableCell>
+                            
+                            <TableCell align="right">
+                              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                                {item.pricePerGram.toFixed(2)} €/g
+                              </Typography>
+                            </TableCell>
+                            
+                            <TableCell align="right">
+                              <Box>
+                                <Typography variant="body2" sx={{ 
+                                  fontWeight: 600,
+                                  color: (item.balanceAfter !== undefined ? item.balanceAfter : 0) >= 0 ? 'success.main' : 'error.main',
+                                  textAlign: 'right'
+                                }}>
+                                  {item.balanceAfter !== undefined ? item.balanceAfter.toFixed(2) : '—'} €
                                 </Typography>
-                                <Chip 
-                                  size="small"
-                                  label={`${dayLimitPercentage.toFixed(0)}%`}
-                                  sx={{ 
-                                    height: 20, 
-                                    fontSize: '0.7rem',
-                                    minWidth: 40,
-                                    bgcolor: dayLimitPercentage > 90 
-                                      ? alpha(theme.palette.error.main, 0.1)
-                                      : dayLimitPercentage > 70
-                                        ? alpha(theme.palette.warning.main, 0.1)
-                                        : alpha(theme.palette.success.main, 0.1),
-                                    color: dayLimitPercentage > 90 
-                                      ? theme.palette.error.main
-                                      : dayLimitPercentage > 70
-                                        ? theme.palette.warning.main
-                                        : theme.palette.success.main
-                                  }}
-                                />
+                                {item.balanceBefore !== undefined && item.balanceAfter !== undefined && (
+                                  <Typography variant="caption" sx={{ 
+                                    color: 'text.disabled',
+                                    display: 'block',
+                                    textAlign: 'right',
+                                    mt: 0.25
+                                  }}>
+                                    {item.balanceBefore.toFixed(2)} € → {item.balanceAfter.toFixed(2)} €
+                                  </Typography>
+                                )}
                               </Box>
                             </TableCell>
+                            
                             <TableCell>{item.distributor}</TableCell>
                           </TableRow>
                         );
                       })
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={7} align="center">
+                        <TableCell colSpan={9} align="center">
                           <Typography variant="body2" color="textSecondary" sx={{ py: 3 }}>
                             Keine Ausgabedaten im gewählten Zeitraum
                           </Typography>
@@ -1374,15 +1663,27 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate }) => 
                           <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
                             Ausgabe vom {formatDate(distribution.distribution_date)}
                           </Typography>
-                          <Chip 
-                            label={`${distribution.total_weight.toFixed(2)}g`}
-                            size="small"
-                            sx={{ 
-                              fontWeight: 600,
-                              bgcolor: alpha(theme.palette.primary.main, 0.1),
-                              color: theme.palette.primary.main
-                            }}
-                          />
+                          <Box sx={{ display: 'flex', gap: 1 }}>
+                            <Chip 
+                              label={`${distribution.total_weight.toFixed(2)}g`}
+                              size="small"
+                              sx={{ 
+                                fontWeight: 600,
+                                bgcolor: alpha(theme.palette.primary.main, 0.1),
+                                color: theme.palette.primary.main
+                              }}
+                            />
+                            {/* 🆕 Preis-Chip */}
+                            <Chip 
+                              label={`${(parseFloat(distribution.total_price || 0)).toFixed(2)} €`}
+                              size="small"
+                              sx={{ 
+                                fontWeight: 600,
+                                bgcolor: alpha(theme.palette.secondary.main, 0.1),
+                                color: theme.palette.secondary.main
+                              }}
+                            />
+                          </Box>
                         </Box>
                         <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
                           {/* Verwende product_type_summary, falls vorhanden, sonst erstelle es */}
@@ -1415,7 +1716,7 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate }) => 
                     </AccordionSummary>
                     <AccordionDetails sx={{ p: 3 }}>
                       <Grid container spacing={2} sx={{ mb: 2 }}>
-                        <Grid item xs={12} md={4}>
+                        <Grid item xs={12} md={3}>
                           <Paper variant="outlined" sx={{ p: 2, height: '100%', borderRadius: 2 }}>
                             <Typography variant="body2" gutterBottom sx={{ color: 'text.secondary' }}>
                               Chargennummer
@@ -1426,7 +1727,7 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate }) => 
                           </Paper>
                         </Grid>
                         
-                        <Grid item xs={12} md={4}>
+                        <Grid item xs={12} md={3}>
                           <Paper variant="outlined" sx={{ p: 2, height: '100%', borderRadius: 2 }}>
                             <Typography variant="body2" gutterBottom sx={{ color: 'text.secondary' }}>
                               Ausgegeben von
@@ -1437,7 +1738,29 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate }) => 
                           </Paper>
                         </Grid>
                         
-                        <Grid item xs={12} md={4}>
+                        {/* 🆕 Kontostand-Feld */}
+                        <Grid item xs={12} md={3}>
+                          <Paper variant="outlined" sx={{ p: 2, height: '100%', borderRadius: 2 }}>
+                            <Typography variant="body2" gutterBottom sx={{ color: 'text.secondary' }}>
+                              Kontostand-Verlauf
+                            </Typography>
+                            <Box>
+                              <Typography variant="body1" sx={{ 
+                                fontWeight: 500, 
+                                color: (distribution.balance_after !== undefined ? parseFloat(distribution.balance_after) : 0) >= 0 ? 'success.main' : 'error.main' 
+                              }}>
+                                {distribution.balance_after !== undefined ? parseFloat(distribution.balance_after).toFixed(2) : '—'} €
+                              </Typography>
+                              {distribution.balance_before !== undefined && distribution.balance_after !== undefined && (
+                                <Typography variant="caption" sx={{ color: 'text.secondary', mt: 0.5, display: 'block' }}>
+                                  {parseFloat(distribution.balance_before).toFixed(2)} € → {parseFloat(distribution.balance_after).toFixed(2)} €
+                                </Typography>
+                              )}
+                            </Box>
+                          </Paper>
+                        </Grid>
+                        
+                        <Grid item xs={12} md={3}>
                           <Paper variant="outlined" sx={{ p: 2, height: '100%', borderRadius: 2 }}>
                             <Typography variant="body2" gutterBottom sx={{ color: 'text.secondary' }}>
                               Bemerkungen
@@ -1460,6 +1783,7 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate }) => 
                               <TableCell>Einheits-Nr.</TableCell>
                               <TableCell>Produkttyp</TableCell>
                               <TableCell align="right">Gewicht</TableCell>
+                              <TableCell align="right">Preis</TableCell>
                               <TableCell>THC-Gehalt</TableCell>
                               <TableCell>CBD-Gehalt</TableCell>
                               <TableCell>Sorte</TableCell>
@@ -1515,6 +1839,16 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate }) => 
                                       </Box>
                                     </TableCell>
                                     <TableCell align="right">{parseFloat(unit.weight).toFixed(2)}g</TableCell>
+                                    {/* 🆕 Preis-Spalte */}
+                                    <TableCell align="right">
+                                      {unit.unit_price !== undefined && unit.unit_price !== null ? (
+                                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                          {parseFloat(unit.unit_price).toFixed(2)} €
+                                        </Typography>
+                                      ) : (
+                                        '-'
+                                      )}
+                                    </TableCell>
                                     <TableCell>
                                       {thcContent !== 'k.A.' ? (
                                         <Chip 
@@ -1553,7 +1887,7 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate }) => 
                               })
                             ) : (
                               <TableRow>
-                                <TableCell colSpan={6} align="center">
+                                <TableCell colSpan={7} align="center">
                                   <Typography variant="body2" color="textSecondary" sx={{ py: 2 }}>
                                     Keine Verpackungseinheiten verfügbar
                                   </Typography>

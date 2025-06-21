@@ -921,34 +921,79 @@ class ProductDistributionSerializer(serializers.ModelSerializer):
         write_only=True
     )
     
+    # 🆕 Preis-Felder
+    total_price = serializers.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        required=False,
+        help_text="Gesamtpreis der Transaktion"
+    )
+    balance_before = serializers.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        required=False,
+        help_text="Kontostand vor der Transaktion"
+    )
+    balance_after = serializers.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        required=False,
+        help_text="Kontostand nach der Transaktion"
+    )
+    calculated_total_price = serializers.ReadOnlyField(
+        help_text="Berechneter Gesamtpreis aus den Verpackungseinheiten"
+    )
+    
     # Berechnete Felder
     total_weight = serializers.SerializerMethodField()
     product_type_summary = serializers.SerializerMethodField()
-    # 🆕 NEUES PREISFELD HINZUFÜGEN:
-    total_value = serializers.SerializerMethodField()
+    total_value = serializers.SerializerMethodField(
+        help_text="Summe aller unit_price Werte der verteilten Einheiten"
+    )
     
     class Meta:
         model = ProductDistribution
         fields = [
-            'id', 'batch_number', 'packaging_units', 'packaging_unit_ids',
-            'distributor', 'distributor_id', 'recipient', 'recipient_id',
-            'distribution_date', 'notes', 'created_at', 'updated_at',
-            'total_weight', 'product_type_summary', 'total_value'  # 🆕 total_value hinzugefügt
+            'id', 
+            'batch_number', 
+            'packaging_units', 
+            'packaging_unit_ids',
+            'distributor', 
+            'distributor_id', 
+            'recipient', 
+            'recipient_id',
+            'distribution_date', 
+            'notes', 
+            'created_at', 
+            'updated_at',
+            'total_weight', 
+            'product_type_summary', 
+            'total_value',
+            # 🆕 Neue Preis-Felder
+            'total_price',
+            'balance_before',
+            'balance_after',
+            'calculated_total_price'
         ]
+        read_only_fields = ['calculated_total_price', 'created_at', 'updated_at']
     
     def get_total_weight(self, obj):
+        """Berechnet das Gesamtgewicht aller verteilten Verpackungseinheiten."""
         return obj.total_weight
     
     def get_product_type_summary(self, obj):
+        """Erstellt eine Zusammenfassung der Produkttypen mit deren Gewichten."""
         types = obj.product_types
         result = []
         for product_type, weight in types.items():
             display_type = "Marihuana" if product_type == "marijuana" else (
                 "Haschisch" if product_type == "hashish" else product_type)
-            result.append({"type": display_type, "weight": weight})
+            result.append({
+                "type": display_type, 
+                "weight": weight
+            })
         return result
     
-    # 🆕 GESAMTWERT DER VERTEILUNG BERECHNEN:
     def get_total_value(self, obj):
         """Berechnet den Gesamtwert aller verteilten Verpackungseinheiten."""
         total = 0.0
@@ -956,3 +1001,46 @@ class ProductDistributionSerializer(serializers.ModelSerializer):
             if unit.unit_price:
                 total += float(unit.unit_price)
         return total if total > 0 else None
+    
+    def validate(self, attrs):
+        """
+        Zusätzliche Validierung für Preis-Konsistenz
+        """
+        attrs = super().validate(attrs)
+        
+        # Wenn total_price und packaging_units vorhanden sind, 
+        # können wir die Konsistenz prüfen
+        if 'total_price' in attrs and 'packaging_units' in attrs:
+            calculated_price = 0.0
+            for unit in attrs['packaging_units']:
+                if hasattr(unit, 'unit_price') and unit.unit_price:
+                    calculated_price += float(unit.unit_price)
+            
+            # Warnung bei Abweichung (optional - kann auch als Fehler implementiert werden)
+            if calculated_price > 0 and abs(float(attrs['total_price']) - calculated_price) > 0.01:
+                # Optional: Als Warnung loggen statt Fehler werfen
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(
+                    f"Preisabweichung festgestellt: total_price={attrs['total_price']}, "
+                    f"berechnet={calculated_price}"
+                )
+        
+        return attrs
+    
+    def to_representation(self, instance):
+        """
+        Erweiterte Darstellung mit zusätzlichen berechneten Feldern
+        """
+        data = super().to_representation(instance)
+        
+        # Füge calculated_total_price hinzu (falls nicht im Model gespeichert)
+        if 'calculated_total_price' in data and data['calculated_total_price'] is None:
+            data['calculated_total_price'] = self.get_total_value(instance)
+        
+        # Formatiere Dezimalfelder für bessere Lesbarkeit
+        for field in ['total_price', 'balance_before', 'balance_after', 'total_value']:
+            if field in data and data[field] is not None:
+                data[field] = float(data[field])
+        
+        return data

@@ -3671,7 +3671,7 @@ class ProductDistributionViewSet(viewsets.ModelViewSet):
     
     def create(self, request, *args, **kwargs):
         """
-        Überschreiben der create-Methode um Limit-Validierung einzubauen
+        Erweiterte create-Methode mit Limit-Validierung, Preisberechnung und Kontostand-Update
         """
         recipient_id = request.data.get('recipient_id')
         packaging_unit_ids = request.data.get('packaging_unit_ids', [])
@@ -3721,8 +3721,9 @@ class ProductDistributionViewSet(viewsets.ModelViewSet):
             total_weight=Sum('packaging_units__weight')
         )['total_weight'] or 0
         
-        # Gewicht der ausgewählten Einheiten berechnen
+        # Gewicht der ausgewählten Einheiten berechnen und Preisberechnung
         selected_weight = 0
+        total_price = 0
         thc_violations = []
         
         for unit_id in packaging_unit_ids:
@@ -3733,6 +3734,10 @@ class ProductDistributionViewSet(viewsets.ModelViewSet):
                 
                 unit_weight = float(unit.weight)
                 selected_weight += unit_weight
+                
+                # Preisberechnung
+                if unit.unit_price:
+                    total_price += float(unit.unit_price)
                 
                 # THC-Prüfung für U21
                 if is_u21 and unit.batch and unit.batch.lab_testing_batch:
@@ -3791,8 +3796,33 @@ class ProductDistributionViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Wenn Validierung erfolgreich, fahre mit normalem create fort
-        return super().create(request, *args, **kwargs)
+        # Kontostand vor der Transaktion speichern
+        balance_before = float(recipient.kontostand)
+        
+        # Erstelle die Distribution mit Preisinformationen
+        distribution_data = request.data.copy()
+        distribution_data['total_price'] = total_price
+        distribution_data['balance_before'] = balance_before
+        distribution_data['balance_after'] = balance_before - total_price
+        
+        # Serializer mit erweiterten Daten
+        serializer = self.get_serializer(data=distribution_data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        
+        # Kontostand aktualisieren
+        recipient.kontostand = balance_before - total_price
+        recipient.save(update_fields=['kontostand'])
+        
+        # Joomla-Sync
+        try:
+            from members.api_views import sync_joomla_user
+            sync_joomla_user(recipient)
+        except Exception as e:
+            print(f"⚠️ Joomla-Sync fehlgeschlagen: {str(e)}")
+        
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
     
     @action(detail=False, methods=['get'])
     def member_summary(self, request):

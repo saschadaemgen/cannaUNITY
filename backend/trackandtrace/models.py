@@ -970,6 +970,31 @@ class ProductDistribution(models.Model):
     distribution_date = models.DateTimeField(default=timezone.now)
     notes = models.TextField(blank=True, null=True)
     
+    # 🆕 Neue Preis-Felder
+    total_price = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        null=True, 
+        blank=True,
+        verbose_name="Gesamtpreis"
+    )
+    
+    balance_before = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        null=True, 
+        blank=True,
+        verbose_name="Kontostand vorher"
+    )
+    
+    balance_after = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        null=True, 
+        blank=True,
+        verbose_name="Kontostand nachher"
+    )
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -999,3 +1024,31 @@ class ProductDistribution(models.Model):
             product_type = unit.batch.product_type if unit.batch else "Unbekannt"
             types[product_type] = types.get(product_type, 0) + float(unit.weight)
         return types
+    
+    # 🆕 Property für Preisberechnung
+    @property
+    def calculated_total_price(self):
+        """Berechnet den Gesamtpreis basierend auf den Verpackungseinheiten"""
+        if self.total_price:
+            return float(self.total_price)
+        
+        total = 0
+        for unit in self.packaging_units.all():
+            if unit.unit_price:
+                total += float(unit.unit_price)
+        return total
+    
+    @property
+    def price_per_gram(self):
+        """Berechnet den durchschnittlichen Preis pro Gramm"""
+        if self.total_weight > 0:
+            return self.calculated_total_price / self.total_weight
+        return 0
+    
+    def __str__(self):
+        return f"Distribution {self.batch_number} - {self.recipient} ({self.total_weight}g)"
+    
+    class Meta:
+        ordering = ['-distribution_date']
+        verbose_name = "Cannabis-Ausgabe"
+        verbose_name_plural = "Cannabis-Ausgaben"
