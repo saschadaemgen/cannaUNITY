@@ -1435,6 +1435,41 @@ export default function ProductSelectionStep({
                               <span style={styles.infoValue}>{card.batch_count} Ernte{card.batch_count > 1 ? 'n' : ''}</span>
                             </div>
                           )}
+
+                          {/* 🆕 NEUE PREISZEILEN HINZUFÜGEN */}
+{card.price_info?.has_prices && (
+  <>
+    {/* Preis pro Gramm */}
+    {card.price_per_gram && (
+      <div style={styles.infoRow}>
+        <span style={styles.infoLabel}>Preis/g:</span>
+        <span style={{...styles.infoValue, color: 'var(--primary-600)', fontWeight: 700}}>
+          {card.price_per_gram} €/g
+        </span>
+      </div>
+    )}
+    
+    {/* Paketpreis-Range wenn mehrere Größen */}
+    {card.available_weights?.length > 1 ? (
+      <div style={styles.infoRow}>
+        <span style={styles.infoLabel}>Paketpreis:</span>
+        <span style={{...styles.infoValue, color: 'var(--primary-600)', fontWeight: 700}}>
+          {card.price_info.min_price?.toFixed(2)} - {card.price_info.max_price?.toFixed(2)} €
+        </span>
+      </div>
+    ) : (
+      /* Einzelner Paketpreis wenn nur eine Größe */
+      card.price_display && (
+        <div style={styles.infoRow}>
+          <span style={styles.infoLabel}>Paketpreis:</span>
+          <span style={{...styles.infoValue, color: 'var(--primary-600)', fontWeight: 700}}>
+            {card.price_display}
+          </span>
+        </div>
+      )
+    )}
+  </>
+)}
                         </div>
                       </div>
                       

@@ -3058,7 +3058,7 @@ class StrainCardViewSet(viewsets.ReadOnlyModelViewSet):
     
     def _group_units_to_strain_cards(self, units):
         """
-        🎯 ERWEITERTE LOGIK: THC-Bereich bei mehreren Cannabis-Chargen
+        🎯 ERWEITERTE LOGIK: THC-Bereich bei mehreren Cannabis-Chargen + PREISE
         """
         strain_filter = self.request.query_params.get('strain_name', '').strip()
         
@@ -3067,8 +3067,12 @@ class StrainCardViewSet(viewsets.ReadOnlyModelViewSet):
             'units': [],
             'available_weights': set(),
             'weight_counts': defaultdict(int),
-            'thc_values_by_batch': defaultdict(list),  # 🆕 THC-Werte pro Cannabis-Charge
-            'cannabis_batches': set()
+            'thc_values_by_batch': defaultdict(list),
+            'cannabis_batches': set(),
+            # 🆕 NEUE PREIS-STRUKTUREN
+            'price_ranges': defaultdict(list),  # Preise pro Gewicht
+            'min_price': float('inf'),
+            'max_price': 0
         })
         
         for unit in units:
@@ -3084,12 +3088,19 @@ class StrainCardViewSet(viewsets.ReadOnlyModelViewSet):
             strain_data['available_weights'].add(weight)
             strain_data['weight_counts'][weight] += 1
             
+            # 🆕 PREISE SAMMELN
+            if unit.unit_price:
+                price = float(unit.unit_price)
+                strain_data['price_ranges'][weight].append(price)
+                strain_data['min_price'] = min(strain_data['min_price'], price)
+                strain_data['max_price'] = max(strain_data['max_price'], price)
+            
             # Cannabis-Charge-ID ermitteln
             cannabis_batch_id = self._get_cannabis_batch_id(unit)
             if cannabis_batch_id:
                 strain_data['cannabis_batches'].add(cannabis_batch_id)
                 
-                # 🆕 THC-Werte pro Cannabis-Charge sammeln
+                # THC-Werte pro Cannabis-Charge sammeln
                 if (unit.batch and 
                     unit.batch.lab_testing_batch and 
                     unit.batch.lab_testing_batch.thc_content):
@@ -3114,67 +3125,102 @@ class StrainCardViewSet(viewsets.ReadOnlyModelViewSet):
                 product_type = processing_batch.product_type
                 product_type_display = processing_batch.get_product_type_display()
             
-            # 🆕 THC-BEREICH BERECHNEN
+            # THC-BEREICH BERECHNEN (bestehender Code)
             thc_display = "k.A."
             if data['thc_values_by_batch']:
-                # Sammle alle einzigartigen THC-Werte von allen Cannabis-Chargen
                 all_thc_values = set()
                 for cannabis_batch_id, thc_list in data['thc_values_by_batch'].items():
                     if thc_list:
-                        # Nimm den Durchschnitt pro Cannabis-Charge
                         avg_thc_for_batch = sum(thc_list) / len(thc_list)
                         all_thc_values.add(round(avg_thc_for_batch, 1))
                 
                 if len(all_thc_values) == 1:
-                    # Nur eine Cannabis-Charge → exakter Wert
                     thc_display = f"{list(all_thc_values)[0]}"
                 elif len(all_thc_values) > 1:
-                    # Mehrere Cannabis-Chargen → Bereich anzeigen
                     min_thc = min(all_thc_values)
                     max_thc = max(all_thc_values)
                     thc_display = f"{min_thc} - {max_thc}"
             
-            # 🔧 DEBUG: THC-Berechnung anzeigen
-            cannabis_batch_count = len(data['cannabis_batches'])
-            print(f"🔍 THC-Berechnung für {strain_name}:")
-            print(f"   - Cannabis-Chargen: {cannabis_batch_count}")
-            print(f"   - THC-Werte pro Charge: {dict(data['thc_values_by_batch'])}")
-            print(f"   - THC-Anzeige: {thc_display}%")
+            # 🆕 PREIS-INFORMATIONEN BERECHNEN
+            price_info = {
+                'has_prices': data['min_price'] != float('inf'),
+                'min_price': data['min_price'] if data['min_price'] != float('inf') else None,
+                'max_price': data['max_price'] if data['max_price'] > 0 else None,
+                'price_by_weight': {}
+            }
             
-            # Gewichts-Optionen
+            # Preis pro Gewicht berechnen
+            for weight, prices in data['price_ranges'].items():
+                if prices:
+                    min_price_for_weight = min(prices)
+                    max_price_for_weight = max(prices)
+                    if min_price_for_weight == max_price_for_weight:
+                        price_info['price_by_weight'][weight] = {
+                            'price': min_price_for_weight,
+                            'display': f"{min_price_for_weight:.2f} €"
+                        }
+                    else:
+                        price_info['price_by_weight'][weight] = {
+                            'min': min_price_for_weight,
+                            'max': max_price_for_weight,
+                            'display': f"{min_price_for_weight:.2f} - {max_price_for_weight:.2f} €"
+                        }
+            
+            # Preis pro Gramm berechnen (vom ersten Unit mit Preis)
+            price_per_gram = None
+            for unit in data['units']:
+                if unit.unit_price and unit.weight:
+                    price_per_gram = float(unit.unit_price) / float(unit.weight)
+                    break
+            
+            # Gewichts-Optionen mit Preisen
             size_options = []
             for weight in sorted(data['available_weights']):
                 count = data['weight_counts'][weight]
-                size_options.append(f"{weight}g ({count}x)")
+                price_display = ""
+                if weight in price_info['price_by_weight']:
+                    price_display = f" • {price_info['price_by_weight'][weight]['display']}"
+                size_options.append(f"{weight}g ({count}x){price_display}")
             
-            # Available units
+            # Available units mit Preisen
             available_units = []
             for unit in data['units']:
-                available_units.append({
+                unit_data = {
                     'id': str(unit.id),
                     'batch_number': unit.batch_number,
                     'weight': float(unit.weight) if unit.weight else 0,
                     'packaging_batch_id': unit.batch.id if unit.batch else None,
-                    'cannabis_batch_id': self._get_cannabis_batch_id(unit)
-                })
+                    'cannabis_batch_id': self._get_cannabis_batch_id(unit),
+                    # 🆕 PREIS HINZUFÜGEN
+                    'unit_price': float(unit.unit_price) if unit.unit_price else None,
+                    'price_display': f"{float(unit.unit_price):.2f} €" if unit.unit_price else None
+                }
+                available_units.append(unit_data)
             
-            # 🔧 KORRIGIERTE strain_card Struktur mit allen benötigten Keys
+            cannabis_batch_count = len(data['cannabis_batches'])
+            
+            # StrainCard mit Preisinformationen
             strain_card = {
                 'id': f"strain_{strain_name.replace(' ', '_')}",
                 'strain_name': strain_name,
                 'product_type': product_type,
                 'product_type_display': product_type_display,
-                'total_unit_count': len(data['units']),  # 🔧 HINZUGEFÜGT
+                'total_unit_count': len(data['units']),
                 'avg_thc_content': thc_display,
-                'size_options': size_options,  # 🔧 HINZUGEFÜGT (für Kompatibilität)
+                'size_options': size_options,
                 'available_weights': sorted(data['available_weights']),
                 'batch_count': cannabis_batch_count,
-                'cannabis_batches': list(data['cannabis_batches']),  # 🔧 HINZUGEFÜGT
+                'cannabis_batches': list(data['cannabis_batches']),
                 'available_units': available_units,
+                # 🆕 PREIS-INFORMATIONEN
+                'price_info': price_info,
+                'price_per_gram': f"{price_per_gram:.2f}" if price_per_gram else None,
+                'price_display': price_info['price_by_weight'][sorted(data['available_weights'])[0]]['display'] if price_info['has_prices'] and data['available_weights'] else None,
                 'first_unit': {
                     'id': str(first_unit.id),
                     'batch_number': first_unit.batch_number,
-                    'weight': float(first_unit.weight) if first_unit.weight else 0
+                    'weight': float(first_unit.weight) if first_unit.weight else 0,
+                    'unit_price': float(first_unit.unit_price) if first_unit.unit_price else None
                 }
             }
             
