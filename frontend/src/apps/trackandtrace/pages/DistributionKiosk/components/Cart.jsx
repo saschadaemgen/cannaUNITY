@@ -27,6 +27,18 @@ export default function Cart({
   const dailyPercentage = Math.min(100, (dailyUsed / dailyLimit) * 100)
   const monthlyPercentage = Math.min(100, (monthlyUsed / monthlyLimit) * 100)
 
+  // 🆕 PREISBERECHNUNG
+  const calculateTotalPrice = () => {
+    return selectedUnits.reduce((sum, unit) => {
+      return sum + (unit.unit_price || 0)
+    }, 0)
+  }
+  
+  const totalPrice = calculateTotalPrice()
+  const kontostand = memberLimits?.member?.kontostand || 0
+  const remainingBalance = kontostand - totalPrice
+  const hasEnoughBalance = remainingBalance >= 0
+
   // Determine warning levels
   const getDailyLevel = () => {
     if (dailyPercentage >= 90) return 'critical'
@@ -101,6 +113,40 @@ export default function Cart({
     },
     progressCritical: {
       backgroundColor: '#dc3545'
+    },
+    // 🆕 Neue Preis-Styles
+    priceSection: {
+      padding: '20px 24px',
+      borderBottom: '1px solid #e0e0e0',
+      backgroundColor: '#f0f7ff'
+    },
+    priceRow: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: '8px',
+      fontSize: '14px'
+    },
+    priceLabel: {
+      color: '#2c3e50',
+      fontWeight: 500
+    },
+    priceValue: {
+      fontWeight: 700,
+      fontSize: '16px'
+    },
+    totalPrice: {
+      fontSize: '18px',
+      color: '#1976d2'
+    },
+    balanceWarning: {
+      color: '#dc3545',
+      fontSize: '12px',
+      marginTop: '8px',
+      padding: '8px',
+      backgroundColor: '#fff5f5',
+      borderRadius: '4px',
+      border: '1px solid #ffdddd'
     },
     cartHeader: {
       padding: '20px 24px 16px',
@@ -348,6 +394,54 @@ export default function Cart({
         </div>
       )}
 
+      {/* 🆕 PREIS-ÜBERSICHT */}
+      {selectedUnits.length > 0 && (
+        <div style={styles.priceSection}>
+          <h4 style={styles.limitsTitle}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              <path d="M9 12h6M12 9v6"/>
+            </svg>
+            Preisberechnung
+          </h4>
+          
+          <div style={styles.priceRow}>
+            <span style={styles.priceLabel}>Warenkorb-Summe:</span>
+            <span style={{...styles.priceValue, ...styles.totalPrice}}>
+              {totalPrice.toFixed(2)} €
+            </span>
+          </div>
+          
+          <div style={styles.priceRow}>
+            <span style={styles.priceLabel}>Aktuelles Guthaben:</span>
+            <span style={styles.priceValue}>
+              {kontostand.toFixed(2)} €
+            </span>
+          </div>
+          
+          <div style={{
+            ...styles.priceRow,
+            borderTop: '1px solid #e0e0e0',
+            paddingTop: '8px',
+            marginTop: '8px'
+          }}>
+            <span style={styles.priceLabel}>Verbleibendes Guthaben:</span>
+            <span style={{
+              ...styles.priceValue,
+              color: hasEnoughBalance ? '#28a745' : '#dc3545'
+            }}>
+              {remainingBalance.toFixed(2)} €
+            </span>
+          </div>
+          
+          {!hasEnoughBalance && (
+            <div style={styles.balanceWarning}>
+              ⚠️ Unzureichendes Guthaben! Es fehlen {Math.abs(remainingBalance).toFixed(2)} €
+            </div>
+          )}
+        </div>
+      )}
+
       <div style={styles.cartHeader}>
         <h4 style={styles.cartTitle}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -428,6 +522,30 @@ export default function Cart({
                 <div style={styles.cartItemStrain}>
                   {batch.source_strain || 'Sorte unbekannt'}
                 </div>
+                
+                {/* 🆕 PREIS HINZUFÜGEN */}
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginTop: '8px',
+                  paddingTop: '8px',
+                  borderTop: '1px solid #e0e0e0'
+                }}>
+                  <span style={{
+                    fontSize: '11px',
+                    color: '#6c757d'
+                  }}>
+                    Preis pro Einheit:
+                  </span>
+                  <span style={{
+                    fontSize: '14px',
+                    fontWeight: 700,
+                    color: '#1976d2'
+                  }}>
+                    {unit.unit_price ? `${unit.unit_price.toFixed(2)} €` : 'k.A.'}
+                  </span>
+                </div>
               </div>
             )
           })
@@ -459,7 +577,7 @@ export default function Cart({
         </div>
       )}
 
-      {/* Action Buttons */}
+      {/* Action Buttons - erweitert */}
       <div style={styles.actionButtons}>
         <button 
           style={styles.resetButton}
@@ -477,22 +595,22 @@ export default function Cart({
         <button 
           style={{
             ...styles.nextButton,
-            ...(canProceed ? {} : styles.nextButtonDisabled)
+            ...(canProceed && hasEnoughBalance ? {} : styles.nextButtonDisabled)
           }}
           onClick={onNext}
-          disabled={!canProceed}
+          disabled={!canProceed || !hasEnoughBalance}
           onMouseEnter={(e) => {
-            if (canProceed) {
+            if (canProceed && hasEnoughBalance) {
               e.target.style.backgroundColor = '#3d7a3d'
             }
           }}
           onMouseLeave={(e) => {
-            if (canProceed) {
+            if (canProceed && hasEnoughBalance) {
               e.target.style.backgroundColor = '#4a934a'
             }
           }}
         >
-          Zur Bestätigung ({totalWeight.toFixed(1)}g)
+          Zur Bestätigung ({totalPrice.toFixed(2)} €)
         </button>
       </div>
     </div>

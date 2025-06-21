@@ -1,5 +1,5 @@
 // frontend/src/apps/trackandtrace/pages/DistributionKiosk/components/ProductSelectionStep.jsx
-// 🚀 OPTIMIERTE VERSION - Gruppierte Sorten + Modal-Auswahl + Mehrfachauswahl
+// 🚀 OPTIMIERTE VERSION - Gruppierte Sorten + Modal-Auswahl + Mehrfachauswahl + Preise
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import api from '@/utils/api'
@@ -476,6 +476,7 @@ export default function ProductSelectionStep({
       id: unit.id,
       batch_number: unit.batch_number,
       weight: unit.weight,
+      unit_price: unit.unit_price, // 🆕 Preis hinzufügen
       batch: {
         source_strain: selectedStrain?.strain_name,
         product_type: selectedStrain?.product_type,
@@ -526,6 +527,7 @@ export default function ProductSelectionStep({
       id: unit.id,
       batch_number: unit.batch_number,
       weight: unit.weight,
+      unit_price: unit.unit_price, // 🆕 Preis hinzufügen
       batch: {
         source_strain: strainCard.strain_name,
         product_type: strainCard.product_type,
@@ -1437,40 +1439,40 @@ export default function ProductSelectionStep({
                           )}
 
                           {/* 🆕 NEUE PREISZEILEN HINZUFÜGEN */}
-{card.price_info?.has_prices && (
-  <>
-    {/* Preis pro Gramm */}
-    {card.price_per_gram && (
-      <div style={styles.infoRow}>
-        <span style={styles.infoLabel}>Preis/g:</span>
-        <span style={{...styles.infoValue, color: 'var(--primary-600)', fontWeight: 700}}>
-          {card.price_per_gram} €/g
-        </span>
-      </div>
-    )}
-    
-    {/* Paketpreis-Range wenn mehrere Größen */}
-    {card.available_weights?.length > 1 ? (
-      <div style={styles.infoRow}>
-        <span style={styles.infoLabel}>Paketpreis:</span>
-        <span style={{...styles.infoValue, color: 'var(--primary-600)', fontWeight: 700}}>
-          {card.price_info.min_price?.toFixed(2)} - {card.price_info.max_price?.toFixed(2)} €
-        </span>
-      </div>
-    ) : (
-      /* Einzelner Paketpreis wenn nur eine Größe */
-      card.price_display && (
-        <div style={styles.infoRow}>
-          <span style={styles.infoLabel}>Paketpreis:</span>
-          <span style={{...styles.infoValue, color: 'var(--primary-600)', fontWeight: 700}}>
-            {card.price_display}
-          </span>
-        </div>
-      )
-    )}
-  </>
-)}
-                        </div>
+                          {card.price_info?.has_prices && (
+                            <>
+                              {/* Preis pro Gramm */}
+                              {card.price_per_gram && (
+                                <div style={styles.infoRow}>
+                                  <span style={styles.infoLabel}>Preis/g:</span>
+                                  <span style={{...styles.infoValue, color: 'var(--primary-600)', fontWeight: 700}}>
+                                    {card.price_per_gram} €/g
+                                  </span>
+                                </div>
+                              )}
+                              
+                              {/* Paketpreis-Range wenn mehrere Größen */}
+                              {card.available_weights?.length > 1 ? (
+                                <div style={styles.infoRow}>
+                                  <span style={styles.infoLabel}>Paketpreis:</span>
+                                  <span style={{...styles.infoValue, color: 'var(--primary-600)', fontWeight: 700}}>
+                                    {card.price_info.min_price?.toFixed(2)} - {card.price_info.max_price?.toFixed(2)} €
+                                  </span>
+                                </div>
+                              ) : (
+                                /* Einzelner Paketpreis wenn nur eine Größe */
+                                card.price_display && (
+                                  <div style={styles.infoRow}>
+                                    <span style={styles.infoLabel}>Paketpreis:</span>
+                                    <span style={{...styles.infoValue, color: 'var(--primary-600)', fontWeight: 700}}>
+                                      {card.price_display}
+                                    </span>
+                                  </div>
+                                )
+                              )}
+                            </>
+                          )}
+                                                  </div>
                       </div>
                       
                       {/* Action Button */}
@@ -1646,6 +1648,18 @@ export default function ProductSelectionStep({
                     }}
                   >
                     {Math.round(weight)} Gramm
+                    
+                    {/* 🆕 Preis anzeigen wenn verfügbar */}
+                    {sampleUnit && sampleUnit.unit_price && (
+                      <div style={{
+                        fontSize: '13px',
+                        color: 'var(--primary-600)',
+                        fontWeight: 600,
+                        marginTop: '4px'
+                      }}>
+                        {sampleUnit.unit_price.toFixed(2)} €
+                      </div>
+                    )}
                     
                     {remainingCount > 0 ? (
                       <div style={styles.availableText}>

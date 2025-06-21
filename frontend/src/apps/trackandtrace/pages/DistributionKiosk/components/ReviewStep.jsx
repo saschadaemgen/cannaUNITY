@@ -24,6 +24,11 @@ export default function ReviewStep({
   const [authStep, setAuthStep] = useState('review') // 'review', 'scanning', 'processing'
   const [authorizedBy, setAuthorizedBy] = useState('')
 
+  // 🆕 PREISBERECHNUNG
+  const totalPrice = selectedUnits.reduce((sum, unit) => sum + (unit.unit_price || 0), 0)
+  const currentBalance = selectedMember?.kontostand || 0
+  const newBalance = currentBalance - totalPrice
+
   const handleConfirmAndAuthorize = async () => {
     setAuthStep('scanning')
     onError('')
@@ -49,23 +54,37 @@ export default function ReviewStep({
       setAuthorizedBy(unifi_name)
       setAuthStep('processing')
 
-      // 3. Submit Distribution
-      await api.post('/trackandtrace/distributions/', {
+      // 3. Submit Distribution mit Preis
+      const distributionRes = await api.post('/trackandtrace/distributions/', {
         distributor_id,
         recipient_id: selectedMember.id,
         packaging_unit_ids: selectedUnits.map(unit => unit.id),
         notes,
-        distribution_date: new Date().toISOString()
+        distribution_date: new Date().toISOString(),
+        total_price: totalPrice
       })
       
-      // Small delay to show processing state
+      const distributionId = distributionRes.data.id
+      
+      // 🔧 4. KORRIGIERTE URL für Kontostand-Update
+      await api.post(`/members/${selectedMember.id}/balance/update/`, {
+        amount: totalPrice,
+        transaction_type: 'distribution',
+        distribution_id: distributionId,
+        notes: `Cannabis-Ausgabe: ${selectedUnits.length} Produkte, ${totalWeight.toFixed(1)}g`
+      })
+      
+      // Success mit neuem Kontostand
       setTimeout(() => {
-        onSuccess()
+        onSuccess({ 
+          newBalance: currentBalance - totalPrice,
+          totalPrice: totalPrice 
+        })
       }, 1500)
       
     } catch (err) {
       console.error('Authorization Error:', err)
-      onError(err.response?.data?.detail || err.message || 'Fehler bei der Autorisierung')
+      onError(err.response?.data?.detail || err.response?.data?.error || err.message || 'Fehler bei der Autorisierung')
       setAuthStep('review')
       setAuthorizedBy('')
     }
@@ -419,9 +438,98 @@ export default function ReviewStep({
                 )}
               </div>
             </div>
+
+            {/* 🆕 PREIS-CARD */}
+            <div style={{
+              background: 'linear-gradient(135deg, var(--primary-50), var(--primary-100))',
+              borderRadius: '20px',
+              padding: '32px',
+              boxShadow: '0 12px 48px var(--shadow-medium)',
+              border: '1px solid var(--primary-200)',
+              position: 'relative',
+              overflow: 'hidden'
+            }}>
+              <div style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: '4px',
+                background: 'linear-gradient(90deg, var(--primary-500), var(--secondary-500))'
+              }}></div>
+              
+              <h3 style={{ 
+                color: 'var(--primary-700)', 
+                marginBottom: '20px',
+                fontSize: '1.25rem',
+                fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                  <path d="M9 12h6M12 9v6"/>
+                </svg>
+                Kostenübersicht
+              </h3>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between',
+                  fontSize: '0.875rem',
+                  color: 'var(--text-secondary)'
+                }}>
+                  <span>Aktuelles Guthaben:</span>
+                  <span style={{ fontWeight: 600 }}>{currentBalance.toFixed(2)} €</span>
+                </div>
+                
+                <div style={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between',
+                  fontSize: '1.25rem',
+                  fontWeight: 700,
+                  color: 'var(--primary-700)',
+                  padding: '12px 0',
+                  borderTop: '1px solid var(--primary-200)',
+                  borderBottom: '1px solid var(--primary-200)'
+                }}>
+                  <span>Gesamtpreis:</span>
+                  <span>{totalPrice.toFixed(2)} €</span>
+                </div>
+                
+                <div style={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between',
+                  fontSize: '0.875rem',
+                  color: newBalance >= 0 ? 'var(--success-600)' : 'var(--error-600)',
+                  fontWeight: 600
+                }}>
+                  <span>Neues Guthaben:</span>
+                  <span>{newBalance.toFixed(2)} €</span>
+                </div>
+                
+                {newBalance < 0 && (
+                  <div style={{
+                    marginTop: '8px',
+                    padding: '8px',
+                    background: 'var(--error-50)',
+                    border: '1px solid var(--error-200)',
+                    borderRadius: '8px',
+                    color: 'var(--error-700)',
+                    fontSize: '0.75rem',
+                    fontWeight: 500,
+                    textAlign: 'center'
+                  }}>
+                    ⚠️ Achtung: Unzureichendes Guthaben!
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
           
-          {/* Enhanced Products Table */}
+          {/* Enhanced Products Table mit Preisen */}
           <div style={{
             background: 'linear-gradient(135deg, var(--bg-paper), var(--bg-secondary))',
             borderRadius: '20px',
@@ -470,6 +578,7 @@ export default function ReviewStep({
                     <th>Produktkategorie</th>
                     <th>Gewicht</th>
                     <th>THC-Potenz</th>
+                    <th>Preis</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -525,6 +634,13 @@ export default function ReviewStep({
                               : 'var(--success-600)'
                         }}>
                           {batch.thc_content || 'k.A.'}%
+                        </td>
+                        <td className="price-cell" style={{
+                          fontWeight: 700,
+                          color: 'var(--primary-600)',
+                          fontSize: '1rem'
+                        }}>
+                          {unit.unit_price ? `${unit.unit_price.toFixed(2)} €` : 'k.A.'}
                         </td>
                       </tr>
                     )
@@ -628,6 +744,17 @@ export default function ReviewStep({
                 {totalWeight.toFixed(1)}g
               </div>
               <div className="action-stat-label">⚖️ Gesamtgewicht</div>
+            </div>
+            
+            {/* 🆕 PREIS-STAT */}
+            <div className="action-stat" style={{
+              background: 'linear-gradient(135deg, var(--primary-50), var(--primary-100))',
+              border: '1px solid var(--primary-200)'
+            }}>
+              <div className="action-stat-value" style={{ color: 'var(--primary-600)' }}>
+                {totalPrice.toFixed(2)}€
+              </div>
+              <div className="action-stat-label">💰 Gesamtpreis</div>
             </div>
           </div>
           

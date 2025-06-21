@@ -1,4 +1,4 @@
-# /api_views.py
+# /members/api_views.py
 import os
 import secrets
 import string
@@ -25,12 +25,7 @@ import requests
 from dotenv import load_dotenv
 from django.conf import settings
 
-# Umgebungsvariablen laden
 load_dotenv()
-
-# ============================================================================
-# 🧑‍💼 ALLGEMEINE HILFSFUNKTIONEN
-# ============================================================================
 
 def team_member_required(view_func):
     """
@@ -1416,3 +1411,77 @@ def assign_nfc_card_api(request, member_id):
         return Response({
             "error": f"Verbindungsfehler: {str(e)}"
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+@team_member_required
+def update_member_balance_api(request, member_id):
+    """
+    Aktualisiert den Kontostand eines Mitglieds nach einer Cannabis-Ausgabe
+    """
+    member = get_object_or_404(Member, id=member_id)
+    
+    amount = request.data.get('amount')
+    transaction_type = request.data.get('transaction_type', 'distribution')
+    notes = request.data.get('notes', '')
+    distribution_id = request.data.get('distribution_id')
+    
+    if amount is None:
+        return Response(
+            {"error": "Betrag ist erforderlich"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    try:
+        amount = float(amount)
+    except (ValueError, TypeError):
+        return Response(
+            {"error": "Ungültiger Betrag"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # Alten Kontostand speichern
+    old_balance = float(member.kontostand)
+    
+    # Neuen Kontostand berechnen
+    if transaction_type == 'distribution':
+        # Cannabis-Ausgabe = Abbuchung
+        new_balance = old_balance - amount
+    else:
+        # Andere Transaktionen (z.B. Einzahlung)
+        new_balance = old_balance + amount
+    
+    # Prüfen ob genug Guthaben vorhanden ist
+    if new_balance < 0 and transaction_type == 'distribution':
+        return Response({
+            "error": "Unzureichendes Guthaben",
+            "current_balance": old_balance,
+            "required_amount": amount,
+            "shortage": abs(new_balance)
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Kontostand aktualisieren
+    member.kontostand = new_balance
+    member.save(update_fields=['kontostand'])
+    
+    # Optional: Transaktion in den Notizen vermerken
+    if distribution_id:
+        transaction_note = f"\nCannabis-Ausgabe #{distribution_id}: -{amount:.2f}€ (Neuer Stand: {new_balance:.2f}€)"
+        member.notes = (member.notes or "") + transaction_note
+        member.save(update_fields=['notes'])
+    
+    # Joomla-Kontostand synchronisieren
+    try:
+        sync_joomla_user(member)
+    except Exception as e:
+        print(f"⚠️ Joomla-Sync fehlgeschlagen: {str(e)}")
+    
+    return Response({
+        "success": True,
+        "old_balance": old_balance,
+        "new_balance": new_balance,
+        "transaction_amount": amount,
+        "transaction_type": transaction_type,
+        "message": f"Kontostand erfolgreich aktualisiert"
+    })
