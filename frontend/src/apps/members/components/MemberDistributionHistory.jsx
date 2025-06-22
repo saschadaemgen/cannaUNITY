@@ -32,7 +32,7 @@ import HistoryIcon from '@mui/icons-material/History';
 import ReactECharts from 'echarts-for-react';
 import api from '@/utils/api';
 
-// Konstanten für Produkttypen - exakt wie im Backend (PRODUCT_TYPE_CHOICES)
+// Konstanten für Produkttypen
 const PRODUCT_TYPES = {
   MARIJUANA: 'Marihuana',
   HASHISH: 'Haschisch'
@@ -43,27 +43,20 @@ const AGE_LIMITS = {
   YOUNG_ADULT: {
     MIN_AGE: 18,
     MAX_AGE: 21,
-    DAILY_LIMIT: 25, // g
-    MONTHLY_LIMIT: 30, // g
-    MAX_THC: 10, // %
+    DAILY_LIMIT: 25,
+    MONTHLY_LIMIT: 30,
+    MAX_THC: 10,
   },
   ADULT: {
     MIN_AGE: 21,
-    DAILY_LIMIT: 25, // g
-    MONTHLY_LIMIT: 50, // g
-    MAX_THC: null, // keine Begrenzung
+    DAILY_LIMIT: 25,
+    MONTHLY_LIMIT: 50,
+    MAX_THC: null,
   }
 };
 
 /**
  * Komponente zur Anzeige der Cannabis-Ausgabehistorie eines Mitglieds
- * 
- * @param {Object} props - Die Props der Komponente
- * @param {string} props.memberId - Die ID des Mitglieds
- * @param {number} [props.memberAge] - Das Alter des Mitglieds (optional)
- * @param {string} [props.memberBirthDate] - Das Geburtsdatum des Mitglieds (optional)
- * @param {Object} [props.member] - Das komplette Mitgliedsobjekt (optional, für Kontostand)
- * @returns {JSX.Element} Die gerenderte Komponente
  */
 const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate, member }) => {
   const theme = useTheme();
@@ -73,21 +66,13 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate, membe
   const [activeTab, setActiveTab] = useState(0);
   const [showPriceHistory, setShowPriceHistory] = useState(false);
   
-  // Zeitauswahl-State mit aktuellem Monat/Jahr als Standardwert
+  // Zeitauswahl-State
   const currentDate = new Date();
   const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth());
   const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
   const [anchorEl, setAnchorEl] = useState(null);
   
-  // Debug-Logging aktivieren
-  const DEBUG = false;
-  const logDebug = (message, data) => {
-    if (DEBUG) {
-      console.log(`[DEBUG] ${message}`, data);
-    }
-  };
-  
-  // Berechne das Alter des Mitglieds, falls nicht direkt übergeben
+  // Berechne das Alter des Mitglieds
   const calculateMemberAge = useMemo(() => {
     if (memberAge !== undefined) return memberAge;
     
@@ -102,8 +87,7 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate, membe
       return age;
     }
     
-    // Fallback, wenn keine Altersinformationen verfügbar sind
-    return 25; // Wir nehmen an, dass das Mitglied älter als 21 ist
+    return 25;
   }, [memberAge, memberBirthDate]);
   
   // Bestimme die Limits basierend auf dem Alter
@@ -115,14 +99,13 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate, membe
         maxThc: AGE_LIMITS.YOUNG_ADULT.MAX_THC,
         category: 'young-adult'
       };
-    } else {
-      return {
-        daily: AGE_LIMITS.ADULT.DAILY_LIMIT,
-        monthly: AGE_LIMITS.ADULT.MONTHLY_LIMIT,
-        maxThc: AGE_LIMITS.ADULT.MAX_THC,
-        category: 'adult'
-      };
     }
+    return {
+      daily: AGE_LIMITS.ADULT.DAILY_LIMIT,
+      monthly: AGE_LIMITS.ADULT.MONTHLY_LIMIT,
+      maxThc: AGE_LIMITS.ADULT.MAX_THC,
+      category: 'adult'
+    };
   }, [calculateMemberAge]);
   
   // Hilfsfunktion zur Darstellung des Monatsnamens
@@ -134,16 +117,6 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate, membe
     return monthNames[monthIndex];
   };
 
-  // Hilfsfunktion zur Darstellung des heutigen Tages
-  const getTodayFormatted = () => {
-    const today = new Date();
-    return today.toLocaleDateString('de-DE', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
-  };
-  
   // Handler für die Monatsnavigation
   const handlePreviousMonth = () => {
     if (selectedMonth === 0) {
@@ -155,7 +128,6 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate, membe
   };
   
   const handleNextMonth = () => {
-    // Verhindere Navigation in die Zukunft
     const currentDate = new Date();
     const isCurrentMonth = selectedMonth === currentDate.getMonth() && 
                           selectedYear === currentDate.getFullYear();
@@ -170,7 +142,6 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate, membe
     }
   };
   
-  // Handler für direkten Monat/Jahr-Auswahlmenü
   const handleMonthMenuOpen = (event) => {
     setAnchorEl(event.currentTarget);
   };
@@ -185,7 +156,7 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate, membe
     handleMonthMenuClose();
   };
   
-  // Generiere Jahre und Monate für das Auswahlmenü (bis zu 3 Jahre zurück)
+  // Generiere Jahre und Monate für das Auswahlmenü
   const getYearMonthOptions = () => {
     const options = [];
     const currentDate = new Date();
@@ -210,29 +181,21 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate, membe
     const fetchDistributionData = async () => {
       setLoading(true);
       try {
-        // API-Parameter für den gewählten Monat/Jahr
         const year = selectedYear;
-        const month = selectedMonth + 1; // JavaScript-Monate sind 0-basiert, API erwartet 1-basiert
+        const month = selectedMonth + 1;
         
-        // API-Anfrage mit Jahr/Monat-Parameter
         const response = await api.get(`/trackandtrace/distributions/member_summary/?member_id=${memberId}&year=${year}&month=${month}`);
         
-        // Falls member_summary keinen Kontostand liefert, hole ihn separat
         let memberData = null;
         if (!response.data.member || !response.data.member.kontostand) {
           try {
             const memberResponse = await api.get(`/members/${memberId}/`);
             memberData = memberResponse.data;
-            logDebug('Member-Daten separat geholt:', memberData);
           } catch (err) {
-            logDebug('Fehler beim Holen der Member-Daten:', err);
+            // Fehler ignorieren
           }
         }
         
-        // Debugging der API-Antwort
-        logDebug('API-Antwort erhalten:', response.data);
-        
-        // Verarbeite die Daten und füge eine Produktzusammenfassung hinzu, falls sie fehlt
         const processedData = processApiResponse(response.data, memberData);
         setDistributionData(processedData);
         setError(null);
@@ -251,51 +214,37 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate, membe
   const processApiResponse = (apiData, memberData = null) => {
     if (!apiData) return null;
     
-    // Tiefe Kopie der API-Daten erstellen
     const processedData = JSON.parse(JSON.stringify(apiData));
     
-    // Falls memberData separat geholt wurde, füge es hinzu
     if (memberData && !processedData.member) {
       processedData.member = memberData;
     }
     
     if (processedData.received) {
-      // Stellen Sie sicher, dass alle Distributionen ein Array sind
       if (!Array.isArray(processedData.received.recent_distributions)) {
         processedData.received.recent_distributions = [];
       }
       
-      // Stellen Sie sicher, dass ein Feld für alle Distributionen existiert
       if (!processedData.received.all_distributions) {
-        // Falls nur recent_distributions vorhanden ist, können wir dies als all_distributions verwenden
         processedData.received.all_distributions = [...processedData.received.recent_distributions];
       }
       
-      // Berechnen der Produktzusammenfassung, falls nicht vorhanden
       if (!processedData.received.product_summary) {
         const summary = calculateProductSummary(processedData.received.recent_distributions);
         processedData.received.product_summary = summary;
-        
-        logDebug('Berechnete Produktzusammenfassung:', summary);
       }
       
-      // Stellen Sie sicher, dass jede Distribution eine product_type_summary hat
       if (processedData.received.recent_distributions) {
         processedData.received.recent_distributions.forEach(dist => {
           if (!dist.product_type_summary) {
-            // Berechnen Sie die Zusammenfassung basierend auf den Verpackungseinheiten
             dist.product_type_summary = calculateDistributionSummary(dist);
-            
-            logDebug(`Berechnete product_type_summary für Distribution ${dist.id}:`, dist.product_type_summary);
           }
         });
       }
       
-      // Berechne Monats- und Tagesverbrauch für Limitanzeige
       const monthlyConsumption = processedData.received.total_weight || 0;
-      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+      const today = new Date().toISOString().split('T')[0];
       
-      // Berechne heutigen Verbrauch
       let todayConsumption = 0;
       if (processedData.received.recent_distributions) {
         todayConsumption = processedData.received.recent_distributions
@@ -304,7 +253,6 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate, membe
           .reduce((total, dist) => total + (dist.total_weight || 0), 0);
       }
       
-      // Füge Verbrauchsinformationen zum Ergebnis hinzu
       processedData.consumption = {
         monthly: monthlyConsumption,
         today: todayConsumption,
@@ -317,102 +265,61 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate, membe
         remainingDaily: Math.max(0, limits.daily - todayConsumption)
       };
       
-      // 🆕 Kontostand-Historie berechnen
+      // Kontostand-Historie berechnen
       if (processedData.received.recent_distributions && processedData.received.recent_distributions.length > 0) {
-        // Kontostand aus verschiedenen Quellen versuchen zu holen
         let currentBalance = 0;
         let foundBalance = false;
         
-        // 1. Aus processedData.member (wenn hinzugefügt)
         if (processedData.member && processedData.member.kontostand !== undefined) {
           currentBalance = parseFloat(processedData.member.kontostand);
           foundBalance = true;
-          logDebug('Kontostand aus processedData.member:', currentBalance);
-        }
-        // 2. Aus apiData.member
-        else if (apiData.member && apiData.member.kontostand !== undefined) {
+        } else if (apiData.member && apiData.member.kontostand !== undefined) {
           currentBalance = parseFloat(apiData.member.kontostand);
           foundBalance = true;
-          logDebug('Kontostand aus apiData.member:', currentBalance);
-        }
-        // 3. Aus memberData (separat geholt)
-        else if (memberData && memberData.kontostand !== undefined) {
+        } else if (memberData && memberData.kontostand !== undefined) {
           currentBalance = parseFloat(memberData.kontostand);
           foundBalance = true;
-          logDebug('Kontostand aus memberData:', currentBalance);
-        }
-        // 4. Aus member Prop
-        else if (member?.kontostand !== undefined) {
+        } else if (member?.kontostand !== undefined) {
           currentBalance = parseFloat(member.kontostand);
           foundBalance = true;
-          logDebug('Kontostand aus member Prop:', currentBalance);
         }
         
         if (!foundBalance) {
-          console.error('❌ Kein Kontostand gefunden! Berechnung nicht möglich.');
-          logDebug('Verfügbare Daten:', {
-            apiData,
-            memberData,
-            member,
-            processedData
-          });
-          return processedData; // Beende hier, da keine sinnvolle Berechnung möglich
+          console.error('Kein Kontostand gefunden! Berechnung nicht möglich.');
+          return processedData;
         }
         
-        logDebug('Start-Kontostand für Berechnung:', currentBalance);
-        logDebug('Anzahl Distributionen:', processedData.received.recent_distributions.length);
-        
-        // Sortiere Distributionen chronologisch (älteste zuerst für die Berechnung)
         const sortedDistributions = [...processedData.received.recent_distributions]
           .sort((a, b) => new Date(a.distribution_date) - new Date(b.distribution_date));
         
-        // Berechne rückwärts vom aktuellen Kontostand
         let runningBalance = currentBalance;
         
-        // Gehe rückwärts durch die Distributionen (von neu nach alt)
         for (let i = sortedDistributions.length - 1; i >= 0; i--) {
           const dist = sortedDistributions[i];
           
-          // Berechne total_price falls nicht vorhanden
           if (dist.total_price === undefined || dist.total_price === null) {
             if (dist.packaging_units && dist.packaging_units.length > 0) {
               dist.total_price = dist.packaging_units.reduce((sum, unit) => {
                 const unitPrice = parseFloat(unit.unit_price || 0);
                 return sum + (isNaN(unitPrice) ? 0 : unitPrice);
               }, 0);
-              logDebug(`Berechneter total_price für Distribution ${i}:`, dist.total_price);
             } else {
               dist.total_price = 0;
-              logDebug(`Keine packaging_units für Distribution ${i}, setze total_price auf 0`);
             }
           } else {
             dist.total_price = parseFloat(dist.total_price);
             if (isNaN(dist.total_price)) {
-              console.warn(`total_price ist NaN für Distribution ${i}, setze auf 0`);
               dist.total_price = 0;
             }
           }
           
-          // Balance-Informationen berechnen
-          // Nach der Ausgabe = aktueller runningBalance
           dist.balance_after = runningBalance;
-          // Vor der Ausgabe = runningBalance + Ausgabebetrag
           dist.balance_before = runningBalance + dist.total_price;
           
-          logDebug(`Distribution ${i} (${dist.distribution_date}):`, {
-            total_price: dist.total_price,
-            balance_before: dist.balance_before,
-            balance_after: dist.balance_after
-          });
-          
-          // Für die nächste (ältere) Distribution
           runningBalance = dist.balance_before;
         }
-        
-        logDebug('Finale Distributions mit Balance:', processedData.received.recent_distributions);
       }
       
-      // Member-Daten aus der API-Response übernehmen, falls vorhanden
       if (apiData.member) {
         processedData.member = apiData.member;
       }
@@ -421,7 +328,7 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate, membe
     return processedData;
   };
   
-  // Hilfsfunktion zur Berechnung der Produktzusammenfassung für alle Distributionen
+  // Hilfsfunktion zur Berechnung der Produktzusammenfassung
   const calculateProductSummary = (distributions) => {
     const summary = {
       [PRODUCT_TYPES.MARIJUANA]: { type: PRODUCT_TYPES.MARIJUANA, weight: 0, unit_count: 0 },
@@ -432,7 +339,6 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate, membe
       if (!dist.packaging_units) return;
       
       dist.packaging_units.forEach(unit => {
-        // Bestimmen des Produkttyps durch Analyse der Batch-Nummer oder des Batch-Objekts
         const productType = determineProductType(unit);
         
         if (productType === 'marijuana') {
@@ -445,7 +351,6 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate, membe
       });
     });
     
-    // Konvertieren des Objekts in ein Array für die API-Kompatibilität
     return Object.values(summary);
   };
   
@@ -459,7 +364,6 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate, membe
     if (!distribution.packaging_units) return Object.values(summary);
     
     distribution.packaging_units.forEach(unit => {
-      // Bestimmen des Produkttyps
       const productType = determineProductType(unit);
       
       if (productType === 'marijuana') {
@@ -469,21 +373,15 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate, membe
       }
     });
     
-    // Konvertieren des Objekts in ein Array für die API-Kompatibilität
     return Object.values(summary);
   };
   
   // Hilfsfunktion zur Bestimmung des Produkttyps einer Verpackungseinheit
   const determineProductType = (unit) => {
-    // Verschiedene Möglichkeiten zur Bestimmung des Produkttyps prüfen
-    
-    // 1. Direkt aus der Einheit, falls vorhanden
     if (unit.product_type) return unit.product_type;
     
-    // 2. Aus dem Batch-Objekt, falls vorhanden
     if (unit.batch && unit.batch.product_type) return unit.batch.product_type;
     
-    // 3. Aus der Batch-Nummer ableiten, falls vorhanden
     if (unit.batch_number) {
       if (unit.batch_number.includes('marijuana') || unit.batch_number.includes('marihuana')) {
         return 'marijuana';
@@ -492,7 +390,6 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate, membe
       }
     }
     
-    // 4. Fallback-Prüfung: Überprüfen des verschachtelten Pfads
     try {
       if (
         unit.batch && 
@@ -503,28 +400,22 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate, membe
         return unit.batch.lab_testing_batch.processing_batch.product_type;
       }
     } catch (e) {
-      // Ignorieren einer möglichen Exception durch verschachtelte Zugriffe
+      // Ignorieren
     }
     
-    // Falls der Typ aus dem Batch-Objekt nicht bestimmt werden kann, prüfe die Batch-Objekt-Beziehung
     try {
-      // Prüfe, ob wir bereits ein Batch-Objekt haben
-      if (unit.batch) {
-        // Versuche den Produkttyp aus dem `product_type_display` des Batches zu ermitteln
-        if (typeof unit.batch.product_type_display === 'string') {
-          if (unit.batch.product_type_display.toLowerCase().includes('marihuana')) {
-            return 'marijuana';
-          } else if (unit.batch.product_type_display.toLowerCase().includes('haschisch')) {
-            return 'hashish';
-          }
+      if (unit.batch && typeof unit.batch.product_type_display === 'string') {
+        if (unit.batch.product_type_display.toLowerCase().includes('marihuana')) {
+          return 'marijuana';
+        } else if (unit.batch.product_type_display.toLowerCase().includes('haschisch')) {
+          return 'hashish';
         }
       }
     } catch (e) {
-      // Ignorieren einer möglichen Exception
+      // Ignorieren
     }
     
-    // Standardwert, wenn nichts gefunden wurde
-    return 'marijuana';  // Standardmäßig Marihuana annehmen
+    return 'marijuana';
   };
   
   // Hilfsfunktion zur Formatierung des Datums
@@ -539,7 +430,6 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate, membe
     });
   };
 
-  // Hilfsfunktion für kurzes Datum (nur für Charts)
   const formatShortDate = (dateString) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('de-DE', {
@@ -555,10 +445,8 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate, membe
     }
     
     return distributionData.received.recent_distributions.map(dist => {
-      // Berechnung der Summen nach Produkttyp
       const productTypeSummary = {};
       
-      // Verwende product_type_summary, falls vorhanden, sonst berechne es basierend auf packaging_units
       const productSummaries = dist.product_type_summary || calculateDistributionSummary(dist);
       
       productSummaries.forEach(summary => {
@@ -574,7 +462,6 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate, membe
         productTypeSummary[type].weight += parseFloat(summary.weight || 0);
       });
       
-      // Zusätzliche Informationen aus packaging_units extrahieren, falls verfügbar
       if (dist.packaging_units && dist.packaging_units.length > 0) {
         dist.packaging_units.forEach(unit => {
           const productType = determineProductType(unit);
@@ -590,11 +477,9 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate, membe
           
           productTypeSummary[displayType].count += 1;
           
-          // THC-Gehalt erfassen, falls verfügbar
           try {
             let thcContent = null;
             
-            // Versuche, THC-Inhalt aus verschiedenen Quellen zu erhalten
             if (unit.batch && unit.batch.thc_content) {
               thcContent = parseFloat(unit.batch.thc_content);
             } else if (unit.batch && unit.batch.lab_testing_batch && unit.batch.lab_testing_batch.thc_content) {
@@ -605,12 +490,11 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate, membe
               productTypeSummary[displayType].thcRange.push(thcContent);
             }
           } catch (e) {
-            // Ignorieren von Fehlern bei der THC-Extraktion
+            // Ignorieren
           }
         });
       }
       
-      // THC-Bereich formatieren
       Object.keys(productTypeSummary).forEach(type => {
         const thcValues = productTypeSummary[type].thcRange;
         if (thcValues.length > 0) {
@@ -641,23 +525,16 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate, membe
         balanceAfter: dist.balance_after !== undefined ? parseFloat(dist.balance_after) : undefined,
         pricePerGram: dist.total_weight > 0 ? parseFloat((dist.total_price || 0) / dist.total_weight) : 0
       };
-    }).sort((a, b) => b.date - a.date); // Neueste zuerst
+    }).sort((a, b) => b.date - a.date);
   }, [distributionData]);
   
-  // Debug-Logging für die Konsumtabellendaten
-  useEffect(() => {
-    logDebug('Konsumtabellendaten:', consumptionTableData);
-  }, [consumptionTableData]);
-  
-  // Generiere Daten für echarts - Verbesserter Ansatz mit mehr Informationen
+  // Generiere Daten für echarts
   const echartsOptions = useMemo(() => {
     if (!consumptionTableData.length) return null;
     
-    // Datenpunkte für den Chart vorbereiten
-    const chartData = [...consumptionTableData].reverse(); // Chronologisch für Chart
+    const chartData = [...consumptionTableData].reverse();
     const dates = chartData.map(item => formatShortDate(item.date));
     
-    // Gewichtsdaten nach Produkttyp
     const marijuanaData = chartData.map(item => {
       const marijuanaSummary = item.productSummary[PRODUCT_TYPES.MARIJUANA];
       return marijuanaSummary ? +(marijuanaSummary.weight.toFixed(2)) : 0;
@@ -668,17 +545,14 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate, membe
       return hashishSummary ? +(hashishSummary.weight.toFixed(2)) : 0;
     });
     
-    // Kumulatives Gesamtgewicht berechnen
     let cumulativeTotal = 0;
     const cumulativeData = chartData.map(item => {
       cumulativeTotal += parseFloat(item.totalWeight || 0);
       return +(cumulativeTotal.toFixed(2));
     });
     
-    // Monatslimit als horizontale Linie
     const monthlyLimitData = new Array(dates.length).fill(limits.monthly);
     
-    // 🆕 Preisdaten
     const priceData = chartData.map(item => item.totalPrice);
     const balanceData = chartData.map(item => item.balanceAfter !== undefined ? item.balanceAfter : 0);
     
@@ -690,12 +564,11 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate, membe
           const date = params[0].name;
           let tooltip = `<div style="font-weight:bold;margin-bottom:5px;">${date}</div>`;
           
-          // Variable für Gesamtgewicht der Ausgabe
           let totalDayWeight = 0;
           let totalDayPrice = 0;
           
           params.forEach(param => {
-            if (param.seriesName === 'Monatslimit') return;  // Limit nicht im Tooltip anzeigen
+            if (param.seriesName === 'Monatslimit') return;
             
             const color = param.color;
             const name = param.seriesName;
@@ -711,7 +584,6 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate, membe
               </div>`;
             }
             
-            // Berechne das Gesamtgewicht für diesen Tag (nur für Produkttypen)
             if (name === 'Marihuana' || name === 'Haschisch') {
               totalDayWeight += value;
             }
@@ -721,7 +593,6 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate, membe
             }
           });
           
-          // Zeige Tageslimit an, wenn Daten vorhanden sind
           const index = params[0].dataIndex;
           if (index >= 0 && (marijuanaData[index] > 0 || hashishData[index] > 0)) {
             const limitPercent = Math.min(100, (totalDayWeight / limits.daily) * 100).toFixed(0);
@@ -730,13 +601,11 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate, membe
             </div>`;
           }
           
-          // Zeige Preis pro Gramm
           if (totalDayPrice > 0 && totalDayWeight > 0) {
             const pricePerGram = (totalDayPrice / totalDayWeight).toFixed(2);
             tooltip += `<div>Preis pro Gramm: ${pricePerGram} €/g</div>`;
           }
           
-          // Zeige Monatslimit an, wenn Kumulativdaten vorhanden sind
           const cumIndex = params.findIndex(p => p.seriesName === 'Kumulativ');
           if (cumIndex >= 0) {
             const cumValue = params[cumIndex].value;
@@ -770,7 +639,7 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate, membe
         type: 'category',
         data: dates,
         axisLabel: {
-          interval: Math.ceil(dates.length / 10), // Bei vielen Datenpunkten nur einige Labels anzeigen
+          interval: Math.ceil(dates.length / 10),
           rotate: dates.length > 8 ? 45 : 0
         }
       },
@@ -852,11 +721,6 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate, membe
     };
   }, [consumptionTableData, theme, limits, showPriceHistory]);
   
-  // Debug-Logging für die Chart-Optionen
-  useEffect(() => {
-    logDebug('ECharts-Optionen:', echartsOptions);
-  }, [echartsOptions]);
-  
   if (loading) {
     return (
       <Card sx={{ p: 3, borderRadius: 2, boxShadow: theme.shadows[3] }}>
@@ -900,7 +764,6 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate, membe
                 Cannabis-Ausgabehistorie für {getMonthName(selectedMonth)} {selectedYear}
               </Typography>
               
-              {/* Monats- und Jahresauswahl - Wird neben Erwachsenen-Limits verschoben */}
               <Box sx={{ display: 'flex', alignItems: 'center' }}>
                 {/* Altersbezogene Limits-Anzeige */}
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
@@ -946,7 +809,7 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate, membe
                   </Tooltip>
                 </Box>
 
-                {/* Monats- und Jahresauswahl - jetzt direkt nach Erwachsenen-Limits */}
+                {/* Monats- und Jahresauswahl */}
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
                   <IconButton 
                     onClick={handlePreviousMonth}
@@ -999,16 +862,14 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate, membe
               </Box>
             </Box>
             
-            {/* Neues moderneres Karten-Layout mit exakt gleicher Breite */}
+            {/* Übersichtskarten */}
             <Box sx={{ 
               display: 'flex',
               width: '100%',
               mb: 3,
               overflow: 'hidden'
             }}>
-              {/* Gemeinsame Kartenformat-Funktion */}
               {[
-                // Karte 1: Ausgaben (Erste Position)
                 {
                   icon: <InventoryIcon />,
                   title: "Ausgaben",
@@ -1017,8 +878,6 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate, membe
                   color: theme.palette.success.main,
                   infoText: `insgesamt im ${getMonthName(selectedMonth)}`
                 },
-                
-                // Karte 2: Heutiges Limit (Zweite Position)
                 {
                   icon: <ScheduleIcon />,
                   title: "Tageslimit",
@@ -1030,8 +889,6 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate, membe
                   remaining: distributionData.consumption?.remainingDaily || 0,
                   progressColor: distributionData.consumption?.dailyPercentage > 90 ? theme.palette.error.main : theme.palette.success.main
                 },
-                
-                // Karte 3: Monatslimit (Dritte Position)
                 {
                   icon: <ScaleIcon />,
                   title: "Monatslimit",
@@ -1043,8 +900,6 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate, membe
                   remaining: distributionData.consumption?.remainingMonthly || 0,
                   progressColor: distributionData.consumption?.monthlyPercentage > 90 ? theme.palette.error.main : theme.palette.success.main
                 },
-                
-                // Karte 4: Marihuana 
                 {
                   icon: <LocalFloristIcon />,
                   title: "Marihuana",
@@ -1066,8 +921,6 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate, membe
                   })(),
                   badge: limits.maxThc ? `max ${limits.maxThc}% THC` : null
                 },
-                
-                // Karte 5: Haschisch - jetzt auch in Grün
                 {
                   icon: <FilterDramaIcon />,
                   title: "Haschisch",
@@ -1088,13 +941,10 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate, membe
                     return "0 Einheiten";
                   })()
                 },
-                
-                // 🆕 Karte 6: Kontostand
                 {
                   icon: <AccountBalanceWalletIcon />,
                   title: "Kontostand",
                   value: (() => {
-                    // Versuche Kontostand aus verschiedenen Quellen zu holen
                     let kontostand = 0;
                     if (distributionData.member?.kontostand !== undefined) {
                       kontostand = parseFloat(distributionData.member.kontostand);
@@ -1138,13 +988,13 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate, membe
                   key={index}
                   sx={{ 
                     width: `${100/6}%`,
-                    px: 0.5 // Reduzierter seitlicher Abstand für gleichmäßige Breite
+                    px: 0.5
                   }}
                 >
                   <Paper
                     elevation={0}
                     sx={{
-                      p: 1.5, // Reduziertes Padding für gleichmäßige Breite
+                      p: 1.5,
                       height: '100%',
                       borderRadius: 2,
                       border: `1px solid ${alpha(card.color || theme.palette.success.main, 0.2)}`,
@@ -1157,7 +1007,6 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate, membe
                       }
                     }}
                   >
-                    {/* Kartenkopf */}
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                       <Box sx={{ display: 'flex', alignItems: 'center' }}>
                         <Box 
@@ -1187,7 +1036,6 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate, membe
                         </Typography>
                       </Box>
                       
-                      {/* Badge falls vorhanden */}
                       {card.badge && (
                         <Tooltip title={`THC-Gehalt begrenzt auf ${limits.maxThc}%`}>
                           <Chip
@@ -1203,7 +1051,6 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate, membe
                         </Tooltip>
                       )}
                       
-                      {/* Prozentanzeige falls vorhanden */}
                       {card.percentage && (
                         <Tooltip title={`${card.title}: ${card.percentage.toFixed(0)}% genutzt`}>
                           <Chip
@@ -1219,125 +1066,70 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate, membe
                         </Tooltip>
                       )}
                       
-                      {/* Zusätzliche Aktion falls vorhanden */}
                       {card.additionalAction}
                     </Box>
                     
-                    {/* Karteninhalt mit Speziallayout für Alterslimits */}
-                    {card.additionalInfo ? (
-                      <>
-                        {/* Standardformat für Wertanzeigen */}
-                        <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5, mt: 0.5 }}>
-                          <Typography variant="h4" sx={{ fontWeight: 700, color: card.color || theme.palette.success.dark, fontSize: '1.7rem' }}>
-                            {card.value}
-                          </Typography>
-                          {card.unit && (
-                            <Typography variant="body2" sx={{ color: alpha(theme.palette.text.primary, 0.7) }}>
-                              {card.unit}
-                            </Typography>
-                          )}
-                        </Box>
-                        
-                        {/* Tageslimit und Monatslimit direkt unter dem Alter nebeneinander */}
-                        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 0.5 }}>
-                          <Typography variant="subtitle2" sx={{ fontSize: '0.9rem', color: card.color || theme.palette.success.dark }}>
-                            {card.additionalInfo.dailyLimit}g/Tag
-                          </Typography>
-                          <Typography variant="subtitle2" sx={{ fontSize: '0.9rem', color: card.color || theme.palette.success.dark, ml: 2 }}>
-                            {card.additionalInfo.monthlyLimit}g/Monat
-                          </Typography>
-                        </Box>
-                        
-                        {/* THC-Info am unteren Rand */}
-                        <Box sx={{ 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          mt: 'auto', 
-                          pt: 0.5,
-                          borderTop: `1px dashed ${alpha(theme.palette.text.disabled, 0.2)}`
-                        }}>
-                          <Typography 
-                            variant="body2" 
-                            color="textSecondary" 
-                            noWrap 
-                            sx={{ 
-                              fontSize: '0.7rem',
-                              width: '100%',
-                              textAlign: 'center'
-                            }}
-                          >
-                            {card.additionalInfo.thcInfo}
-                          </Typography>
-                        </Box>
-                      </>
-                    ) : (
-                      <>
-                        {/* Standardformat für Wertanzeigen */}
-                        <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5, mt: 0.5 }}>
-                          <Typography variant="h4" sx={{ fontWeight: 700, color: card.color || theme.palette.success.dark, fontSize: '1.7rem' }}>
-                            {card.value}
-                          </Typography>
-                          {card.unit && (
-                            <Typography variant="body2" sx={{ color: alpha(theme.palette.text.primary, 0.7) }}>
-                              {card.unit}
-                            </Typography>
-                          )}
-                          {card.maxValue && (
-                            <Typography variant="body2" sx={{ color: alpha(theme.palette.text.primary, 0.4), fontSize: '0.75rem' }}>
-                              /{card.maxValue}{card.unit}
-                            </Typography>
-                          )}
-                        </Box>
-                        
-                        {/* Fortschrittsbalken falls vorhanden */}
-                        {card.percentage !== undefined && (
-                          <Box sx={{ my: 1 }}>
-                            <LinearProgress
-                              variant="determinate"
-                              value={Math.min(100, card.percentage)}
-                              sx={{
-                                height: 6,
-                                borderRadius: 1,
-                                backgroundColor: alpha(card.color || theme.palette.success.main, 0.1),
-                                '& .MuiLinearProgress-bar': {
-                                  backgroundColor: card.progressColor || card.color || theme.palette.success.main
-                                }
-                              }}
-                            />
-                          </Box>
-                        )}
-                        
-                        {/* Informationstext */}
-                        {(card.infoText || card.remaining !== undefined) && (
-                          <Box sx={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            mt: 'auto', 
-                            pt: 0.5,
-                            borderTop: `1px dashed ${alpha(theme.palette.text.disabled, 0.2)}`
-                          }}>
-                            <Typography 
-                              variant="body2" 
-                              color="textSecondary" 
-                              noWrap 
-                              sx={{ 
-                                fontSize: '0.7rem',
-                                width: '100%',
-                                textAlign: 'center'
-                              }}
-                            >
-                              {card.infoText || (card.remaining !== undefined ? `Noch ${card.remaining.toFixed(1)}${card.unit} verfügbar` : '')}
-                            </Typography>
-                          </Box>
-                        )}
-                      </>
+                    <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5, mt: 0.5 }}>
+                      <Typography variant="h4" sx={{ fontWeight: 700, color: card.color || theme.palette.success.dark, fontSize: '1.7rem' }}>
+                        {card.value}
+                      </Typography>
+                      {card.unit && (
+                        <Typography variant="body2" sx={{ color: alpha(theme.palette.text.primary, 0.7) }}>
+                          {card.unit}
+                        </Typography>
+                      )}
+                      {card.maxValue && (
+                        <Typography variant="body2" sx={{ color: alpha(theme.palette.text.primary, 0.4), fontSize: '0.75rem' }}>
+                          /{card.maxValue}{card.unit}
+                        </Typography>
+                      )}
+                    </Box>
+                    
+                    {card.percentage !== undefined && (
+                      <Box sx={{ my: 1 }}>
+                        <LinearProgress
+                          variant="determinate"
+                          value={Math.min(100, card.percentage)}
+                          sx={{
+                            height: 6,
+                            borderRadius: 1,
+                            backgroundColor: alpha(card.color || theme.palette.success.main, 0.1),
+                            '& .MuiLinearProgress-bar': {
+                              backgroundColor: card.progressColor || card.color || theme.palette.success.main
+                            }
+                          }}
+                        />
+                      </Box>
+                    )}
+                    
+                    {(card.infoText || card.remaining !== undefined) && (
+                      <Box sx={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        mt: 'auto', 
+                        pt: 0.5,
+                        borderTop: `1px dashed ${alpha(theme.palette.text.disabled, 0.2)}`
+                      }}>
+                        <Typography 
+                          variant="body2" 
+                          color="textSecondary" 
+                          noWrap 
+                          sx={{ 
+                            fontSize: '0.7rem',
+                            width: '100%',
+                            textAlign: 'center'
+                          }}
+                        >
+                          {card.infoText || (card.remaining !== undefined ? `Noch ${card.remaining.toFixed(1)}${card.unit} verfügbar` : '')}
+                        </Typography>
+                      </Box>
                     )}
                   </Paper>
                 </Box>
               ))}
             </Box>
             
-            {/* 🆕 Kontostand-Historie Modal/Accordion */}
+            {/* Kontostand-Historie */}
             {showPriceHistory && (
               <Card sx={{ mt: 2, mb: 3, p: 2 }}>
                 <Typography variant="h6" gutterBottom>
@@ -1354,7 +1146,6 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate, membe
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {/* Aktueller Kontostand als erste Zeile */}
                       <TableRow sx={{ bgcolor: alpha(theme.palette.primary.main, 0.02) }}>
                         <TableCell sx={{ fontWeight: 600 }}>Heute</TableCell>
                         <TableCell sx={{ fontWeight: 600 }}>Aktueller Stand</TableCell>
@@ -1367,7 +1158,6 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate, membe
                           {distributionData.member?.kontostand !== undefined ? parseFloat(distributionData.member.kontostand).toFixed(2) : '0.00'} €
                         </TableCell>
                       </TableRow>
-                      {/* Transaktionen - neueste zuerst */}
                       {consumptionTableData
                         .sort((a, b) => b.date - a.date)
                         .map((item) => (
@@ -1529,7 +1319,6 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate, membe
                   <TableBody>
                     {consumptionTableData.length > 0 ? (
                       consumptionTableData.map((item) => {
-                        // Berechne Tagesgesamtgewicht für den Limitprozentsatz
                         const dayWeight = Object.values(item.productSummary).reduce(
                           (total, product) => total + (product?.weight || 0), 
                           0
@@ -1574,7 +1363,6 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate, membe
                               {item.totalWeight.toFixed(2)}g
                             </TableCell>
                             
-                            {/* 🆕 Preis-Zellen */}
                             <TableCell align="right">
                               <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
                                 {item.totalPrice.toFixed(2)} €
@@ -1629,7 +1417,7 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate, membe
           </Box>
         )}
         
-        {/* Detaillierte Ausgaben Tab - Code unverändert */}
+        {/* Detaillierte Ausgaben Tab */}
         {activeTab === 1 && (
           <Box>
             <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 500, mb: 2 }}>
@@ -1673,7 +1461,6 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate, membe
                                 color: theme.palette.primary.main
                               }}
                             />
-                            {/* 🆕 Preis-Chip */}
                             <Chip 
                               label={`${(parseFloat(distribution.total_price || 0)).toFixed(2)} €`}
                               size="small"
@@ -1686,7 +1473,6 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate, membe
                           </Box>
                         </Box>
                         <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
-                          {/* Verwende product_type_summary, falls vorhanden, sonst erstelle es */}
                           {(distribution.product_type_summary || []).map((product, idx) => {
                             if (!product || !product.type || product.weight <= 0) return null;
                             
@@ -1738,7 +1524,6 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate, membe
                           </Paper>
                         </Grid>
                         
-                        {/* 🆕 Kontostand-Feld */}
                         <Grid item xs={12} md={3}>
                           <Paper variant="outlined" sx={{ p: 2, height: '100%', borderRadius: 2 }}>
                             <Typography variant="body2" gutterBottom sx={{ color: 'text.secondary' }}>
@@ -1792,37 +1577,32 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate, membe
                           <TableBody>
                             {(distribution.packaging_units || []).length > 0 ? (
                               distribution.packaging_units.map((unit) => {
-                                // Bestimme den Produkttyp für die Anzeige
                                 const productType = determineProductType(unit);
                                 const isMarijuana = productType === 'marijuana';
                                 const displayType = isMarijuana ? PRODUCT_TYPES.MARIJUANA : PRODUCT_TYPES.HASHISH;
                                 
-                                // Versuch, THC- und CBD-Gehalt zu extrahieren
                                 let thcContent = 'k.A.';
                                 let cbdContent = 'k.A.';
                                 let strain = 'k.A.';
                                 
                                 try {
-                                  // THC-Gehalt aus verschiedenen Quellen versuchen zu extrahieren
                                   if (unit.batch && unit.batch.thc_content) {
                                     thcContent = `${unit.batch.thc_content}%`;
                                   } else if (unit.batch && unit.batch.lab_testing_batch && unit.batch.lab_testing_batch.thc_content) {
                                     thcContent = `${unit.batch.lab_testing_batch.thc_content}%`;
                                   }
                                   
-                                  // CBD-Gehalt
                                   if (unit.batch && unit.batch.cbd_content) {
                                     cbdContent = `${unit.batch.cbd_content}%`;
                                   } else if (unit.batch && unit.batch.lab_testing_batch && unit.batch.lab_testing_batch.cbd_content) {
                                     cbdContent = `${unit.batch.lab_testing_batch.cbd_content}%`;
                                   }
                                   
-                                  // Sorte/Strain
                                   if (unit.batch && unit.batch.source_strain) {
                                     strain = unit.batch.source_strain;
                                   }
                                 } catch (e) {
-                                  // Ignorieren von Fehlern bei der Datenextraktion
+                                  // Ignorieren
                                 }
                                 
                                 return (
@@ -1839,7 +1619,6 @@ const MemberDistributionHistory = ({ memberId, memberAge, memberBirthDate, membe
                                       </Box>
                                     </TableCell>
                                     <TableCell align="right">{parseFloat(unit.weight).toFixed(2)}g</TableCell>
-                                    {/* 🆕 Preis-Spalte */}
                                     <TableCell align="right">
                                       {unit.unit_price !== undefined && unit.unit_price !== null ? (
                                         <Typography variant="body2" sx={{ fontWeight: 500 }}>

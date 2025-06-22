@@ -42,7 +42,6 @@ const MemberTable = ({
   onPageChange,
   isTeamleiter
 }) => {
-  // Gibt die Anrede basierend auf dem Gender-Wert zurück
   const getGenderDisplay = (gender) => {
     const genderMap = {
       'male': 'Herr',
@@ -52,7 +51,6 @@ const MemberTable = ({
     return genderMap[gender] || 'Herr';
   };
   
-  // Gibt das Gender-Icon basierend auf dem Gender-Wert zurück
   const getGenderIcon = (gender) => {
     switch (gender) {
       case 'female':
@@ -65,7 +63,6 @@ const MemberTable = ({
     }
   };
 
-  // Berechnet Alter basierend auf Geburtsdatum
   const calculateAge = (birthdate) => {
     if (!birthdate) return null;
     const today = new Date();
@@ -80,7 +77,6 @@ const MemberTable = ({
     return age;
   };
   
-  // Bestimmt die Altersklasse basierend auf dem Alter
   const getAgeClass = (birthdate) => {
     const age = calculateAge(birthdate);
     if (!age) return '21+';
@@ -89,7 +85,6 @@ const MemberTable = ({
     return '21+';
   };
 
-  // Hilfsfunktion für Status-Chip
   const renderStatusChip = (status) => {
     const statusConfig = {
       active: { label: 'Aktiv', color: 'success', icon: CheckCircleIcon },
@@ -116,7 +111,6 @@ const MemberTable = ({
     );
   };
 
-  // Hilfsfunktion für Age-Class-Chip
   const renderAgeClassChip = (birthdate) => {
     const ageClass = getAgeClass(birthdate);
     const ageClassConfig = {
@@ -154,7 +148,6 @@ const MemberTable = ({
     );
   };
   
-  // Hilfsfunktion für Beschäftigungs-Chip
   const renderEmploymentChip = (isEmployed, hours) => {
     if (!isEmployed) {
       return (
@@ -193,14 +186,12 @@ const MemberTable = ({
     );
   };
 
-  // Formatierung des deutschen Datums
   const formatDate = (dateString) => {
     if (!dateString) return '—';
     const date = new Date(dateString);
     return date.toLocaleDateString('de-DE');
   };
 
-  // Spalten für den Tabellenkopf definieren
   const headerColumns = [
     { label: '', width: '3%', align: 'center' },
     { label: 'Name', width: '19%', align: 'left' },
@@ -214,7 +205,6 @@ const MemberTable = ({
     { label: 'Aktionen', width: '14%', align: 'center' }
   ];
 
-  // Funktion zum Erstellen der Spalten für eine Zeile
   const getRowColumns = (member) => {
     const GenderIcon = getGenderIcon(member.gender);
     
@@ -374,12 +364,10 @@ const MemberTable = ({
     ];
   };
 
-  // Funktion für Activity-Stream-Nachrichten
   const getActivityMessage = (member) => {
     return `Mitglied ${getGenderDisplay(member.gender)} ${member.first_name} ${member.last_name} wurde am ${new Date(member.created || new Date()).toLocaleDateString('de-DE')} erstellt.`;
   };
 
-  // Status-Label für die Detailansicht
   const getStatusLabel = (status) => {
     const statusLabels = {
       active: 'Aktiv',
@@ -390,7 +378,6 @@ const MemberTable = ({
     return statusLabels[status] || 'Aktiv';
   };
 
-  // Status-Farbe für die Detailansicht
   const getStatusColor = (status) => {
     const statusColors = {
       active: 'success.main',
@@ -401,7 +388,6 @@ const MemberTable = ({
     return statusColors[status] || 'success.main';
   };
 
-  // Detailansicht für ein Mitglied rendern
   const renderMemberDetails = (member) => {
     const age = calculateAge(member.birthdate);
     const ageClass = getAgeClass(member.birthdate);
@@ -425,7 +411,7 @@ const MemberTable = ({
           </Typography>
         </Box>
 
-        {/* Cannabis-Produkthistorie - jetzt direkt nach der Activity Stream Message */}
+        {/* Cannabis-Produkthistorie */}
         <Box mb={3}>
           <DetailCards
             cards={[
@@ -433,11 +419,11 @@ const MemberTable = ({
                 title: 'Cannabis-Produkthistorie',
                 content: (
                   <Box>
-                    {/* MemberDistributionHistory-Komponente einbinden */}
                     <MemberDistributionHistory 
                       memberId={member.id}
                       memberAge={age}
                       memberBirthDate={member.birthdate}
+                      member={member}
                     />
                   </Box>
                 )
@@ -447,7 +433,7 @@ const MemberTable = ({
           />
         </Box>
 
-        {/* Mitgliedsdetails mit DetailCards */}
+        {/* Mitgliedsdetails */}
         <DetailCards 
           cards={[
             {
@@ -751,7 +737,7 @@ const MemberTable = ({
           </Box>
         )}
 
-        {/* Aktionsbereich mit ausreichend Abstand zu den Karten darüber */}
+        {/* Aktionsbereich */}
         <Box sx={{ display: 'flex', gap: 2, mt: 4, mb: 1 }}>
           <Button 
             variant="contained" 
@@ -789,7 +775,6 @@ const MemberTable = ({
     );
   };
 
-  // Tabellenkopf mit der TableHeader-Komponente
   const renderTableHeader = () => {
     return <TableHeader columns={headerColumns} />;
   };
@@ -808,7 +793,7 @@ const MemberTable = ({
             onClick={() => onExpandMember(member.id)}
             columns={getRowColumns(member)}
             borderColor="primary.main"
-            expandIconPosition="none" // Deaktiviere das Standard-Icon, da wir ein eigenes verwenden
+            expandIconPosition="none"
           >
             {renderMemberDetails(member)}
           </AccordionRow>
@@ -819,7 +804,7 @@ const MemberTable = ({
         </Typography>
       )}
   
-      {/* Pagination mit der PaginationFooter-Komponente */}
+      {/* Pagination */}
       <PaginationFooter
         currentPage={currentPage}
         totalPages={totalPages}
