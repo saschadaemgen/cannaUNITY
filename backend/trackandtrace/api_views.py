@@ -3403,6 +3403,194 @@ class StrainCardViewSet(viewsets.ReadOnlyModelViewSet):
         
         return Response(response_data)
     
+    @action(detail=False, methods=['get'])
+    def product_history(self, request):
+        """
+        🔍 Liefert die komplette Track & Trace Historie für eine Cannabis-Charge
+        
+        Query Parameters:
+        - cannabis_batch_id: ID der Cannabis-Charge (format: harvest_123)
+        """
+        cannabis_batch_id = request.query_params.get('cannabis_batch_id')
+        
+        if not cannabis_batch_id:
+            return Response(
+                {"error": "cannabis_batch_id ist erforderlich"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            # Parse cannabis_batch_id (z.B. "harvest_4ed01949-f03b-4ef3-b74b-bcbb1ff8a2c7")
+            batch_type, batch_id = cannabis_batch_id.split('_', 1)
+            
+            if batch_type != 'harvest':
+                return Response(
+                    {"error": "Nur harvest batches werden derzeit unterstützt"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Importiere Models
+            from trackandtrace.models import HarvestBatch
+            
+            # Lade HarvestBatch mit ALLEN verknüpften Objekten (das ist der Schlüssel!)
+            harvest = HarvestBatch.objects.prefetch_related(
+                'flowering_batch__seed_purchase',
+                'drying_batches',
+                'drying_batches__processing_batches',
+                'drying_batches__processing_batches__lab_testing_batches',
+                'drying_batches__processing_batches__lab_testing_batches__packaging_batches'
+            ).select_related(
+                'flowering_batch__seed_purchase__member',
+                'flowering_batch__seed_purchase__room',
+                'flowering_batch__member',
+                'flowering_batch__room',
+                'member',
+                'room'
+            ).get(id=batch_id)
+            
+            # Baue Timeline
+            timeline = []
+            
+            # 1. Sameneinkauf
+            if harvest.flowering_batch and harvest.flowering_batch.seed_purchase:
+                seed = harvest.flowering_batch.seed_purchase
+                timeline.append({
+                    'step': 1,
+                    'type': 'seed_purchase',
+                    'title': '🌱 Sameneinkauf',
+                    'batch_number': seed.batch_number,
+                    'date': seed.created_at.isoformat(),
+                    'data': {
+                        'strain_name': seed.strain_name,
+                        'quantity': seed.quantity,
+                        'member': str(seed.member) if seed.member else 'Unbekannt',
+                        'room': seed.room.name if seed.room else 'Nicht angegeben',
+                        'thc_range': f"{seed.thc_percentage_min or 'k.A.'} - {seed.thc_percentage_max or 'k.A.'}%",
+                        'cbd_range': f"{seed.cbd_percentage_min or 'k.A.'} - {seed.cbd_percentage_max or 'k.A.'}%"
+                    }
+                })
+            
+            # 2. Blühpflanzen
+            if harvest.flowering_batch:
+                flowering = harvest.flowering_batch
+                timeline.append({
+                    'step': 2,
+                    'type': 'flowering_plant',
+                    'title': '🌸 Blühpflanzen (direkt)',
+                    'batch_number': flowering.batch_number,
+                    'date': flowering.created_at.isoformat(),
+                    'data': {
+                        'quantity': flowering.quantity,
+                        'member': str(flowering.member) if flowering.member else 'Unbekannt',
+                        'room': flowering.room.name if flowering.room else 'Nicht angegeben'
+                    }
+                })
+            
+            # 3. Ernte
+            timeline.append({
+                'step': 3,
+                'type': 'harvest',
+                'title': '🌾 Ernte',
+                'batch_number': harvest.batch_number,
+                'date': harvest.created_at.isoformat(),
+                'data': {
+                    'weight': f"{harvest.weight}g",
+                    'member': str(harvest.member) if harvest.member else 'Unbekannt',
+                    'room': harvest.room.name if harvest.room else 'Nicht angegeben',
+                    'status': harvest.status
+                }
+            })
+            
+            # 4. Trocknungen (kann mehrere geben)
+            for drying in harvest.drying_batches.all():
+                timeline.append({
+                    'step': len(timeline) + 1,
+                    'type': 'drying',
+                    'title': '🍂 Trocknung',
+                    'batch_number': drying.batch_number,
+                    'date': drying.created_at.isoformat(),
+                    'data': {
+                        'initial_weight': f"{drying.initial_weight}g",
+                        'final_weight': f"{drying.final_weight}g",
+                        'weight_loss': f"{drying.weight_loss}g ({drying.weight_loss_percentage:.1f}%)",
+                        'member': str(drying.member) if drying.member else 'Unbekannt',
+                        'room': drying.room.name if drying.room else 'Nicht angegeben'
+                    }
+                })
+                
+                # 5. Verarbeitungen
+                for processing in drying.processing_batches.all():
+                    timeline.append({
+                        'step': len(timeline) + 1,
+                        'type': 'processing',
+                        'title': f"🏭 Verarbeitung zu {processing.get_product_type_display()}",
+                        'batch_number': processing.batch_number,
+                        'date': processing.created_at.isoformat(),
+                        'data': {
+                            'product_type': processing.get_product_type_display(),
+                            'input_weight': f"{processing.input_weight}g",
+                            'output_weight': f"{processing.output_weight}g",
+                            'yield': f"{processing.yield_percentage:.1f}%",
+                            'member': str(processing.member) if processing.member else 'Unbekannt',
+                            'room': processing.room.name if processing.room else 'Nicht angegeben'
+                        }
+                    })
+                    
+                    # 6. Laborkontrollen
+                    for lab_testing in processing.lab_testing_batches.all():
+                        timeline.append({
+                            'step': len(timeline) + 1,
+                            'type': 'lab_testing',
+                            'title': '🔬 Laborkontrolle',
+                            'batch_number': lab_testing.batch_number,
+                            'date': lab_testing.created_at.isoformat(),
+                            'data': {
+                                'status': lab_testing.get_status_display(),
+                                'thc_content': f"{lab_testing.thc_content}%" if lab_testing.thc_content else 'k.A.',
+                                'cbd_content': f"{lab_testing.cbd_content}%" if lab_testing.cbd_content else 'k.A.',
+                                'sample_weight': f"{lab_testing.sample_weight}g",
+                                'member': str(lab_testing.member) if lab_testing.member else 'Unbekannt',
+                                'room': lab_testing.room.name if lab_testing.room else 'Nicht angegeben'
+                            }
+                        })
+                        
+                        # 7. Verpackungen
+                        for packaging in lab_testing.packaging_batches.all():
+                            timeline.append({
+                                'step': len(timeline) + 1,
+                                'type': 'packaging',
+                                'title': '📦 Verpackung',
+                                'batch_number': packaging.batch_number,
+                                'date': packaging.created_at.isoformat(),
+                                'data': {
+                                    'total_weight': f"{packaging.total_weight}g",
+                                    'unit_count': packaging.unit_count,
+                                    'unit_weight': f"{packaging.unit_weight}g pro Einheit",
+                                    'member': str(packaging.member) if packaging.member else 'Unbekannt',
+                                    'room': packaging.room.name if packaging.room else 'Nicht angegeben'
+                                }
+                            })
+            
+            # Response
+            return Response({
+                'cannabis_batch_id': cannabis_batch_id,
+                'strain_name': harvest.source_strain,
+                'timeline': timeline,
+                'total_steps': len(timeline),
+                'complete_chain': any('packaging' in step['type'] for step in timeline)
+            })
+            
+        except HarvestBatch.DoesNotExist:
+            return Response(
+                {"error": f"HarvestBatch mit ID {batch_id} nicht gefunden"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            print(f"❌ Fehler bei product_history: {str(e)}")
+            return Response(
+                {"error": "Fehler beim Laden der Produkthistorie"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 class PackagingUnitViewSet(viewsets.ModelViewSet):
     queryset = PackagingUnit.objects.all().order_by('-created_at')

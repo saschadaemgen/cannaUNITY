@@ -1,10 +1,11 @@
 // frontend/src/apps/trackandtrace/pages/DistributionKiosk/components/ProductSelectionStep.jsx
-// 🚀 OPTIMIERTE VERSION - Gruppierte Sorten + Modal-Auswahl + Mehrfachauswahl + Preise
+// 🚀 OPTIMIERTE VERSION - Gruppierte Sorten + Modal-Auswahl + Mehrfachauswahl + Preise + Produkthistorie
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import api from '@/utils/api'
 import MemberProfile from './MemberProfile'
 import Cart from './Cart'
+import ProductHistoryModal from './ProductHistoryModal'
 
 const STEPS = [
   'Mitglied scannen',
@@ -56,6 +57,12 @@ export default function ProductSelectionStep({
   // =================== VERGLEICHSLISTE STATES ===================
   const [compareList, setCompareList] = useState([])
   const [showCompareTooltip, setShowCompareTooltip] = useState(null)
+  
+  // =================== PRODUKTHISTORIE STATES ===================
+  const [historyModalOpen, setHistoryModalOpen] = useState(false)
+  const [selectedHistoryStrain, setSelectedHistoryStrain] = useState(null)
+  const [selectedHistoryBatchId, setSelectedHistoryBatchId] = useState(null)
+  const [showInfoTooltip, setShowInfoTooltip] = useState(null)
   
   // =================== MEMBER CALCULATIONS ===================
   const isU21 = memberLimits?.member?.age_class === '18+'
@@ -551,6 +558,22 @@ export default function ProductSelectionStep({
     setValidationWarning('')
   }, [setSelectedUnits])
   
+  const handleShowProductHistory = useCallback((strainCard) => {
+    setSelectedHistoryStrain(strainCard)
+    
+    // Wähle die erste verfügbare Cannabis-Batch-ID
+    if (strainCard.cannabis_batches && strainCard.cannabis_batches.length > 0) {
+      setSelectedHistoryBatchId(strainCard.cannabis_batches[0])
+    } else if (strainCard.available_units && strainCard.available_units.length > 0) {
+      const firstUnit = strainCard.available_units[0]
+      if (firstUnit.cannabis_batch_id) {
+        setSelectedHistoryBatchId(firstUnit.cannabis_batch_id)
+      }
+    }
+    
+    setHistoryModalOpen(true)
+  }, [])
+  
   // =================== EFFECTS ===================
   useEffect(() => {
     loadFilterOptions()
@@ -817,6 +840,27 @@ export default function ProductSelectionStep({
       whiteSpace: 'nowrap',
       zIndex: 20,
       backdropFilter: 'blur(10px)'
+    },
+    infoButton: {
+      position: 'absolute',
+      top: '8px',
+      left: '8px',
+      width: '32px',
+      height: '32px',
+      borderRadius: '50%',
+      border: '2px solid rgba(0, 0, 0, 0.2)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      cursor: 'pointer',
+      fontSize: '16px',
+      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
+      zIndex: 5,
+      backdropFilter: 'blur(10px)',
+      outline: 'none',
+      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+      color: '#1976d2'
     },
     strainImage: {
       width: '100%',
@@ -1396,6 +1440,34 @@ export default function ProductSelectionStep({
                         )}
                       </button>
                       
+                      {/* Info-Button für Produkthistorie */}
+                      <button 
+                        style={styles.infoButton}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          e.preventDefault()
+                          handleShowProductHistory(card)
+                        }}
+                        onMouseEnter={(e) => {
+                          e.target.style.backgroundColor = '#e3f2fd'
+                          e.target.style.borderColor = '#1976d2'
+                          setShowInfoTooltip(cardId)
+                        }}
+                        onMouseLeave={(e) => {
+                          e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.95)'
+                          e.target.style.borderColor = 'rgba(0, 0, 0, 0.2)'
+                          setShowInfoTooltip(null)
+                        }}
+                      >
+                        ℹ️
+                        
+                        {showInfoTooltip === cardId && (
+                          <div style={styles.compareTooltip}>
+                            Produkthistorie anzeigen
+                          </div>
+                        )}
+                      </button>
+                      
                       {/* Strain Image */}
                       <div style={styles.strainImage}>
                         <div style={styles.strainImagePlaceholder}>
@@ -1472,7 +1544,7 @@ export default function ProductSelectionStep({
                               )}
                             </>
                           )}
-                                                  </div>
+                        </div>
                       </div>
                       
                       {/* Action Button */}
@@ -1697,6 +1769,19 @@ export default function ProductSelectionStep({
             
           </div>
         </div>
+      )}
+      
+      {/* Produkthistorie Modal */}
+      {historyModalOpen && (
+        <ProductHistoryModal
+          strainCard={selectedHistoryStrain}
+          cannabisBatchId={selectedHistoryBatchId}
+          onClose={() => {
+            setHistoryModalOpen(false)
+            setSelectedHistoryStrain(null)
+            setSelectedHistoryBatchId(null)
+          }}
+        />
       )}
     </div>
   )
