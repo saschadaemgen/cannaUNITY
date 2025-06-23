@@ -3,11 +3,12 @@ import { useState } from 'react'
 import { 
   Box, Typography, Button, IconButton, Tooltip, Checkbox, 
   Table, TableContainer, TableHead, TableRow, TableCell, TableBody,
-  Paper, FormControlLabel, Pagination
+  Paper, FormControlLabel, Pagination, Badge
 } from '@mui/material'
 import ScienceIcon from '@mui/icons-material/Science'
 import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment'
 import LocalFloristIcon from '@mui/icons-material/LocalFlorist' // Neues Icon für Blühpflanzen
+import PhotoCameraIcon from '@mui/icons-material/PhotoCamera' // NEU
 import { Link } from 'react-router-dom'
 
 import TableHeader from '@/components/common/TableHeader'
@@ -16,16 +17,14 @@ import DetailCards from '@/components/common/DetailCards'
 import PaginationFooter from '@/components/common/PaginationFooter'
 import LoadingIndicator from '@/components/common/LoadingIndicator'
 
-/**
- * CuttingTable Komponente für die Darstellung der Stecklinge-Tabelle
- */
 const CuttingTable = ({
   tabValue,
   data,
   expandedBatchId,
   onExpandBatch,
   onOpenDestroyDialog,
-  onOpenConvertDialog, // Neue Prop für die Konvertierungsfunktion
+  onOpenConvertDialog,
+  onOpenImageModal,
   currentPage,
   totalPages,
   onPageChange,
@@ -40,7 +39,6 @@ const CuttingTable = ({
   selectedCuttings,
   toggleCuttingSelection,
   selectAllCuttingsInBatch,
-  // Neue Props für überführte Stecklinge
   convertedBatchCuttings,
   convertedCuttingsCurrentPage,
   convertedCuttingsTotalPages,
@@ -55,8 +53,9 @@ const CuttingTable = ({
       { label: 'Aktiv/Gesamt', width: '8%', align: 'center' },
       { label: 'Vernichtet', width: '10%', align: 'left' },
       { label: 'Kultiviert von', width: '15%', align: 'left' },
-      { label: 'Raum', width: '15%', align: 'left' },
-      { label: 'Erstellt am', width: '15%', align: 'left' }
+      { label: 'Raum', width: '12%', align: 'left' },
+      { label: 'Erstellt am', width: '13%', align: 'left' },
+      { label: 'Aktionen', width: '5%', align: 'center' } // NEU
     ]
   }
 
@@ -98,11 +97,40 @@ const CuttingTable = ({
       },
       {
         content: batch.room ? batch.room.name : "Nicht zugewiesen",
-        width: '15%'
+        width: '12%' // Reduziert von 15%
       },
       {
         content: new Date(batch.created_at).toLocaleDateString('de-DE'),
-        width: '15%'
+        width: '13%' // Reduziert von 15%
+      },
+      {
+        content: (
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+            <Tooltip title={`Bilder verwalten (${batch.image_count || 0})`}>
+              <IconButton 
+                size="small" 
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onOpenImageModal(batch, e)
+                }}
+                sx={{ 
+                  color: 'primary.main',
+                  '&:hover': {
+                    backgroundColor: 'primary.light',
+                    color: 'primary.dark'
+                  }
+                }}
+              >
+                <Badge badgeContent={batch.image_count || 0} color="primary">
+                  <PhotoCameraIcon />
+                </Badge>
+              </IconButton>
+            </Tooltip>
+          </Box>
+        ),
+        width: '5%',
+        align: 'center',
+        stopPropagation: true
       }
     ]
   }

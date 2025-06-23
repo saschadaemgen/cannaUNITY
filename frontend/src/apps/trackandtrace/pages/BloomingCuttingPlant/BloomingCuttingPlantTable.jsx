@@ -4,11 +4,12 @@ import { useNavigate } from 'react-router-dom'
 import { 
   Box, Typography, Button, IconButton, Tooltip, Checkbox, 
   Table, TableContainer, TableHead, TableRow, TableCell, TableBody,
-  Paper, FormControlLabel, Pagination
+  Paper, FormControlLabel, Pagination, Badge
 } from '@mui/material'
 import ScienceIcon from '@mui/icons-material/Science'
 import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment'
 import ScaleIcon from '@mui/icons-material/Scale'
+import PhotoCameraIcon from '@mui/icons-material/PhotoCamera'
 import api from '@/utils/api'
 
 import TableHeader from '@/components/common/TableHeader'
@@ -40,7 +41,8 @@ const BloomingCuttingPlantTable = ({
   onDestroyedPlantsPageChange,
   selectedPlants,
   togglePlantSelection,
-  selectAllPlantsInBatch
+  selectAllPlantsInBatch,
+  onOpenImageModal
 }) => {
   const navigate = useNavigate();
   const [openHarvestDialog, setOpenHarvestDialog] = useState(false);
@@ -159,6 +161,7 @@ const BloomingCuttingPlantTable = ({
       { label: 'Kultiviert von', width: '15%', align: 'left' },
       { label: 'Raum', width: '15%', align: 'left' },
       { label: 'Erstellt am', width: '10%', align: 'left' },
+      { label: 'Bilder', width: '8%', align: 'center' },
       { label: '', width: '3%', align: 'center' }  // Platz für das Aufklapp-Symbol am Ende
     ]
   }
@@ -204,6 +207,34 @@ const BloomingCuttingPlantTable = ({
       {
         content: new Date(batch.created_at).toLocaleDateString('de-DE'),
         width: '10%'
+      },
+      {
+        content: (
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+            <Tooltip title={`Bilder verwalten (${batch.image_count || 0})`}>
+              <IconButton 
+                size="small" 
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onOpenImageModal(batch, e)
+                }}
+                sx={{ 
+                  color: 'primary.main',
+                  '&:hover': {
+                    backgroundColor: 'action.hover'
+                  }
+                }}
+              >
+                <Badge badgeContent={batch.image_count || 0} color="primary">
+                  <PhotoCameraIcon />
+                </Badge>
+              </IconButton>
+            </Tooltip>
+          </Box>
+        ),
+        width: '8%',
+        align: 'center',
+        stopPropagation: true
       },
       {
         content: '',  // Leere Zelle für das Aufklapp-Symbol, das von AccordionRow hinzugefügt wird

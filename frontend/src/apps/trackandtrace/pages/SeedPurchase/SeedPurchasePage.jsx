@@ -15,6 +15,7 @@ import AnimatedTabPanel from '@/components/common/AnimatedTabPanel'
 import SeedPurchaseForm from './SeedPurchaseForm'
 import ConvertDialog from '@/components/dialogs/ConvertDialog'
 import DestroyDialog from '@/components/dialogs/DestroyDialog'
+import ImageUploadModal from '../../components/ImageUploadModal'
 
 // Spezifische Komponenten
 import SeedTable from './components/SeedTable'
@@ -39,6 +40,10 @@ export default function SeedPurchasePage() {
   const [totalPages, setTotalPages] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [totalCount, setTotalCount] = useState(0)
+  
+  // State für Bilderverwaltung
+  const [openImageModal, setOpenImageModal] = useState(false)
+  const [selectedProductForImages, setSelectedProductForImages] = useState(null)
   
   // State für globale Snackbar
   const [globalSnackbar, setGlobalSnackbar] = useState({
@@ -96,6 +101,21 @@ export default function SeedPurchasePage() {
   const handleCloseGlobalSnackbar = () => {
     setGlobalSnackbar(prev => ({ ...prev, open: false }));
   };
+
+  // Handler für Bilder-Modal
+  const handleOpenImageModal = (item, event) => {
+    if (event) {
+      event.stopPropagation()
+    }
+    setSelectedProductForImages(item)
+    setOpenImageModal(true)
+  }
+
+  const handleCloseImageModal = () => {
+    setOpenImageModal(false)
+    setSelectedProductForImages(null)
+    refreshData() // Um die Bildanzahl zu aktualisieren
+  }
 
   const loadSeeds = async (page = 1) => {
     setLoading(true)
@@ -758,6 +778,7 @@ export default function SeedPurchasePage() {
               onOpenConvertDialog={handleOpenConvertDialog}
               onOpenDestroyDialog={handleOpenDestroyDialog}
               onOpenEditForm={handleOpenEditForm}
+              onOpenImageModal={handleOpenImageModal}
               currentPage={currentPage}
               totalPages={totalPages}
               onPageChange={handlePageChange}
@@ -783,6 +804,7 @@ export default function SeedPurchasePage() {
               onOpenConvertDialog={handleOpenConvertDialog}
               onOpenDestroyDialog={handleOpenDestroyDialog}
               onOpenEditForm={handleOpenEditForm}
+              onOpenImageModal={handleOpenImageModal}
               currentPage={currentPage}
               totalPages={totalPages}
               onPageChange={handlePageChange}
@@ -808,6 +830,7 @@ export default function SeedPurchasePage() {
               onOpenConvertDialog={handleOpenConvertDialog}
               onOpenDestroyDialog={handleOpenDestroyDialog}
               onOpenEditForm={handleOpenEditForm}
+              onOpenImageModal={handleOpenImageModal}
               currentPage={currentPage}
               totalPages={totalPages}
               onPageChange={handlePageChange}
@@ -833,6 +856,7 @@ export default function SeedPurchasePage() {
               onOpenConvertDialog={handleOpenConvertDialog}
               onOpenDestroyDialog={handleOpenDestroyDialog}
               onOpenEditForm={handleOpenEditForm}
+              onOpenImageModal={handleOpenImageModal}
               currentPage={currentPage}
               totalPages={totalPages}
               onPageChange={handlePageChange}
@@ -900,6 +924,16 @@ export default function SeedPurchasePage() {
           />
         </div>
       </Fade>
+
+      {/* Image Upload Modal */}
+      <ImageUploadModal
+        open={openImageModal}
+        onClose={handleCloseImageModal}
+        productType="seed"
+        productId={selectedProductForImages?.id}
+        productName={selectedProductForImages?.strain_name}
+        onImagesUpdated={refreshData}
+      />
       
       {/* Globale Snackbar-Komponente */}
       <Snackbar 

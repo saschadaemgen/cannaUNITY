@@ -4,7 +4,8 @@ from .models import (
     FloweringPlantBatch, FloweringPlant, Cutting, CuttingBatch,
     BloomingCuttingBatch, BloomingCuttingPlant, HarvestBatch,
     DryingBatch, ProcessingBatch, PRODUCT_TYPE_CHOICES, LabTestingBatch, 
-    PackagingBatch, PackagingUnit, ProductDistribution
+    PackagingBatch, PackagingUnit, ProductDistribution, SeedPurchaseImage, 
+    MotherPlantBatchImage, CuttingBatchImage, BloomingCuttingBatchImage,
 )
 from members.models import Member
 from rooms.models import Room
@@ -26,6 +27,114 @@ class RoomSerializer(serializers.ModelSerializer):
         model = Room
         fields = ['id', 'name']
 
+# ========== IMAGE SERIALIZERS (VOR ALLEN ANDEREN) ==========
+class BaseProductImageSerializer(serializers.ModelSerializer):
+    uploaded_by_name = serializers.SerializerMethodField()
+    image_url = serializers.SerializerMethodField()
+    thumbnail_url = serializers.SerializerMethodField()
+    
+    class Meta:
+        fields = [
+            'id', 'image', 'image_url', 'thumbnail', 'thumbnail_url',
+            'title', 'description', 'image_type', 
+            'uploaded_by', 'uploaded_by_name', 'uploaded_at'
+        ]
+    
+    def get_uploaded_by_name(self, obj):
+        if obj.uploaded_by:
+            # Verwendet die __str__ Methode des Member Models
+            # Dies gibt z.B. "Herr Max Mustermann" zurück
+            return str(obj.uploaded_by)
+        return "Unbekannt"
+    
+    def get_image_url(self, obj):
+        if obj.image:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.image.url)
+        return None
+    
+    def get_thumbnail_url(self, obj):
+        if obj.thumbnail:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.thumbnail.url)
+        return None
+
+class SeedPurchaseImageSerializer(BaseProductImageSerializer):
+    uploaded_by = serializers.PrimaryKeyRelatedField(
+        queryset=Member.objects.all(),
+        write_only=True
+    )
+    seed_purchase = serializers.PrimaryKeyRelatedField(
+        queryset=SeedPurchase.objects.all(),
+        write_only=True,
+        required=False  # Dies ist wichtig!
+    )
+    
+    class Meta(BaseProductImageSerializer.Meta):
+        model = SeedPurchaseImage
+        fields = BaseProductImageSerializer.Meta.fields + ['seed_purchase']
+
+class MotherPlantBatchImageSerializer(BaseProductImageSerializer):
+    uploaded_by = serializers.PrimaryKeyRelatedField(
+        queryset=Member.objects.all(),
+        write_only=True
+    )
+    mother_plant_batch = serializers.PrimaryKeyRelatedField(
+        queryset=MotherPlantBatch.objects.all(),
+        write_only=True,
+        required=False
+    )
+    growth_stage = serializers.ChoiceField(
+        choices=[
+            ('seedling', 'Sämling'),
+            ('vegetative', 'Vegetativ'),
+            ('pre_flowering', 'Vorblüte'),
+            ('mother', 'Mutterpflanze')
+        ],
+        required=False,
+        allow_blank=True
+    )
+    
+    class Meta(BaseProductImageSerializer.Meta):
+        model = MotherPlantBatchImage
+        # WICHTIG: fields muss eine explizite Liste sein
+        fields = BaseProductImageSerializer.Meta.fields + ['mother_plant_batch', 'growth_stage']
+
+class CuttingBatchImageSerializer(BaseProductImageSerializer):
+    uploaded_by = serializers.PrimaryKeyRelatedField(
+        queryset=Member.objects.all(),
+        write_only=True
+    )
+    
+    class Meta:
+        model = CuttingBatchImage
+        fields = [
+            'id', 'image', 'image_url', 'thumbnail', 'thumbnail_url',
+            'title', 'description', 'image_type', 
+            'uploaded_by', 'uploaded_by_name', 'uploaded_at'
+        ]
+
+class BloomingCuttingBatchImageSerializer(BaseProductImageSerializer):
+    uploaded_by = serializers.PrimaryKeyRelatedField(
+        queryset=Member.objects.all(),
+        write_only=True
+    )
+    blooming_cutting_batch = serializers.PrimaryKeyRelatedField(
+        read_only=True  # Wird aus Query-Params gesetzt
+    )
+    
+    class Meta:
+        model = BloomingCuttingBatchImage
+        fields = [
+            'id', 'image', 'image_url', 'thumbnail', 'thumbnail_url',
+            'title', 'description', 'image_type', 
+            'uploaded_by', 'uploaded_by_name', 'uploaded_at',
+            'blooming_cutting_batch'
+        ]
+        
+# ========== HAUPTSERIALIZERS ==========
 class SeedPurchaseSerializer(serializers.ModelSerializer):
     # Alte Mitglieder-Zuweisung (optional noch im Einsatz)
     member = MemberSerializer(read_only=True)
@@ -69,6 +178,9 @@ class SeedPurchaseSerializer(serializers.ModelSerializer):
     mother_plant_count = serializers.SerializerMethodField()
     flowering_plant_count = serializers.SerializerMethodField()
 
+    images = SeedPurchaseImageSerializer(many=True, read_only=True)
+    image_count = serializers.SerializerMethodField()
+
     class Meta:
         model = SeedPurchase
         fields = [
@@ -79,7 +191,7 @@ class SeedPurchaseSerializer(serializers.ModelSerializer):
             'destroyed_quantity', 'strain', 'strain_id',
             'thc_percentage_min', 'thc_percentage_max',
             'cbd_percentage_min', 'cbd_percentage_max',
-            'flowering_time_min', 'flowering_time_max'
+            'flowering_time_min', 'flowering_time_max', 'images', 'image_count'
         ]
 
     def get_mother_plant_count(self, obj):
@@ -87,6 +199,9 @@ class SeedPurchaseSerializer(serializers.ModelSerializer):
 
     def get_flowering_plant_count(self, obj):
         return sum(batch.plants.filter(is_destroyed=False).count() for batch in obj.flowering_batches.all())
+    
+    def get_image_count(self, obj):
+        return obj.images.count()
 
 
 class MotherPlantSerializer(serializers.ModelSerializer):
@@ -99,9 +214,6 @@ class MotherPlantSerializer(serializers.ModelSerializer):
         required=False,
         allow_null=True
     )
-    
-    # Entfernen der SerializerMethodField für batch_number
-    # batch_number = serializers.SerializerMethodField()
     
     class Meta:
         model = MotherPlant
@@ -140,6 +252,9 @@ class MotherPlantBatchSerializer(serializers.ModelSerializer):
     
     # Neues abgeleitetes Feld für die Anzahl der erstellten Stecklinge
     converted_to_cuttings_count = serializers.SerializerMethodField()
+
+    images = MotherPlantBatchImageSerializer(many=True, read_only=True)
+    image_count = serializers.SerializerMethodField()
     
     class Meta:
         model = MotherPlantBatch
@@ -147,7 +262,8 @@ class MotherPlantBatchSerializer(serializers.ModelSerializer):
             'id', 'batch_number', 'seed_purchase', 'quantity', 'notes',
             'created_at', 'member', 'member_id', 'room', 'room_id',
             'seed_strain', 'seed_batch_number', 'active_plants_count', 
-            'destroyed_plants_count', 'converted_to_cuttings_count'
+            'destroyed_plants_count', 'converted_to_cuttings_count',
+            'images', 'image_count'
         ]
     
     def get_seed_strain(self, obj):
@@ -169,6 +285,11 @@ class MotherPlantBatchSerializer(serializers.ModelSerializer):
         for batch in cutting_batches:
             count += batch.quantity
         return count
+
+    def get_image_count(self, obj):
+        """Zählt die verknüpften Bilder"""
+        return obj.images.count()
+
 
 class FloweringPlantSerializer(serializers.ModelSerializer):
     # Serializer für das Mitglied, das vernichtet hat
@@ -296,8 +417,6 @@ class CuttingSerializer(serializers.ModelSerializer):
                     pass
         return None
 
-# Dateiname: serializers.py
-
 class CuttingBatchSerializer(serializers.ModelSerializer):
     # Serializers für Mitglieder und Räume
     member = MemberSerializer(read_only=True)
@@ -331,6 +450,10 @@ class CuttingBatchSerializer(serializers.ModelSerializer):
     mother_plant_id = serializers.SerializerMethodField()
     mother_plant_number = serializers.SerializerMethodField()
     
+    # NEU: Bilder-Felder hinzufügen
+    images = CuttingBatchImageSerializer(many=True, read_only=True)
+    image_count = serializers.SerializerMethodField()
+    
     class Meta:
         model = CuttingBatch
         fields = [
@@ -338,7 +461,8 @@ class CuttingBatchSerializer(serializers.ModelSerializer):
             'created_at', 'member', 'member_id', 'room', 'room_id',
             'mother_strain', 'mother_batch_number', 'seed_strain',
             'active_cuttings_count', 'destroyed_cuttings_count',
-            'mother_plant_id', 'mother_plant_number'  # Neue Felder hinzugefügt
+            'mother_plant_id', 'mother_plant_number',
+            'images', 'image_count'  # NEU
         ]
     
     def get_mother_strain(self, obj):
@@ -379,6 +503,10 @@ class CuttingBatchSerializer(serializers.ModelSerializer):
         if number_match:
             return number_match.group(1)
         return None
+    
+    def get_image_count(self, obj):  # NEU - Diese Methode fehlte!
+        """Gibt die Anzahl der Bilder für diesen Batch zurück."""
+        return obj.images.count()
     
 class BloomingCuttingPlantSerializer(serializers.ModelSerializer):
     # Serializer für das Mitglied, das vernichtet hat
@@ -425,13 +553,17 @@ class BloomingCuttingBatchSerializer(serializers.ModelSerializer):
     # Abgeleitete Felder für aktive und vernichtete Pflanzen
     active_plants_count = serializers.SerializerMethodField()
     destroyed_plants_count = serializers.SerializerMethodField()
+
+    images = BloomingCuttingBatchImageSerializer(many=True, read_only=True)
+    image_count = serializers.SerializerMethodField()
     
     class Meta:
         model = BloomingCuttingBatch
         fields = [
             'id', 'batch_number', 'cutting_batch', 'quantity', 'notes',
             'created_at', 'member', 'member_id', 'room', 'room_id',
-            'cutting_strain', 'cutting_batch_number', 'active_plants_count', 'destroyed_plants_count'
+            'cutting_strain', 'cutting_batch_number', 'active_plants_count', 'destroyed_plants_count',
+            'images', 'image_count'
         ]
     
     def get_cutting_strain(self, obj):
@@ -448,6 +580,9 @@ class BloomingCuttingBatchSerializer(serializers.ModelSerializer):
     
     def get_destroyed_plants_count(self, obj):
         return obj.plants.filter(is_destroyed=True).count()
+    
+    def get_image_count(self, obj):
+        return obj.images.count()
     
 class HarvestBatchSerializer(serializers.ModelSerializer):
     # Serializers für Mitglieder und Räume

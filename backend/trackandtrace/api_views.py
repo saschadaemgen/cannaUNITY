@@ -7,9 +7,10 @@ from dateutil.relativedelta import relativedelta
 from django.db import models
 from django.db.models import Q, Sum, Count, Avg, Min, F, Case, When, Value, CharField
 from django.utils import timezone
-from rest_framework import pagination, status, viewsets
+from rest_framework import pagination, status, viewsets, serializers
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
 from .models import SeedPurchase 
 from collections import OrderedDict
@@ -32,6 +33,10 @@ from .models import (
     ProcessingBatch,
     ProductDistribution,
     SeedPurchase,
+    SeedPurchaseImage,
+    MotherPlantBatchImage,
+    CuttingBatchImage,
+    BloomingCuttingBatchImage,
 )
 from .serializers import (
     BloomingCuttingBatchSerializer,
@@ -50,6 +55,10 @@ from .serializers import (
     ProcessingBatchSerializer,
     ProductDistributionSerializer,
     SeedPurchaseSerializer,
+    SeedPurchaseImageSerializer,
+    MotherPlantBatchImageSerializer,
+    CuttingBatchImageSerializer,
+    BloomingCuttingBatchImageSerializer,
 )
 
 # External app imports
@@ -4323,3 +4332,120 @@ def validate_distribution_limits(request):
     }
     
     return Response(validation_result)
+
+class BaseProductImageViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+    
+    @action(detail=True, methods=['post'])
+    def regenerate_thumbnail(self, request, pk=None):
+        """Thumbnail neu generieren"""
+        image = self.get_object()
+        if image.image:
+            image.make_thumbnail()
+            image.save()
+            return Response({'message': 'Thumbnail wurde neu generiert'})
+        return Response(
+            {'error': 'Kein Bild vorhanden'}, 
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+class SeedPurchaseImageViewSet(BaseProductImageViewSet):
+    serializer_class = SeedPurchaseImageSerializer
+    
+    def get_queryset(self):
+        queryset = SeedPurchaseImage.objects.all()
+        seed_id = self.request.query_params.get('seed_id')
+        if seed_id:
+            queryset = queryset.filter(seed_purchase_id=seed_id)
+        return queryset
+    
+    def create(self, request, *args, **kwargs):
+        # Debug VOR der Serializer-Validierung
+        print("="*50)
+        print("DEBUG: SeedPurchaseImage Upload")
+        print(f"Request Data Keys: {list(request.data.keys())}")
+        print(f"Request Data: {dict(request.data)}")
+        print("="*50)
+        
+        # Standard create aufrufen
+        return super().create(request, *args, **kwargs)
+    
+    def perform_create(self, serializer):
+        print("DEBUG: In perform_create")
+        seed_id = self.request.data.get('seed_id')
+        
+        if not seed_id:
+            raise serializers.ValidationError({"error": "seed_id ist erforderlich"})
+        
+        serializer.save(seed_purchase_id=seed_id)
+    
+class MotherPlantBatchImageViewSet(BaseProductImageViewSet):
+    serializer_class = MotherPlantBatchImageSerializer
+    
+    def get_queryset(self):
+        queryset = MotherPlantBatchImage.objects.all()
+        batch_id = self.request.query_params.get('batch_id')
+        if batch_id:
+            queryset = queryset.filter(mother_plant_batch_id=batch_id)
+        return queryset
+    
+    def perform_create(self, serializer):
+        # batch_id aus Request Data holen (nicht aus Query Params!)
+        batch_id = self.request.data.get('batch_id')
+        
+        if not batch_id:
+            raise serializers.ValidationError({"error": "batch_id ist erforderlich"})
+        
+        # Speichern mit der batch_id
+        serializer.save(mother_plant_batch_id=batch_id)
+
+class CuttingBatchImageViewSet(BaseProductImageViewSet):
+    serializer_class = CuttingBatchImageSerializer
+    
+    def get_queryset(self):
+        queryset = CuttingBatchImage.objects.all()
+        batch_id = self.request.query_params.get('batch_id')
+        if batch_id:
+            queryset = queryset.filter(cutting_batch_id=batch_id)
+        return queryset
+    
+    def perform_create(self, serializer):
+        # batch_id aus Request Data holen (wie bei MotherPlantBatch)
+        batch_id = self.request.data.get('batch_id')
+        
+        if not batch_id:
+            raise serializers.ValidationError({"error": "batch_id ist erforderlich"})
+        
+        # Speichern mit der batch_id
+        serializer.save(cutting_batch_id=batch_id)
+
+class BloomingCuttingBatchImageViewSet(BaseProductImageViewSet):
+    serializer_class = BloomingCuttingBatchImageSerializer
+    
+    def get_queryset(self):
+        queryset = BloomingCuttingBatchImage.objects.all()
+        batch_id = self.request.query_params.get('batch_id')
+        print(f"DEBUG get_queryset: batch_id = {batch_id}")
+        if batch_id:
+            queryset = queryset.filter(blooming_cutting_batch_id=batch_id)
+        print(f"DEBUG get_queryset: count = {queryset.count()}")
+        return queryset
+    
+    def perform_create(self, serializer):
+        batch_id = self.request.query_params.get('batch_id')
+        print(f"DEBUG perform_create: batch_id = {batch_id}")
+        print(f"DEBUG perform_create: validated_data = {serializer.validated_data}")
+        
+        if not batch_id:
+            raise serializers.ValidationError({"error": "batch_id ist erforderlich"})
+        
+        # Speichern
+        instance = serializer.save(blooming_cutting_batch_id=batch_id)
+        print(f"DEBUG: Image saved with ID: {instance.id}")
+        print(f"DEBUG: Image path: {instance.image.path if instance.image else 'No image'}")
+    
+    def create(self, request, *args, **kwargs):
+        print(f"DEBUG create: request.FILES = {request.FILES}")
+        print(f"DEBUG create: request.data = {request.data}")
+        return super().create(request, *args, **kwargs)

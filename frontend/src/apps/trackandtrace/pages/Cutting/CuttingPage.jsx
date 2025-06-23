@@ -12,6 +12,7 @@ import LoadingIndicator from '@/components/common/LoadingIndicator'
 import DestroyDialog from '@/components/dialogs/DestroyDialog'
 import AnimatedTabPanel from '@/components/common/AnimatedTabPanel'
 import ConvertToBlooming from '@/components/dialogs/ConvertToBlooming'
+import ImageUploadModal from '../../components/ImageUploadModal' // NEU
 
 // Spezifische Komponenten
 import CuttingTable from './CuttingTable'
@@ -37,6 +38,10 @@ export default function CuttingPage() {
   const [selectedBatch, setSelectedBatch] = useState(null)
   const [selectedCuttings, setSelectedCuttings] = useState({})
   const [loadingOptions, setLoadingOptions] = useState(false)
+  
+  // NEU: States für Bilderverwaltung
+  const [openImageModal, setOpenImageModal] = useState(false)
+  const [selectedBatchForImages, setSelectedBatchForImages] = useState(null)
   
   // Animationseinstellungen mit neuem Hook abrufen
   const animSettings = useAnimationSettings('slide', 500, true);
@@ -161,6 +166,36 @@ export default function CuttingPage() {
       console.error('Fehler beim Laden der Räume:', error);
     }
   };
+
+  // NEU: Handler-Funktionen für Bilderverwaltung
+  const handleOpenImageModal = (batch, event) => {
+    if (event) event.stopPropagation()
+    setSelectedBatchForImages(batch)
+    setOpenImageModal(true)
+  }
+
+  const handleCloseImageModal = () => {
+    setOpenImageModal(false)
+    setSelectedBatchForImages(null)
+    refreshData()
+  }
+
+  // NEU: refreshData Funktion
+  const refreshData = () => {
+    loadCuttingBatches(currentPage)
+    loadAllCounts()
+    
+    // Falls ein Batch expandiert ist, dessen Daten neu laden
+    if (expandedBatchId) {
+      if (tabValue === 0) {
+        loadCuttingsForBatch(expandedBatchId, cuttingsCurrentPage[expandedBatchId] || 1)
+      } else if (tabValue === 1) {
+        loadDestroyedCuttingsForBatch(expandedBatchId, destroyedCuttingsCurrentPage[expandedBatchId] || 1)
+      } else if (tabValue === 2) {
+        loadConvertedCuttingsForBatch(expandedBatchId, convertedCuttingsCurrentPage[expandedBatchId] || 1)
+      }
+    }
+  }
 
   useEffect(() => {
     loadCuttingBatches()
@@ -688,6 +723,7 @@ export default function CuttingPage() {
               onExpandBatch={handleAccordionChange}
               onOpenDestroyDialog={handleOpenDestroyDialog}
               onOpenConvertDialog={handleOpenConvertDialog}
+              onOpenImageModal={handleOpenImageModal} // NEU
               currentPage={currentPage}
               totalPages={totalPages}
               onPageChange={handlePageChange}
@@ -719,6 +755,7 @@ export default function CuttingPage() {
               onExpandBatch={handleAccordionChange}
               onOpenDestroyDialog={handleOpenDestroyDialog}
               onOpenConvertDialog={handleOpenConvertDialog}
+              onOpenImageModal={handleOpenImageModal} // NEU
               currentPage={currentPage}
               totalPages={totalPages}
               onPageChange={handlePageChange}
@@ -749,6 +786,7 @@ export default function CuttingPage() {
               data={cuttingBatches}
               expandedBatchId={expandedBatchId}
               onExpandBatch={handleAccordionChange}
+              onOpenImageModal={handleOpenImageModal} // NEU
               currentPage={currentPage}
               totalPages={totalPages}
               onPageChange={handlePageChange}
@@ -794,6 +832,16 @@ export default function CuttingPage() {
         loadingOptions={loadingOptions}
         convertAll={convertAllMode}
         batchActiveCount={selectedBatch?.active_cuttings_count || 0}
+      />
+      
+      {/* NEU: ImageUploadModal */}
+      <ImageUploadModal
+        open={openImageModal}
+        onClose={handleCloseImageModal}
+        productType="cutting-batch"
+        productId={selectedBatchForImages?.id}
+        productName={selectedBatchForImages?.batch_number}
+        onImagesUpdated={refreshData}
       />
     </Container>
   )

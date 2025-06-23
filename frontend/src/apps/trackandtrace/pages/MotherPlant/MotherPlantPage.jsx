@@ -15,6 +15,7 @@ import AnimatedTabPanel from '@/components/common/AnimatedTabPanel'
 
 // Spezifische Komponenten
 import MotherPlantTable from './components/MotherPlantTable'
+import ImageUploadModal from '../../components/ImageUploadModal'
 
 // Animations-Hook importieren
 import useAnimationSettings from '@/hooks/useAnimationSettings'
@@ -74,6 +75,10 @@ export default function MotherPlantPage() {
   const [selectedRoomId, setSelectedRoomId] = useState('')
   // Neu: State für ausgewählte Mutterpflanze
   const [selectedMotherPlant, setSelectedMotherPlant] = useState(null)
+  
+  // States für Image Upload Modal
+  const [openImageModal, setOpenImageModal] = useState(false)
+  const [selectedBatchForImages, setSelectedBatchForImages] = useState(null)
 
   const loadMotherBatches = async (page = 1) => {
     setLoading(true)
@@ -191,6 +196,19 @@ export default function MotherPlantPage() {
       setLoadingOptions(false)
     }
   };
+  
+  // Handler-Funktionen für Image Upload Modal
+  const handleOpenImageModal = (batch, event) => {
+    if (event) event.stopPropagation()
+    setSelectedBatchForImages(batch)
+    setOpenImageModal(true)
+  }
+  
+  const handleCloseImageModal = () => {
+    setOpenImageModal(false)
+    setSelectedBatchForImages(null)
+    refreshData()
+  }
 
   useEffect(() => {
     loadMotherBatches()
@@ -688,6 +706,7 @@ export default function MotherPlantPage() {
               selectedPlants={selectedPlants}
               togglePlantSelection={togglePlantSelection}
               selectAllPlantsInBatch={selectAllPlantsInBatch}
+              onOpenImageModal={handleOpenImageModal}
             />
           </AnimatedTabPanel>
           
@@ -719,6 +738,7 @@ export default function MotherPlantPage() {
               selectedPlants={selectedPlants}
               togglePlantSelection={togglePlantSelection}
               selectAllPlantsInBatch={selectAllPlantsInBatch}
+              onOpenImageModal={handleOpenImageModal}
             />
           </AnimatedTabPanel>
           
@@ -750,6 +770,7 @@ export default function MotherPlantPage() {
               selectedPlants={selectedPlants}
               togglePlantSelection={togglePlantSelection}
               selectAllPlantsInBatch={selectAllPlantsInBatch}
+              onOpenImageModal={handleOpenImageModal}
             />
           </AnimatedTabPanel>
         </>
@@ -795,6 +816,28 @@ export default function MotherPlantPage() {
           />
         </div>
       </Fade>
+
+      <ImageUploadModal
+        open={openImageModal}
+        onClose={handleCloseImageModal}
+        productType="mother-batch"
+        productId={selectedBatchForImages?.id}
+        productName={selectedBatchForImages?.batch_number}
+        onImagesUpdated={refreshData}
+        additionalFields={[
+          {
+            name: 'growth_stage',
+            label: 'Wachstumsstadium',
+            type: 'select',
+            options: [
+              { value: 'seedling', label: 'Sämling' },
+              { value: 'vegetative', label: 'Vegetativ' },
+              { value: 'pre_flowering', label: 'Vorblüte' },
+              { value: 'mother', label: 'Mutterpflanze' }
+            ]
+          }
+        ]}
+      />
     </Container>
   )
 }

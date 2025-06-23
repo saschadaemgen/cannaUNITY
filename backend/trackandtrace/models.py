@@ -1,9 +1,11 @@
-import uuid
+import uuid, io
 from django.db import models
 from django.utils import timezone
 from members.models import Member
 from rooms.models import Room
 from wawi.models import CannabisStrain
+from django.core.files.storage import default_storage
+from PIL import Image
 
 class SeedPurchase(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -1052,3 +1054,126 @@ class ProductDistribution(models.Model):
         ordering = ['-distribution_date']
         verbose_name = "Cannabis-Ausgabe"
         verbose_name_plural = "Cannabis-Ausgaben"
+
+class BaseProductImage(models.Model):
+    """Abstrakte Basisklasse für alle Produktbilder im Track & Trace System"""
+    image = models.ImageField(
+        upload_to='trackandtrace/images/%Y/%m/%d/',
+        help_text="Hauptbild"
+    )
+    thumbnail = models.ImageField(
+        upload_to='trackandtrace/thumbnails/%Y/%m/%d/', 
+        blank=True, 
+        null=True,
+        help_text="Automatisch generiertes Vorschaubild"
+    )
+    
+    # Metadaten
+    title = models.CharField(max_length=200, blank=True)
+    description = models.TextField(blank=True)
+    image_type = models.CharField(max_length=50, choices=[
+        ('overview', 'Übersicht'),
+        ('detail', 'Detail'),
+        ('quality', 'Qualitätskontrolle'),
+        ('documentation', 'Dokumentation'),
+    ], default='overview')
+    
+    # Tracking
+    uploaded_by = models.ForeignKey(Member, on_delete=models.SET_NULL, null=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        abstract = True
+        ordering = ['-uploaded_at']
+    
+    def make_thumbnail(self):
+        """Erstellt automatisch ein Thumbnail (150x150px)"""
+        img = Image.open(self.image)
+        
+        # Konvertiere RGBA zu RGB falls nötig
+        if img.mode in ('RGBA', 'LA', 'P'):
+            # Erstelle einen weißen Hintergrund
+            background = Image.new('RGB', img.size, (255, 255, 255))
+            # Konvertiere zu RGB
+            if img.mode == 'P':
+                img = img.convert('RGBA')
+            background.paste(img, mask=img.split()[-1] if img.mode == 'RGBA' else None)
+            img = background
+        
+        # Thumbnail erstellen
+        img.thumbnail((150, 150), Image.Resampling.LANCZOS)
+        
+        thumb_io = io.BytesIO()
+        img.save(thumb_io, format='JPEG', quality=85)
+        thumb_io.seek(0)
+        
+        # Generiere Dateinamen für Thumbnail
+        thumb_filename = f"thumb_{self.image.name.split('/')[-1]}"
+        # Ändere Dateiendung zu .jpg falls nötig
+        if not thumb_filename.lower().endswith(('.jpg', '.jpeg')):
+            thumb_filename = thumb_filename.rsplit('.', 1)[0] + '.jpg'
+        
+        # Speichere Thumbnail
+        self.thumbnail.save(thumb_filename, thumb_io, save=False)
+        
+        return self.thumbnail
+    
+    def save(self, *args, **kwargs):
+        # Generiere Thumbnail beim ersten Speichern
+        if self.image and not self.thumbnail:
+            self.make_thumbnail()
+        super().save(*args, **kwargs)
+
+# Konkrete Image-Models für jeden Schritt:
+
+class SeedPurchaseImage(BaseProductImage):
+    seed_purchase = models.ForeignKey(
+        SeedPurchase, 
+        related_name='images', 
+        on_delete=models.CASCADE
+    )
+    
+    def __str__(self):
+        return f"Bild für {self.seed_purchase.batch_number} - {self.title or 'Ohne Titel'}"
+
+
+class MotherPlantBatchImage(BaseProductImage):
+    mother_plant_batch = models.ForeignKey(
+        MotherPlantBatch, 
+        related_name='images', 
+        on_delete=models.CASCADE
+    )
+    growth_stage = models.CharField(
+        max_length=50, 
+        blank=True,
+        choices=[
+            ('seedling', 'Sämling'),
+            ('vegetative', 'Vegetativ'),
+            ('pre_flowering', 'Vorblüte'),
+            ('mother', 'Mutterpflanze')
+        ],
+        help_text="Wachstumsstadium der Pflanzen"
+    )
+    
+    def __str__(self):
+        return f"Bild für {self.mother_plant_batch.batch_number} - {self.title or 'Ohne Titel'}"
+    
+class CuttingBatchImage(BaseProductImage):
+    cutting_batch = models.ForeignKey(
+        CuttingBatch, 
+        related_name='images', 
+        on_delete=models.CASCADE
+    )
+    
+    def __str__(self):
+        return f"Bild für {self.cutting_batch.batch_number} - {self.title or 'Ohne Titel'}"
+    
+class BloomingCuttingBatchImage(BaseProductImage):
+    blooming_cutting_batch = models.ForeignKey(
+        BloomingCuttingBatch, 
+        related_name='images', 
+        on_delete=models.CASCADE
+    )
+    
+    def __str__(self):
+        return f"Bild für {self.blooming_cutting_batch.batch_number} - {self.title or 'Ohne Titel'}"

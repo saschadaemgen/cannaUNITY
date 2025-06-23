@@ -3,11 +3,12 @@ import { useState, useEffect } from 'react'
 import { 
   Box, Typography, Button, IconButton, Tooltip, Checkbox, 
   Table, TableContainer, TableHead, TableRow, TableCell, TableBody,
-  Paper, FormControlLabel, Pagination, CircularProgress
+  Paper, FormControlLabel, Pagination, CircularProgress, Badge
 } from '@mui/material'
 import ScienceIcon from '@mui/icons-material/Science'
 import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment'
 import ContentCutIcon from '@mui/icons-material/ContentCut'
+import PhotoCameraIcon from '@mui/icons-material/PhotoCamera'
 
 // API-Client importieren
 import api from '@/utils/api'
@@ -48,7 +49,8 @@ const MotherPlantTable = ({
   cuttingsCurrentPage,
   cuttingsTotalPages,
   onCuttingsPageChange,
-  loadCuttingsForBatch
+  loadCuttingsForBatch,
+  onOpenImageModal // NEU
 }) => {
   // Zustände für die vernichteten Pflanzen-Details
   const [destroyedPlantsDetails, setDestroyedPlantsDetails] = useState({});
@@ -119,7 +121,8 @@ const MotherPlantTable = ({
         { label: 'Vernichtet', width: '10%', align: 'left' },
         { label: 'Kultiviert von', width: '15%', align: 'left' },
         { label: 'Raum', width: '15%', align: 'left' },
-        { label: 'Erstellt am', width: '15%', align: 'left' }
+        { label: 'Erstellt am', width: '10%', align: 'left' },
+        { label: 'Aktionen', width: '5%', align: 'center' }
       ];
     } else {
       // Tab 1: Stecklinge-Tab
@@ -129,7 +132,8 @@ const MotherPlantTable = ({
         { label: 'Vernichtet', width: '10%', align: 'left' },
         { label: 'Erstellt von', width: '15%', align: 'left' },
         { label: 'Raum', width: '15%', align: 'left' },
-        { label: 'Erstellt am', width: '15%', align: 'left' }
+        { label: 'Erstellt am', width: '10%', align: 'left' },
+        { label: 'Aktionen', width: '5%', align: 'center' }
       ];
     }
   };
@@ -187,7 +191,36 @@ const MotherPlantTable = ({
         },
         {
           content: new Date(batch.created_at).toLocaleDateString('de-DE'),
-          width: '15%'
+          width: '10%'
+        },
+        {
+          content: (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+              <Tooltip title={`Bilder verwalten (${batch.image_count || 0})`}>
+                <IconButton 
+                  size="small" 
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onOpenImageModal(batch, e)
+                  }}
+                  sx={{ 
+                    color: 'primary.main',
+                    '&:hover': {
+                      backgroundColor: 'primary.light',
+                      color: 'primary.dark'
+                    }
+                  }}
+                >
+                  <Badge badgeContent={batch.image_count || 0} color="primary">
+                    <PhotoCameraIcon />
+                  </Badge>
+                </IconButton>
+              </Tooltip>
+            </Box>
+          ),
+          width: '5%',
+          align: 'center',
+          stopPropagation: true // Wichtig: Verhindert das Öffnen des Akkordeons
         }
       ];
     } else {
@@ -216,7 +249,36 @@ const MotherPlantTable = ({
         },
         {
           content: new Date(batch.created_at).toLocaleDateString('de-DE'),
-          width: '15%'
+          width: '10%'
+        },
+        {
+          content: (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+              <Tooltip title={`Bilder verwalten (${batch.image_count || 0})`}>
+                <IconButton 
+                  size="small" 
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onOpenImageModal(batch, e)
+                  }}
+                  sx={{ 
+                    color: 'primary.main',
+                    '&:hover': {
+                      backgroundColor: 'primary.light',
+                      color: 'primary.dark'
+                    }
+                  }}
+                >
+                  <Badge badgeContent={batch.image_count || 0} color="primary">
+                    <PhotoCameraIcon />
+                  </Badge>
+                </IconButton>
+              </Tooltip>
+            </Box>
+          ),
+          width: '5%',
+          align: 'center',
+          stopPropagation: true // Wichtig: Verhindert das Öffnen des Akkordeons
         }
       ];
     }

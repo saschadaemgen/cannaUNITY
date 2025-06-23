@@ -7,7 +7,9 @@ from .api_views import (
     FloweringPlantBatchViewSet, CuttingBatchViewSet, BloomingCuttingBatchViewSet,
     HarvestBatchViewSet, DryingBatchViewSet, ProcessingBatchViewSet, LabTestingBatchViewSet, 
     PackagingBatchViewSet, PackagingUnitViewSet, ProductDistributionViewSet,
-    StrainCardViewSet,  # NEU: StrainCard API
+    StrainCardViewSet, SeedPurchaseImageViewSet, MotherPlantBatchImageViewSet,
+    CuttingBatchImageSerializer, CuttingBatchImageViewSet, BloomingCuttingBatchImageSerializer,
+    BloomingCuttingBatchImageViewSet,
     validate_distribution_limits
 )
 
@@ -25,6 +27,10 @@ router.register(r'labtesting', LabTestingBatchViewSet, basename='labtesting')
 router.register(r'packaging', PackagingBatchViewSet, basename='packaging')
 router.register(r'packaging-units', PackagingUnitViewSet, basename='packaging-units')
 router.register(r'distributions', ProductDistributionViewSet, basename='distributions')
+router.register(r'seed-images', SeedPurchaseImageViewSet, basename='seed-images')
+router.register(r'mother-batch-images', MotherPlantBatchImageViewSet, basename='mother-batch-images')
+router.register(r'cutting-batch-images', CuttingBatchImageViewSet, basename='cutting-batch-images')
+router.register(r'blooming-cutting-batch-images', BloomingCuttingBatchImageViewSet, basename='blooming-cutting-batch-images')
 
 # NEU: StrainCard API für optimierte Performance
 router.register(r'strain-cards', StrainCardViewSet, basename='strain-cards')

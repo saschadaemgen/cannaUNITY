@@ -1,10 +1,11 @@
 // frontend/src/apps/trackandtrace/pages/SeedPurchase/components/SeedTable.jsx
-import { Box, Button, IconButton, Typography, Tooltip, Grid } from '@mui/material'
+import { Box, Button, IconButton, Typography, Tooltip, Grid, Badge } from '@mui/material'
 import ScienceIcon from '@mui/icons-material/Science'
 import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment'
 import SpaIcon from '@mui/icons-material/Spa'
 import LocalFloristIcon from '@mui/icons-material/LocalFlorist'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
+import PhotoCameraIcon from '@mui/icons-material/PhotoCamera'
 import TableHeader from '@/components/common/TableHeader'
 import AccordionRow from '@/components/common/AccordionRow'
 import DetailCards from '@/components/common/DetailCards'
@@ -19,6 +20,7 @@ import PaginationFooter from '@/components/common/PaginationFooter'
  * @param {function} onExpandSeed - Handler für Expand/Collapse
  * @param {function} onOpenConvertDialog - Handler für Öffnen des Konvertierungsdialogs
  * @param {function} onOpenDestroyDialog - Handler für Öffnen des Vernichtungsdialogs
+ * @param {function} onOpenImageModal - Handler für Öffnen des Bilder-Modals
  * @param {number} currentPage - Aktuelle Seite
  * @param {number} totalPages - Gesamtanzahl der Seiten
  * @param {function} onPageChange - Handler für Seitenwechsel
@@ -35,6 +37,7 @@ const SeedTable = ({
   onExpandSeed,
   onOpenConvertDialog,
   onOpenDestroyDialog,
+  onOpenImageModal,
   currentPage,
   totalPages,
   onPageChange,
@@ -301,6 +304,21 @@ const SeedTable = ({
                 sx={{ mx: 0.5 }}
               >
                 <LocalFireDepartmentIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+
+            <Tooltip title={`Bilder verwalten (${item.image_count || 0})`}>
+              <IconButton 
+                size="small" 
+                onClick={(e) => {
+                  stopPropagation(e)
+                  onOpenImageModal(item, e)
+                }}
+                sx={{ mx: 0.5 }}
+              >
+                <Badge badgeContent={item.image_count || 0} color="primary">
+                  <PhotoCameraIcon fontSize="small" color="primary" />
+                </Badge>
               </IconButton>
             </Tooltip>
           </>
