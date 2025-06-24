@@ -4433,8 +4433,9 @@ class BloomingCuttingBatchImageViewSet(BaseProductImageViewSet):
         return queryset
     
     def perform_create(self, serializer):
-        batch_id = self.request.query_params.get('batch_id')
-        print(f"DEBUG perform_create: batch_id = {batch_id}")
+        # WICHTIG: batch_id aus request.data holen, nicht aus query_params!
+        batch_id = self.request.data.get('batch_id')
+        print(f"DEBUG perform_create: batch_id from request.data = {batch_id}")
         print(f"DEBUG perform_create: validated_data = {serializer.validated_data}")
         
         if not batch_id:

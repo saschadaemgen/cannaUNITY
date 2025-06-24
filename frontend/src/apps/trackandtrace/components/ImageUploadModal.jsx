@@ -227,6 +227,9 @@ export default function ImageUploadModal({
         case 'cutting-batch':
           endpoint = '/trackandtrace/cutting-batch-images/'
           break
+        case 'blooming-cutting-batch':
+          endpoint = '/trackandtrace/blooming-cutting-batch-images/'
+          break
         default:
           endpoint = `/trackandtrace/${productType}-images/`
       }
@@ -252,7 +255,8 @@ export default function ImageUploadModal({
             formData.append('batch_id', productId)
             break
           case 'blooming-cutting-batch':
-            return `/trackandtrace/blooming-cutting-batch-images/?batch_id=${productId}`
+            formData.append('batch_id', productId)
+            break
           default:
             formData.append(`${productType}_id`, productId)
         }
