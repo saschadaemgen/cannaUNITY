@@ -95,6 +95,10 @@ export default function ImageUploadModal({
           endpoint = '/trackandtrace/blooming-cutting-batch-images/'
           params = { batch_id: productId }
           break
+        case 'flowering-plant-batch':
+          endpoint = '/trackandtrace/flowering-plant-batch-images/'
+          params = { batch_id: productId }
+          break
         default:
           endpoint = `/trackandtrace/${productType}-images/`
           params = { [`${productType}_id`]: productId }
@@ -230,6 +234,9 @@ export default function ImageUploadModal({
         case 'blooming-cutting-batch':
           endpoint = '/trackandtrace/blooming-cutting-batch-images/'
           break
+        case 'flowering-plant-batch':
+          endpoint = '/trackandtrace/flowering-plant-batch-images/'
+          break
         default:
           endpoint = `/trackandtrace/${productType}-images/`
       }
@@ -255,6 +262,9 @@ export default function ImageUploadModal({
             formData.append('batch_id', productId)
             break
           case 'blooming-cutting-batch':
+            formData.append('batch_id', productId)
+            break
+          case 'flowering-plant-batch':
             formData.append('batch_id', productId)
             break
           default:
@@ -338,6 +348,12 @@ export default function ImageUploadModal({
         case 'cutting-batch':
           endpoint = `/trackandtrace/cutting-batch-images/${imageId}/`
           break
+        case 'blooming-cutting-batch':
+          endpoint = `/trackandtrace/blooming-cutting-batch-images/${imageId}/`
+          break
+        case 'flowering-plant-batch':
+          endpoint = `/trackandtrace/flowering-plant-batch-images/${imageId}/`
+          break
         default:
           endpoint = `/trackandtrace/${productType}-images/${imageId}/`
       }
@@ -362,8 +378,7 @@ export default function ImageUploadModal({
     <Dialog 
       open={open} 
       onClose={handleClose} 
-      maxWidth="lg" 
-      fullWidth
+      fullScreen
       disableEscapeKeyDown={scanMode}
     >
       {/* RFID-Scan-Overlay */}

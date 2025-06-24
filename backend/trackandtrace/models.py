@@ -1177,3 +1177,17 @@ class BloomingCuttingBatchImage(BaseProductImage):
     
     def __str__(self):
         return f"Bild für {self.blooming_cutting_batch.batch_number} - {self.title or 'Ohne Titel'}"
+    
+class FloweringPlantBatchImage(BaseProductImage):
+    """Bilder für Blühpflanzen direkt aus Samen"""
+    flowering_plant_batch = models.ForeignKey(
+        'FloweringPlantBatch',
+        on_delete=models.CASCADE,
+        related_name='images'
+    )
+    
+    class Meta:
+        db_table = 'trackandtrace_flowering_plant_batch_image'
+        verbose_name = 'Blühpflanzen-Batch Bild'
+        verbose_name_plural = 'Blühpflanzen-Batch Bilder'
+        ordering = ['-uploaded_at']

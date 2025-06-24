@@ -11,6 +11,7 @@ import TabsHeader from '@/components/common/TabsHeader'
 import LoadingIndicator from '@/components/common/LoadingIndicator'
 import DestroyDialog from '@/components/dialogs/DestroyDialog'
 import AnimatedTabPanel from '@/components/common/AnimatedTabPanel'
+import ImageUploadModal from '../../components/ImageUploadModal'
 
 // Spezifische Komponenten
 import FloweringPlantTable from './FloweringPlantTable'
@@ -58,6 +59,10 @@ export default function FloweringPlantPage() {
   // State für Erfolgsmeldung
   const [showSuccessAlert, setShowSuccessAlert] = useState(false)
   const [successMessage, setSuccessMessage] = useState('')
+  
+  // States für Bildverwaltung
+  const [openImageModal, setOpenImageModal] = useState(false)
+  const [selectedBatchForImages, setSelectedBatchForImages] = useState(null)
 
   // Separate Funktion nur für die Zähler, die unabhängig von allem anderen arbeitet
   const loadTabCounts = async () => {
@@ -533,6 +538,19 @@ export default function FloweringPlantPage() {
     setShowFilters(false)
     loadFloweringBatches(1) // Zurück zur ersten Seite nach Filter-Reset
   }
+  
+  // Handler-Funktionen für Bildverwaltung
+  const handleOpenImageModal = (batch, event) => {
+    if (event) event.stopPropagation()
+    setSelectedBatchForImages(batch)
+    setOpenImageModal(true)
+  }
+
+  const handleCloseImageModal = () => {
+    setOpenImageModal(false)
+    setSelectedBatchForImages(null)
+    loadFloweringBatches(currentPage) // Daten neu laden
+  }
 
   // Tab-Definition als separate Variable
   const tabs = [
@@ -654,6 +672,7 @@ export default function FloweringPlantPage() {
               selectedPlants={selectedPlants}
               togglePlantSelection={togglePlantSelection}
               selectAllPlantsInBatch={selectAllPlantsInBatch}
+              onOpenImageModal={handleOpenImageModal}
             />
           </AnimatedTabPanel>
           
@@ -686,6 +705,7 @@ export default function FloweringPlantPage() {
               selectedPlants={selectedPlants}
               togglePlantSelection={togglePlantSelection}
               selectAllPlantsInBatch={selectAllPlantsInBatch}
+              onOpenImageModal={handleOpenImageModal}
             />
           </AnimatedTabPanel>
           
@@ -718,6 +738,7 @@ export default function FloweringPlantPage() {
               selectedPlants={selectedPlants}
               togglePlantSelection={togglePlantSelection}
               selectAllPlantsInBatch={selectAllPlantsInBatch}
+              onOpenImageModal={handleOpenImageModal}
             />
           </AnimatedTabPanel>
         </>
@@ -741,6 +762,15 @@ export default function FloweringPlantPage() {
           />
         </div>
       </Fade>
+      
+      <ImageUploadModal
+        open={openImageModal}
+        onClose={handleCloseImageModal}
+        productType="flowering-plant-batch"  // MUSS genau so sein!
+        productId={selectedBatchForImages?.id}
+        productName={selectedBatchForImages?.batch_number}
+        onImagesUpdated={() => loadFloweringBatches(currentPage)}
+      />
     </Container>
   )
 }

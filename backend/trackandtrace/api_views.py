@@ -37,6 +37,7 @@ from .models import (
     MotherPlantBatchImage,
     CuttingBatchImage,
     BloomingCuttingBatchImage,
+    FloweringPlantBatchImage,
 )
 from .serializers import (
     BloomingCuttingBatchSerializer,
@@ -59,6 +60,7 @@ from .serializers import (
     MotherPlantBatchImageSerializer,
     CuttingBatchImageSerializer,
     BloomingCuttingBatchImageSerializer,
+    FloweringPlantBatchImageSerializer,
 )
 
 # External app imports
@@ -4450,3 +4452,24 @@ class BloomingCuttingBatchImageViewSet(BaseProductImageViewSet):
         print(f"DEBUG create: request.FILES = {request.FILES}")
         print(f"DEBUG create: request.data = {request.data}")
         return super().create(request, *args, **kwargs)
+    
+class FloweringPlantBatchImageViewSet(BaseProductImageViewSet):
+    """ViewSet für Blühpflanzen-Batch Bilder"""
+    serializer_class = FloweringPlantBatchImageSerializer
+    
+    def get_queryset(self):
+        queryset = FloweringPlantBatchImage.objects.all()
+        batch_id = self.request.query_params.get('batch_id')
+        if batch_id:
+            queryset = queryset.filter(flowering_plant_batch_id=batch_id)
+        return queryset
+    
+    def perform_create(self, serializer):
+        # batch_id aus request.data holen (NICHT aus query_params!)
+        batch_id = self.request.data.get('batch_id')
+        
+        if not batch_id:
+            raise serializers.ValidationError({"error": "batch_id ist erforderlich"})
+        
+        # Speichern mit der korrekten batch_id
+        serializer.save(flowering_plant_batch_id=batch_id)
