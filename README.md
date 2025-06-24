@@ -104,7 +104,7 @@ Es findet eine strikte Trennung zwischen personenbezogenen Daten (lokal) und ano
 
 ---
 
-## 🔁 Track & Trace: Vom Samen bis zur Ausgabe
+## 🔁 UUID Track & Trace: Vom Samen bis zur Ausgabe inkl. MMS
 
 <p align="center">
   <img src="screenshots/trackandtrace/samen_einkauf_liste.png" alt="Vorschau" width="1920">
@@ -133,6 +133,19 @@ Jeder Schritt wird über die Mitarbeiterkonten per RFID/NFC bestätigt und in Ec
 <p align="center">
   <img src="screenshots/trackandtrace/track_and_trace.png" alt="Vorschau" width="1920">
 </p>
+
+Multimedia-Unterstützung im Track&Trace-Modul
+Das Track&Trace-System unterstützt ab sofort die Upload- und Zuordnung von Multimedia-Dateien (Bilder und Videos) zu den jeweiligen Arbeitsschritten einzelner Chargen. Die Implementierung ist derzeit für die Schritte 1 bis 5 produktiv freigeschaltet:
+
+✅ Schritt 1: Sameneinkauf (SeedPurchase)
+✅ Schritt 2: Mutterpflanzen (MotherPlantBatch)
+✅ Schritt 3: Blühpflanzen aus Samen (FloweringPlantBatch)
+✅ Schritt 4: Stecklinge (CuttingBatch)
+✅ Schritt 5: Blühpflanzen aus Stecklingen (BloomingCuttingBatch)
+
+Die Dateien werden backend-seitig sicher gespeichert und sind nur innerhalb des geschlossenen Vereinsnetzwerks zugänglich. Zusätzlich wurden serverseitige Hooks vorbereitet, um Inhalte optional automatisiert in verifizierten, privaten Facebook-Gruppen zu teilen, die ausschließlich aus zuvor freigegebenen Vereinsmitgliedern bestehen.
+
+Die verbleibenden Schritte (6–10) erhalten die gleiche Multimedia-Anbindung sukzessive im Rahmen der weiteren Modulentwicklung.
 
 ---
 
