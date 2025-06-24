@@ -1,7 +1,11 @@
 # 🌿 cannaUNITY v0.6.20 (Pre-Alpha)
 
+![GitHub Repo stars](https://img.shields.io/github/stars/saschadaemgen/cannaUNITY?style=social)
+![GitHub license](https://img.shields.io/github/license/saschadaemgen/cannaUNITY)
+![GitHub last commit](https://img.shields.io/github/last-commit/saschadaemgen/cannaUNITY)
+
 > **Modulare Open-Source-Software Suite für Cannabis Social Clubs und Anbauvereinigungen gemäß dem deutschem Konsumcannabisgesetz § (KCanG)**
-> Mitgliederverwaltung · eVereinsverwaltung · Berichtsverwaltung · Aufgabenplanung ·  Growcontroller · Zutrittskontrolle · eStempelkarte · Track & Trace · Buchhaltung · WaWi · Raumautomation · Sicherheitssystem
+> Mitgliederverwaltung · eVereinsverwaltung · Berichtsverwaltung · Aufgabenplanung ·  Growcontroller · Zutrittskontrolle · eStempelkarte · Track & Trace · Buchhaltung · WaWi · Raumautomation · Sicherheitssystem · IOS & Android APP · Verwaltungs, Administrations und User UI`s,
 
 (Masteransicht für "festes" UI Panel 1920x1080p)
 
@@ -17,13 +21,10 @@
   <img src="screenshots/touchscreen-ui/produktausgabe_kiosk_modus_step_1.png" alt="Vorschau" width="1920">
 </p>
 
-![GitHub Repo stars](https://img.shields.io/github/stars/saschadaemgen/cannaUNITY?style=social)
-![GitHub license](https://img.shields.io/github/license/saschadaemgen/cannaUNITY)
-![GitHub last commit](https://img.shields.io/github/last-commit/saschadaemgen/cannaUNITY)
-
 ---
 
 ## 📦 Was ist cannaUNITY?
+My purpose? I push features. Welcome to cannaUNITY—the finest butter‑bot of highend Cannabis Social Club software.
 
 **cannaUNITY** ist eine professionelle Open-Source-Plattform zur Organisation, Verwaltung und Automatisierung von Cannabis-Anbauvereinigungen gemäß dem Konsumcannabisgesetz (KCanG), welche entstanden ist weil wir keine Lösung gefunden haben, die die Möglichkeiten moderner Technologie wirklich nutzt und die gesetzlichen Anforderungen an Sicherheit, Transparenz und Nachvollziehbarkeit umfassend abdeckt. Unser Ansatz ist es, den gesamten Betrieb einer Cannabis-Anbauvereinigung nicht nur zu verwalten, sondern zu automatisieren und digital abzusichern – von der alters- und THC-gerechten Zugangskontrolle mit UniFi Access, über KI-gestützte, datenschutzkonforme Protokollierung der Anwesenheit mit UniFi Protect, bis hin zur smarten Steuerung aller Anlagen per SIMATIC S7. Damit können sowohl Zutritt, als auch Arbeits- und Produktionsprozesse jederzeit lückenlos dokumentiert, kontrolliert und behördengerecht nachgewiesen werden.
 
@@ -108,6 +109,8 @@ Es findet eine strikte Trennung zwischen personenbezogenen Daten (lokal) und ano
               ▼                                           ▼
      → Einweg-Kommunikation:                   [React Native App (z. B. iOS)]
      Lokaler Cronjob sendet Daten →            Zugriff **nur auf Online-API**
+
+Optional > Push Gateway: Lokaler Server → Mini-API auf VPS → schiebt Daten an App-API
 ```
 
 - **Online-Login:** Joomla/Passkey (biometrisch), alternativ 3-Faktor mit PIN  
@@ -142,12 +145,12 @@ Jeder Schritt wird über die Mitarbeiterkonten per RFID/NFC bestätigt und in Ec
 > Dank Multi-Chain ForeignKey-Architektur werden sämtliche Verarbeitungswege (Samen, Stecklinge, Mischkulturen) vollständig lückenlos abgebildet – von der Verpackungseinheit bis zum Ursprung der Genetik.  
 > Jede Verarbeitungskette bleibt auch nach Migration, Umbenennung oder Anpassung nachvollziehbar und referenziert immer auf die echten Objekte – keine Redundanzen, keine „Schattenfelder“, keine Datenverluste.
 
-
 <p align="center">
   <img src="screenshots/trackandtrace/track_and_trace.png" alt="Vorschau" width="1920">
 </p>
 
 Multimedia-Unterstützung im Track&Trace-Modul
+
 Das Track&Trace-System unterstützt ab sofort die Upload- und Zuordnung von Multimedia-Dateien (Bilder und Videos) zu den jeweiligen Arbeitsschritten einzelner Chargen. Die Implementierung ist derzeit für die Schritte 1 bis 5 produktiv freigeschaltet:
 
 ✅ Schritt 1: Sameneinkauf (SeedPurchase)
