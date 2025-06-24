@@ -25,7 +25,7 @@
 
 ## 📦 Was ist cannaUNITY?
 
-**cannaUNITY** ist eine professionelle Open-Source-Plattform zur Organisation, Verwaltung und Automatisierung von Cannabis-Anbauvereinigungen gemäß dem Konsumcannabisgesetz (KCanG). cannaUNITY entstand, weil wir keine Lösung gefunden haben, die die Möglichkeiten moderner Technologie wirklich nutzt und die gesetzlichen Anforderungen an Sicherheit, Transparenz und Nachvollziehbarkeit umfassend abdeckt. Unser Ansatz ist es, den gesamten Betrieb einer Cannabis-Anbauvereinigung nicht nur zu verwalten, sondern zu automatisieren und digital abzusichern – von der alters- und THC-gerechten Zugangskontrolle mit UniFi Access, über KI-gestützte, datenschutzkonforme Protokollierung der Anwesenheit mit UniFi Protect, bis hin zur smarten Steuerung aller Anlagen per SIMATIC S7. Damit können sowohl Zutritt, als auch Arbeits- und Produktionsprozesse jederzeit lückenlos dokumentiert, kontrolliert und behördengerecht nachgewiesen werden.
+**cannaUNITY** ist eine professionelle Open-Source-Plattform zur Organisation, Verwaltung und Automatisierung von Cannabis-Anbauvereinigungen gemäß dem Konsumcannabisgesetz (KCanG), welche entstanden ist weil wir keine Lösung gefunden haben, die die Möglichkeiten moderner Technologie wirklich nutzt und die gesetzlichen Anforderungen an Sicherheit, Transparenz und Nachvollziehbarkeit umfassend abdeckt. Unser Ansatz ist es, den gesamten Betrieb einer Cannabis-Anbauvereinigung nicht nur zu verwalten, sondern zu automatisieren und digital abzusichern – von der alters- und THC-gerechten Zugangskontrolle mit UniFi Access, über KI-gestützte, datenschutzkonforme Protokollierung der Anwesenheit mit UniFi Protect, bis hin zur smarten Steuerung aller Anlagen per SIMATIC S7. Damit können sowohl Zutritt, als auch Arbeits- und Produktionsprozesse jederzeit lückenlos dokumentiert, kontrolliert und behördengerecht nachgewiesen werden.
 
 Darüber hinaus haben wir eine vollständig integrierte Warenwirtschaft und Buchhaltung geschaffen, die automatisch mit allen Vorgängen im System verknüpft ist. Jeder Produktionsschritt, jede Ausgabe und jede Buchung ist zentral erfasst und lässt sich sofort nachvollziehen – effizient, sicher und GoB-konform. Dank nahtloser Verbindung von Aufgabenplanung, Track&Trace, Warenwirtschaft und Finanzbuchhaltung entsteht eine All-in-One-Plattform, die sowohl operative Abläufe als auch die gesetzlichen Vorgaben optimal erfüllt und gleichzeitig modernste Technologien in einem System vereint.
 
@@ -96,6 +96,19 @@ flowchart LR
 Es findet eine strikte Trennung zwischen personenbezogenen Daten (lokal) und anonymisierten Online-Daten (UUID-basiert) statt. Der Onlinebereich erhält **niemals** Zugriff auf echte Identitäten oder/und personenbezogene Daten!
 
 ### Authentifizierung & Zugriffskontrolle
+
+```
+[Lokal: Root-Server]                              [Online-Server]
+ ┌──────────────────────────┐                     ┌────────────────────────────┐
+ │ Django Backend           │                     │ Sync-Datenbank/API         │
+ │ Lokale PostgreSQL DB     │                     │ Login/API für Mobile App   │
+ │ Interne UI (Admin, Web)  │                     │                            │
+ └────────────┬─────────────┘                     └────────────┬──────────────┘
+              │    🔄 Pull/Push per API                  🔄 Pull durch App
+              ▼                                           ▼
+     → Einweg-Kommunikation:                   [React Native App (z. B. iOS)]
+     Lokaler Cronjob sendet Daten →            Zugriff **nur auf Online-API**
+```
 
 - **Online-Login:** Joomla/Passkey (biometrisch), alternativ 3-Faktor mit PIN  
 - **Zutritt zur Anlage (Außenbereiche):** UniFi Access mit RFID, Gesichtserkennung, optional PIN  
@@ -170,7 +183,7 @@ Die SIMATIC G2 hingegen ermöglicht erstmals die vollständige Steuerung industr
 🌞 0–10 V Lichtsteuerung & Tageslichtprofile
 Über das SM1232-AQ Analogausgangsmodul steuert cannaUNITY sämtliche 0–10 V LED-Growlampen energieeffizient und dynamisch – direkt aus dem zentralen UI. Die Lichtprofile beinhalten Sonnenaufgangs- und Sonnenuntergangssimulationen mit fein abgestufter Dimmung bis auf exakt 0 %, was viele andere Systeme technisch nicht unterstützen.
 
-Die Lichtsteuerung erfolgt über benutzerfreundliche Zeitraster mit Rampenfunktionen, die in der cannaUNITY-Oberfläche konfiguriert und per API an die SPS übertragen werden. Jeder Raum agiert dabei unabhängig und besitzt eine eigene SPS – vollständig synchronisiert, aber autark funktionsfähig.
+Die Licht, Ph, EC, Klima und Lüstungssteuerung erfolgt über benutzerfreundliche Zeitraster mit Rampenfunktionen, die in der cannaUNITY-Oberfläche konfiguriert und per API an die SPS übertragen werden. Jeder Raum agiert dabei unabhängig und besitzt eine eigene SPS – vollständig synchronisiert, aber autark funktionsfähig.
 
 Mit dieser Architektur bringt cannaUNITY industrielle SPS-Technik erstmals in eine visuell steuerbare Webumgebung für Grower – ohne SPS-Kenntnisse, ohne STEP7, ohne klassische Programmierung. Die Steuerung erfolgt vollständig über ein interaktives UI, das nicht nur Licht, sondern auch Klima, Bewässerung, Trocknung und Prozesszyklen in Echtzeit erfasst und ansprechbar macht.
 
