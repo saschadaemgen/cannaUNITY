@@ -1,7 +1,11 @@
 # 🌿 cannaUNITY v0.6.20 (Pre-Alpha)
 
+![GitHub Repo stars](https://img.shields.io/github/stars/saschadaemgen/cannaUNITY?style=social)
+![GitHub license](https://img.shields.io/github/license/saschadaemgen/cannaUNITY)
+![GitHub last commit](https://img.shields.io/github/last-commit/saschadaemgen/cannaUNITY)
+
 > **Modulare Open-Source-Software Suite für Cannabis Social Clubs und Anbauvereinigungen gemäß dem deutschem Konsumcannabisgesetz § (KCanG)**
-> Mitgliederverwaltung · eVereinsverwaltung · Berichtsverwaltung · Aufgabenplanung ·  Growcontroller · Zutrittskontrolle · eStempelkarte · Track & Trace · Buchhaltung · WaWi · Raumautomation · Sicherheitssystem
+> Mitgliederverwaltung · eVereinsverwaltung · Berichtsverwaltung · Aufgabenplanung ·  Growcontroller · Zutrittskontrolle · eStempelkarte · Track & Trace · Buchhaltung · WaWi · Raumautomation · Sicherheitssystem · IOS & Android APP · Verwaltungs, Administrations und User UI`s,
 
 (Masteransicht für "festes" UI Panel 1920x1080p)
 
@@ -17,15 +21,12 @@
   <img src="screenshots/touchscreen-ui/produktausgabe_kiosk_modus_step_1.png" alt="Vorschau" width="1920">
 </p>
 
-![GitHub Repo stars](https://img.shields.io/github/stars/saschadaemgen/cannaUNITY?style=social)
-![GitHub license](https://img.shields.io/github/license/saschadaemgen/cannaUNITY)
-![GitHub last commit](https://img.shields.io/github/last-commit/saschadaemgen/cannaUNITY)
-
 ---
 
 ## 📦 Was ist cannaUNITY?
+My purpose? I push features. Welcome to cannaUNITY—the finest butter‑bot of highend Cannabis Social Club software.
 
-**cannaUNITY** ist eine professionelle Open-Source-Plattform zur Organisation, Verwaltung und Automatisierung von Cannabis-Anbauvereinigungen gemäß dem Konsumcannabisgesetz (KCanG). cannaUNITY entstand, weil wir keine Lösung gefunden haben, die die Möglichkeiten moderner Technologie wirklich nutzt und die gesetzlichen Anforderungen an Sicherheit, Transparenz und Nachvollziehbarkeit umfassend abdeckt. Unser Ansatz ist es, den gesamten Betrieb einer Cannabis-Anbauvereinigung nicht nur zu verwalten, sondern zu automatisieren und digital abzusichern – von der alters- und THC-gerechten Zugangskontrolle mit UniFi Access, über KI-gestützte, datenschutzkonforme Protokollierung der Anwesenheit mit UniFi Protect, bis hin zur smarten Steuerung aller Anlagen per SIMATIC S7. Damit können sowohl Zutritt, als auch Arbeits- und Produktionsprozesse jederzeit lückenlos dokumentiert, kontrolliert und behördengerecht nachgewiesen werden.
+**cannaUNITY** ist eine professionelle Open-Source-Plattform zur Organisation, Verwaltung und Automatisierung von Cannabis-Anbauvereinigungen gemäß dem Konsumcannabisgesetz (KCanG), welche entstanden ist weil wir keine Lösung gefunden haben, die die Möglichkeiten moderner Technologie wirklich nutzt und die gesetzlichen Anforderungen an Sicherheit, Transparenz und Nachvollziehbarkeit umfassend abdeckt. Unser Ansatz ist es, den gesamten Betrieb einer Cannabis-Anbauvereinigung nicht nur zu verwalten, sondern zu automatisieren und digital abzusichern – von der alters- und THC-gerechten Zugangskontrolle mit UniFi Access, über KI-gestützte, datenschutzkonforme Protokollierung der Anwesenheit mit UniFi Protect, bis hin zur smarten Steuerung aller Anlagen per SIMATIC S7. Damit können sowohl Zutritt, als auch Arbeits- und Produktionsprozesse jederzeit lückenlos dokumentiert, kontrolliert und behördengerecht nachgewiesen werden.
 
 Darüber hinaus haben wir eine vollständig integrierte Warenwirtschaft und Buchhaltung geschaffen, die automatisch mit allen Vorgängen im System verknüpft ist. Jeder Produktionsschritt, jede Ausgabe und jede Buchung ist zentral erfasst und lässt sich sofort nachvollziehen – effizient, sicher und GoB-konform. Dank nahtloser Verbindung von Aufgabenplanung, Track&Trace, Warenwirtschaft und Finanzbuchhaltung entsteht eine All-in-One-Plattform, die sowohl operative Abläufe als auch die gesetzlichen Vorgaben optimal erfüllt und gleichzeitig modernste Technologien in einem System vereint.
 
@@ -97,6 +98,21 @@ Es findet eine strikte Trennung zwischen personenbezogenen Daten (lokal) und ano
 
 ### Authentifizierung & Zugriffskontrolle
 
+```
+[Lokal: Root-Server]                              [Online-Server]
+ ┌──────────────────────────┐                     ┌────────────────────────────┐
+ │ Django Backend           │                     │ Sync-Datenbank/API         │
+ │ Lokale PostgreSQL DB     │                     │ Login/API für Mobile App   │
+ │ Interne UI (Admin, Web)  │                     │                            │
+ └────────────┬─────────────┘                     └────────────┬──────────────┘
+              │    🔄 Pull/Push per API                  🔄 Pull durch App
+              ▼                                           ▼
+     → Einweg-Kommunikation:                   [React Native App (z. B. iOS)]
+     Lokaler Cronjob sendet Daten →            Zugriff **nur auf Online-API**
+
+Optional > Push Gateway: Lokaler Server → Mini-API auf VPS → schiebt Daten an App-API
+```
+
 - **Online-Login:** Joomla/Passkey (biometrisch), alternativ 3-Faktor mit PIN  
 - **Zutritt zur Anlage (Außenbereiche):** UniFi Access mit RFID, Gesichtserkennung, optional PIN  
 - **Innenbereiche (z. B. Blütekammer):** Zugang ausschließlich per NFC/RFID, automatische Arbeitszeiterfassung  
@@ -104,7 +120,7 @@ Es findet eine strikte Trennung zwischen personenbezogenen Daten (lokal) und ano
 
 ---
 
-## 🔁 Track & Trace: Vom Samen bis zur Ausgabe
+## 🔁 UUID Track & Trace: Vom Samen bis zur Ausgabe inkl. MMS
 
 <p align="center">
   <img src="screenshots/trackandtrace/samen_einkauf_liste.png" alt="Vorschau" width="1920">
@@ -129,10 +145,23 @@ Jeder Schritt wird über die Mitarbeiterkonten per RFID/NFC bestätigt und in Ec
 > Dank Multi-Chain ForeignKey-Architektur werden sämtliche Verarbeitungswege (Samen, Stecklinge, Mischkulturen) vollständig lückenlos abgebildet – von der Verpackungseinheit bis zum Ursprung der Genetik.  
 > Jede Verarbeitungskette bleibt auch nach Migration, Umbenennung oder Anpassung nachvollziehbar und referenziert immer auf die echten Objekte – keine Redundanzen, keine „Schattenfelder“, keine Datenverluste.
 
-
 <p align="center">
   <img src="screenshots/trackandtrace/track_and_trace.png" alt="Vorschau" width="1920">
 </p>
+
+Multimedia-Unterstützung im Track&Trace-Modul
+
+Das Track&Trace-System unterstützt ab sofort die Upload- und Zuordnung von Multimedia-Dateien (Bilder und Videos) zu den jeweiligen Arbeitsschritten einzelner Chargen. Die Implementierung ist derzeit für die Schritte 1 bis 5 produktiv freigeschaltet:
+
+✅ Schritt 1: Sameneinkauf (SeedPurchase)
+✅ Schritt 2: Mutterpflanzen (MotherPlantBatch)
+✅ Schritt 3: Blühpflanzen aus Samen (FloweringPlantBatch)
+✅ Schritt 4: Stecklinge (CuttingBatch)
+✅ Schritt 5: Blühpflanzen aus Stecklingen (BloomingCuttingBatch)
+
+Die Dateien werden backend-seitig sicher gespeichert und sind nur innerhalb des geschlossenen Vereinsnetzwerks zugänglich. Zusätzlich wurden serverseitige Hooks vorbereitet, um Inhalte optional automatisiert in verifizierten, privaten Facebook-Gruppen zu teilen, die ausschließlich aus zuvor freigegebenen Vereinsmitgliedern bestehen.
+
+Die verbleibenden Schritte (6–10) erhalten die gleiche Multimedia-Anbindung sukzessive im Rahmen der weiteren Modulentwicklung.
 
 ---
 
@@ -157,7 +186,7 @@ Die SIMATIC G2 hingegen ermöglicht erstmals die vollständige Steuerung industr
 🌞 0–10 V Lichtsteuerung & Tageslichtprofile
 Über das SM1232-AQ Analogausgangsmodul steuert cannaUNITY sämtliche 0–10 V LED-Growlampen energieeffizient und dynamisch – direkt aus dem zentralen UI. Die Lichtprofile beinhalten Sonnenaufgangs- und Sonnenuntergangssimulationen mit fein abgestufter Dimmung bis auf exakt 0 %, was viele andere Systeme technisch nicht unterstützen.
 
-Die Lichtsteuerung erfolgt über benutzerfreundliche Zeitraster mit Rampenfunktionen, die in der cannaUNITY-Oberfläche konfiguriert und per API an die SPS übertragen werden. Jeder Raum agiert dabei unabhängig und besitzt eine eigene SPS – vollständig synchronisiert, aber autark funktionsfähig.
+Die Licht, Ph, EC, Klima und Lüstungssteuerung erfolgt über benutzerfreundliche Zeitraster mit Rampenfunktionen, die in der cannaUNITY-Oberfläche konfiguriert und per API an die SPS übertragen werden. Jeder Raum agiert dabei unabhängig und besitzt eine eigene SPS – vollständig synchronisiert, aber autark funktionsfähig.
 
 Mit dieser Architektur bringt cannaUNITY industrielle SPS-Technik erstmals in eine visuell steuerbare Webumgebung für Grower – ohne SPS-Kenntnisse, ohne STEP7, ohne klassische Programmierung. Die Steuerung erfolgt vollständig über ein interaktives UI, das nicht nur Licht, sondern auch Klima, Bewässerung, Trocknung und Prozesszyklen in Echtzeit erfasst und ansprechbar macht.
 
