@@ -97,5 +97,15 @@ Informationen zu Erzeugnissen (z. B. Sorte, Analyse, Verfügbarkeit) sind nur 
 Vorheriger Zugriff auf solche Inhalte ist nicht möglich, weder im Store noch in der App vor dem Login.
 Die Darstellung erfolgt ausschließlich informativ (z. B. „Charge verfügbar ab: ...“), nicht werbend.
 
+9. Alpha-Testphase über Expo Go
+
+- Während der geschlossenen Alpha-Phase wird die App nicht über App-Store-Plattformen verteilt.
+- Stattdessen erfolgt der Zugang über die kostenlose Testumgebung **Expo Go**.
+- Mitglieder, die sich bereits vor Ort verifiziert haben, erhalten auf Wunsch einen temporären QR-Code zur Teilnahme.
+- Nach Scannen des Codes mit der Expo Go App wird die Anwendung live auf dem eigenen Smartphone geladen.
+- Die App ist voll funktionsfähig, jedoch zeitlich begrenzt und nur mit gültigem Token nutzbar.
+- Es werden keine personenbezogenen Daten übertragen oder gespeichert – alle Testzugänge sind pseudonymisiert.
+- Ziel dieser Phase ist das Sammeln von Feedback zur Benutzerführung, zur Performance und zu potenziellen Fehlerquellen unter realen Bedingungen.
+
 Fazit
 Die Architektur erfüllt höchste Anforderungen an Datensicherheit, Datensparsamkeit, Nichtöffentlichkeit und gesetzliche Konformität. Der Zugriff auf sensible Mitgliedsdaten ist vollständig technisch ausgeschlossen. Die App kann daher bedenkenlos als internes, geschütztes Vereinswerkzeug betrieben werden, ohne gegen DSGVO oder §6 KCanG zu verstoßen.
