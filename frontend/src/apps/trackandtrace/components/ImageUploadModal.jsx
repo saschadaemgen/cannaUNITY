@@ -107,6 +107,18 @@ export default function ImageUploadModal({
           endpoint = '/trackandtrace/drying-batch-images/'
           params = { batch_id: productId }
           break
+        case 'processing-batch':
+          endpoint = '/trackandtrace/processing-batch-images/'
+          params = { batch_id: productId }
+          break
+        case 'lab-testing-batch':
+          endpoint = '/trackandtrace/lab-testing-batch-images/'
+          params = { batch_id: productId }
+          break
+        case 'packaging-batch':
+          endpoint = '/trackandtrace/packaging-batch-images/'
+          params = { batch_id: productId }
+          break
         default:
           endpoint = `/trackandtrace/${productType}-images/`
           params = { [`${productType}_id`]: productId }
@@ -274,6 +286,15 @@ export default function ImageUploadModal({
         case 'drying-batch':
           endpoint = '/trackandtrace/drying-batch-images/'
           break
+        case 'processing-batch':
+          endpoint = '/trackandtrace/processing-batch-images/'
+          break
+        case 'lab-testing-batch':
+          endpoint = '/trackandtrace/lab-testing-batch-images/'
+          break
+        case 'packaging-batch':
+          endpoint = '/trackandtrace/packaging-batch-images/'
+          break
         default:
           endpoint = `/trackandtrace/${productType}-images/`
       }
@@ -313,6 +334,15 @@ export default function ImageUploadModal({
             formData.append('batch_id', productId)
             break
           case 'drying-batch':
+            formData.append('batch_id', productId)
+            break
+          case 'processing-batch':
+            formData.append('batch_id', productId)
+            break
+          case 'lab-testing-batch':
+            formData.append('batch_id', productId)
+            break
+          case 'packaging-batch':
             formData.append('batch_id', productId)
             break
           default:
@@ -407,6 +437,15 @@ export default function ImageUploadModal({
           break
         case 'drying-batch':
           endpoint = `/trackandtrace/drying-batch-images/${imageId}/`
+          break
+        case 'processing-batch':
+          endpoint = `/trackandtrace/processing-batch-images/${imageId}/`
+          break
+        case 'lab-testing-batch':
+          endpoint = `/trackandtrace/lab-testing-batch-images/${imageId}/`
+          break
+        case 'packaging-batch':
+          endpoint = `/trackandtrace/packaging-batch-images/${imageId}/`
           break
         default:
           endpoint = `/trackandtrace/${productType}-images/${imageId}/`
@@ -730,6 +769,107 @@ export default function ImageUploadModal({
                             label={media.drying_stage} 
                             size="small" 
                             color="warning"
+                            sx={{ ml: 1 }}
+                          />
+                        )}
+                        {media.processing_stage && (
+                          <Chip 
+                            label={
+                              media.processing_stage === 'input' ? 'Input' :
+                              media.processing_stage === 'processing' ? 'Verarbeitung' :
+                              media.processing_stage === 'output' ? 'Fertig' :
+                              media.processing_stage === 'quality' ? 'QK' :
+                              media.processing_stage
+                            } 
+                            size="small" 
+                            color="info"
+                            sx={{ ml: 1 }}
+                          />
+                        )}
+                        {media.product_quality && (
+                          <Chip 
+                            label={
+                              media.product_quality === 'premium' ? '⭐ Premium' :
+                              media.product_quality === 'standard' ? 'Standard' :
+                              media.product_quality === 'budget' ? 'Budget' :
+                              media.product_quality
+                            } 
+                            size="small" 
+                            color={
+                              media.product_quality === 'premium' ? 'warning' :
+                              media.product_quality === 'standard' ? 'default' :
+                              'default'
+                            }
+                            sx={{ ml: 1 }}
+                          />
+                        )}
+                        {media.test_stage && (
+                          <Chip 
+                            label={
+                              media.test_stage === 'sample_prep' ? '🧪 Vorbereitung' :
+                              media.test_stage === 'testing' ? '🔬 Test läuft' :
+                              media.test_stage === 'results' ? '📊 Ergebnisse' :
+                              media.test_stage === 'microscopy' ? '🔭 Mikroskopie' :
+                              media.test_stage === 'chromatography' ? '📈 Chromatographie' :
+                              media.test_stage
+                            } 
+                            size="small" 
+                            color="secondary"
+                            sx={{ ml: 1 }}
+                          />
+                        )}
+                        {media.test_type && (
+                          <Chip 
+                            label={
+                              media.test_type === 'cannabinoid' ? '🌿 Cannabinoid' :
+                              media.test_type === 'terpene' ? '🍋 Terpene' :
+                              media.test_type === 'microbial' ? '🦠 Mikrobiologie' :
+                              media.test_type === 'pesticide' ? '🚫 Pestizide' :
+                              media.test_type === 'heavy_metal' ? '⚠️ Schwermetalle' :
+                              media.test_type === 'visual' ? '👁️ Visuell' :
+                              media.test_type
+                            } 
+                            size="small" 
+                            color={
+                              media.test_type === 'cannabinoid' ? 'success' :
+                              media.test_type === 'microbial' || media.test_type === 'pesticide' || media.test_type === 'heavy_metal' ? 'error' :
+                              'default'
+                            }
+                            sx={{ ml: 1 }}
+                          />
+                        )}
+                        {media.packaging_stage && (
+                          <Chip 
+                            label={
+                              media.packaging_stage === 'pre_packaging' ? '📦 Vor Verpackung' :
+                              media.packaging_stage === 'packaging_process' ? '🔄 Während Verpackung' :
+                              media.packaging_stage === 'final_product' ? '✅ Fertiges Produkt' :
+                              media.packaging_stage === 'labeling' ? '🏷️ Etikettierung' :
+                              media.packaging_stage === 'sealing' ? '🔒 Versiegelung' :
+                              media.packaging_stage === 'batch_photo' ? '📸 Chargen-Übersicht' :
+                              media.packaging_stage
+                            } 
+                            size="small" 
+                            color="primary"
+                            sx={{ ml: 1 }}
+                          />
+                        )}
+                        {media.package_type && (
+                          <Chip 
+                            label={
+                              media.package_type === 'primary' ? '📦 Primär' :
+                              media.package_type === 'secondary' ? '📦📦 Sekundär' :
+                              media.package_type === 'label' ? '🏷️ Etikett' :
+                              media.package_type === 'seal' ? '🔒 Siegel' :
+                              media.package_type === 'batch_overview' ? '📸 Übersicht' :
+                              media.package_type
+                            } 
+                            size="small" 
+                            color={
+                              media.package_type === 'seal' ? 'error' :
+                              media.package_type === 'label' ? 'info' :
+                              'default'
+                            }
                             sx={{ ml: 1 }}
                           />
                         )}

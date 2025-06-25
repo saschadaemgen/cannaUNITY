@@ -11,6 +11,7 @@ import TabsHeader from '@/components/common/TabsHeader'
 import LoadingIndicator from '@/components/common/LoadingIndicator'
 import DestroyDialog from '@/components/dialogs/DestroyDialog'
 import AnimatedTabPanel from '@/components/common/AnimatedTabPanel'
+import ImageUploadModal from '../../components/ImageUploadModal'
 
 // Spezifische Komponenten
 import ProcessingTable from './components/ProcessingTable'
@@ -57,6 +58,37 @@ export default function ProcessingPage() {
   // Erfolgsmeldungen
   const [showSuccessAlert, setShowSuccessAlert] = useState(false)
   const [successMessage, setSuccessMessage] = useState('')
+
+  // States für Image Modal
+  const [openImageModal, setOpenImageModal] = useState(false)
+  const [selectedBatchForImages, setSelectedBatchForImages] = useState(null)
+
+  // Zusätzliche Felder für Processing definieren
+  const processingAdditionalFields = [
+    {
+      name: 'processing_stage',
+      label: 'Verarbeitungs-Stadium',
+      type: 'select',
+      options: [
+        { value: '', label: 'Kein Stadium' },
+        { value: 'input', label: 'Input Material' },
+        { value: 'processing', label: 'Während der Verarbeitung' },
+        { value: 'output', label: 'Fertiges Produkt' },
+        { value: 'quality', label: 'Qualitätskontrolle' }
+      ]
+    },
+    {
+      name: 'product_quality',
+      label: 'Produkt-Qualität',
+      type: 'select',
+      options: [
+        { value: '', label: 'Keine Angabe' },
+        { value: 'premium', label: 'Premium Qualität' },
+        { value: 'standard', label: 'Standard Qualität' },
+        { value: 'budget', label: 'Budget Qualität' }
+      ]
+    }
+  ]
 
   // Separate Funktion für die Zähler
   const loadTabCounts = async () => {
@@ -223,6 +255,19 @@ export default function ProcessingPage() {
     setSelectedProcessing(processing);
     setOpenConvertToLabTestingDialog(true);
   };
+
+  // Handler für Image Modal
+  const handleOpenImageModal = (batch, event) => {
+    if (event) event.stopPropagation()
+    setSelectedBatchForImages(batch)
+    setOpenImageModal(true)
+  }
+
+  const handleCloseImageModal = () => {
+    setOpenImageModal(false)
+    setSelectedBatchForImages(null)
+    loadProcessingBatches(currentPage)
+  }
 
   const handleDestroy = async () => {
     try {
@@ -407,6 +452,7 @@ export default function ProcessingPage() {
               onExpandProcessing={handleAccordionChange}
               onOpenDestroyDialog={handleOpenDestroyDialog}
               onOpenConvertToLabTestingDialog={handleOpenConvertToLabTestingDialog}
+              onOpenImageModal={handleOpenImageModal}
               currentPage={currentPage}
               totalPages={totalPages}
               onPageChange={handlePageChange}
@@ -425,6 +471,7 @@ export default function ProcessingPage() {
               onExpandProcessing={handleAccordionChange}
               onOpenDestroyDialog={handleOpenDestroyDialog}
               onOpenConvertToLabTestingDialog={handleOpenConvertToLabTestingDialog}
+              onOpenImageModal={handleOpenImageModal}
               currentPage={currentPage}
               totalPages={totalPages}
               onPageChange={handlePageChange}
@@ -443,6 +490,7 @@ export default function ProcessingPage() {
               onExpandProcessing={handleAccordionChange}
               onOpenDestroyDialog={handleOpenDestroyDialog}
               onOpenConvertToLabTestingDialog={handleOpenConvertToLabTestingDialog}
+              onOpenImageModal={handleOpenImageModal}
               currentPage={currentPage}
               totalPages={totalPages}
               onPageChange={handlePageChange}
@@ -461,6 +509,7 @@ export default function ProcessingPage() {
               onExpandProcessing={handleAccordionChange}
               onOpenDestroyDialog={handleOpenDestroyDialog}
               onOpenConvertToLabTestingDialog={handleOpenConvertToLabTestingDialog}
+              onOpenImageModal={handleOpenImageModal}
               currentPage={currentPage}
               totalPages={totalPages}
               onPageChange={handlePageChange}
@@ -494,6 +543,16 @@ export default function ProcessingPage() {
         members={members}
         rooms={rooms}
         loadingOptions={loadingOptions}
+      />
+
+      <ImageUploadModal
+        open={openImageModal}
+        onClose={handleCloseImageModal}
+        productType="processing-batch"
+        productId={selectedBatchForImages?.id}
+        productName={`${selectedBatchForImages?.batch_number} - ${selectedBatchForImages?.product_type_display || selectedBatchForImages?.product_type}`}
+        onImagesUpdated={() => loadProcessingBatches(currentPage)}
+        additionalFields={processingAdditionalFields}
       />
     </Container>
   )

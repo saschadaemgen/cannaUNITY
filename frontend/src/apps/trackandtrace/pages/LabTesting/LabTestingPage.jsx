@@ -12,6 +12,7 @@ import TabsHeader from '@/components/common/TabsHeader'
 import LoadingIndicator from '@/components/common/LoadingIndicator'
 import DestroyDialog from '@/components/dialogs/DestroyDialog'
 import AnimatedTabPanel from '@/components/common/AnimatedTabPanel'
+import ImageUploadModal from '../../components/ImageUploadModal'
 
 // Spezifische Komponenten
 import LabTestingTable from './LabTestingTable'
@@ -61,6 +62,41 @@ export default function LabTestingPage() {
   // Erfolgsmeldungen
   const [showSuccessAlert, setShowSuccessAlert] = useState(false)
   const [successMessage, setSuccessMessage] = useState('')
+
+  // States für Image Modal
+  const [openImageModal, setOpenImageModal] = useState(false)
+  const [selectedBatchForImages, setSelectedBatchForImages] = useState(null)
+
+  // Zusätzliche Felder für LabTesting definieren
+  const labTestingAdditionalFields = [
+    {
+      name: 'test_stage',
+      label: 'Test-Stadium',
+      type: 'select',
+      options: [
+        { value: '', label: 'Kein Stadium' },
+        { value: 'sample_prep', label: 'Probenvorbereitung' },
+        { value: 'testing', label: 'Während des Tests' },
+        { value: 'results', label: 'Testergebnisse' },
+        { value: 'microscopy', label: 'Mikroskopie' },
+        { value: 'chromatography', label: 'Chromatographie' }
+      ]
+    },
+    {
+      name: 'test_type',
+      label: 'Test-Typ',
+      type: 'select',
+      options: [
+        { value: '', label: 'Kein Test-Typ' },
+        { value: 'cannabinoid', label: 'Cannabinoid-Profil' },
+        { value: 'terpene', label: 'Terpen-Analyse' },
+        { value: 'microbial', label: 'Mikrobiologie' },
+        { value: 'pesticide', label: 'Pestizid-Screening' },
+        { value: 'heavy_metal', label: 'Schwermetalle' },
+        { value: 'visual', label: 'Visuelle Inspektion' }
+      ]
+    }
+  ]
 
   // Separate Funktion für die Zähler
   const loadTabCounts = async () => {
@@ -231,6 +267,19 @@ export default function LabTestingPage() {
     setSelectedLabTesting(labTesting);
     setOpenConvertToPackagingDialog(true);
   };
+
+  // Handler für Image Modal
+  const handleOpenImageModal = (batch, event) => {
+    if (event) event.stopPropagation()
+    setSelectedBatchForImages(batch)
+    setOpenImageModal(true)
+  }
+
+  const handleCloseImageModal = () => {
+    setOpenImageModal(false)
+    setSelectedBatchForImages(null)
+    loadLabTestingBatches(currentPage)
+  }
   
   const handleUpdateLabResults = async (formData) => {
     try {
@@ -443,6 +492,7 @@ export default function LabTestingPage() {
               onExpandLabTesting={handleAccordionChange}
               onOpenDestroyDialog={handleOpenDestroyDialog}
               onOpenUpdateLabResultsDialog={handleOpenUpdateLabResultsDialog}
+              onOpenImageModal={handleOpenImageModal}
               currentPage={currentPage}
               totalPages={totalPages}
               onPageChange={handlePageChange}
@@ -461,6 +511,7 @@ export default function LabTestingPage() {
               onExpandLabTesting={handleAccordionChange}
               onOpenDestroyDialog={handleOpenDestroyDialog}
               onOpenConvertToPackagingDialog={handleOpenConvertToPackagingDialog}
+              onOpenImageModal={handleOpenImageModal}
               currentPage={currentPage}
               totalPages={totalPages}
               onPageChange={handlePageChange}
@@ -479,6 +530,7 @@ export default function LabTestingPage() {
               onExpandLabTesting={handleAccordionChange}
               onOpenDestroyDialog={handleOpenDestroyDialog}
               onOpenUpdateLabResultsDialog={handleOpenUpdateLabResultsDialog}
+              onOpenImageModal={handleOpenImageModal}
               currentPage={currentPage}
               totalPages={totalPages}
               onPageChange={handlePageChange}
@@ -496,6 +548,7 @@ export default function LabTestingPage() {
               expandedLabTestingId={expandedLabTestingId}
               onExpandLabTesting={handleAccordionChange}
               onOpenDestroyDialog={handleOpenDestroyDialog}
+              onOpenImageModal={handleOpenImageModal}
               currentPage={currentPage}
               totalPages={totalPages}
               onPageChange={handlePageChange}
@@ -539,6 +592,16 @@ export default function LabTestingPage() {
         members={members}
         rooms={rooms}
         loadingOptions={loadingOptions}
+      />
+
+      <ImageUploadModal
+        open={openImageModal}
+        onClose={handleCloseImageModal}
+        productType="lab-testing-batch"
+        productId={selectedBatchForImages?.id}
+        productName={`${selectedBatchForImages?.batch_number} - ${selectedBatchForImages?.source_strain || 'Laborkontrolle'}`}
+        onImagesUpdated={() => loadLabTestingBatches(currentPage)}
+        additionalFields={labTestingAdditionalFields}
       />
     </Container>
   )

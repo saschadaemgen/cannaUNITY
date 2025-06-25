@@ -6,7 +6,8 @@ from .models import (
     DryingBatch, ProcessingBatch, PRODUCT_TYPE_CHOICES, LabTestingBatch, 
     PackagingBatch, PackagingUnit, ProductDistribution, SeedPurchaseImage, 
     MotherPlantBatchImage, CuttingBatchImage, BloomingCuttingBatchImage,
-    FloweringPlantBatchImage, HarvestBatchImage, DryingBatchImage,
+    FloweringPlantBatchImage, HarvestBatchImage, DryingBatchImage, ProcessingBatchImage,
+    LabTestingBatchImage, PackagingBatchImage,
 )
 from members.models import Member
 from rooms.models import Room
@@ -206,6 +207,123 @@ class DryingBatchImageSerializer(BaseProductImageSerializer):
     class Meta(BaseProductImageSerializer.Meta):
         model = DryingBatchImage
         fields = BaseProductImageSerializer.Meta.fields + ['drying_batch', 'drying_stage']
+
+
+class ProcessingBatchImageSerializer(BaseProductImageSerializer):
+    """Serializer für Verarbeitungs-Batch Bilder und Videos"""
+    uploaded_by = serializers.PrimaryKeyRelatedField(
+        queryset=Member.objects.all(),
+        write_only=True
+    )
+    processing_batch = serializers.PrimaryKeyRelatedField(
+        read_only=True
+    )
+    processing_stage = serializers.ChoiceField(
+        choices=[
+            ('input', 'Input Material'),
+            ('processing', 'Während der Verarbeitung'),
+            ('output', 'Fertiges Produkt'),
+            ('quality', 'Qualitätskontrolle'),
+        ],
+        required=False,
+        allow_blank=True
+    )
+    product_quality = serializers.ChoiceField(
+        choices=[
+            ('premium', 'Premium Qualität'),
+            ('standard', 'Standard Qualität'),
+            ('budget', 'Budget Qualität'),
+        ],
+        required=False,
+        allow_blank=True
+    )
+    
+    class Meta(BaseProductImageSerializer.Meta):
+        model = ProcessingBatchImage
+        fields = BaseProductImageSerializer.Meta.fields + [
+            'processing_batch', 'processing_stage', 'product_quality'
+        ]
+
+
+class LabTestingBatchImageSerializer(BaseProductImageSerializer):
+    """Serializer für Laborkontroll-Batch Bilder und Videos"""
+    uploaded_by = serializers.PrimaryKeyRelatedField(
+        queryset=Member.objects.all(),
+        write_only=True
+    )
+    lab_testing_batch = serializers.PrimaryKeyRelatedField(
+        read_only=True
+    )
+    test_stage = serializers.ChoiceField(
+        choices=[
+            ('sample_prep', 'Probenvorbereitung'),
+            ('testing', 'Während des Tests'),
+            ('results', 'Testergebnisse'),
+            ('microscopy', 'Mikroskopie'),
+            ('chromatography', 'Chromatographie'),
+        ],
+        required=False,
+        allow_blank=True
+    )
+    test_type = serializers.ChoiceField(
+        choices=[
+            ('cannabinoid', 'Cannabinoid-Profil'),
+            ('terpene', 'Terpen-Analyse'),
+            ('microbial', 'Mikrobiologie'),
+            ('pesticide', 'Pestizid-Screening'),
+            ('heavy_metal', 'Schwermetalle'),
+            ('visual', 'Visuelle Inspektion'),
+        ],
+        required=False,
+        allow_blank=True
+    )
+    
+    class Meta(BaseProductImageSerializer.Meta):
+        model = LabTestingBatchImage
+        fields = BaseProductImageSerializer.Meta.fields + [
+            'lab_testing_batch', 'test_stage', 'test_type'
+        ]
+
+
+class PackagingBatchImageSerializer(BaseProductImageSerializer):
+    """Serializer für Verpackungs-Batch Bilder und Videos"""
+    uploaded_by = serializers.PrimaryKeyRelatedField(
+        queryset=Member.objects.all(),
+        write_only=True
+    )
+    packaging_batch = serializers.PrimaryKeyRelatedField(
+        read_only=True
+    )
+    packaging_stage = serializers.ChoiceField(
+        choices=[
+            ('pre_packaging', 'Vor der Verpackung'),
+            ('packaging_process', 'Während der Verpackung'),
+            ('final_product', 'Fertiges Produkt'),
+            ('labeling', 'Etikettierung'),
+            ('sealing', 'Versiegelung'),
+            ('batch_photo', 'Chargen-Übersicht'),
+        ],
+        required=False,
+        allow_blank=True
+    )
+    package_type = serializers.ChoiceField(
+        choices=[
+            ('primary', 'Primärverpackung'),
+            ('secondary', 'Sekundärverpackung'),
+            ('label', 'Etikett/Label'),
+            ('seal', 'Siegel/Verschluss'),
+            ('batch_overview', 'Chargen-Übersicht'),
+        ],
+        required=False,
+        allow_blank=True
+    )
+    
+    class Meta(BaseProductImageSerializer.Meta):
+        model = PackagingBatchImage
+        fields = BaseProductImageSerializer.Meta.fields + [
+            'packaging_batch', 'packaging_stage', 'package_type'
+        ]
+
         
 class SeedPurchaseSerializer(serializers.ModelSerializer):
     # Alte Mitglieder-Zuweisung (optional noch im Einsatz)
@@ -782,8 +900,7 @@ class DryingBatchSerializer(serializers.ModelSerializer):
             'member', 'member_id', 'room', 'room_id',
             'notes', 'is_destroyed', 'destroy_reason', 
             'destroyed_at', 'destroyed_by', 'destroyed_by_id',
-            'created_at',
-            'images', 'image_count'  # DIESE FEHLTEN!
+            'created_at', 'images', 'image_count'
         ]
     
     def get_image_count(self, obj):
@@ -838,6 +955,8 @@ class ProcessingBatchSerializer(serializers.ModelSerializer):
     product_type_display = serializers.SerializerMethodField()
     yield_percentage = serializers.SerializerMethodField()
     waste_weight = serializers.SerializerMethodField()
+    images = ProcessingBatchImageSerializer(many=True, read_only=True)
+    image_count = serializers.SerializerMethodField()
     
     class Meta:
         model = ProcessingBatch
@@ -848,7 +967,7 @@ class ProcessingBatchSerializer(serializers.ModelSerializer):
             'member', 'member_id', 'room', 'room_id',
             'notes', 'is_destroyed', 'destroy_reason', 
             'destroyed_at', 'destroyed_by', 'destroyed_by_id',
-            'created_at'
+            'created_at', 'images', 'image_count'
         ]
     
     def get_source_strain(self, obj):
@@ -865,6 +984,10 @@ class ProcessingBatchSerializer(serializers.ModelSerializer):
     
     def get_waste_weight(self, obj):
         return obj.waste_weight
+    
+    def get_image_count(self, obj):
+        """Gibt die Anzahl der Bilder UND Videos zurück."""
+        return obj.images.count()
     
 class LabTestingBatchSerializer(serializers.ModelSerializer):
     # Serializers für Mitglieder und Räume
@@ -902,7 +1025,9 @@ class LabTestingBatchSerializer(serializers.ModelSerializer):
     remaining_weight = serializers.SerializerMethodField()
     product_type = serializers.SerializerMethodField()
     product_type_display = serializers.SerializerMethodField()
-    
+    images = LabTestingBatchImageSerializer(many=True, read_only=True)
+    image_count = serializers.SerializerMethodField()
+
     class Meta:
         model = LabTestingBatch
         fields = [
@@ -914,7 +1039,7 @@ class LabTestingBatchSerializer(serializers.ModelSerializer):
             'notes', 'is_destroyed', 'destroy_reason', 
             'destroyed_at', 'destroyed_by', 'destroyed_by_id',
             'converted_to_packaging', 'converted_to_packaging_at',
-            'created_at'
+            'created_at', 'images', 'image_count'
         ]
     
     def get_source_strain(self, obj):
@@ -934,6 +1059,10 @@ class LabTestingBatchSerializer(serializers.ModelSerializer):
             # Verwende die Übersetzungsmethode direkt mit dem Auswahlwert
             return dict(PRODUCT_TYPE_CHOICES).get(obj.processing_batch.product_type, obj.processing_batch.product_type)
         return "Unbekannt"
+    
+    def get_image_count(self, obj):
+        """Gibt die Anzahl der Bilder UND Videos zurück."""
+        return obj.images.count()
 
 class PackagingBatchSerializer(serializers.ModelSerializer):
     # Serializers für Mitglieder und Räume
@@ -977,7 +1106,9 @@ class PackagingBatchSerializer(serializers.ModelSerializer):
     price_per_gram_display = serializers.SerializerMethodField()
     total_batch_price_display = serializers.SerializerMethodField()
     unit_price_display = serializers.SerializerMethodField()
-    
+    images = PackagingBatchImageSerializer(many=True, read_only=True)
+    image_count = serializers.SerializerMethodField()
+
     class Meta:
         model = PackagingBatch
         fields = [
@@ -993,7 +1124,7 @@ class PackagingBatchSerializer(serializers.ModelSerializer):
             'member', 'member_id', 'room', 'room_id',
             'notes', 'is_destroyed', 'destroy_reason', 
             'destroyed_at', 'destroyed_by', 'destroyed_by_id',
-            'created_at'
+            'created_at', 'images', 'image_count'
         ]
     
     def get_source_strain(self, obj):
@@ -1033,6 +1164,10 @@ class PackagingBatchSerializer(serializers.ModelSerializer):
         if obj.unit_price:
             return f"{float(obj.unit_price):.2f} €"
         return "Nicht berechnet"
+    
+    def get_image_count(self, obj):
+        """Gibt die Anzahl der Bilder UND Videos zurück."""
+        return obj.images.count()
 
 class PackagingUnitSerializer(serializers.ModelSerializer):
     # Serializer für das Mitglied, das vernichtet hat

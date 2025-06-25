@@ -1,6 +1,6 @@
 // frontend/src/apps/trackandtrace/pages/Packaging/components/PackagingTable.jsx
 import React, { useState, useEffect } from 'react'
-import { Box, Typography, Button, IconButton, Tooltip  } from '@mui/material'
+import { Box, Typography, Button, IconButton, Tooltip, Badge } from '@mui/material'
 import { 
   Table, TableContainer, TableHead, TableRow, TableCell, TableBody,
   Paper, Pagination
@@ -13,6 +13,7 @@ import FilterDramaIcon from '@mui/icons-material/FilterDrama'
 import EuroIcon from '@mui/icons-material/Euro'
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney'
 import TrendingUpIcon from '@mui/icons-material/TrendingUp'
+import PhotoCameraIcon from '@mui/icons-material/PhotoCamera'
 
 import TableHeader from '@/components/common/TableHeader'
 import AccordionRow from '@/components/common/AccordionRow'
@@ -31,6 +32,7 @@ const PackagingTable = ({
   expandedPackagingId,
   onExpandPackaging,
   onOpenDestroyDialog,
+  onOpenImageModal, // NEU
   currentPage,
   totalPages,
   onPageChange
@@ -116,25 +118,25 @@ const PackagingTable = ({
     return item.product_type || 'Unbekannt';
   };
 
-  // 🆕 ERWEITERTE SPALTEN FÜR DEN TABELLENKOPF (MIT PREISEN):
+  // 🆕 ERWEITERTE SPALTEN FÜR DEN TABELLENKOPF (MIT PREISEN UND MEDIEN):
   const getHeaderColumns = () => {
     return [
-      { label: 'Genetik', width: '12%', align: 'left' },
-      { label: 'Produkttyp', width: '10%', align: 'left' },
-      { label: 'Charge-Nummer', width: '16%', align: 'left' },
+      { label: 'Genetik', width: '11%', align: 'left' }, // Reduziert
+      { label: 'Produkttyp', width: '9%', align: 'left' }, // Reduziert
+      { label: 'Charge-Nummer', width: '15%', align: 'left' }, // Reduziert
       { label: 'Gewicht', width: '8%', align: 'center' },
       { label: 'Einheiten', width: '7%', align: 'center' },
       { label: 'Einheitsgewicht', width: '7%', align: 'center' },
-      // 🆕 NEUE PREISSPALTEN:
       { label: '€/g', width: '7%', align: 'center' },
       { label: 'Gesamtwert', width: '9%', align: 'center' },
       { label: 'Verpackt von', width: '10%', align: 'left' },
-      { label: 'Erstellt am', width: '10%', align: 'left' },
+      { label: 'Erstellt am', width: '9%', align: 'left' }, // Reduziert
+      { label: 'Medien', width: '7%', align: 'center' }, // NEU
       { label: '', width: '4%', align: 'center' }
     ]
   }
 
-  // 🆕 ERWEITERTE FUNKTION ZUM ERSTELLEN DER SPALTEN FÜR EINE ZEILE (MIT PREISEN):
+  // 🆕 ERWEITERTE FUNKTION ZUM ERSTELLEN DER SPALTEN FÜR EINE ZEILE (MIT PREISEN UND MEDIEN):
   const getRowColumns = (packaging) => {
     // Bestimme Icon und Farbe für den Produkttyp
     let productIcon = LocalFloristIcon;
@@ -151,14 +153,14 @@ const PackagingTable = ({
     return [
       {
         content: packaging.source_strain || "Unbekannt",
-        width: '12%',
+        width: '11%', // Angepasst
         bold: true,
         icon: ScienceIcon,
         iconColor: tabValue === 3 ? 'error.main' : 'secondary.main'
       },
       {
         content: getProductTypeDisplay(packaging),
-        width: '10%',
+        width: '9%', // Angepasst
         bold: true,
         icon: productIcon,
         iconColor: tabValue === 3 ? 'error.main' : productColor
@@ -204,7 +206,7 @@ const PackagingTable = ({
             )}
           </Box>
         ),
-        width: '16%' // Die Breite beibehalten
+        width: '15%' // Angepasst
       },
       {
         content: `${parseFloat(packaging.total_weight).toLocaleString('de-DE')}g`,
@@ -259,7 +261,41 @@ const PackagingTable = ({
       },
       {
         content: new Date(packaging.created_at).toLocaleDateString('de-DE'),
-        width: '10%'
+        width: '9%' // Angepasst
+      },
+      // NEU: Medien-Spalte
+      {
+        content: (
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+            <Tooltip title={`Medien verwalten (${packaging.image_count || 0})`}>
+              <IconButton 
+                size="small" 
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onOpenImageModal(packaging, e)
+                }}
+                sx={{ 
+                  color: tabValue === 3 ? 'error.main' : 
+                        (packaging.product_type === 'marijuana' ? 'success.main' : 'warning.main'),
+                  '&:hover': {
+                    backgroundColor: 'action.hover'
+                  }
+                }}
+              >
+                <Badge 
+                  badgeContent={packaging.image_count || 0} 
+                  color={tabValue === 3 ? 'error' : 
+                        (packaging.product_type === 'marijuana' ? 'success' : 'warning')}
+                >
+                  <PhotoCameraIcon />
+                </Badge>
+              </IconButton>
+            </Tooltip>
+          </Box>
+        ),
+        width: '7%',
+        align: 'center',
+        stopPropagation: true
       },
       {
         content: '',  // Platz für das Aufklapp-Symbol

@@ -1,12 +1,13 @@
 // frontend/src/apps/trackandtrace/pages/Processing/components/ProcessingTable.jsx
 import React from 'react'
-import { Box, Typography, Button, IconButton } from '@mui/material'
+import { Box, Typography, Button, IconButton, Badge, Tooltip } from '@mui/material'
 import SpeedIcon from '@mui/icons-material/Speed'
 import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment'
 import SeedIcon from '@mui/icons-material/Spa'
 import LocalFloristIcon from '@mui/icons-material/LocalFlorist'
 import FilterDramaIcon from '@mui/icons-material/FilterDrama'
 import ScienceIcon from '@mui/icons-material/Science' // Neuer Import für das Labor-Icon
+import PhotoCameraIcon from '@mui/icons-material/PhotoCamera'
 
 import TableHeader from '@/components/common/TableHeader'
 import AccordionRow from '@/components/common/AccordionRow'
@@ -23,6 +24,7 @@ const ProcessingTable = ({
   onExpandProcessing,
   onOpenDestroyDialog,
   onOpenConvertToLabTestingDialog, // Neue Prop für den Konvertieren-Dialog
+  onOpenImageModal, // NEU
   currentPage,
   totalPages,
   onPageChange
@@ -30,14 +32,15 @@ const ProcessingTable = ({
   // Spalten für den Tabellenkopf definieren
   const getHeaderColumns = () => {
     return [
-      { label: 'Genetik', width: '15%', align: 'left' },
-      { label: 'Produkttyp', width: '12%', align: 'left' },
-      { label: 'Charge-Nummer', width: '18%', align: 'left' },
+      { label: 'Genetik', width: '14%', align: 'left' }, // Reduziert
+      { label: 'Produkttyp', width: '11%', align: 'left' }, // Reduziert
+      { label: 'Charge-Nummer', width: '16%', align: 'left' }, // Reduziert
       { label: 'Input-Gewicht', width: '10%', align: 'center' },
       { label: 'Output-Gewicht', width: '10%', align: 'center' },
       { label: 'Ausbeute', width: '8%', align: 'center' },
-      { label: 'Verarbeitet von', width: '12%', align: 'left' },
-      { label: 'Erstellt am', width: '10%', align: 'left' },
+      { label: 'Verarbeitet von', width: '11%', align: 'left' }, // Reduziert
+      { label: 'Erstellt am', width: '9%', align: 'left' }, // Reduziert
+      { label: 'Medien', width: '8%', align: 'center' }, // NEU
       { label: '', width: '3%', align: 'center' }  // Platz für das Aufklapp-Symbol am Ende
     ]
   }
@@ -58,21 +61,21 @@ const ProcessingTable = ({
     return [
       {
         content: processing.source_strain || "Unbekannt",
-        width: '15%',
+        width: '14%', // Angepasst
         bold: true,
         icon: SeedIcon,
         iconColor: tabValue === 3 ? 'error.main' : 'secondary.main'
       },
       {
         content: processing.product_type_display || processing.product_type,
-        width: '12%',
+        width: '11%', // Angepasst
         bold: true,
         icon: productIcon,
         iconColor: tabValue === 3 ? 'error.main' : productColor
       },
       {
         content: processing.batch_number || '',
-        width: '18%',
+        width: '16%', // Angepasst
         fontFamily: 'monospace',
         fontSize: '0.85rem'
       },
@@ -98,11 +101,45 @@ const ProcessingTable = ({
         content: processing.member ? 
           (processing.member.display_name || `${processing.member.first_name} ${processing.member.last_name}`) 
           : "Nicht zugewiesen",
-        width: '12%'
+        width: '11%' // Angepasst
       },
       {
         content: new Date(processing.created_at).toLocaleDateString('de-DE'),
-        width: '10%'
+        width: '9%' // Angepasst
+      },
+      // NEU: Medien-Spalte
+      {
+        content: (
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+            <Tooltip title={`Medien verwalten (${processing.image_count || 0})`}>
+              <IconButton 
+                size="small" 
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onOpenImageModal(processing, e)
+                }}
+                sx={{ 
+                  color: tabValue === 3 ? 'error.main' : 
+                        (processing.product_type === 'marijuana' ? 'success.main' : 'warning.main'),
+                  '&:hover': {
+                    backgroundColor: 'action.hover'
+                  }
+                }}
+              >
+                <Badge 
+                  badgeContent={processing.image_count || 0} 
+                  color={tabValue === 3 ? 'error' : 
+                        (processing.product_type === 'marijuana' ? 'success' : 'warning')}
+                >
+                  <PhotoCameraIcon />
+                </Badge>
+              </IconButton>
+            </Tooltip>
+          </Box>
+        ),
+        width: '8%',
+        align: 'center',
+        stopPropagation: true
       },
       {
         content: '',  // Platz für das Aufklapp-Symbol

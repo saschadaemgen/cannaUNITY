@@ -1,27 +1,21 @@
-# Standard library imports
-from datetime import datetime, timedelta
-from collections import OrderedDict, defaultdict
-
-# Third-party imports
-from dateutil.relativedelta import relativedelta
+from datetime import timedelta
+from collections import defaultdict
 from django.db import models
-from django.db.models import Q, Sum, Count, Avg, Min, F, Case, When, Value, CharField
+from django.db.models import Q, Sum
 from django.utils import timezone
 from rest_framework import pagination, status, viewsets, serializers
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
-from .models import SeedPurchase 
-from collections import OrderedDict
-
-# Local application imports
+from wawi.models import CannabisStrain
 from .models import (
     BloomingCuttingBatch, BloomingCuttingPlant, Cutting, CuttingBatch, DryingBatch,
     FloweringPlant, FloweringPlantBatch, HarvestBatch, LabTestingBatch, MotherPlant,
     MotherPlantBatch, PackagingBatch, PackagingUnit, ProcessingBatch, ProductDistribution,
-    SeedPurchase, SeedPurchaseImage, MotherPlantBatchImage, CuttingBatchImage,
-    BloomingCuttingBatchImage, FloweringPlantBatchImage, HarvestBatchImage, DryingBatchImage,
+    SeedPurchaseImage, MotherPlantBatchImage, CuttingBatchImage, BloomingCuttingBatchImage, 
+    FloweringPlantBatchImage, HarvestBatchImage, DryingBatchImage, ProcessingBatchImage, 
+    LabTestingBatchImage, SeedPurchase, PackagingBatchImage
 )
 from .serializers import (
     BloomingCuttingBatchSerializer, BloomingCuttingPlantSerializer, CuttingBatchSerializer,
@@ -30,13 +24,10 @@ from .serializers import (
     MotherPlantBatchSerializer, MotherPlantSerializer, PackagingBatchSerializer,
     PackagingUnitSerializer, ProcessingBatchSerializer, ProductDistributionSerializer,
     SeedPurchaseSerializer, SeedPurchaseImageSerializer, MotherPlantBatchImageSerializer,
-    CuttingBatchImageSerializer, BloomingCuttingBatchImageSerializer, 
-    FloweringPlantBatchImageSerializer, HarvestBatchImageSerializer, DryingBatchImageSerializer,
+    CuttingBatchImageSerializer, BloomingCuttingBatchImageSerializer, FloweringPlantBatchImageSerializer, 
+    HarvestBatchImageSerializer, DryingBatchImageSerializer, ProcessingBatchImageSerializer, 
+    LabTestingBatchImageSerializer, PackagingBatchImageSerializer
 )
-
-# External cannaUNITY app imports
-from wawi.models import CannabisStrain
-from wawi.serializers import CannabisStrainSerializer
 
 class StandardResultsSetPagination(pagination.PageNumberPagination):
     page_size = 10
@@ -3939,7 +3930,7 @@ class ProductDistributionViewSet(viewsets.ModelViewSet):
             errors.append(f"Monatslimit überschritten! Noch verfügbar: {remaining:.2f}g")
             
         if thc_violations:
-            errors.append(f"THC-Limit überschritten! Max. 10% THC für Mitglieder unter 21 Jahren.")
+            errors.append("THC-Limit überschritten! Max. 10% THC für Mitglieder unter 21 Jahren.")
         
         if errors:
             return Response(
@@ -4494,3 +4485,125 @@ class DryingBatchImageViewSet(BaseProductImageViewSet):
         else:
             # Bild-Upload (Standard)
             serializer.save(drying_batch_id=batch_id)
+
+
+class ProcessingBatchImageViewSet(BaseProductImageViewSet):
+    """ViewSet für Verarbeitungs-Batch Bilder und Videos"""
+    serializer_class = ProcessingBatchImageSerializer
+    parser_classes = [MultiPartParser, FormParser]  # Wichtig für große Video-Uploads
+    
+    def get_queryset(self):
+        queryset = ProcessingBatchImage.objects.all()
+        batch_id = self.request.query_params.get('batch_id')
+        if batch_id:
+            queryset = queryset.filter(processing_batch_id=batch_id)
+        
+        # Optionale Filter für Stadium und Qualität
+        processing_stage = self.request.query_params.get('processing_stage')
+        if processing_stage:
+            queryset = queryset.filter(processing_stage=processing_stage)
+            
+        product_quality = self.request.query_params.get('product_quality')
+        if product_quality:
+            queryset = queryset.filter(product_quality=product_quality)
+            
+        return queryset
+    
+    def perform_create(self, serializer):
+        batch_id = self.request.data.get('batch_id')
+        
+        if not batch_id:
+            raise serializers.ValidationError({"error": "batch_id ist erforderlich"})
+        
+        # Automatische Erkennung ob Bild oder Video
+        if 'video' in self.request.FILES:
+            # Video-Upload
+            serializer.save(
+                processing_batch_id=batch_id,
+                video=self.request.FILES['video']
+            )
+        else:
+            # Bild-Upload (Standard)
+            serializer.save(processing_batch_id=batch_id)
+
+
+class LabTestingBatchImageViewSet(BaseProductImageViewSet):
+    """ViewSet für Laborkontroll-Batch Bilder und Videos"""
+    serializer_class = LabTestingBatchImageSerializer
+    parser_classes = [MultiPartParser, FormParser]  # Wichtig für große Video-Uploads
+    
+    def get_queryset(self):
+        queryset = LabTestingBatchImage.objects.all()
+        batch_id = self.request.query_params.get('batch_id')
+        if batch_id:
+            queryset = queryset.filter(lab_testing_batch_id=batch_id)
+        
+        # Optionale Filter für Stadium und Test-Typ
+        test_stage = self.request.query_params.get('test_stage')
+        if test_stage:
+            queryset = queryset.filter(test_stage=test_stage)
+            
+        test_type = self.request.query_params.get('test_type')
+        if test_type:
+            queryset = queryset.filter(test_type=test_type)
+            
+        return queryset
+    
+    def perform_create(self, serializer):
+        batch_id = self.request.data.get('batch_id')
+        
+        if not batch_id:
+            raise serializers.ValidationError({"error": "batch_id ist erforderlich"})
+        
+        # Automatische Erkennung ob Bild oder Video
+        if 'video' in self.request.FILES:
+            # Video-Upload
+            serializer.save(
+                lab_testing_batch_id=batch_id,
+                video=self.request.FILES['video']
+            )
+        else:
+            # Bild-Upload (Standard)
+            serializer.save(lab_testing_batch_id=batch_id)
+
+
+class PackagingBatchImageViewSet(BaseProductImageViewSet):
+    """ViewSet für Verpackungs-Batch Bilder und Videos"""
+    serializer_class = PackagingBatchImageSerializer
+    parser_classes = [MultiPartParser, FormParser]  # Wichtig für große Video-Uploads
+    
+    def get_queryset(self):
+        queryset = PackagingBatchImage.objects.all()
+        batch_id = self.request.query_params.get('batch_id')
+        if batch_id:
+            queryset = queryset.filter(packaging_batch_id=batch_id)
+        
+        # Optionale Filter für Stadium und Verpackungstyp
+        packaging_stage = self.request.query_params.get('packaging_stage')
+        if packaging_stage:
+            queryset = queryset.filter(packaging_stage=packaging_stage)
+            
+        package_type = self.request.query_params.get('package_type')
+        if package_type:
+            queryset = queryset.filter(package_type=package_type)
+            
+        return queryset
+    
+    def perform_create(self, serializer):
+        batch_id = self.request.data.get('batch_id')
+        
+        if not batch_id:
+            raise serializers.ValidationError({"error": "batch_id ist erforderlich"})
+        
+        # Automatische Erkennung ob Bild oder Video
+        if 'video' in self.request.FILES:
+            # Video-Upload
+            serializer.save(
+                packaging_batch_id=batch_id,
+                video=self.request.FILES['video']
+            )
+        else:
+            # Bild-Upload (Standard)
+            serializer.save(packaging_batch_id=batch_id)
+
+

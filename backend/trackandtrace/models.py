@@ -1385,3 +1385,130 @@ class DryingBatchImage(BaseProductImage):
         verbose_name = 'Trocknungs-Batch Bild/Video'
         verbose_name_plural = 'Trocknungs-Batch Bilder/Videos'
         ordering = ['-uploaded_at']
+
+class ProcessingBatchImage(BaseProductImage):
+    """Bilder und Videos für Verarbeitungs-Chargen"""
+    processing_batch = models.ForeignKey(
+        'ProcessingBatch',
+        on_delete=models.CASCADE,
+        related_name='images'
+    )
+    
+    # Zusätzliches Feld für Verarbeitungs-Stadium
+    processing_stage = models.CharField(
+        max_length=50,
+        blank=True,
+        choices=[
+            ('input', 'Input Material'),
+            ('processing', 'Während der Verarbeitung'),
+            ('output', 'Fertiges Produkt'),
+            ('quality', 'Qualitätskontrolle'),
+        ],
+        help_text="Stadium der Verarbeitung"
+    )
+    
+    # Produkttyp-spezifisches Feld
+    product_quality = models.CharField(
+        max_length=50,
+        blank=True,
+        choices=[
+            ('premium', 'Premium Qualität'),
+            ('standard', 'Standard Qualität'),
+            ('budget', 'Budget Qualität'),
+        ],
+        help_text="Qualitätseinstufung des Produkts"
+    )
+    
+    class Meta:
+        db_table = 'trackandtrace_processing_batch_image'
+        verbose_name = 'Verarbeitungs-Batch Bild/Video'
+        verbose_name_plural = 'Verarbeitungs-Batch Bilder/Videos'
+        ordering = ['-uploaded_at']
+
+class LabTestingBatchImage(BaseProductImage):
+    """Bilder und Videos für Laborkontroll-Chargen"""
+    lab_testing_batch = models.ForeignKey(
+        'LabTestingBatch',
+        on_delete=models.CASCADE,
+        related_name='images'
+    )
+    
+    # Zusätzliches Feld für Test-Stadium
+    test_stage = models.CharField(
+        max_length=50,
+        blank=True,
+        choices=[
+            ('sample_prep', 'Probenvorbereitung'),
+            ('testing', 'Während des Tests'),
+            ('results', 'Testergebnisse'),
+            ('microscopy', 'Mikroskopie'),
+            ('chromatography', 'Chromatographie'),
+        ],
+        help_text="Stadium des Labortests"
+    )
+    
+    # Test-spezifisches Feld
+    test_type = models.CharField(
+        max_length=50,
+        blank=True,
+        choices=[
+            ('cannabinoid', 'Cannabinoid-Profil'),
+            ('terpene', 'Terpen-Analyse'),
+            ('microbial', 'Mikrobiologie'),
+            ('pesticide', 'Pestizid-Screening'),
+            ('heavy_metal', 'Schwermetalle'),
+            ('visual', 'Visuelle Inspektion'),
+        ],
+        help_text="Art des durchgeführten Tests"
+    )
+    
+    class Meta:
+        db_table = 'trackandtrace_lab_testing_batch_image'
+        verbose_name = 'Laborkontroll-Batch Bild/Video'
+        verbose_name_plural = 'Laborkontroll-Batch Bilder/Videos'
+        ordering = ['-uploaded_at']
+
+class PackagingBatchImage(BaseProductImage):
+    """Bilder und Videos für Verpackungs-Chargen"""
+    packaging_batch = models.ForeignKey(
+        'PackagingBatch',
+        on_delete=models.CASCADE,
+        related_name='images'
+    )
+    
+    # Zusätzliches Feld für Verpackungs-Stadium
+    packaging_stage = models.CharField(
+        max_length=50,
+        blank=True,
+        choices=[
+            ('pre_packaging', 'Vor der Verpackung'),
+            ('packaging_process', 'Während der Verpackung'),
+            ('final_product', 'Fertiges Produkt'),
+            ('labeling', 'Etikettierung'),
+            ('sealing', 'Versiegelung'),
+            ('batch_photo', 'Chargen-Übersicht'),
+        ],
+        help_text="Stadium der Verpackung"
+    )
+    
+    # Verpackungs-spezifisches Feld
+    package_type = models.CharField(
+        max_length=50,
+        blank=True,
+        choices=[
+            ('primary', 'Primärverpackung'),
+            ('secondary', 'Sekundärverpackung'),
+            ('label', 'Etikett/Label'),
+            ('seal', 'Siegel/Verschluss'),
+            ('batch_overview', 'Chargen-Übersicht'),
+        ],
+        help_text="Art der dokumentierten Verpackung"
+    )
+    
+    class Meta:
+        db_table = 'trackandtrace_packaging_batch_image'
+        verbose_name = 'Verpackungs-Batch Bild/Video'
+        verbose_name_plural = 'Verpackungs-Batch Bilder/Videos'
+        ordering = ['-uploaded_at']
+
+

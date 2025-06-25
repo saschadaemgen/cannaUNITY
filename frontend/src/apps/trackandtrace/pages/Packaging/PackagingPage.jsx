@@ -11,6 +11,7 @@ import TabsHeader from '@/components/common/TabsHeader'
 import LoadingIndicator from '@/components/common/LoadingIndicator'
 import DestroyDialog from '@/components/dialogs/DestroyDialog'
 import AnimatedTabPanel from '@/components/common/AnimatedTabPanel'
+import ImageUploadModal from '../../components/ImageUploadModal'
 
 // Spezifische Komponenten
 import PackagingTable from './components/PackagingTable'
@@ -55,6 +56,41 @@ export default function PackagingPage() {
   // Erfolgsmeldungen
   const [showSuccessAlert, setShowSuccessAlert] = useState(false)
   const [successMessage, setSuccessMessage] = useState('')
+
+  // States für Image Modal
+  const [openImageModal, setOpenImageModal] = useState(false)
+  const [selectedBatchForImages, setSelectedBatchForImages] = useState(null)
+
+  // Zusätzliche Felder für Packaging definieren
+  const packagingAdditionalFields = [
+    {
+      name: 'packaging_stage',
+      label: 'Verpackungs-Stadium',
+      type: 'select',
+      options: [
+        { value: '', label: 'Kein Stadium' },
+        { value: 'pre_packaging', label: '📦 Vor der Verpackung' },
+        { value: 'packaging_process', label: '🔄 Während der Verpackung' },
+        { value: 'final_product', label: '✅ Fertiges Produkt' },
+        { value: 'labeling', label: '🏷️ Etikettierung' },
+        { value: 'sealing', label: '🔒 Versiegelung' },
+        { value: 'batch_photo', label: '📸 Chargen-Übersicht' }
+      ]
+    },
+    {
+      name: 'package_type',
+      label: 'Verpackungs-Typ',
+      type: 'select',
+      options: [
+        { value: '', label: 'Kein Typ' },
+        { value: 'primary', label: 'Primärverpackung' },
+        { value: 'secondary', label: 'Sekundärverpackung' },
+        { value: 'label', label: 'Etikett/Label' },
+        { value: 'seal', label: 'Siegel/Verschluss' },
+        { value: 'batch_overview', label: 'Chargen-Übersicht' }
+      ]
+    }
+  ]
 
   // Separate Funktion für die Zähler
   const loadTabCounts = async () => {
@@ -206,6 +242,19 @@ export default function PackagingPage() {
     setDestroyedByMemberId('');
     setOpenDestroyDialog(true);
   };
+
+  // Handler für Image Modal
+  const handleOpenImageModal = (batch, event) => {
+    if (event) event.stopPropagation()
+    setSelectedBatchForImages(batch)
+    setOpenImageModal(true)
+  }
+
+  const handleCloseImageModal = () => {
+    setOpenImageModal(false)
+    setSelectedBatchForImages(null)
+    loadPackagingBatches(currentPage)
+  }
 
   const handleDestroy = async () => {
     try {
@@ -376,6 +425,7 @@ export default function PackagingPage() {
               expandedPackagingId={expandedPackagingId}
               onExpandPackaging={handleAccordionChange}
               onOpenDestroyDialog={handleOpenDestroyDialog}
+              onOpenImageModal={handleOpenImageModal}
               currentPage={currentPage}
               totalPages={totalPages}
               onPageChange={handlePageChange}
@@ -393,6 +443,7 @@ export default function PackagingPage() {
               expandedPackagingId={expandedPackagingId}
               onExpandPackaging={handleAccordionChange}
               onOpenDestroyDialog={handleOpenDestroyDialog}
+              onOpenImageModal={handleOpenImageModal}
               currentPage={currentPage}
               totalPages={totalPages}
               onPageChange={handlePageChange}
@@ -410,6 +461,7 @@ export default function PackagingPage() {
               expandedPackagingId={expandedPackagingId}
               onExpandPackaging={handleAccordionChange}
               onOpenDestroyDialog={handleOpenDestroyDialog}
+              onOpenImageModal={handleOpenImageModal}
               currentPage={currentPage}
               totalPages={totalPages}
               onPageChange={handlePageChange}
@@ -427,6 +479,7 @@ export default function PackagingPage() {
               expandedPackagingId={expandedPackagingId}
               onExpandPackaging={handleAccordionChange}
               onOpenDestroyDialog={handleOpenDestroyDialog}
+              onOpenImageModal={handleOpenImageModal}
               currentPage={currentPage}
               totalPages={totalPages}
               onPageChange={handlePageChange}
@@ -451,6 +504,16 @@ export default function PackagingPage() {
           />
         </div>
       </Fade>
+
+      <ImageUploadModal
+        open={openImageModal}
+        onClose={handleCloseImageModal}
+        productType="packaging-batch"
+        productId={selectedBatchForImages?.id}
+        productName={`${selectedBatchForImages?.batch_number} - ${selectedBatchForImages?.source_strain || 'Verpackung'}`}
+        onImagesUpdated={() => loadPackagingBatches(currentPage)}
+        additionalFields={packagingAdditionalFields}
+      />
     </Container>
   )
 }

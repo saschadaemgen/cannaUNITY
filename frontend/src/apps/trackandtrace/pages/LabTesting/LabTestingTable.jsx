@@ -1,6 +1,6 @@
 // frontend/src/apps/trackandtrace/pages/LabTesting/components/LabTestingTable.jsx
 import React from 'react'
-import { Box, Typography, Button, IconButton } from '@mui/material'
+import { Box, Typography, Button, IconButton, Badge, Tooltip } from '@mui/material'
 import SpeedIcon from '@mui/icons-material/Speed'
 import ScienceIcon from '@mui/icons-material/Science'
 import BiotechIcon from '@mui/icons-material/Biotech'
@@ -10,6 +10,7 @@ import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment'
 import LocalFloristIcon from '@mui/icons-material/LocalFlorist'
 import FilterDramaIcon from '@mui/icons-material/FilterDrama'
 import InventoryIcon from '@mui/icons-material/Inventory'
+import PhotoCameraIcon from '@mui/icons-material/PhotoCamera'
 
 import TableHeader from '@/components/common/TableHeader'
 import AccordionRow from '@/components/common/AccordionRow'
@@ -27,6 +28,7 @@ const LabTestingTable = ({
   onOpenDestroyDialog,
   onOpenUpdateLabResultsDialog,
   onOpenConvertToPackagingDialog,
+  onOpenImageModal, // NEU
   currentPage,
   totalPages,
   onPageChange
@@ -34,14 +36,15 @@ const LabTestingTable = ({
   // Spalten für den Tabellenkopf definieren
   const getHeaderColumns = () => {
     return [
-      { label: 'Genetik', width: '15%', align: 'left' },
-      { label: 'Produkttyp', width: '12%', align: 'left' },
-      { label: 'Charge-Nummer', width: '18%', align: 'left' },
+      { label: 'Genetik', width: '14%', align: 'left' }, // Reduziert
+      { label: 'Produkttyp', width: '11%', align: 'left' }, // Reduziert
+      { label: 'Charge-Nummer', width: '16%', align: 'left' }, // Reduziert
       { label: 'Probengewicht', width: '10%', align: 'center' },
       { label: 'Verbleibendes Gewicht', width: '10%', align: 'center' },
       { label: 'Status', width: '10%', align: 'center' },
-      { label: 'Verarbeitet von', width: '12%', align: 'left' },
-      { label: 'Erstellt am', width: '10%', align: 'left' },
+      { label: 'Verarbeitet von', width: '11%', align: 'left' }, // Reduziert
+      { label: 'Erstellt am', width: '9%', align: 'left' }, // Reduziert
+      { label: 'Medien', width: '8%', align: 'center' }, // NEU
       { label: '', width: '3%', align: 'center' }  // Platz für das Aufklapp-Symbol am Ende
     ]
   }
@@ -117,21 +120,21 @@ const LabTestingTable = ({
               <Typography>{labTesting.source_strain || "Unbekannt"}</Typography>
             </Box>
           ),
-          width: '15%',
+          width: '14%', // Angepasst
           bold: true,
           icon: ScienceIcon,
           iconColor: 'error.main'
         },
         {
           content: getProductTypeDisplay(labTesting),
-          width: '12%',
+          width: '11%', // Angepasst
           bold: true,
           icon: productIcon,
           iconColor: tabValue === 3 ? 'error.main' : productColor
         },
         {
           content: labTesting.batch_number || '',
-          width: '18%',
+          width: '16%', // Angepasst
           fontFamily: 'monospace',
           fontSize: '0.85rem'
         },
@@ -160,11 +163,43 @@ const LabTestingTable = ({
           content: labTesting.member ? 
             (labTesting.member.display_name || `${labTesting.member.first_name} ${labTesting.member.last_name}`) 
             : "Nicht zugewiesen",
-          width: '12%'
+          width: '11%' // Angepasst
         },
         {
           content: new Date(labTesting.created_at).toLocaleDateString('de-DE'),
-          width: '10%'
+          width: '9%' // Angepasst
+        },
+        // NEU: Medien-Spalte für verbrauchte Proben
+        {
+          content: (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+              <Tooltip title={`Medien verwalten (${labTesting.image_count || 0})`}>
+                <IconButton 
+                  size="small" 
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onOpenImageModal(labTesting, e)
+                  }}
+                  sx={{ 
+                    color: 'error.main',
+                    '&:hover': {
+                      backgroundColor: 'action.hover'
+                    }
+                  }}
+                >
+                  <Badge 
+                    badgeContent={labTesting.image_count || 0} 
+                    color="error"
+                  >
+                    <PhotoCameraIcon />
+                  </Badge>
+                </IconButton>
+              </Tooltip>
+            </Box>
+          ),
+          width: '8%',
+          align: 'center',
+          stopPropagation: true
         },
         {
           content: '',  // Platz für das Aufklapp-Symbol
@@ -176,21 +211,21 @@ const LabTestingTable = ({
     return [
       {
         content: labTesting.source_strain || "Unbekannt",
-        width: '15%',
+        width: '14%', // Angepasst
         bold: true,
         icon: ScienceIcon,
         iconColor: tabValue === 3 ? 'error.main' : 'info.main'
       },
       {
         content: getProductTypeDisplay(labTesting),
-        width: '12%',
+        width: '11%', // Angepasst
         bold: true,
         icon: productIcon,
         iconColor: tabValue === 3 ? 'error.main' : productColor
       },
       {
         content: labTesting.batch_number || '',
-        width: '18%',
+        width: '16%', // Angepasst
         fontFamily: 'monospace',
         fontSize: '0.85rem'
       },
@@ -219,11 +254,47 @@ const LabTestingTable = ({
         content: labTesting.member ? 
           (labTesting.member.display_name || `${labTesting.member.first_name} ${labTesting.member.last_name}`) 
           : "Nicht zugewiesen",
-        width: '12%'
+        width: '11%' // Angepasst
       },
       {
         content: new Date(labTesting.created_at).toLocaleDateString('de-DE'),
-        width: '10%'
+        width: '9%' // Angepasst
+      },
+      // NEU: Medien-Spalte
+      {
+        content: (
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+            <Tooltip title={`Medien verwalten (${labTesting.image_count || 0})`}>
+              <IconButton 
+                size="small" 
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onOpenImageModal(labTesting, e)
+                }}
+                sx={{ 
+                  color: tabValue === 3 ? 'error.main' : 
+                        labTesting.status === 'passed' ? 'success.main' : 
+                        labTesting.status === 'failed' ? 'warning.main' : 'info.main',
+                  '&:hover': {
+                    backgroundColor: 'action.hover'
+                  }
+                }}
+              >
+                <Badge 
+                  badgeContent={labTesting.image_count || 0} 
+                  color={tabValue === 3 ? 'error' : 
+                        labTesting.status === 'passed' ? 'success' : 
+                        labTesting.status === 'failed' ? 'warning' : 'info'}
+                >
+                  <PhotoCameraIcon />
+                </Badge>
+              </IconButton>
+            </Tooltip>
+          </Box>
+        ),
+        width: '8%',
+        align: 'center',
+        stopPropagation: true
       },
       {
         content: '',  // Platz für das Aufklapp-Symbol

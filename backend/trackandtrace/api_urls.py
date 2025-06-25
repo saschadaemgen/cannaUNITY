@@ -8,9 +8,9 @@ from .api_views import (
     HarvestBatchViewSet, DryingBatchViewSet, ProcessingBatchViewSet, LabTestingBatchViewSet, 
     PackagingBatchViewSet, PackagingUnitViewSet, ProductDistributionViewSet,
     StrainCardViewSet, SeedPurchaseImageViewSet, MotherPlantBatchImageViewSet,
-    CuttingBatchImageSerializer, CuttingBatchImageViewSet, BloomingCuttingBatchImageSerializer,
-    BloomingCuttingBatchImageViewSet, FloweringPlantBatchImageSerializer, FloweringPlantBatchImageViewSet,
-    HarvestBatchViewSet, HarvestBatchImageViewSet, HarvestBatchSerializer, DryingBatchImageViewSet,
+    CuttingBatchImageViewSet, BloomingCuttingBatchImageViewSet, FloweringPlantBatchImageViewSet,
+    HarvestBatchViewSet, HarvestBatchImageViewSet, DryingBatchImageViewSet, ProcessingBatchImageViewSet,
+    LabTestingBatchImageViewSet, PackagingBatchImageViewSet,
     validate_distribution_limits
 )
 
@@ -35,7 +35,9 @@ router.register(r'blooming-cutting-batch-images', BloomingCuttingBatchImageViewS
 router.register(r'flowering-plant-batch-images', FloweringPlantBatchImageViewSet, basename='flowering-plant-batch-images')
 router.register(r'harvest-batch-images', HarvestBatchImageViewSet, basename='harvest-batch-images')
 router.register(r'drying-batch-images', DryingBatchImageViewSet, basename='drying-batch-images')
-
+router.register(r'processing-batch-images', ProcessingBatchImageViewSet, basename='processing-batch-images')
+router.register(r'lab-testing-batch-images', LabTestingBatchImageViewSet, basename='lab-testing-batch-images')
+router.register(r'packaging-batch-images', PackagingBatchImageViewSet, basename='packaging-batch-images')
 
 # NEU: StrainCard API für optimierte Performance
 router.register(r'strain-cards', StrainCardViewSet, basename='strain-cards')
