@@ -1,0 +1,8 @@
+{
+  "expo": {
+    "name": "qr-auth-app",
+    "slug": "qr-auth-app",
+    "version": "1.0.0",
+    "platforms": ["ios", "android"]
+  }
+}

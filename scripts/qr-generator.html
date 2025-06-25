@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>cannaUNITY QR-Code Test Generator 1.0</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .input-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #666;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: #007AFF;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #qrcode {
+            text-align: center;
+            margin: 20px 0;
+            padding: 20px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+            min-height: 256px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .info {
+            background-color: #e7f3ff;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+            font-size: 14px;
+            color: #0056b3;
+        }
+        code {
+            background-color: #f0f0f0;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        .test-tokens {
+            margin-top: 20px;
+        }
+        .test-tokens h3 {
+            color: #666;
+            font-size: 16px;
+        }
+        .token-button {
+            background-color: #28a745;
+            margin: 5px 0;
+            font-size: 14px;
+            padding: 10px;
+        }
+        .token-button.valid {
+            background-color: #28a745;
+        }
+        .token-button.invalid {
+            background-color: #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>QR-Code Test Generator</h1>
+        
+        <div class="input-group">
+            <label for="tokenInput">Token eingeben (min. 10 Zeichen):</label>
+            <input 
+                type="text" 
+                id="tokenInput" 
+                placeholder="z.B. CANNA-2024-ABCD1234"
+                value="CANNA-2024-ABCD1234"
+            >
+        </div>
+        
+        <button onclick="generateQR()">QR-Code generieren</button>
+        
+        <div id="qrcode">
+            <p style="color: #999;">QR-Code wird hier angezeigt</p>
+        </div>
+        
+        <div class="test-tokens">
+            <h3>Gültige Test-Tokens:</h3>
+            <button class="token-button valid" onclick="setToken('CANNA-2024-ABCD1234')">
+                Gültiger Member Token
+            </button>
+            <button class="token-button valid" onclick="setToken('CANNA-2024-EFGH5678')">
+                Gültiger Admin Token
+            </button>
+            <button class="token-button valid" onclick="setToken('CANNA-2024-IJKL9012')">
+                Gültiger VIP Token
+            </button>
+            <button class="token-button" style="background-color: #6c757d;" onclick="setToken(generateRandomToken())">
+                Zufälliger Token (Format korrekt, aber nicht in DB)
+            </button>
+            
+            <h3 style="margin-top: 20px;">Ungültige Test-Tokens (zum Testen):</h3>
+            <button class="token-button invalid" onclick="setToken('INVALID-TOKEN-123')">
+                Ungültiges Format
+            </button>
+            <button class="token-button invalid" onclick="setToken('CANNA-2024-XXXX9999')">
+                Nicht in Datenbank
+            </button>
+            <button class="token-button invalid" onclick="setToken('TEST123')">
+                Zu kurz
+            </button>
+        </div>
+        
+        <div class="info">
+            <strong>Sicherheitshinweis:</strong> In dieser Demo werden nur Tokens im Format 
+            <code>CANNA-XXXX-XXXXXXXX</code> akzeptiert. Nur die drei oben gelisteten 
+            gültigen Tokens werden authentifiziert. In einer echten App würde dies über 
+            einen Server validiert werden.
+        </div>
+    </div>
+
+    <script>
+        let qrcode = null;
+
+        function generateQR() {
+            const token = document.getElementById('tokenInput').value;
+            
+            if (token.length < 10) {
+                alert('Der Token muss mindestens 10 Zeichen lang sein!');
+                return;
+            }
+            
+            const qrcodeDiv = document.getElementById('qrcode');
+            qrcodeDiv.innerHTML = '';
+            
+            qrcode = new QRCode(qrcodeDiv, {
+                text: token,
+                width: 256,
+                height: 256,
+                colorDark: '#000000',
+                colorLight: '#ffffff',
+                correctLevel: QRCode.CorrectLevel.H
+            });
+        }
+
+        function setToken(token) {
+            document.getElementById('tokenInput').value = token;
+            generateQR();
+        }
+
+        function generateRandomToken() {
+            // Generiert Token im Format CANNA-XXXX-XXXXXXXX
+            const year = new Date().getFullYear();
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            let randomPart = '';
+            for (let i = 0; i < 8; i++) {
+                randomPart += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return `CANNA-${year}-${randomPart}`;
+        }
+
+        // Generate initial QR code
+        window.onload = function() {
+            generateQR();
+        };
+    </script>
+</body>
+</html>

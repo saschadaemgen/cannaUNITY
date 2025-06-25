@@ -1,5 +1,4 @@
-# backend/trackandtrace/api_urls.py - ERWEITERT
-
+# backend/trackandtrace/api_urls.py
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .api_views import (
@@ -38,8 +37,6 @@ router.register(r'drying-batch-images', DryingBatchImageViewSet, basename='dryin
 router.register(r'processing-batch-images', ProcessingBatchImageViewSet, basename='processing-batch-images')
 router.register(r'lab-testing-batch-images', LabTestingBatchImageViewSet, basename='lab-testing-batch-images')
 router.register(r'packaging-batch-images', PackagingBatchImageViewSet, basename='packaging-batch-images')
-
-# NEU: StrainCard API für optimierte Performance
 router.register(r'strain-cards', StrainCardViewSet, basename='strain-cards')
 
 urlpatterns = [

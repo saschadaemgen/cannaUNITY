@@ -161,22 +161,11 @@ export const defaultDesignOptions = {
       balance: 243500,
       info: 'Verwaltung und Einsicht aller Finanzkonten mit aktuellen Salden und Transaktionshistorie.'
     },
-    'Neues Konto': { 
-      createdThisPeriod: 1, 
-      accountName: 'Rücklagen (Demo)', 
-      creationDate: '15.04.2025',
-      info: 'Erstellung und Konfiguration eines neuen Finanzkontos mit individuellen Einstellungen.'
-    },
     'Buchungsjournal': { 
       entries: 278, 
       pendingEntries: 4, 
       lastJournalEntry: '29.04.2025',
       info: 'Chronologische Aufzeichnung aller Buchungsvorgänge mit detaillierten Informationen.'
-    },
-    'Neue Buchung': { 
-      drafts: 2, 
-      lastDraft: '30.04.2025',
-      info: 'Erfassung und Verarbeitung neuer Buchungsvorgänge mit automatischer Validierung.'
     },
     'GuV': { 
       revenue: 185000, 

@@ -17,7 +17,6 @@ import ShoppingBasketIcon from '@mui/icons-material/ShoppingBasket';
 import BusinessIcon from '@mui/icons-material/Business';
 import StorefrontIcon from '@mui/icons-material/Storefront';
 import CategoryIcon from '@mui/icons-material/Category';
-import AddIcon from '@mui/icons-material/Add';
 import DashboardCustomizeIcon from '@mui/icons-material/DashboardCustomize';
 import SecurityIcon from '@mui/icons-material/Security';
 import SensorsIcon from '@mui/icons-material/Sensors';
@@ -26,15 +25,13 @@ import DescriptionIcon from '@mui/icons-material/Description';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
 import MonitorHeartIcon from '@mui/icons-material/MonitorHeart';
-import OpacityIcon from '@mui/icons-material/Opacity';
-import WbSunnyIcon from '@mui/icons-material/WbSunny';
-import AssessmentIcon from '@mui/icons-material/Assessment'; // Für Berichte
-import SchoolIcon from '@mui/icons-material/School'; // Für Fortbildungen
-import ForumIcon from '@mui/icons-material/Forum'; // Für Nachrichtenzentrum
-import HowToVoteIcon from '@mui/icons-material/HowToVote'; // Für Online Abstimmungen
-import AssignmentIcon from '@mui/icons-material/Assignment'; // Für Aufgabenverwaltung
-import VideoCameraFrontIcon from '@mui/icons-material/VideoCameraFront'; // Für Online Versammlungen
-import GavelIcon from '@mui/icons-material/Gavel'; // Für Beschlüsse
+import AssessmentIcon from '@mui/icons-material/Assessment';
+import SchoolIcon from '@mui/icons-material/School';
+import ForumIcon from '@mui/icons-material/Forum';
+import HowToVoteIcon from '@mui/icons-material/HowToVote';
+import AssignmentIcon from '@mui/icons-material/Assignment';
+import VideoCameraFrontIcon from '@mui/icons-material/VideoCameraFront';
+import GavelIcon from '@mui/icons-material/Gavel';
 
 // Definierte Menüstruktur mit allen Hauptmenüs und Untermenüs
 const TopbarMenuItems = [
@@ -124,7 +121,7 @@ const TopbarMenuItems = [
     icon: <TimelineIcon />, 
     children: [
       { 
-        label: 'Step 1 - Samen', 
+        label: 'Step 1 - Sameneinkauf', 
         path: '/trace/samen', 
         icon: <GrassIcon />,
         subtitle: 'Ausgangsmaterial'
@@ -266,22 +263,10 @@ const TopbarMenuItems = [
         subtitle: 'Verwaltung der Finanzkonten'
       },
       { 
-        label: 'Neues Konto', 
-        path: '/buchhaltung/konten/neu', 
-        icon: <AddIcon />,
-        subtitle: 'Erstellung eines neuen Kontos'
-      },
-      { 
         label: 'Buchungsjournal', 
         path: '/buchhaltung/journal', 
         icon: <TimelineIcon />,
         subtitle: 'Übersicht aller Buchungsvorgänge'
-      },
-      { 
-        label: 'Neue Buchung', 
-        path: '/buchhaltung/buchung/neu', 
-        icon: <AddIcon />,
-        subtitle: 'Erfassung einer neuen Buchung'
       },
       { 
         label: 'GuV', 
