@@ -17,53 +17,24 @@ from collections import OrderedDict
 
 # Local application imports
 from .models import (
-    BloomingCuttingBatch,
-    BloomingCuttingPlant,
-    Cutting,
-    CuttingBatch,
-    DryingBatch,
-    FloweringPlant,
-    FloweringPlantBatch,
-    HarvestBatch,
-    LabTestingBatch,
-    MotherPlant,
-    MotherPlantBatch,
-    PackagingBatch,
-    PackagingUnit,
-    ProcessingBatch,
-    ProductDistribution,
-    SeedPurchase,
-    SeedPurchaseImage,
-    MotherPlantBatchImage,
-    CuttingBatchImage,
-    BloomingCuttingBatchImage,
-    FloweringPlantBatchImage,
+    BloomingCuttingBatch, BloomingCuttingPlant, Cutting, CuttingBatch, DryingBatch,
+    FloweringPlant, FloweringPlantBatch, HarvestBatch, LabTestingBatch, MotherPlant,
+    MotherPlantBatch, PackagingBatch, PackagingUnit, ProcessingBatch, ProductDistribution,
+    SeedPurchase, SeedPurchaseImage, MotherPlantBatchImage, CuttingBatchImage,
+    BloomingCuttingBatchImage, FloweringPlantBatchImage, HarvestBatchImage, DryingBatchImage,
 )
 from .serializers import (
-    BloomingCuttingBatchSerializer,
-    BloomingCuttingPlantSerializer,
-    CuttingBatchSerializer,
-    CuttingSerializer,
-    DryingBatchSerializer,
-    FloweringPlantBatchSerializer,
-    FloweringPlantSerializer,
-    HarvestBatchSerializer,
-    LabTestingBatchSerializer,
-    MotherPlantBatchSerializer,
-    MotherPlantSerializer,
-    PackagingBatchSerializer,
-    PackagingUnitSerializer,
-    ProcessingBatchSerializer,
-    ProductDistributionSerializer,
-    SeedPurchaseSerializer,
-    SeedPurchaseImageSerializer,
-    MotherPlantBatchImageSerializer,
-    CuttingBatchImageSerializer,
-    BloomingCuttingBatchImageSerializer,
-    FloweringPlantBatchImageSerializer,
+    BloomingCuttingBatchSerializer, BloomingCuttingPlantSerializer, CuttingBatchSerializer,
+    CuttingSerializer, DryingBatchSerializer, FloweringPlantBatchSerializer,
+    FloweringPlantSerializer, HarvestBatchSerializer, LabTestingBatchSerializer,
+    MotherPlantBatchSerializer, MotherPlantSerializer, PackagingBatchSerializer,
+    PackagingUnitSerializer, ProcessingBatchSerializer, ProductDistributionSerializer,
+    SeedPurchaseSerializer, SeedPurchaseImageSerializer, MotherPlantBatchImageSerializer,
+    CuttingBatchImageSerializer, BloomingCuttingBatchImageSerializer, 
+    FloweringPlantBatchImageSerializer, HarvestBatchImageSerializer, DryingBatchImageSerializer,
 )
 
-# External app imports
+# External cannaUNITY app imports
 from wawi.models import CannabisStrain
 from wawi.serializers import CannabisStrainSerializer
 
@@ -4473,3 +4444,53 @@ class FloweringPlantBatchImageViewSet(BaseProductImageViewSet):
         
         # Speichern mit der korrekten batch_id
         serializer.save(flowering_plant_batch_id=batch_id)
+
+class HarvestBatchImageViewSet(BaseProductImageViewSet):
+    """ViewSet für Ernte-Batch Bilder"""
+    serializer_class = HarvestBatchImageSerializer
+    
+    def get_queryset(self):
+        queryset = HarvestBatchImage.objects.all()
+        batch_id = self.request.query_params.get('batch_id')
+        if batch_id:
+            queryset = queryset.filter(harvest_batch_id=batch_id)
+        return queryset
+    
+    def perform_create(self, serializer):
+        # WICHTIG: batch_id aus request.data holen, nicht aus query_params!
+        batch_id = self.request.data.get('batch_id')
+        
+        if not batch_id:
+            raise serializers.ValidationError({"error": "batch_id ist erforderlich"})
+        
+        # Speichern mit der korrekten batch_id
+        serializer.save(harvest_batch_id=batch_id)
+
+class DryingBatchImageViewSet(BaseProductImageViewSet):
+    """ViewSet für Trocknungs-Batch Bilder und Videos"""
+    serializer_class = DryingBatchImageSerializer
+    parser_classes = [MultiPartParser, FormParser]  # Wichtig für große Video-Uploads
+    
+    def get_queryset(self):
+        queryset = DryingBatchImage.objects.all()
+        batch_id = self.request.query_params.get('batch_id')
+        if batch_id:
+            queryset = queryset.filter(drying_batch_id=batch_id)
+        return queryset
+    
+    def perform_create(self, serializer):
+        batch_id = self.request.data.get('batch_id')
+        
+        if not batch_id:
+            raise serializers.ValidationError({"error": "batch_id ist erforderlich"})
+        
+        # Automatische Erkennung ob Bild oder Video
+        if 'video' in self.request.FILES:
+            # Video-Upload
+            serializer.save(
+                drying_batch_id=batch_id,
+                video=self.request.FILES['video']
+            )
+        else:
+            # Bild-Upload (Standard)
+            serializer.save(drying_batch_id=batch_id)

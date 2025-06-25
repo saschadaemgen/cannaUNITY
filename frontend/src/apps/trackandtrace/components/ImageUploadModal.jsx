@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
-  Button, Box, Typography, IconButton, Grid,  // Grid statt Grid2
+  Button, Box, Typography, IconButton, Grid,
   TextField, Select, MenuItem, FormControl, InputLabel,
   Card, CardMedia, CardContent, CardActions, Chip,
   LinearProgress, Alert, Fade, Zoom, CircularProgress
@@ -99,6 +99,14 @@ export default function ImageUploadModal({
           endpoint = '/trackandtrace/flowering-plant-batch-images/'
           params = { batch_id: productId }
           break
+        case 'harvest-batch':
+          endpoint = '/trackandtrace/harvest-batch-images/'
+          params = { batch_id: productId }
+          break
+        case 'drying-batch':
+          endpoint = '/trackandtrace/drying-batch-images/'
+          params = { batch_id: productId }
+          break
         default:
           endpoint = `/trackandtrace/${productType}-images/`
           params = { [`${productType}_id`]: productId }
@@ -107,20 +115,43 @@ export default function ImageUploadModal({
       const res = await api.get(endpoint, { params })
       setImages(res.data.results || res.data || [])
     } catch (error) {
-      console.error('Fehler beim Laden der Bilder:', error)
+      console.error('Fehler beim Laden der Medien:', error)
     }
   }
 
   const handleFileSelect = (event) => {
     const files = Array.from(event.target.files)
-    setSelectedFiles(files)
-    setError('')
+    
+    // Validiere Dateitypen und Größen
+    const validFiles = files.filter(file => {
+      const isImage = file.type.startsWith('image/')
+      const isVideo = file.type.startsWith('video/')
+      const maxSize = isVideo ? 100 * 1024 * 1024 : 10 * 1024 * 1024 // 100MB für Videos, 10MB für Bilder
+      
+      if (!isImage && !isVideo) {
+        setError(`${file.name} ist weder ein Bild noch ein Video`)
+        return false
+      }
+      
+      if (file.size > maxSize) {
+        const maxSizeMB = maxSize / (1024 * 1024)
+        setError(`${file.name} ist zu groß (max. ${maxSizeMB}MB)`)
+        return false
+      }
+      
+      return true
+    })
+    
+    setSelectedFiles(validFiles)
+    if (validFiles.length === files.length) {
+      setError('')
+    }
     
     // Wenn nur eine Datei, verwende den Dateinamen als Titel
-    if (files.length === 1 && !uploadForm.title) {
+    if (validFiles.length === 1 && !uploadForm.title) {
       setUploadForm(prev => ({
         ...prev,
-        title: files[0].name.split('.')[0]
+        title: validFiles[0].name.split('.')[0]
       }))
     }
   }
@@ -128,7 +159,7 @@ export default function ImageUploadModal({
   // RFID-Scan starten
   const startRfidScan = async () => {
     if (selectedFiles.length === 0) {
-      setError('Bitte wählen Sie zuerst Bilder aus')
+      setError('Bitte wählen Sie zuerst Bilder oder Videos aus')
       return
     }
     
@@ -146,7 +177,7 @@ export default function ImageUploadModal({
     setLoading(true)
     
     try {
-      console.log("🚀 Starte RFID-Scan für Bilder-Upload...")
+      console.log("🚀 Starte RFID-Scan für Medien-Upload...")
       
       // 1. Karte scannen und User auslesen
       const bindRes = await api.get('/unifi_api_debug/bind-rfid-session/', {
@@ -174,7 +205,7 @@ export default function ImageUploadModal({
       setScannedMemberName(member_name)
       setScanSuccess(true)
       
-      // 3. Nach erfolgreicher Verifizierung die Bilder hochladen
+      // 3. Nach erfolgreicher Verifizierung die Medien hochladen
       setTimeout(async () => {
         await performUpload(member_id)
         
@@ -210,7 +241,7 @@ export default function ImageUploadModal({
     }
   }
 
-  // Bilder hochladen mit member_id
+  // Medien hochladen mit member_id
   const performUpload = async (rfidMemberId) => {
     setUploading(true)
     setUploadProgress(0)
@@ -237,6 +268,12 @@ export default function ImageUploadModal({
         case 'flowering-plant-batch':
           endpoint = '/trackandtrace/flowering-plant-batch-images/'
           break
+        case 'harvest-batch':
+          endpoint = '/trackandtrace/harvest-batch-images/'
+          break
+        case 'drying-batch':
+          endpoint = '/trackandtrace/drying-batch-images/'
+          break
         default:
           endpoint = `/trackandtrace/${productType}-images/`
       }
@@ -245,7 +282,12 @@ export default function ImageUploadModal({
         const file = selectedFiles[i]
         const formData = new FormData()
         
-        formData.append('image', file)
+        // Unterscheide zwischen Bild und Video
+        if (file.type.startsWith('video/')) {
+          formData.append('video', file)
+        } else {
+          formData.append('image', file)
+        }
         
         // Je nach Produkttyp den richtigen Feldnamen verwenden
         switch (productType) {
@@ -265,6 +307,12 @@ export default function ImageUploadModal({
             formData.append('batch_id', productId)
             break
           case 'flowering-plant-batch':
+            formData.append('batch_id', productId)
+            break
+          case 'harvest-batch':
+            formData.append('batch_id', productId)
+            break
+          case 'drying-batch':
             formData.append('batch_id', productId)
             break
           default:
@@ -297,7 +345,7 @@ export default function ImageUploadModal({
       loadImages()
       if (onImagesUpdated) onImagesUpdated()
     } catch (error) {
-      setError('Fehler beim Hochladen der Bilder')
+      setError('Fehler beim Hochladen der Medien')
       console.error('Upload-Fehler:', error)
     } finally {
       setUploading(false)
@@ -331,7 +379,7 @@ export default function ImageUploadModal({
   }
 
   const handleDeleteImage = async (imageId) => {
-    if (!confirm('Möchten Sie dieses Bild wirklich löschen?')) return
+    if (!confirm('Möchten Sie dieses Medium wirklich löschen?')) return
 
     try {
       let endpoint = ''
@@ -353,6 +401,12 @@ export default function ImageUploadModal({
           break
         case 'flowering-plant-batch':
           endpoint = `/trackandtrace/flowering-plant-batch-images/${imageId}/`
+          break
+        case 'harvest-batch':
+          endpoint = `/trackandtrace/harvest-batch-images/${imageId}/`
+          break
+        case 'drying-batch':
+          endpoint = `/trackandtrace/drying-batch-images/${imageId}/`
           break
         default:
           endpoint = `/trackandtrace/${productType}-images/${imageId}/`
@@ -426,7 +480,7 @@ export default function ImageUploadModal({
                 </Typography>
                 
                 <Typography variant="body1" align="center" color="white" sx={{ mt: 2 }}>
-                  {selectedFiles.length} Bild(er) wurden hochgeladen
+                  {selectedFiles.length} Datei(en) wurden hochgeladen
                 </Typography>
                 
                 <Typography variant="h6" align="center" color="white" fontWeight="bold" sx={{ mt: 1 }}>
@@ -443,7 +497,7 @@ export default function ImageUploadModal({
               </Typography>
               
               <Typography variant="body1" align="center" color="white" gutterBottom>
-                um die Bilder hochzuladen
+                um die Medien hochzuladen
               </Typography>
               
               {loading && (
@@ -465,7 +519,7 @@ export default function ImageUploadModal({
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
           <PhotoCameraIcon sx={{ mr: 1, color: 'primary.main' }} />
           <Typography variant="h6">
-            Bilder für {productName}
+            Medien für {productName}
           </Typography>
         </Box>
         <IconButton onClick={handleClose} size="small">
@@ -480,21 +534,21 @@ export default function ImageUploadModal({
             <Grid container spacing={2}>
               <Grid item xs={12}>
                 <input
-                  accept="image/*"
+                  accept="image/*,video/*"
                   style={{ display: 'none' }}
-                  id="image-upload"
+                  id="media-upload"
                   multiple
                   type="file"
                   onChange={handleFileSelect}
                 />
-                <label htmlFor="image-upload">
+                <label htmlFor="media-upload">
                   <Button
                     variant="outlined"
                     component="span"
                     startIcon={<CloudUploadIcon />}
                     fullWidth
                   >
-                    Bilder auswählen
+                    Bilder oder Videos auswählen
                   </Button>
                 </label>
               </Grid>
@@ -504,6 +558,7 @@ export default function ImageUploadModal({
                   <Grid item xs={12}>
                     <Alert severity="info">
                       {selectedFiles.length} Datei(en) ausgewählt
+                      {selectedFiles.some(f => f.type.startsWith('video/')) && ' (inkl. Videos)'}
                     </Alert>
                   </Grid>
 
@@ -529,11 +584,11 @@ export default function ImageUploadModal({
 
                   <Grid item xs={12}>
                     <FormControl fullWidth>
-                      <InputLabel>Bildtyp</InputLabel>
+                      <InputLabel>Medientyp</InputLabel>
                       <Select
                         value={uploadForm.image_type}
                         onChange={(e) => setUploadForm({...uploadForm, image_type: e.target.value})}
-                        label="Bildtyp"
+                        label="Medientyp"
                       >
                         <MenuItem value="overview">Übersicht</MenuItem>
                         <MenuItem value="detail">Detail</MenuItem>
@@ -591,7 +646,10 @@ export default function ImageUploadModal({
               <Box sx={{ mt: 2 }}>
                 <LinearProgress variant="determinate" value={uploadProgress} />
                 <Typography variant="body2" align="center">
-                  {uploadProgress}%
+                  {uploadProgress}% 
+                  {selectedFiles.some(f => f.type.startsWith('video/')) && uploadProgress < 100 
+                    ? ' - Videos können etwas länger dauern...' 
+                    : ''}
                 </Typography>
               </Box>
             )}
@@ -604,53 +662,88 @@ export default function ImageUploadModal({
           </Box>
         )}
 
-        {/* Bilder-Galerie */}
+        {/* Medien-Galerie */}
         {!scanMode && (
           <>
             <Typography variant="h6" sx={{ mb: 2 }}>
-              Vorhandene Bilder ({images.length})
+              Vorhandene Medien ({images.length})
             </Typography>
             
             <Grid container spacing={2}>
-              {images.map((image) => (
-                <Grid item xs={12} sm={6} md={4} key={image.id}>
+              {images.map((media) => (
+                <Grid item xs={12} sm={6} md={4} key={media.id}>
                   <Card>
-                    <CardMedia
-                      component="img"
-                      height="200"
-                      image={image.thumbnail_url || image.image_url}
-                      alt={image.title}
-                      sx={{ cursor: 'pointer' }}
-                      onClick={() => window.open(image.image_url, '_blank')}
-                    />
+                    {media.media_type === 'video' ? (
+                      // Video-Anzeige
+                      <Box sx={{ position: 'relative', paddingTop: '56.25%', backgroundColor: 'black' }}>
+                        <video
+                          controls
+                          style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            width: '100%',
+                            height: '100%'
+                          }}
+                          poster={media.thumbnail_url}
+                        >
+                          <source src={media.video_url || media.get_media_url} type="video/mp4" />
+                          Ihr Browser unterstützt keine Videos.
+                        </video>
+                      </Box>
+                    ) : (
+                      // Bild-Anzeige
+                      <CardMedia
+                        component="img"
+                        height="200"
+                        image={media.thumbnail_url || media.image_url}
+                        alt={media.title}
+                        sx={{ cursor: 'pointer' }}
+                        onClick={() => window.open(media.image_url, '_blank')}
+                      />
+                    )}
                     <CardContent>
                       <Typography variant="body2" noWrap>
-                        {image.title || 'Ohne Titel'}
+                        {media.title || 'Ohne Titel'}
                       </Typography>
                       <Box sx={{ mt: 1 }}>
                         <Chip 
-                          label={image.image_type} 
+                          label={media.media_type === 'video' ? '🎬 Video' : '🖼️ Bild'} 
                           size="small" 
+                          color={media.media_type === 'video' ? 'secondary' : 'default'}
                           sx={{ mr: 1 }}
                         />
-                        {image.growth_stage && (
+                        <Chip 
+                          label={media.image_type} 
+                          size="small" 
+                        />
+                        {media.growth_stage && (
                           <Chip 
-                            label={image.growth_stage} 
+                            label={media.growth_stage} 
                             size="small" 
                             color="primary"
+                            sx={{ ml: 1 }}
+                          />
+                        )}
+                        {media.drying_stage && (
+                          <Chip 
+                            label={media.drying_stage} 
+                            size="small" 
+                            color="warning"
+                            sx={{ ml: 1 }}
                           />
                         )}
                       </Box>
                       <Typography variant="caption" display="block" sx={{ mt: 1 }}>
-                        Von {image.uploaded_by_name} am{' '}
-                        {new Date(image.uploaded_at).toLocaleDateString('de-DE')}
+                        Von {media.uploaded_by_name} am{' '}
+                        {new Date(media.uploaded_at).toLocaleDateString('de-DE')}
                       </Typography>
                     </CardContent>
                     <CardActions>
                       <IconButton 
                         size="small" 
                         color="error"
-                        onClick={() => handleDeleteImage(image.id)}
+                        onClick={() => handleDeleteImage(media.id)}
                       >
                         <DeleteIcon />
                       </IconButton>
@@ -662,7 +755,7 @@ export default function ImageUploadModal({
 
             {images.length === 0 && !uploading && (
               <Typography variant="body1" align="center" sx={{ mt: 4 }}>
-                Noch keine Bilder vorhanden
+                Noch keine Medien vorhanden
               </Typography>
             )}
           </>

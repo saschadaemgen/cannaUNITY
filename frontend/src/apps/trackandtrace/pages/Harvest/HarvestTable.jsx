@@ -1,9 +1,10 @@
 // frontend/src/apps/trackandtrace/pages/Harvest/components/HarvestTable.jsx
-import { Box, Typography, Button, IconButton } from '@mui/material'
+import { Box, Typography, Button, IconButton, Badge, Tooltip } from '@mui/material'
 import ScaleIcon from '@mui/icons-material/Scale'
 import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment'
 import SeedIcon from '@mui/icons-material/Spa'
 import AcUnitIcon from '@mui/icons-material/AcUnit'
+import PhotoCameraIcon from '@mui/icons-material/PhotoCamera'
 
 import TableHeader from '@/components/common/TableHeader'
 import AccordionRow from '@/components/common/AccordionRow'
@@ -22,18 +23,20 @@ const HarvestTable = ({
   onOpenDryingDialog,
   currentPage,
   totalPages,
-  onPageChange
+  onPageChange,
+  onOpenImageModal
 }) => {
   // Spalten für den Tabellenkopf definieren
   const getHeaderColumns = () => {
     return [
       { label: 'Genetik', width: '15%', align: 'left' },
-      { label: 'Charge-Nummer', width: '20%', align: 'left' },
+      { label: 'Charge-Nummer', width: '18%', align: 'left' },
       { label: 'Gewicht', width: '10%', align: 'center' },
-      { label: 'Quelle', width: '20%', align: 'left' },
+      { label: 'Quelle', width: '18%', align: 'left' },
       { label: 'Verarbeitet von', width: '15%', align: 'left' },
       { label: 'Raum', width: '10%', align: 'left' },
       { label: 'Erstellt am', width: '10%', align: 'left' },
+      { label: 'Bilder', width: '8%', align: 'center' },
       { label: '', width: '3%', align: 'center' }  // Platz für das Aufklapp-Symbol am Ende
     ]
   }
@@ -46,11 +49,11 @@ const HarvestTable = ({
         width: '15%',
         bold: true,
         icon: SeedIcon,
-        iconColor: tabValue === 0 ? 'success.main' : 'error.main'
+        iconColor: tabValue === 0 ? 'success.main' : (tabValue === 1 ? 'primary.main' : 'error.main')
       },
       {
         content: harvest.batch_number || '',
-        width: '20%',
+        width: '18%',
         fontFamily: 'monospace',
         fontSize: '0.85rem'
       },
@@ -60,11 +63,11 @@ const HarvestTable = ({
         align: 'center',
         bold: true,
         icon: ScaleIcon,
-        iconColor: tabValue === 0 ? 'success.main' : 'error.main'
+        iconColor: tabValue === 0 ? 'success.main' : (tabValue === 1 ? 'primary.main' : 'error.main')
       },
       {
         content: harvest.source_type || "Unbekannt",
-        width: '20%'
+        width: '18%'
       },
       {
         content: harvest.member ? 
@@ -79,6 +82,34 @@ const HarvestTable = ({
       {
         content: new Date(harvest.created_at).toLocaleDateString('de-DE'),
         width: '10%'
+      },
+      {
+        content: (
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+            <Tooltip title={`Bilder verwalten (${harvest.image_count || 0})`}>
+              <IconButton 
+                size="small" 
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onOpenImageModal(harvest, e)
+                }}
+                sx={{ 
+                  color: tabValue === 0 ? 'success.main' : (tabValue === 1 ? 'primary.main' : 'error.main'),
+                  '&:hover': {
+                    backgroundColor: 'action.hover'
+                  }
+                }}
+              >
+                <Badge badgeContent={harvest.image_count || 0} color={tabValue === 0 ? 'success' : (tabValue === 1 ? 'primary' : 'error')}>
+                  <PhotoCameraIcon />
+                </Badge>
+              </IconButton>
+            </Tooltip>
+          </Box>
+        ),
+        width: '8%',
+        align: 'center',
+        stopPropagation: true
       },
       {
         content: '',  // Platz für das Aufklapp-Symbol
@@ -99,6 +130,9 @@ const HarvestTable = ({
     
     if (tabValue === 0) {
       return `Ernte ${harvest.batch_number} mit Genetik ${harvest.source_strain} wurde am ${date} von ${processor} im Raum ${roomName} mit ${weight}g aus ${sourceInfo} erstellt.`;
+    } else if (tabValue === 1) {
+      // Für zu Trocknung konvertierte Ernten
+      return `Ernte ${harvest.batch_number} mit Genetik ${harvest.source_strain} und Gewicht ${weight}g wurde zur Trocknung überführt.`;
     } else {
       const destroyDate = harvest.destroyed_at ? new Date(harvest.destroyed_at).toLocaleDateString('de-DE') : "unbekanntem Datum";
       const destroyer = harvest.destroyed_by ? 
@@ -144,7 +178,7 @@ const HarvestTable = ({
             {new Date(harvest.created_at).toLocaleDateString('de-DE')}
           </Typography>
         </Box>
-        {tabValue === 1 && harvest.destroyed_at && (
+        {tabValue === 2 && harvest.destroyed_at && (
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
             <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)' }}>
               Vernichtet am:
@@ -191,7 +225,7 @@ const HarvestTable = ({
             {parseFloat(harvest.weight).toLocaleString('de-DE')}g
           </Typography>
         </Box>
-        {tabValue === 1 && harvest.destroyed_by && (
+        {tabValue === 2 && harvest.destroyed_by && (
           <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
             <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)' }}>
               Vernichtet durch:
@@ -270,8 +304,8 @@ const HarvestTable = ({
         content: sourceDetails
       },
       {
-        title: tabValue === 0 ? 'Notizen' : 'Vernichtungsgrund',
-        content: tabValue === 0 ? notesContent : destroyReasonContent
+        title: tabValue === 0 || tabValue === 1 ? 'Notizen' : 'Vernichtungsgrund',
+        content: tabValue === 0 || tabValue === 1 ? notesContent : destroyReasonContent
       }
     ]
 
@@ -284,7 +318,7 @@ const HarvestTable = ({
             mb: 3, 
             backgroundColor: 'white', 
             borderLeft: '4px solid',
-            borderColor: tabValue === 0 ? 'success.main' : 'error.main',
+            borderColor: tabValue === 0 ? 'success.main' : (tabValue === 1 ? 'primary.main' : 'error.main'),
             borderRadius: '4px',
             boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
           }}
@@ -294,7 +328,7 @@ const HarvestTable = ({
           </Typography>
         </Box>
         
-        <DetailCards cards={cards} color={tabValue === 0 ? 'success.main' : 'error.main'} />
+        <DetailCards cards={cards} color={tabValue === 0 ? 'success.main' : (tabValue === 1 ? 'primary.main' : 'error.main')} />
 
         {/* Aktionsbereich für aktive Ernten */}
         {tabValue === 0 && (
@@ -333,7 +367,7 @@ const HarvestTable = ({
             isExpanded={expandedHarvestId === harvest.id}
             onClick={() => onExpandHarvest(harvest.id)}
             columns={getRowColumns(harvest)}
-            borderColor={tabValue === 0 ? 'success.main' : 'error.main'}
+            borderColor={tabValue === 0 ? 'success.main' : (tabValue === 1 ? 'primary.main' : 'error.main')}
             expandIconPosition="end"
           >
             {renderHarvestDetails(harvest)}
@@ -341,7 +375,9 @@ const HarvestTable = ({
         ))
       ) : (
         <Typography align="center" sx={{ mt: 4, width: '100%' }}>
-          {tabValue === 0 ? 'Keine aktiven Ernten vorhanden' : 'Keine vernichteten Ernten vorhanden'}
+          {tabValue === 0 ? 'Keine aktiven Ernten vorhanden' : 
+           tabValue === 1 ? 'Keine zu Trocknung konvertierten Ernten vorhanden' : 
+           'Keine vernichteten Ernten vorhanden'}
         </Typography>
       )}
 
@@ -351,7 +387,7 @@ const HarvestTable = ({
         onPageChange={onPageChange}
         hasData={data && data.length > 0}
         emptyMessage=""
-        color={tabValue === 0 ? 'success' : 'error'}
+        color={tabValue === 0 ? 'success' : (tabValue === 1 ? 'primary' : 'error')}
       />
     </Box>
   )

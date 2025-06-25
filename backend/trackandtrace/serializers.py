@@ -6,7 +6,7 @@ from .models import (
     DryingBatch, ProcessingBatch, PRODUCT_TYPE_CHOICES, LabTestingBatch, 
     PackagingBatch, PackagingUnit, ProductDistribution, SeedPurchaseImage, 
     MotherPlantBatchImage, CuttingBatchImage, BloomingCuttingBatchImage,
-    FloweringPlantBatchImage
+    FloweringPlantBatchImage, HarvestBatchImage, DryingBatchImage,
 )
 from members.models import Member
 from rooms.models import Room
@@ -33,13 +33,22 @@ class BaseProductImageSerializer(serializers.ModelSerializer):
     uploaded_by_name = serializers.SerializerMethodField()
     image_url = serializers.SerializerMethodField()
     thumbnail_url = serializers.SerializerMethodField()
+    video_url = serializers.SerializerMethodField()
     
     class Meta:
         fields = [
-            'id', 'image', 'image_url', 'thumbnail', 'thumbnail_url',
+            'id', 'image', 'image_url', 'video', 'video_url',  # NEU: video Felder
+            'thumbnail', 'thumbnail_url', 'media_type',  # NEU: media_type
             'title', 'description', 'image_type', 
             'uploaded_by', 'uploaded_by_name', 'uploaded_at'
         ]
+
+    def get_video_url(self, obj):
+        if obj.video:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.video.url)
+        return None
     
     def get_uploaded_by_name(self, obj):
         if obj.uploaded_by:
@@ -148,6 +157,55 @@ class FloweringPlantBatchImageSerializer(BaseProductImageSerializer):
     class Meta(BaseProductImageSerializer.Meta):
         model = FloweringPlantBatchImage
         fields = BaseProductImageSerializer.Meta.fields + ['flowering_plant_batch']
+
+class HarvestBatchImageSerializer(BaseProductImageSerializer):
+    """Serializer für Ernte-Batch Bilder"""
+    # WICHTIG: uploaded_by muss definiert sein!
+    uploaded_by = serializers.PrimaryKeyRelatedField(
+        queryset=Member.objects.all(),
+        write_only=True
+    )
+    # WICHTIG: harvest_batch als read_only!
+    harvest_batch = serializers.PrimaryKeyRelatedField(
+        read_only=True
+    )
+    harvest_stage = serializers.ChoiceField(
+        choices=[
+            ('fresh', 'Frisch geerntet'),
+            ('trimmed', 'Getrimmt'),
+            ('packed', 'Verpackt für Trocknung'),
+        ],
+        required=False,
+        allow_blank=True
+    )
+    
+    class Meta(BaseProductImageSerializer.Meta):
+        model = HarvestBatchImage
+        fields = BaseProductImageSerializer.Meta.fields + ['harvest_batch', 'harvest_stage']
+
+class DryingBatchImageSerializer(BaseProductImageSerializer):
+    """Serializer für Trocknungs-Batch Bilder und Videos"""
+    uploaded_by = serializers.PrimaryKeyRelatedField(
+        queryset=Member.objects.all(),
+        write_only=True
+    )
+    drying_batch = serializers.PrimaryKeyRelatedField(
+        read_only=True
+    )
+    drying_stage = serializers.ChoiceField(
+        choices=[
+            ('wet', 'Feucht (Tag 1-3)'),
+            ('drying', 'Trocknend (Tag 4-7)'),
+            ('dry', 'Trocken (Tag 8+)'),
+            ('curing', 'Reifend'),
+        ],
+        required=False,
+        allow_blank=True
+    )
+    
+    class Meta(BaseProductImageSerializer.Meta):
+        model = DryingBatchImage
+        fields = BaseProductImageSerializer.Meta.fields + ['drying_batch', 'drying_stage']
         
 class SeedPurchaseSerializer(serializers.ModelSerializer):
     # Alte Mitglieder-Zuweisung (optional noch im Einsatz)
@@ -637,6 +695,9 @@ class HarvestBatchSerializer(serializers.ModelSerializer):
     source_strain = serializers.SerializerMethodField()
     source_batch_number = serializers.SerializerMethodField()
     source_type = serializers.SerializerMethodField()
+
+    images = HarvestBatchImageSerializer(many=True, read_only=True)
+    image_count = serializers.SerializerMethodField()    
     
     class Meta:
         model = HarvestBatch
@@ -647,7 +708,7 @@ class HarvestBatchSerializer(serializers.ModelSerializer):
             'member', 'member_id', 'room', 'room_id',
             'notes', 'is_destroyed', 'destroy_reason', 
             'destroyed_at', 'destroyed_by', 'destroyed_by_id',
-            'created_at'
+            'created_at', 'images', 'image_count'
         ]
     
     def get_source_strain(self, obj):
@@ -669,6 +730,10 @@ class HarvestBatchSerializer(serializers.ModelSerializer):
         elif obj.blooming_cutting_batch:
             return "Blühpflanze aus Steckling"
         return "Unbekannt"
+    
+    def get_image_count(self, obj):
+        """Gibt die Anzahl der Bilder für diesen Batch zurück."""
+        return obj.images.count()
     
 class DryingBatchSerializer(serializers.ModelSerializer):
     # Serializers für Mitglieder und Räume
@@ -705,6 +770,9 @@ class DryingBatchSerializer(serializers.ModelSerializer):
     harvest_batch_number = serializers.SerializerMethodField()
     weight_loss = serializers.SerializerMethodField()
     weight_loss_percentage = serializers.SerializerMethodField()
+
+    images = DryingBatchImageSerializer(many=True, read_only=True)
+    image_count = serializers.SerializerMethodField()
     
     class Meta:
         model = DryingBatch
@@ -714,8 +782,13 @@ class DryingBatchSerializer(serializers.ModelSerializer):
             'member', 'member_id', 'room', 'room_id',
             'notes', 'is_destroyed', 'destroy_reason', 
             'destroyed_at', 'destroyed_by', 'destroyed_by_id',
-            'created_at'
+            'created_at',
+            'images', 'image_count'  # DIESE FEHLTEN!
         ]
+    
+    def get_image_count(self, obj):
+        """Gibt die Anzahl der Bilder UND Videos zurück."""
+        return obj.images.count()
     
     def get_source_strain(self, obj):
         return obj.source_strain

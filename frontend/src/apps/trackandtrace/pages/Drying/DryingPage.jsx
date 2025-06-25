@@ -16,6 +16,7 @@ import AnimatedTabPanel from '@/components/common/AnimatedTabPanel'
 // Spezifische Komponenten
 import DryingTable from './DryingTable'
 import ConvertToProcessingDialog from '@/components/dialogs/ConvertToProcessingDialog'
+import ImageUploadModal from '../../components/ImageUploadModal'
 
 export default function DryingPage() {
   const navigate = useNavigate();
@@ -58,6 +59,10 @@ export default function DryingPage() {
   // Erfolgsmeldungen
   const [showSuccessAlert, setShowSuccessAlert] = useState(false)
   const [successMessage, setSuccessMessage] = useState('')
+  
+  // Zustände für Bilder/Videos
+  const [openImageModal, setOpenImageModal] = useState(false)
+  const [selectedBatchForImages, setSelectedBatchForImages] = useState(null)
 
   // Separate Funktion für die Zähler
   const loadTabCounts = async () => {
@@ -260,6 +265,19 @@ export default function DryingPage() {
       alert(error.response?.data?.error || 'Ein Fehler ist aufgetreten');
     }
   };
+  
+  // Handler für Bilder/Videos
+  const handleOpenImageModal = (batch, event) => {
+    if (event) event.stopPropagation()
+    setSelectedBatchForImages(batch)
+    setOpenImageModal(true)
+  }
+
+  const handleCloseImageModal = () => {
+    setOpenImageModal(false)
+    setSelectedBatchForImages(null)
+    loadDryingBatches(currentPage)
+  }
 
   const handleFilterApply = () => {
     loadDryingBatches(1) // Zurück zur ersten Seite bei Filter-Änderung
@@ -271,6 +289,20 @@ export default function DryingPage() {
     setDayFilter('')
     setShowFilters(false)
     loadDryingBatches(1) // Zurück zur ersten Seite nach Filter-Reset
+  }
+  
+  // Trocknungs-Stadium Feld definieren
+  const dryingStageField = {
+    name: 'drying_stage',
+    label: 'Trocknungs-Stadium',
+    type: 'select',
+    options: [
+      { value: '', label: 'Kein Stadium' },
+      { value: 'wet', label: 'Feucht (Tag 1-3)' },
+      { value: 'drying', label: 'Trocknend (Tag 4-7)' },
+      { value: 'dry', label: 'Trocken (Tag 8+)' },
+      { value: 'curing', label: 'Reifend' }
+    ]
   }
 
   // Tab-Definition als separate Variable
@@ -385,6 +417,7 @@ export default function DryingPage() {
               currentPage={currentPage}
               totalPages={totalPages}
               onPageChange={handlePageChange}
+              onOpenImageModal={handleOpenImageModal}
             />
           </AnimatedTabPanel>
           
@@ -403,6 +436,7 @@ export default function DryingPage() {
               currentPage={currentPage}
               totalPages={totalPages}
               onPageChange={handlePageChange}
+              onOpenImageModal={handleOpenImageModal}
             />
           </AnimatedTabPanel>
           
@@ -421,6 +455,7 @@ export default function DryingPage() {
               currentPage={currentPage}
               totalPages={totalPages}
               onPageChange={handlePageChange}
+              onOpenImageModal={handleOpenImageModal}
             />
           </AnimatedTabPanel>
         </>
@@ -454,6 +489,17 @@ export default function DryingPage() {
         members={members}
         rooms={rooms}
         loadingOptions={loadingOptions}
+      />
+      
+      {/* Dialog für Bilder/Videos */}
+      <ImageUploadModal
+        open={openImageModal}
+        onClose={handleCloseImageModal}
+        productType="drying-batch"
+        productId={selectedBatchForImages?.id}
+        productName={selectedBatchForImages?.batch_number}
+        onImagesUpdated={() => loadDryingBatches(currentPage)}
+        additionalFields={[dryingStageField]}
       />
     </Container>
   )

@@ -1,10 +1,12 @@
 // frontend/src/apps/trackandtrace/pages/Drying/components/DryingTable.jsx
-import { Box, Typography, Button, IconButton } from '@mui/material'
+import { Box, Typography, Button, IconButton, Badge, Tooltip } from '@mui/material'
 import ScaleIcon from '@mui/icons-material/Scale'
 import AcUnitIcon from '@mui/icons-material/AcUnit'
 import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment'
 import SpeedIcon from '@mui/icons-material/Speed'
 import SeedIcon from '@mui/icons-material/Spa'
+import PhotoCameraIcon from '@mui/icons-material/PhotoCamera'
+import VideocamIcon from '@mui/icons-material/Videocam'
 
 import TableHeader from '@/components/common/TableHeader'
 import AccordionRow from '@/components/common/AccordionRow'
@@ -20,23 +22,25 @@ const DryingTable = ({
   expandedDryingId,
   onExpandDrying,
   onOpenDestroyDialog,
-  onOpenProcessingDialog, // Neue Prop für Verarbeitungskonvertierung
+  onOpenProcessingDialog,
   currentPage,
   totalPages,
-  onPageChange
+  onPageChange,
+  onOpenImageModal // NEU
 }) => {
   // Spalten für den Tabellenkopf definieren
   const getHeaderColumns = () => {
     return [
       { label: 'Genetik', width: '12%', align: 'left' },
-      { label: 'Charge-Nummer', width: '15%', align: 'left' },
+      { label: 'Charge-Nummer', width: '14%', align: 'left' },
       { label: 'Frischgewicht', width: '10%', align: 'center' },
       { label: 'Trockengewicht', width: '10%', align: 'center' },
       { label: 'Gewichtsverlust', width: '10%', align: 'center' },
-      { label: 'Verarbeitet von', width: '13%', align: 'left' }, // Hinzugefügt!
-      { label: 'Raum', width: '10%', align: 'left' },
-      { label: 'Ernte-Charge', width: '12%', align: 'left' },
+      { label: 'Verarbeitet von', width: '12%', align: 'left' },
+      { label: 'Raum', width: '9%', align: 'left' },
+      { label: 'Ernte-Charge', width: '11%', align: 'left' },
       { label: 'Erstellt am', width: '8%', align: 'left' },
+      { label: 'Medien', width: '8%', align: 'center' },
       { label: '', width: '3%', align: 'center' }  // Platz für das Aufklapp-Symbol am Ende
     ]
   }
@@ -52,11 +56,11 @@ const DryingTable = ({
         width: '12%',
         bold: true,
         icon: SeedIcon,
-        iconColor: tabValue === 0 ? 'info.main' : 'error.main'
+        iconColor: tabValue === 0 ? 'primary.main' : (tabValue === 1 ? 'success.main' : 'error.main')
       },
       {
         content: drying.batch_number || '',
-        width: '15%',
+        width: '14%',
         fontFamily: 'monospace',
         fontSize: '0.85rem'
       },
@@ -66,7 +70,7 @@ const DryingTable = ({
         align: 'center',
         bold: true,
         icon: ScaleIcon,
-        iconColor: tabValue === 0 ? 'info.main' : 'error.main'
+        iconColor: tabValue === 0 ? 'primary.main' : (tabValue === 1 ? 'success.main' : 'error.main')
       },
       {
         content: `${parseFloat(drying.final_weight).toLocaleString('de-DE')}g`,
@@ -74,7 +78,7 @@ const DryingTable = ({
         align: 'center',
         bold: true,
         icon: AcUnitIcon,
-        iconColor: tabValue === 0 ? 'info.main' : 'error.main'
+        iconColor: tabValue === 0 ? 'primary.main' : (tabValue === 1 ? 'success.main' : 'error.main')
       },
       {
         content: `${weightLossPercentage}%`,
@@ -85,21 +89,52 @@ const DryingTable = ({
         content: drying.member ? 
           (drying.member.display_name || `${drying.member.first_name} ${drying.member.last_name}`) 
           : "Nicht zugewiesen",
-        width: '13%'
+        width: '12%'
       },
       {
         content: drying.room ? drying.room.name : "Nicht zugewiesen",
-        width: '10%'
+        width: '9%'
       },
       {
         content: drying.harvest_batch_number || "Unbekannt",
-        width: '12%',
+        width: '11%',
         fontFamily: 'monospace',
         fontSize: '0.85rem'
       },
       {
         content: new Date(drying.created_at).toLocaleDateString('de-DE'),
         width: '8%'
+      },
+      {
+        content: (
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+            <Tooltip title={`Medien verwalten (${drying.image_count || 0})`}>
+              <IconButton 
+                size="small" 
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onOpenImageModal(drying, e)
+                }}
+                sx={{ 
+                  color: tabValue === 0 ? 'primary.main' : (tabValue === 1 ? 'success.main' : 'error.main'),
+                  '&:hover': {
+                    backgroundColor: 'action.hover'
+                  }
+                }}
+              >
+                <Badge 
+                  badgeContent={drying.image_count || 0} 
+                  color={tabValue === 0 ? 'primary' : (tabValue === 1 ? 'success' : 'error')}
+                >
+                  <PhotoCameraIcon />
+                </Badge>
+              </IconButton>
+            </Tooltip>
+          </Box>
+        ),
+        width: '8%',
+        align: 'center',
+        stopPropagation: true
       },
       {
         content: '',  // Platz für das Aufklapp-Symbol
@@ -123,6 +158,12 @@ const DryingTable = ({
     
     if (tabValue === 0) {
       return `Trocknung ${drying.batch_number} mit Genetik ${drying.source_strain} wurde am ${date} von ${processor} im Raum ${roomName} erstellt. Frischgewicht: ${initialWeight}g, Trockengewicht: ${finalWeight}g, Gewichtsverlust: ${weightLoss}g (${weightLossPercentage}%). Quelle: Ernte ${harvestInfo}.`;
+    } else if (tabValue === 1) {
+      const processedDate = drying.processed_at ? new Date(drying.processed_at).toLocaleDateString('de-DE') : "unbekanntem Datum";
+      const processor = drying.processed_by ? 
+        (drying.processed_by.display_name || `${drying.processed_by.first_name} ${drying.processed_by.last_name}`) 
+        : "Unbekannt";
+      return `Trocknung ${drying.batch_number} mit Genetik ${drying.source_strain} wurde am ${processedDate} von ${processor} zur Verarbeitung überführt. Frischgewicht: ${initialWeight}g, Trockengewicht: ${finalWeight}g, Gewichtsverlust: ${weightLoss}g (${weightLossPercentage}%).`;
     } else {
       const destroyDate = drying.destroyed_at ? new Date(drying.destroyed_at).toLocaleDateString('de-DE') : "unbekanntem Datum";
       const destroyer = drying.destroyed_by ? 
@@ -171,7 +212,7 @@ const DryingTable = ({
             {new Date(drying.created_at).toLocaleDateString('de-DE')}
           </Typography>
         </Box>
-        {tabValue === 1 && drying.destroyed_at && (
+        {tabValue === 2 && drying.destroyed_at && (
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
             <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)' }}>
               Vernichtet am:
@@ -226,7 +267,7 @@ const DryingTable = ({
             {weightLoss.toLocaleString('de-DE')}g ({weightLossPercentage}%)
           </Typography>
         </Box>
-        {tabValue === 1 && drying.destroyed_by && (
+        {tabValue === 2 && drying.destroyed_by && (
           <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
             <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)' }}>
               Vernichtet durch:
@@ -305,8 +346,8 @@ const DryingTable = ({
         content: weightDetails
       },
       {
-        title: tabValue === 0 ? 'Notizen' : 'Vernichtungsgrund',
-        content: tabValue === 0 ? notesContent : destroyReasonContent
+        title: tabValue === 0 || tabValue === 1 ? 'Notizen' : 'Vernichtungsgrund',
+        content: tabValue === 0 || tabValue === 1 ? notesContent : destroyReasonContent
       }
     ]
 
@@ -319,7 +360,7 @@ const DryingTable = ({
             mb: 3, 
             backgroundColor: 'white', 
             borderLeft: '4px solid',
-            borderColor: tabValue === 0 ? 'info.main' : 'error.main',
+            borderColor: tabValue === 0 ? 'primary.main' : (tabValue === 1 ? 'success.main' : 'error.main'),
             borderRadius: '4px',
             boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
           }}
@@ -329,7 +370,10 @@ const DryingTable = ({
           </Typography>
         </Box>
         
-        <DetailCards cards={cards} color={tabValue === 0 ? 'info.main' : 'error.main'} />
+        <DetailCards 
+          cards={cards} 
+          color={tabValue === 0 ? 'primary.main' : (tabValue === 1 ? 'success.main' : 'error.main')} 
+        />
 
         {/* Aktionsbereich für aktive Trocknungen */}
         {tabValue === 0 && (
@@ -368,7 +412,7 @@ const DryingTable = ({
             isExpanded={expandedDryingId === drying.id}
             onClick={() => onExpandDrying(drying.id)}
             columns={getRowColumns(drying)}
-            borderColor={tabValue === 0 ? 'info.main' : 'error.main'}
+            borderColor={tabValue === 0 ? 'primary.main' : (tabValue === 1 ? 'success.main' : 'error.main')}
             expandIconPosition="end"
           >
             {renderDryingDetails(drying)}
@@ -376,7 +420,9 @@ const DryingTable = ({
         ))
       ) : (
         <Typography align="center" sx={{ mt: 4, width: '100%' }}>
-          {tabValue === 0 ? 'Keine aktiven Trocknungen vorhanden' : 'Keine vernichteten Trocknungen vorhanden'}
+          {tabValue === 0 ? 'Keine aktiven Trocknungen vorhanden' : 
+           tabValue === 1 ? 'Keine zu Verarbeitung überführten Trocknungen vorhanden' : 
+           'Keine vernichteten Trocknungen vorhanden'}
         </Typography>
       )}
 
@@ -386,7 +432,7 @@ const DryingTable = ({
         onPageChange={onPageChange}
         hasData={data && data.length > 0}
         emptyMessage=""
-        color={tabValue === 0 ? 'info' : 'error'}
+        color={tabValue === 0 ? 'primary' : (tabValue === 1 ? 'success' : 'error')}
       />
     </Box>
   )

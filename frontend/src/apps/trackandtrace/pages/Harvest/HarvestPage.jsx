@@ -16,6 +16,7 @@ import AnimatedTabPanel from '@/components/common/AnimatedTabPanel'
 // Spezifische Komponenten
 import HarvestTable from './HarvestTable'
 import ConvertToDryingDialog from '@/components/dialogs/ConvertToDryingDialog'
+import ImageUploadModal from '../../components/ImageUploadModal'
 
 export default function HarvestPage() {
   const navigate = useNavigate();
@@ -39,8 +40,8 @@ export default function HarvestPage() {
   // Zähler für Tabs
   const [activeCount, setActiveCount] = useState(0)
   const [activeWeight, setActiveWeight] = useState(0)
-  const [driedCount, setDriedCount] = useState(0) // Neue Zustandsvariable für Trocknungszähler
-  const [driedWeight, setDriedWeight] = useState(0) // Neue Zustandsvariable für Trocknungsgewicht
+  const [driedCount, setDriedCount] = useState(0)
+  const [driedWeight, setDriedWeight] = useState(0)
   const [destroyedCount, setDestroyedCount] = useState(0)
   const [destroyedWeight, setDestroyedWeight] = useState(0)
   
@@ -53,9 +54,26 @@ export default function HarvestPage() {
   const [openDryingDialog, setOpenDryingDialog] = useState(false)
   const [harvestForDrying, setHarvestForDrying] = useState(null)
 
+  // States für ImageUploadModal
+  const [openImageModal, setOpenImageModal] = useState(false)
+  const [selectedBatchForImages, setSelectedBatchForImages] = useState(null)
+
   // Erfolgsmeldungen
   const [showSuccessAlert, setShowSuccessAlert] = useState(false)
   const [successMessage, setSuccessMessage] = useState('')
+
+  // Zusätzliches Feld für harvest_stage definieren
+  const harvestStageField = {
+    name: 'harvest_stage',
+    label: 'Ernte-Stadium',
+    type: 'select',
+    options: [
+      { value: '', label: 'Kein Stadium' },
+      { value: 'fresh', label: 'Frisch geerntet' },
+      { value: 'trimmed', label: 'Getrimmt' },
+      { value: 'packed', label: 'Verpackt für Trocknung' }
+    ]
+  }
 
   // Separate Funktion für die Zähler
   const loadTabCounts = async () => {
@@ -66,8 +84,8 @@ export default function HarvestPage() {
       
       setActiveCount(res.data.active_count || 0);
       setActiveWeight(res.data.total_active_weight || 0);
-      setDriedCount(res.data.dried_count || 0); // Neue Daten aus API laden
-      setDriedWeight(res.data.total_dried_weight || 0); // Neue Daten aus API laden
+      setDriedCount(res.data.dried_count || 0);
+      setDriedWeight(res.data.total_dried_weight || 0);
       setDestroyedCount(res.data.destroyed_count || 0);
       setDestroyedWeight(res.data.total_destroyed_weight || 0);
       
@@ -255,6 +273,19 @@ export default function HarvestPage() {
     }
   };
 
+  // Handler-Funktionen für ImageUploadModal
+  const handleOpenImageModal = (batch, event) => {
+    if (event) event.stopPropagation()
+    setSelectedBatchForImages(batch)
+    setOpenImageModal(true)
+  }
+
+  const handleCloseImageModal = () => {
+    setOpenImageModal(false)
+    setSelectedBatchForImages(null)
+    loadHarvests(currentPage) // Daten neu laden
+  }
+
   const handleFilterApply = () => {
     loadHarvests(1) // Zurück zur ersten Seite bei Filter-Änderung
   }
@@ -376,6 +407,7 @@ export default function HarvestPage() {
               currentPage={currentPage}
               totalPages={totalPages}
               onPageChange={handlePageChange}
+              onOpenImageModal={handleOpenImageModal}
             />
           </AnimatedTabPanel>
           
@@ -389,11 +421,12 @@ export default function HarvestPage() {
               data={harvests}
               expandedHarvestId={expandedHarvestId}
               onExpandHarvest={handleAccordionChange}
-              onOpenDestroyDialog={null} // Keine Vernichtungsoption für bereits getrocknete Ernten
-              onOpenDryingDialog={null} // Keine erneute Trocknungsoption
+              onOpenDestroyDialog={null}
+              onOpenDryingDialog={null}
               currentPage={currentPage}
               totalPages={totalPages}
               onPageChange={handlePageChange}
+              onOpenImageModal={handleOpenImageModal}
             />
           </AnimatedTabPanel>
           
@@ -407,11 +440,12 @@ export default function HarvestPage() {
               data={harvests}
               expandedHarvestId={expandedHarvestId}
               onExpandHarvest={handleAccordionChange}
-              onOpenDestroyDialog={null} // Keine erneute Vernichtungsoption für bereits vernichtete Ernten
-              onOpenDryingDialog={null} // Keine Trocknungsoption für vernichtete Ernten
+              onOpenDestroyDialog={null}
+              onOpenDryingDialog={null}
               currentPage={currentPage}
               totalPages={totalPages}
               onPageChange={handlePageChange}
+              onOpenImageModal={handleOpenImageModal}
             />
           </AnimatedTabPanel>
         </>
@@ -445,6 +479,17 @@ export default function HarvestPage() {
         members={members}
         rooms={rooms}
         loadingOptions={loadingOptions}
+      />
+
+      {/* ImageUploadModal */}
+      <ImageUploadModal
+        open={openImageModal}
+        onClose={handleCloseImageModal}
+        productType="harvest-batch"
+        productId={selectedBatchForImages?.id}
+        productName={selectedBatchForImages?.batch_number}
+        onImagesUpdated={() => loadHarvests(currentPage)}
+        additionalFields={[harvestStageField]}
       />
     </Container>
   )

@@ -5,6 +5,8 @@ from members.models import Member
 from rooms.models import Room
 from wawi.models import CannabisStrain
 from django.core.files.storage import default_storage
+from django.core.validators import FileExtensionValidator, ValidationError
+
 from PIL import Image
 
 class SeedPurchase(models.Model):
@@ -416,6 +418,33 @@ class HarvestBatch(models.Model):
         else:
             return 'active'
     
+    def generate_batch_number(self):
+        """Generiert eine eindeutige Batch-Nummer für Ernten"""
+        prefix = "harvest"  # WICHTIG: Muss "harvest" sein!
+        
+        # Aktuelles Datum
+        now = timezone.now()
+        date_part = now.strftime("%d:%m:%Y")
+        
+        # Zähler für den Tag
+        start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_of_day = now.replace(hour=23, minute=59, second=59, microsecond=999999)
+        
+        # Zähle Batches vom gleichen Tag
+        count = HarvestBatch.objects.filter(
+            created_at__range=(start_of_day, end_of_day)
+        ).count()
+        
+        # Batch-Nummer mit führenden Nullen
+        batch_number = f"{prefix}:{date_part}:{count + 1:04d}"
+        
+        return batch_number
+    
+    def save(self, *args, **kwargs):
+        if not self.batch_number:
+            self.batch_number = self.generate_batch_number()
+        super().save(*args, **kwargs)
+    
 class DryingBatch(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     batch_number = models.CharField(max_length=50, unique=True, blank=True, null=True)
@@ -491,6 +520,33 @@ class DryingBatch(models.Model):
         if self.harvest_batch:
             return self.harvest_batch.source_strain
         return "Unbekannt"
+    
+    def generate_batch_number(self):
+        """Generiert eine eindeutige Batch-Nummer für Trocknungen"""
+        prefix = "drying"  # WICHTIG: Muss "drying" sein!
+        
+        # Aktuelles Datum
+        now = timezone.now()
+        date_part = now.strftime("%d:%m:%Y")
+        
+        # Zähler für den Tag
+        start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_of_day = now.replace(hour=23, minute=59, second=59, microsecond=999999)
+        
+        # Zähle Batches vom gleichen Tag
+        count = DryingBatch.objects.filter(
+            created_at__range=(start_of_day, end_of_day)
+        ).count()
+        
+        # Batch-Nummer mit führenden Nullen
+        batch_number = f"{prefix}:{date_part}:{count + 1:04d}"
+        
+        return batch_number
+    
+    def save(self, *args, **kwargs):
+        if not self.batch_number:
+            self.batch_number = self.generate_batch_number()
+        super().save(*args, **kwargs)  
     
 # Produkt-Typen als Choices
 PRODUCT_TYPE_CHOICES = [
@@ -1055,12 +1111,26 @@ class ProductDistribution(models.Model):
         verbose_name = "Cannabis-Ausgabe"
         verbose_name_plural = "Cannabis-Ausgaben"
 
+import io
+from PIL import Image
+from django.db import models
+from django.core.exceptions import ValidationError
+from django.core.validators import FileExtensionValidator
+from members.models import Member  # Anpassen je nach deiner App-Struktur
+
+
 class BaseProductImage(models.Model):
-    """Abstrakte Basisklasse für alle Produktbilder im Track & Trace System"""
+    """Abstrakte Basisklasse für Produktbilder UND Videos im Track & Trace System"""
+    
+    # Bild-Feld (jetzt optional, da entweder Bild ODER Video)
     image = models.ImageField(
         upload_to='trackandtrace/images/%Y/%m/%d/',
-        help_text="Hauptbild"
+        blank=True,
+        null=True,
+        help_text="Bild-Datei (JPEG, PNG, etc.)"
     )
+    
+    # Thumbnail (automatisch generiert für Bilder)
     thumbnail = models.ImageField(
         upload_to='trackandtrace/thumbnails/%Y/%m/%d/', 
         blank=True, 
@@ -1068,26 +1138,69 @@ class BaseProductImage(models.Model):
         help_text="Automatisch generiertes Vorschaubild"
     )
     
+    # NEU: Video-Feld
+    video = models.FileField(
+        upload_to='trackandtrace/videos/%Y/%m/%d/',
+        blank=True,
+        null=True,
+        validators=[
+            FileExtensionValidator(allowed_extensions=['mp4', 'mov', 'avi', 'webm', 'mkv'])
+        ],
+        help_text="Video-Datei (max. 100MB)"
+    )
+    
+    # NEU: Media-Type für einfachere Unterscheidung
+    media_type = models.CharField(
+        max_length=10,
+        choices=[
+            ('image', 'Bild'),
+            ('video', 'Video'),
+        ],
+        default='image',
+        editable=False  # Wird automatisch gesetzt
+    )
+    
     # Metadaten
     title = models.CharField(max_length=200, blank=True)
     description = models.TextField(blank=True)
-    image_type = models.CharField(max_length=50, choices=[
-        ('overview', 'Übersicht'),
-        ('detail', 'Detail'),
-        ('quality', 'Qualitätskontrolle'),
-        ('documentation', 'Dokumentation'),
-    ], default='overview')
+    image_type = models.CharField(
+        max_length=50, 
+        choices=[
+            ('overview', 'Übersicht'),
+            ('detail', 'Detail'),
+            ('quality', 'Qualitätskontrolle'),
+            ('documentation', 'Dokumentation'),
+        ], 
+        default='overview',
+        help_text="Art/Zweck der Aufnahme"
+    )
     
     # Tracking
-    uploaded_by = models.ForeignKey(Member, on_delete=models.SET_NULL, null=True)
+    uploaded_by = models.ForeignKey(
+        Member, 
+        on_delete=models.SET_NULL, 
+        null=True,
+        related_name='uploaded_%(class)s_media'  # Angepasst für Bilder UND Videos
+    )
     uploaded_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:
         abstract = True
         ordering = ['-uploaded_at']
     
+    def clean(self):
+        """Validierung: Entweder Bild ODER Video, nicht beides"""
+        super().clean()
+        if self.image and self.video:
+            raise ValidationError("Es kann nur entweder ein Bild oder ein Video hochgeladen werden, nicht beides.")
+        if not self.image and not self.video:
+            raise ValidationError("Es muss entweder ein Bild oder ein Video hochgeladen werden.")
+    
     def make_thumbnail(self):
-        """Erstellt automatisch ein Thumbnail (150x150px)"""
+        """Erstellt automatisch ein Thumbnail (150x150px) - nur für Bilder"""
+        if not self.image:
+            return None
+            
         img = Image.open(self.image)
         
         # Konvertiere RGBA zu RGB falls nötig
@@ -1119,10 +1232,38 @@ class BaseProductImage(models.Model):
         return self.thumbnail
     
     def save(self, *args, **kwargs):
-        # Generiere Thumbnail beim ersten Speichern
-        if self.image and not self.thumbnail:
-            self.make_thumbnail()
+        # Automatisch media_type setzen basierend auf hochgeladenem Content
+        if self.video:
+            self.media_type = 'video'
+        else:
+            self.media_type = 'image'
+        
+        # Speichere zuerst das Objekt
         super().save(*args, **kwargs)
+        
+        # Generiere Thumbnail nur für Bilder und nur wenn noch keins existiert
+        if self.image and self.media_type == 'image' and not self.thumbnail:
+            self.make_thumbnail()
+            # Speichere nochmal um das Thumbnail zu persistieren
+            super().save(update_fields=['thumbnail'])
+    
+    def get_media_url(self):
+        """Hilfsmethode um die URL des Mediums zu bekommen (Bild oder Video)"""
+        if self.media_type == 'video' and self.video:
+            return self.video.url
+        elif self.media_type == 'image' and self.image:
+            return self.image.url
+        return None
+    
+    def get_display_url(self):
+        """Gibt die URL für die Anzeige zurück (Thumbnail für Bilder, Video-URL für Videos)"""
+        if self.media_type == 'image' and self.thumbnail:
+            return self.thumbnail.url
+        return self.get_media_url()
+    
+    def __str__(self):
+        media_str = "Video" if self.media_type == 'video' else "Bild"
+        return f"{media_str}: {self.title or 'Unbenannt'} ({self.get_image_type_display()})"
 
 # Konkrete Image-Models für jeden Schritt:
 
@@ -1190,4 +1331,57 @@ class FloweringPlantBatchImage(BaseProductImage):
         db_table = 'trackandtrace_flowering_plant_batch_image'
         verbose_name = 'Blühpflanzen-Batch Bild'
         verbose_name_plural = 'Blühpflanzen-Batch Bilder'
+        ordering = ['-uploaded_at']
+
+class HarvestBatchImage(BaseProductImage):
+    """Bilder für Ernte-Chargen"""
+    harvest_batch = models.ForeignKey(
+        'HarvestBatch',
+        on_delete=models.CASCADE,
+        related_name='images'
+    )
+    
+    # Zusätzliches Feld für Ernte-Stadium
+    harvest_stage = models.CharField(
+        max_length=50,
+        blank=True,
+        choices=[
+            ('fresh', 'Frisch geerntet'),
+            ('trimmed', 'Getrimmt'),
+            ('packed', 'Verpackt für Trocknung'),
+        ],
+        help_text="Stadium der Ernte"
+    )
+    
+    class Meta:
+        db_table = 'trackandtrace_harvest_batch_image'
+        verbose_name = 'Ernte-Batch Bild'
+        verbose_name_plural = 'Ernte-Batch Bilder'
+        ordering = ['-uploaded_at']
+
+class DryingBatchImage(BaseProductImage):
+    """Bilder und Videos für Trocknungs-Chargen"""
+    drying_batch = models.ForeignKey(
+        'DryingBatch',
+        on_delete=models.CASCADE,
+        related_name='images'  # Behalten wir als 'images' für Kompatibilität
+    )
+    
+    # Zusätzliches Feld für Trocknungs-Stadium
+    drying_stage = models.CharField(
+        max_length=50,
+        blank=True,
+        choices=[
+            ('wet', 'Feucht (Tag 1-3)'),
+            ('drying', 'Trocknend (Tag 4-7)'),
+            ('dry', 'Trocken (Tag 8+)'),
+            ('curing', 'Reifend'),
+        ],
+        help_text="Stadium der Trocknung"
+    )
+    
+    class Meta:
+        db_table = 'trackandtrace_drying_batch_image'
+        verbose_name = 'Trocknungs-Batch Bild/Video'
+        verbose_name_plural = 'Trocknungs-Batch Bilder/Videos'
         ordering = ['-uploaded_at']

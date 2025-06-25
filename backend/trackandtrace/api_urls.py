@@ -10,6 +10,7 @@ from .api_views import (
     StrainCardViewSet, SeedPurchaseImageViewSet, MotherPlantBatchImageViewSet,
     CuttingBatchImageSerializer, CuttingBatchImageViewSet, BloomingCuttingBatchImageSerializer,
     BloomingCuttingBatchImageViewSet, FloweringPlantBatchImageSerializer, FloweringPlantBatchImageViewSet,
+    HarvestBatchViewSet, HarvestBatchImageViewSet, HarvestBatchSerializer, DryingBatchImageViewSet,
     validate_distribution_limits
 )
 
@@ -32,6 +33,9 @@ router.register(r'mother-batch-images', MotherPlantBatchImageViewSet, basename='
 router.register(r'cutting-batch-images', CuttingBatchImageViewSet, basename='cutting-batch-images')
 router.register(r'blooming-cutting-batch-images', BloomingCuttingBatchImageViewSet, basename='blooming-cutting-batch-images')
 router.register(r'flowering-plant-batch-images', FloweringPlantBatchImageViewSet, basename='flowering-plant-batch-images')
+router.register(r'harvest-batch-images', HarvestBatchImageViewSet, basename='harvest-batch-images')
+router.register(r'drying-batch-images', DryingBatchImageViewSet, basename='drying-batch-images')
+
 
 # NEU: StrainCard API für optimierte Performance
 router.register(r'strain-cards', StrainCardViewSet, basename='strain-cards')
