@@ -1,18 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Button, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Button, TouchableOpacity } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import * as SecureStore from 'expo-secure-store';
 
-export default function LoginScreen({ navigation }) {
-  const [scanned, setScanned] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
+export default function TestCameraScreen({ navigation }) {
+  const [facing, setFacing] = useState('back');
   const [isFocused, setIsFocused] = useState(true);
   const [permission, requestPermission] = useCameraPermissions();
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
-      setScanned(false);
-      setIsProcessing(false);
       setIsFocused(true);
     });
 
@@ -33,98 +29,49 @@ export default function LoginScreen({ navigation }) {
   if (!permission.granted) {
     return (
       <View style={styles.container}>
-        <Text style={styles.text}>Wir benötigen Ihre Erlaubnis, um die Kamera für den QR-Code Scanner zu verwenden</Text>
-        <Button onPress={requestPermission} title="Erlaubnis erteilen" />
+        <View style={styles.permissionContainer}>
+          <Text style={styles.permissionText}>
+            Wir benötigen Ihre Erlaubnis, um die Kamera zu verwenden
+          </Text>
+          <Button onPress={requestPermission} title="Erlaubnis erteilen" />
+        </View>
       </View>
     );
   }
 
-  const handleBarCodeScanned = async ({ type, data }) => {
-    if (scanned || isProcessing) return;
-    
-    setScanned(true);
-    setIsProcessing(true);
-
-    try {
-      if (!data || data.length < 10) {
-        Alert.alert('Fehler', 'Ungültiger QR-Code. Bitte versuchen Sie es erneut.');
-        setScanned(false);
-        setIsProcessing(false);
-        return;
-      }
-
-      await SecureStore.setItemAsync('userToken', data);
-      
-      Alert.alert(
-        'Erfolg', 
-        'QR-Code erfolgreich gescannt und Token gespeichert!',
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              navigation.reset({
-                index: 0,
-                routes: [{ name: 'Home' }],
-              });
-            }
-          }
-        ]
-      );
-    } catch (error) {
-      console.error('Error saving token:', error);
-      Alert.alert('Fehler', 'Token konnte nicht gespeichert werden.');
-      setScanned(false);
-      setIsProcessing(false);
-    }
+  const toggleCameraFacing = () => {
+    setFacing(current => 
+      current === 'back' ? 'front' : 'back'
+    );
   };
-
-  if (isProcessing) {
-    return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.processingText}>Verarbeite QR-Code...</Text>
-      </View>
-    );
-  }
 
   return (
     <View style={styles.container}>
       {isFocused && (
         <CameraView 
           style={styles.camera} 
-          barCodeScannerSettings={{
-            barCodeTypes: ['qr'],
-          }}
-          onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
-        />
+          facing={facing}
+        >
+          <View style={styles.overlay}>
+            <Text style={styles.title}>Kamera Test</Text>
+            <Text style={styles.subtitle}>
+              {facing === 'back' ? 'Rückkamera' : 'Frontkamera'} aktiv
+            </Text>
+          </View>
+        </CameraView>
       )}
       
-      <View style={styles.overlay}>
-        <View style={styles.topOverlay}>
-          <Text style={styles.instructionText}>
-            Richten Sie die Kamera auf einen QR-Code
-          </Text>
-        </View>
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity style={styles.button} onPress={toggleCameraFacing}>
+          <Text style={styles.buttonText}>Kamera wechseln</Text>
+        </TouchableOpacity>
         
-        <View style={styles.middleRow}>
-          <View style={styles.sideOverlay} />
-          <View style={styles.scanArea}>
-            <View style={styles.cornerTL} />
-            <View style={styles.cornerTR} />
-            <View style={styles.cornerBL} />
-            <View style={styles.cornerBR} />
-          </View>
-          <View style={styles.sideOverlay} />
-        </View>
-        
-        <View style={styles.bottomOverlay}>
-          {scanned && (
-            <Button 
-              title="Erneut scannen" 
-              onPress={() => setScanned(false)} 
-            />
-          )}
-        </View>
+        <TouchableOpacity 
+          style={[styles.button, styles.loginButton]} 
+          onPress={() => navigation.navigate('Login')}
+        >
+          <Text style={styles.buttonText}>Zum QR-Code Login</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -135,97 +82,63 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'black',
   },
+  permissionContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  permissionText: {
+    fontSize: 18,
+    textAlign: 'center',
+    marginBottom: 20,
+    color: 'white',
+  },
   camera: {
     flex: 1,
   },
-  text: {
-    fontSize: 18,
-    textAlign: 'center',
-    marginBottom: 20,
-    paddingHorizontal: 20,
-    color: 'white',
-  },
-  processingText: {
-    marginTop: 20,
-    fontSize: 16,
-    color: '#007AFF',
-  },
   overlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  topOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'transparent',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  bottomOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  middleRow: {
-    flexDirection: 'row',
-    height: 250,
-  },
-  sideOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-  },
-  scanArea: {
-    width: 250,
-    height: 250,
-  },
-  instructionText: {
-    color: 'white',
-    fontSize: 18,
+  title: {
+    fontSize: 28,
     fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 20,
+    color: 'white',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 5,
+    marginBottom: 10,
   },
-  cornerTL: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    width: 50,
-    height: 50,
-    borderTopWidth: 4,
-    borderLeftWidth: 4,
-    borderColor: '#007AFF',
+  subtitle: {
+    fontSize: 18,
+    color: 'white',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 3,
   },
-  cornerTR: {
+  buttonContainer: {
     position: 'absolute',
-    top: 0,
-    right: 0,
-    width: 50,
-    height: 50,
-    borderTopWidth: 4,
-    borderRightWidth: 4,
-    borderColor: '#007AFF',
+    bottom: 40,
+    left: 20,
+    right: 20,
   },
-  cornerBL: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    width: 50,
-    height: 50,
-    borderBottomWidth: 4,
-    borderLeftWidth: 4,
-    borderColor: '#007AFF',
+  button: {
+    backgroundColor: '#007AFF',
+    paddingVertical: 15,
+    paddingHorizontal: 30,
+    borderRadius: 25,
+    alignItems: 'center',
+    marginBottom: 15,
   },
-  cornerBR: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 50,
-    height: 50,
-    borderBottomWidth: 4,
-    borderRightWidth: 4,
-    borderColor: '#007AFF',
+  loginButton: {
+    backgroundColor: '#34C759',
+  },
+  buttonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });

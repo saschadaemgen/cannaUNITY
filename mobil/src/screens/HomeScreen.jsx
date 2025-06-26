@@ -77,10 +77,10 @@ export default function HomeScreen({ navigation }) {
           onPress: async () => {
             try {
               await SecureStore.deleteItemAsync('userToken');
-              navigation.reset({
-                index: 0,
-                routes: [{ name: 'TestCamera' }],
-              });
+              await SecureStore.deleteItemAsync('userData');
+              
+              // Verwende navigate statt reset
+              navigation.navigate('TestCamera');
             } catch (error) {
               console.error('Error during logout:', error);
               Alert.alert('Fehler', 'Abmeldung fehlgeschlagen');

@@ -7,6 +7,7 @@ import { View, ActivityIndicator, Text, Button, StyleSheet, Alert } from 'react-
 import TestCameraScreen from '../screens/TestCameraScreen';
 import LoginScreen from '../screens/LoginScreen';
 import HomeScreen from '../screens/HomeScreen';
+import QRImageScanner from '../screens/QRImageScanner';
 
 const Stack = createNativeStackNavigator();
 
@@ -126,64 +127,47 @@ export default function AppNavigator() {
     );
   }
 
+  // Alle Screens sind immer verfügbar, nur die initialRouteName ändert sich
   return (
-    <Stack.Navigator>
-      {userToken ? (
-        // Token vorhanden - Biometrie-Screen zeigen
-        <>
-          <Stack.Screen 
-            name="Biometric" 
-            component={BiometricScreen} 
-            options={{ 
-              title: 'Authentifizierung',
-              headerShown: false 
-            }}
-          />
-          <Stack.Screen 
-            name="Home" 
-            component={HomeScreen} 
-            options={{ 
-              title: 'Home',
-              headerLeft: null,
-              gestureEnabled: false 
-            }}
-          />
-          <Stack.Screen 
-            name="Login" 
-            component={LoginScreen} 
-            options={{ 
-              title: 'QR-Code Login',
-              headerLeft: null 
-            }}
-          />
-        </>
-      ) : (
-        // Kein Token - normaler Flow
-        <>
-          <Stack.Screen 
-            name="TestCamera" 
-            component={TestCameraScreen} 
-            options={{ title: 'Kamera Test' }}
-          />
-          <Stack.Screen 
-            name="Login" 
-            component={LoginScreen} 
-            options={{ 
-              title: 'QR-Code Login',
-              headerLeft: null 
-            }}
-          />
-          <Stack.Screen 
-            name="Home" 
-            component={HomeScreen} 
-            options={{ 
-              title: 'Home',
-              headerLeft: null,
-              gestureEnabled: false 
-            }}
-          />
-        </>
-      )}
+    <Stack.Navigator initialRouteName={userToken ? "Biometric" : "TestCamera"}>
+      <Stack.Screen 
+        name="TestCamera" 
+        component={TestCameraScreen} 
+        options={{ title: 'Kamera Test' }}
+      />
+      <Stack.Screen 
+        name="Login" 
+        component={LoginScreen} 
+        options={{ 
+          title: 'QR-Code Login',
+          headerLeft: null 
+        }}
+      />
+      <Stack.Screen 
+        name="Home" 
+        component={HomeScreen} 
+        options={{ 
+          title: 'Home',
+          headerLeft: null,
+          gestureEnabled: false 
+        }}
+      />
+      <Stack.Screen 
+        name="Biometric" 
+        component={BiometricScreen} 
+        options={{ 
+          title: 'Authentifizierung',
+          headerShown: false 
+        }}
+      />
+      <Stack.Screen 
+        name="QRImageScanner" 
+        component={QRImageScanner} 
+        options={{ 
+          title: 'QR-Code scannen',
+          headerShown: false 
+        }}
+      />
     </Stack.Navigator>
   );
 }
