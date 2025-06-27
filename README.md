@@ -1,4 +1,5 @@
 # 🌿 cannaUNITY v0.6.20 (Pre-Alpha)
+(My purpose? I push features. Welcome to cannaUNITY—the finest butter‑bot of highend Cannabis Social Club software.)
 
 ![GitHub Repo stars](https://img.shields.io/github/stars/saschadaemgen/cannaUNITY?style=social)
 ![GitHub license](https://img.shields.io/github/license/saschadaemgen/cannaUNITY)
@@ -24,7 +25,6 @@
 ---
 
 ## 📦 Was ist cannaUNITY?
-My purpose? I push features. Welcome to cannaUNITY—the finest butter‑bot of highend Cannabis Social Club software.
 
 **cannaUNITY** ist eine professionelle Open-Source-Plattform zur Organisation, Verwaltung und Automatisierung von Cannabis-Anbauvereinigungen gemäß dem Konsumcannabisgesetz (KCanG), welche entstanden ist weil wir keine Lösung gefunden haben, die die Möglichkeiten moderner Technologie wirklich nutzt und die gesetzlichen Anforderungen an Sicherheit, Transparenz und Nachvollziehbarkeit umfassend abdeckt. Unser Ansatz ist es, den gesamten Betrieb einer Cannabis-Anbauvereinigung nicht nur zu verwalten, sondern zu automatisieren und digital abzusichern – von der alters- und THC-gerechten Zugangskontrolle mit UniFi Access, über KI-gestützte, datenschutzkonforme Protokollierung der Anwesenheit mit UniFi Protect, bis hin zur smarten Steuerung aller Anlagen per SIMATIC S7. Damit können sowohl Zutritt, als auch Arbeits- und Produktionsprozesse jederzeit lückenlos dokumentiert, kontrolliert und behördengerecht nachgewiesen werden.
 
@@ -38,6 +38,7 @@ Darüber hinaus haben wir eine vollständig integrierte Warenwirtschaft und Buch
 
 - ✅ Echtzeit UUID-Track & Trace von Pflanzen, Verarbeitung & Produktausgabe
 - ✅ Erzeugung von Batch und Chargenummern inkl. 128 Bit UUID Anbindung
+- ✅ Native Android, IOS & Windows APP
 - ✅ WordPress oder Joomla CMS Online Anbindung über ZKP/SSH Tunnel
 - ✅ Digitalisierte Produktausgabe mit Limitkontrolle
 - ✅ RFID/NFC Arbeitszeiterfassung mit Minijob/Pflichtstunden & Ehrenamt Erkennung
