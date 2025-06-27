@@ -1,9 +1,6 @@
-cannaUNITY Authentifizierungs-System
-🔐 „Quantum-secure, multiverse-proof, and definitely over-engineered – just like Rick likes it.“
-
 # cannaUNITY Authentifizierungssystem
 
-**Sicherheit auf Banken-Niveau für Cannabis Social Club Verwaltung**
+**🔐 Quantum-secure, multiverse-proof, and definitely over-engineered – just like Rick likes it.**
 
 ![Security Badge](https://img.shields.io/badge/Sicherheit-Enterprise%20Grade-green)
 ![Encryption Badge](https://img.shields.io/badge/Verschlüsselung-AES--256-blue)
