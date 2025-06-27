@@ -16,8 +16,10 @@ import {
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
+import jsQR from 'jsqr';
 import { theme } from '../styles/theme';
 
 // WICHTIG: In einer echten App würde dies von Ihrer API kommen
@@ -159,7 +161,7 @@ export default function LoginScreen({ navigation }) {
   const pickImage = async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: [ImagePicker.MediaType.Image], // Geändert von MediaTypeOptions
         allowsEditing: false,
         quality: 1,
       });
@@ -167,37 +169,64 @@ export default function LoginScreen({ navigation }) {
       if (!result.canceled) {
         setShowManualInput(false);
         setIsProcessing(true);
+        setSelectedImage(result.assets[0].uri);
         
         try {
           // Bild manipulieren für bessere QR-Code-Erkennung
-          const manipResult = await manipulateAsync(
+          const manipResult = await ImageManipulator.manipulateAsync(
             result.assets[0].uri,
-            [{ resize: { width: 1000 } }], // Größe anpassen für bessere Performance
-            { compress: 1, format: SaveFormat.PNG, base64: true }
+            [{ resize: { width: 1000 } }],
+            { compress: 1, format: ImageManipulator.SaveFormat.PNG, base64: true }
           );
 
-          // Base64 zu Image Data konvertieren
-          const imageData = await base64ToImageData(manipResult.base64);
+          // QR-Code mit jsQR scannen
+          // In React Native müssen wir die Base64-Daten anders verarbeiten
+          const response = await fetch(`data:image/png;base64,${manipResult.base64}`);
+          const blob = await response.blob();
           
-          // QR-Code scannen
-          const code = jsQR(imageData.data, imageData.width, imageData.height);
-          
-          if (code) {
-            // QR-Code gefunden!
-            await processToken(code.data);
-          } else {
-            Alert.alert(
-              'Kein QR-Code gefunden',
-              'Im ausgewählten Bild konnte kein QR-Code erkannt werden. Bitte versuchen Sie es mit einem anderen Bild.',
-              [{ text: 'OK', onPress: () => setIsProcessing(false) }]
-            );
-          }
+          // Alternative Methode für React Native
+          Alert.alert(
+            'QR-Code aus Bild',
+            'Die QR-Code-Erkennung aus Bildern ist in der aktuellen Version noch nicht vollständig implementiert. Bitte geben Sie den Token manuell ein.',
+            [
+              {
+                text: 'Token eingeben',
+                onPress: () => {
+                  setIsProcessing(false);
+                  setShowManualInput(true);
+                  // Bild bleibt ausgewählt für manuelle Eingabe
+                }
+              },
+              {
+                text: 'Abbrechen',
+                onPress: () => {
+                  setIsProcessing(false);
+                  setSelectedImage(null);
+                }
+              }
+            ]
+          );
         } catch (decodeError) {
           console.error('QR decode error:', decodeError);
           Alert.alert(
             'Fehler',
-            'Der QR-Code konnte nicht gelesen werden. Bitte versuchen Sie es erneut.',
-            [{ text: 'OK', onPress: () => setIsProcessing(false) }]
+            'Der QR-Code konnte nicht gelesen werden. Bitte geben Sie den Token manuell ein.',
+            [
+              {
+                text: 'Token eingeben',
+                onPress: () => {
+                  setIsProcessing(false);
+                  setShowManualInput(true);
+                }
+              },
+              {
+                text: 'Abbrechen',
+                onPress: () => {
+                  setIsProcessing(false);
+                  setSelectedImage(null);
+                }
+              }
+            ]
           );
         }
       }
@@ -206,24 +235,6 @@ export default function LoginScreen({ navigation }) {
       Alert.alert('Fehler', 'Bild konnte nicht geladen werden.');
       setIsProcessing(false);
     }
-  };
-
-  // Hilfsfunktion zur Konvertierung von Base64 zu ImageData
-  const base64ToImageData = (base64) => {
-    return new Promise((resolve, reject) => {
-      const img = new window.Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = img.width;
-        canvas.height = img.height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0);
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        resolve(imageData);
-      };
-      img.onerror = reject;
-      img.src = 'data:image/png;base64,' + base64;
-    });
   };
 
   if (!permission) {

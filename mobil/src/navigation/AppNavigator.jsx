@@ -7,7 +7,6 @@ import { View, ActivityIndicator, Text, Button, StyleSheet, Alert } from 'react-
 import TestCameraScreen from '../screens/TestCameraScreen';
 import LoginScreen from '../screens/LoginScreen';
 import HomeScreen from '../screens/HomeScreen';
-import QRImageScanner from '../screens/QRImageScanner';
 
 const Stack = createNativeStackNavigator();
 
@@ -157,14 +156,6 @@ export default function AppNavigator() {
         component={BiometricScreen} 
         options={{ 
           title: 'Authentifizierung',
-          headerShown: false 
-        }}
-      />
-      <Stack.Screen 
-        name="QRImageScanner" 
-        component={QRImageScanner} 
-        options={{ 
-          title: 'QR-Code scannen',
           headerShown: false 
         }}
       />

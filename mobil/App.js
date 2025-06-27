@@ -10,7 +10,11 @@ export default function App() {
 
   return (
     <View style={styles.container}>
-      <StatusBar style="light" backgroundColor="#2ECC40" />
+      {/* StatusBar ohne backgroundColor */}
+      <StatusBar style="light" />
+      
+      {/* Grüner Hintergrund für StatusBar-Bereich */}
+      <View style={styles.statusBarBackground} />
       
       {isShowingSplash ? (
         <SplashScreen onAnimationComplete={() => setIsShowingSplash(false)} />
@@ -27,5 +31,14 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#2ECC40',
+  },
+  statusBarBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 50, // Anpassen je nach Gerät
+    backgroundColor: '#2ECC40',
+    zIndex: -1,
   },
 });

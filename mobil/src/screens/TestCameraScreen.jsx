@@ -48,17 +48,19 @@ export default function TestCameraScreen({ navigation }) {
   return (
     <View style={styles.container}>
       {isFocused && (
-        <CameraView 
-          style={styles.camera} 
-          facing={facing}
-        >
+        <>
+          <CameraView 
+            style={styles.camera} 
+            facing={facing}
+          />
+          {/* Overlay als separates Element mit absolute positioning */}
           <View style={styles.overlay}>
             <Text style={styles.title}>Kamera Test</Text>
             <Text style={styles.subtitle}>
               {facing === 'back' ? 'Rückkamera' : 'Frontkamera'} aktiv
             </Text>
           </View>
-        </CameraView>
+        </>
       )}
       
       <View style={styles.buttonContainer}>
@@ -98,10 +100,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   overlay: {
-    flex: 1,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: 'transparent',
     justifyContent: 'center',
     alignItems: 'center',
+    pointerEvents: 'none', // Wichtig: Overlay blockiert keine Touch-Events
   },
   title: {
     fontSize: 28,
