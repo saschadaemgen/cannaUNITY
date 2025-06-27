@@ -1,5 +1,5 @@
 # 🌿 cannaUNITY v0.6.20 (Pre-Alpha)
-(Welcome to cannaUNITY—the finest butter‑bot of highend Cannabis Social Club software.)
+(Welcome to the finest butter‑bot of highend Cannabis Social Club software.)
 
 ![GitHub Repo stars](https://img.shields.io/github/stars/saschadaemgen/cannaUNITY?style=social)
 ![GitHub license](https://img.shields.io/github/license/saschadaemgen/cannaUNITY)
@@ -60,7 +60,9 @@ Darüber hinaus haben wir eine vollständig integrierte Warenwirtschaft und Buch
 - ✅ Einzel- und Mehrfachbuchungen inkl. Subtransaktionen & Kontenwahl
 - ✅ Vollständige Verknüpfung zu Mitgliedskonten & Mitgliedsbeiträgen
 - ✅ Filterbare Journalansicht nach Jahr, Monat, Typ & Stornostatus
-- ✅ Multi-Chain ForeignKey Track&Trace: Lückenlose Rückverfolgung aller Produkte („Chain-of-Custody“) per ForeignKey 
+- ✅ Multi-Chain ForeignKey Track&Trace: Lückenlose Rückverfolgung aller Produkte („Chain-of-Custody“) per ForeignKey
+
+---
 
 <p align="center">
   <img src="screenshots/trackandtrace/produktausgabe_step_2.png" alt="Vorschau" width="1920">
@@ -85,6 +87,8 @@ flowchart LR
     BLF --> SEED[SeedPurchase/Mutterpflanze]
     SEED --> STR[Genetik / Strain]
 ```
+
+---
 
 <p align="center">
   <img src="screenshots/mitglieder/joomla_unifi_integration.png" alt="Vorschau" width="1920">
