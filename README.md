@@ -4,6 +4,10 @@
 ![GitHub Repo stars](https://img.shields.io/github/stars/saschadaemgen/cannaUNITY?style=social)
 ![GitHub license](https://img.shields.io/github/license/saschadaemgen/cannaUNITY)
 ![GitHub last commit](https://img.shields.io/github/last-commit/saschadaemgen/cannaUNITY)
+![Security Badge](https://img.shields.io/badge/Sicherheit-Enterprise%20Grade-green)
+![Encryption Badge](https://img.shields.io/badge/Verschlüsselung-AES--256-blue)
+![Auth Badge](https://img.shields.io/badge/Authentifizierung-3--Faktor-orange)
+![GDPR Badge](https://img.shields.io/badge/DSGVO-Konform-brightgreen)
 
 > **Modulare Open-Source-Software Suite für Cannabis Social Clubs und Anbauvereinigungen gemäß dem deutschem Konsumcannabisgesetz § (KCanG)**
 > Mitgliederverwaltung · eVereinsverwaltung · Berichtsverwaltung · Aufgabenplanung ·  Growcontroller · Zutrittskontrolle · eStempelkarte · Track & Trace · Buchhaltung · WaWi · Raumautomation · Sicherheitssystem · IOS & Android APP · Verwaltungs, Administrations und User UI`s,
@@ -287,11 +291,42 @@ cannaUNITY/
 
 ## 🔐 Authentifizierungskonzept
 
-- Tokenbasierte API-Auth (Token wird im `localStorage` gespeichert)
-- Passkey-Login mit 2-/3-Faktor-Authentifizierung
-- Zutritt zur Anlage & Innenräumen über UniFi / RFID / NFC
-- Online-Zugriff strikt anonymisiert über UUID/Passkey
-- Track and Trace Schritt Freigabe/Identifikation über RFID / NFC
+### 🏗️ Zero-Knowledge Architektur
+- **Airgapped PostgreSQL**: Row-Level-Security (RLS) mit pgcrypto Extension, AES-256-GCM für sensitive Spalten
+- **Anonymous Cloud Layer**: MariaDB mit verschlüsselten UIDs (HMAC-SHA3-512), Zero-PII Storage Policy
+- **Unidirektionale Replikation**: SSH-Tunnel (Ed25519) mit Read-Only pg_read_all_data Role, Write via REST mit mTLS
+- **Network Segregation**: DMZ-Architektur mit Jump-Host, iptables Egress-Only Rules für lokales Netz
+
+### 🛡️ Multi-Faktor-Authentifizierung (3FA)
+📱 Device Certificate (X.509) + 🤳 Biometrie + 🔢 PIN = ✅ Zugang
+
+- **Possession Factor**: Device-Fingerprinting via X.509 Client Certs + Hardware-Attestation (iOS: DeviceCheck API, Android: SafetyNet/Play Integrity)
+- **Inherence Factor**: Biometric Templates in Secure Enclave (iOS) / Trusted Execution Environment (Android), FIDO2/WebAuthn Level 2 konform
+- **Knowledge Factor**: Argon2id gehashte PIN (m=64MB, t=3, p=4), Timing-Attack resistent implementiert
+- **Zero-Password Architecture**: Vollständiger Verzicht auf traditionelle Passwörter, NIST 800-63B compliant
+
+### 🎯 Token-Hierarchie & Kryptografie
+| Token Type | 🔐 Crypto | ⏱️ TTL | 🎯 Purpose |
+|------------|-----------|--------|------------|
+| **QR-Code** | RSA-4096 OAEP | 5 min | Initial Device Registration |
+| **Device** | Ed25519 + ECDHE | 180 days | Long-term Authentication |
+| **Session** | JWT ES384 | 24 hours | API Access Token |
+
+- **Storage Layer**: Expo SecureStore (iOS: Keychain kSecAttrAccessibleWhenUnlockedThisDeviceOnly, Android: AES-256 via Android Keystore)
+
+### 🚪 Physischer Zugang & IoT Integration
+- **UniFi Access API v2**: OAuth2 Device Flow, Webhook-basierte Echtzeit-Synchronisation
+- **NFC/RFID**: MIFARE DESFire EV3 mit AES-128 Mutual Authentication, UID-basierte Zuordnung
+- **BLE Beacon Access**: iBeacon/Eddystone mit Rolling Proximity UUIDs, RSSI-basierte Distanzverifikation
+- **Audit Logging**: PostgreSQL Event Triggers → Kafka → Elasticsearch, WORM-Storage für Compliance
+
+### 🔒 Security Hardening & Compliance
+- **TLS Configuration**: TLS 1.3 only, HSTS mit Preloading, Certificate Transparency Monitoring
+- **API Security**: OAuth 2.1 (draft-ietf-oauth-v2-1-09), PKCE mandatory, DPoP für Token Binding
+- **Rate Limiting**: Token Bucket Algorithm (nginx-limit-req), Distributed mit Redis, Adaptive Thresholds
+- **Geo-Restrictions**: MaxMind GeoIP2 mit Precision City, Haversine Distance Calculation, Configurable Radius
+- **DSGVO/GDPR**: Privacy by Design (Art. 25), Pseudonymisierung (Art. 4), Right to Erasure via Crypto-Shredding
+- **Penetration Testing**: OWASP MASVS Level 2 konform, regelmäßige Security Audits mit Metasploit/Burp Suite
 
 ---
 
@@ -308,7 +343,6 @@ cannaUNITY/
 | `interface`      | Touchpanels, Raumterminals, Infodisplays                                     |
 | `controller`     | Anbindung Siemens/Loxone,                         |
 | `security`       | Alarmsysteme, Notfallzugänge, Behördenzugriff                                |
-| `ha`             | Home Assistant Integration                                                   |
 
 ---
 
