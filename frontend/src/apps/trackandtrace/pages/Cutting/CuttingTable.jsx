@@ -1,34 +1,39 @@
 // frontend/src/apps/trackandtrace/pages/Cutting/components/CuttingTable.jsx
 import { useState } from 'react'
 import { 
-  Box, Typography, Button, IconButton, Tooltip, Checkbox, 
+  Box, Typography, Button, IconButton, Tooltip, Checkbox, Badge,
   Table, TableContainer, TableHead, TableRow, TableCell, TableBody,
-  Paper, FormControlLabel, Pagination
+  Paper, FormControlLabel, Pagination, FormControl, Select, MenuItem,
+  useTheme, alpha
 } from '@mui/material'
 import ScienceIcon from '@mui/icons-material/Science'
 import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment'
-import LocalFloristIcon from '@mui/icons-material/LocalFlorist' // Neues Icon für Blühpflanzen
+import LocalFloristIcon from '@mui/icons-material/LocalFlorist'
+import PhotoCameraIcon from '@mui/icons-material/PhotoCamera'
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import { Link } from 'react-router-dom'
 
-import TableHeader from '@/components/common/TableHeader'
 import AccordionRow from '@/components/common/AccordionRow'
 import DetailCards from '@/components/common/DetailCards'
 import PaginationFooter from '@/components/common/PaginationFooter'
 import LoadingIndicator from '@/components/common/LoadingIndicator'
+import FilterSection from '@/components/common/FilterSection'
 
-/**
- * CuttingTable Komponente für die Darstellung der Stecklinge-Tabelle
- */
 const CuttingTable = ({
   tabValue,
   data,
   expandedBatchId,
   onExpandBatch,
   onOpenDestroyDialog,
-  onOpenConvertDialog, // Neue Prop für die Konvertierungsfunktion
+  onOpenConvertDialog,
+  onOpenImageModal,
   currentPage,
   totalPages,
   onPageChange,
+  pageSize,
+  onPageSizeChange,
+  pageSizeOptions = [5, 10, 15, 25, 50],
+  totalCount,
   batchCuttings,
   destroyedBatchCuttings,
   cuttingsCurrentPage,
@@ -40,12 +45,23 @@ const CuttingTable = ({
   selectedCuttings,
   toggleCuttingSelection,
   selectAllCuttingsInBatch,
-  // Neue Props für überführte Stecklinge
   convertedBatchCuttings,
   convertedCuttingsCurrentPage,
   convertedCuttingsTotalPages,
-  onConvertedCuttingsPageChange
+  onConvertedCuttingsPageChange,
+  yearFilter,
+  setYearFilter,
+  monthFilter,
+  setMonthFilter,
+  dayFilter,
+  setDayFilter,
+  showFilters,
+  setShowFilters,
+  onFilterApply,
+  onFilterReset
 }) => {
+  const theme = useTheme();
+  
   // Spalten für den Tabellenkopf definieren
   const getHeaderColumns = () => {
     return [
@@ -55,8 +71,9 @@ const CuttingTable = ({
       { label: 'Aktiv/Gesamt', width: '8%', align: 'center' },
       { label: 'Vernichtet', width: '10%', align: 'left' },
       { label: 'Kultiviert von', width: '15%', align: 'left' },
-      { label: 'Raum', width: '15%', align: 'left' },
-      { label: 'Erstellt am', width: '15%', align: 'left' }
+      { label: 'Raum', width: '12%', align: 'left' },
+      { label: 'Erstellt am', width: '13%', align: 'left' },
+      { label: 'Aktionen', width: '5%', align: 'center' }
     ]
   }
 
@@ -64,8 +81,26 @@ const CuttingTable = ({
   const getRowColumns = (batch) => {
     return [
       {
-        content: '',
-        width: '3%'
+        content: (
+          <IconButton 
+            onClick={(e) => {
+              e.stopPropagation();
+              onExpandBatch(batch.id);
+            }}
+            size="small"
+            sx={{ 
+              color: 'primary.main',
+              width: '28px',
+              height: '28px',
+              transform: expandedBatchId === batch.id ? 'rotate(180deg)' : 'rotate(0deg)',
+              transition: 'transform 300ms ease-in-out'
+            }}
+          >
+            <ExpandMoreIcon fontSize="small" />
+          </IconButton>
+        ),
+        width: '3%',
+        align: 'center'
       },
       {
         content: batch.mother_strain || batch.seed_strain || "Unbekannt",
@@ -98,11 +133,53 @@ const CuttingTable = ({
       },
       {
         content: batch.room ? batch.room.name : "Nicht zugewiesen",
-        width: '15%'
+        width: '12%'
       },
       {
         content: new Date(batch.created_at).toLocaleDateString('de-DE'),
-        width: '15%'
+        width: '13%'
+      },
+      {
+        content: (
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+            <Box
+              sx={{
+                border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
+                borderRadius: '4px',
+                p: 0.5,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: theme.palette.background.paper,
+                '&:hover': {
+                  backgroundColor: alpha(theme.palette.action.hover, 0.1),
+                  borderColor: theme.palette.divider
+                }
+              }}
+            >
+              <Tooltip title={`Bilder verwalten (${batch.image_count || 0})`}>
+                <IconButton 
+                  size="small" 
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onOpenImageModal(batch, e)
+                  }}
+                  sx={{ 
+                    p: 0.5,
+                    color: theme.palette.text.secondary
+                  }}
+                >
+                  <Badge badgeContent={batch.image_count || 0} color="primary">
+                    <PhotoCameraIcon sx={{ fontSize: '1rem' }} />
+                  </Badge>
+                </IconButton>
+              </Tooltip>
+            </Box>
+          </Box>
+        ),
+        width: '5%',
+        align: 'center',
+        stopPropagation: true
       }
     ]
   }
@@ -124,21 +201,21 @@ const CuttingTable = ({
     const chargeDetails = (
       <Box>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-          <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)' }}>
+          <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
             Chargen-ID:
           </Typography>
-          <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.87)' }}>
+          <Typography variant="body2" sx={{ color: 'text.primary' }}>
             {batch.batch_number}
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-          <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)' }}>
+          <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
             UUID:
           </Typography>
           <Typography 
             variant="body2" 
             sx={{ 
-              color: 'rgba(0, 0, 0, 0.87)',
+              color: 'text.primary',
               fontFamily: 'monospace',
               fontSize: '0.75rem',
               wordBreak: 'break-all'
@@ -148,27 +225,26 @@ const CuttingTable = ({
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-          <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)' }}>
+          <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
             Erstellt am:
           </Typography>
-          <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.87)' }}>
+          <Typography variant="body2" sx={{ color: 'text.primary' }}>
             {new Date(batch.created_at).toLocaleDateString('de-DE')}
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-          <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)' }}>
+          <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
             Mutterpflanzen-Charge:
           </Typography>
-          <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.87)' }}>
+          <Typography variant="body2" sx={{ color: 'text.primary' }}>
             {batch.mother_batch_number || "Unbekannt"}
           </Typography>
         </Box>
-        {/* Neue Zeile für spezifische Mutterpflanze */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-          <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)' }}>
+          <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
             Spezifische Mutterpflanze:
           </Typography>
-          <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.87)' }}>
+          <Typography variant="body2" sx={{ color: 'text.primary' }}>
             {batch.mother_plant_number || "Ganze Charge"}
           </Typography>
         </Box>
@@ -177,19 +253,19 @@ const CuttingTable = ({
 
     const cuttingsIdsContent = (
       <Box>
-        <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1, color: 'rgba(0, 0, 0, 0.87)' }}>
+        <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1, color: 'text.primary' }}>
           Aktive Stecklinge:
         </Typography>
         <Box
           sx={{
-            backgroundColor: 'white',
+            backgroundColor: theme.palette.background.paper,
             p: 1.5,
             borderRadius: '4px',
             fontFamily: 'monospace',
             fontSize: '0.85rem',
             wordBreak: 'break-all',
             mb: 2,
-            border: '1px solid rgba(0, 0, 0, 0.12)'
+            border: `1px solid ${alpha(theme.palette.divider, 0.12)}`
           }}
         >
           {batch.active_cuttings_count > 0 
@@ -197,19 +273,19 @@ const CuttingTable = ({
             : "Keine aktiven Stecklinge"}
         </Box>
         
-        <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1, color: 'rgba(0, 0, 0, 0.87)' }}>
+        <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1, color: 'text.primary' }}>
           Vernichtete Stecklinge:
         </Typography>
         <Box
           sx={{
-            backgroundColor: 'white',
+            backgroundColor: theme.palette.background.paper,
             p: 1.5,
             borderRadius: '4px',
             fontFamily: 'monospace',
             fontSize: '0.85rem',
             wordBreak: 'break-all',
-            border: '1px solid rgba(0, 0, 0, 0.12)',
-            color: batch.destroyed_cuttings_count > 0 ? 'error.main' : 'rgba(0, 0, 0, 0.38)'
+            border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+            color: batch.destroyed_cuttings_count > 0 ? 'error.main' : 'text.secondary'
           }}
         >
           {batch.destroyed_cuttings_count > 0 
@@ -222,10 +298,10 @@ const CuttingTable = ({
     const notesContent = (
       <Box
         sx={{
-          backgroundColor: 'white',
+          backgroundColor: theme.palette.background.paper,
           p: 2,
           borderRadius: '4px',
-          border: '1px solid rgba(0, 0, 0, 0.12)',
+          border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
           flexGrow: 1,
           display: 'flex',
           alignItems: batch.notes ? 'flex-start' : 'center',
@@ -237,7 +313,7 @@ const CuttingTable = ({
           variant="body2" 
           sx={{ 
             fontStyle: batch.notes ? 'normal' : 'italic',
-            color: batch.notes ? 'rgba(0, 0, 0, 0.87)' : 'rgba(0, 0, 0, 0.6)',
+            color: batch.notes ? 'text.primary' : 'text.secondary',
             width: '100%'
           }}
         >
@@ -269,14 +345,16 @@ const CuttingTable = ({
           sx={{ 
             p: 2, 
             mb: 3, 
-            backgroundColor: 'white', 
+            backgroundColor: theme.palette.background.paper, 
             borderLeft: '4px solid',
             borderColor: 'primary.main',
             borderRadius: '4px',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+            boxShadow: theme.palette.mode === 'dark' 
+              ? '0 1px 3px rgba(0,0,0,0.3)' 
+              : '0 1px 3px rgba(0,0,0,0.1)'
           }}
         >
-          <Typography variant="body2" sx={{ fontStyle: 'italic', color: 'rgba(0, 0, 0, 0.6)' }}>
+          <Typography variant="body2" sx={{ fontStyle: 'italic', color: 'text.secondary' }}>
             {getActivityMessage(batch)}
           </Typography>
         </Box>
@@ -301,19 +379,7 @@ const CuttingTable = ({
                 </Typography>
                 
                 {batchCuttings[batch.id]?.length > 0 && (
-                  <Box display="flex" alignItems="center">
-                    <Button 
-                      variant="contained" 
-                      color="success"
-                      onClick={() => {
-                        // Den dritten Parameter auf true setzen, um anzuzeigen, dass alle konvertiert werden sollen
-                        onOpenConvertDialog(batch, [], true);
-                      }}
-                      startIcon={<LocalFloristIcon />}
-                    >
-                      Alle Stecklinge zu Blühpflanzen umwandeln
-                    </Button>
-                    
+                  <Box display="flex" alignItems="center" gap={1}>
                     <FormControlLabel
                       control={
                         <Checkbox
@@ -324,34 +390,93 @@ const CuttingTable = ({
                         />
                       }
                       label="Alle auswählen"
-                      sx={{ ml: 2 }}
+                      sx={{ ml: 0 }}
                     />
                     
-                    {selectedCuttings[batch.id]?.length > 0 && (
-                      <>
-                        {/* Button für Konvertierung ausgewählter Stecklinge zu Blühpflanzen */}
+                    {/* Aktionsbuttons */}
+                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                      {/* Alle zu Blühpflanzen */}
+                      <Box
+                        sx={{
+                          border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
+                          borderRadius: '4px',
+                          p: 0.75,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          backgroundColor: theme.palette.background.paper,
+                          '&:hover': {
+                            backgroundColor: alpha(theme.palette.action.hover, 0.08),
+                            borderColor: theme.palette.divider
+                          }
+                        }}
+                      >
                         <Button 
-                          variant="contained" 
-                          color="success"
-                          onClick={() => onOpenConvertDialog(batch, selectedCuttings[batch.id], false)}
+                          variant="text" 
+                          color="inherit"
+                          onClick={() => onOpenConvertDialog(batch, [], true)}
                           startIcon={<LocalFloristIcon />}
-                          sx={{ ml: 2 }}
+                          sx={{ textTransform: 'none', color: 'text.primary' }}
                         >
-                          {selectedCuttings[batch.id].length} zu Blühpflanzen
+                          Alle zu Blühpflanzen
                         </Button>
-                        
-                        {/* Bestehender Button für Vernichtung */}
-                        <Button 
-                          variant="contained" 
-                          color="error"
-                          onClick={() => onOpenDestroyDialog(batch)}
-                          startIcon={<LocalFireDepartmentIcon />}
-                          sx={{ ml: 2 }}
-                        >
-                          {selectedCuttings[batch.id].length} Stecklinge vernichten
-                        </Button>
-                      </>
-                    )}
+                      </Box>
+                      
+                      {selectedCuttings[batch.id]?.length > 0 && (
+                        <>
+                          {/* Ausgewählte zu Blühpflanzen */}
+                          <Box
+                            sx={{
+                              border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
+                              borderRadius: '4px',
+                              p: 0.75,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              backgroundColor: theme.palette.background.paper,
+                              '&:hover': {
+                                backgroundColor: alpha(theme.palette.success.main, 0.08),
+                                borderColor: alpha(theme.palette.success.main, 0.5)
+                              }
+                            }}
+                          >
+                            <Button 
+                              variant="text" 
+                              color="success"
+                              onClick={() => onOpenConvertDialog(batch, selectedCuttings[batch.id], false)}
+                              startIcon={<LocalFloristIcon />}
+                              sx={{ textTransform: 'none' }}
+                            >
+                              {selectedCuttings[batch.id].length} zu Blühpflanzen
+                            </Button>
+                          </Box>
+                          
+                          {/* Vernichten */}
+                          <Box
+                            sx={{
+                              border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
+                              borderRadius: '4px',
+                              p: 0.75,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              backgroundColor: theme.palette.background.paper,
+                              '&:hover': {
+                                backgroundColor: alpha(theme.palette.error.main, 0.08),
+                                borderColor: alpha(theme.palette.error.main, 0.5)
+                              }
+                            }}
+                          >
+                            <Button 
+                              variant="text" 
+                              color="error"
+                              onClick={() => onOpenDestroyDialog(batch)}
+                              startIcon={<LocalFireDepartmentIcon />}
+                              sx={{ textTransform: 'none' }}
+                            >
+                              {selectedCuttings[batch.id].length} vernichten
+                            </Button>
+                          </Box>
+                        </>
+                      )}
+                    </Box>
                   </Box>
                 )}
               </Box>
@@ -391,8 +516,8 @@ const CuttingTable = ({
                           <TableRow 
                             key={cutting.id}
                             sx={{ 
-                              backgroundColor: 'white',
-                              '&:nth-of-type(odd)': { backgroundColor: 'rgba(0, 0, 0, 0.02)' }
+                              backgroundColor: theme.palette.background.paper,
+                              '&:nth-of-type(odd)': { backgroundColor: alpha(theme.palette.action.hover, 0.02) }
                             }}
                           >
                             <TableCell padding="checkbox">
@@ -417,50 +542,78 @@ const CuttingTable = ({
                             </TableCell>
                             <TableCell align="right">
                               {/* Action Buttons in der Zeile */}
-                              <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
-                                {/* Neuer Konvertieren-Button in der Zeile */}
-                                <Tooltip title="Zu Blühpflanze umwandeln">
-                                  <IconButton 
-                                    size="small" 
-                                    sx={{ 
-                                      color: 'white',
-                                      backgroundColor: 'success.main',
-                                      '&:hover': {
-                                        backgroundColor: 'success.dark'
-                                      },
-                                      width: '28px',
-                                      height: '28px'
-                                    }}
-                                    onClick={() => {
-                                      toggleCuttingSelection(batch.id, cutting.id, true);
-                                      onOpenConvertDialog(batch, [cutting.id], false);
-                                    }}
-                                  >
-                                    <LocalFloristIcon fontSize="small" />
-                                  </IconButton>
-                                </Tooltip>
+                              <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 0.5 }}>
+                                {/* Konvertieren-Button */}
+                                <Box
+                                  sx={{
+                                    border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
+                                    borderRadius: '4px',
+                                    p: 0.5,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    backgroundColor: theme.palette.background.paper,
+                                    '&:hover': {
+                                      backgroundColor: alpha(theme.palette.success.main, 0.08),
+                                      borderColor: alpha(theme.palette.success.main, 0.5)
+                                    }
+                                  }}
+                                >
+                                  <Tooltip title="Zu Blühpflanze umwandeln">
+                                    <IconButton 
+                                      size="small" 
+                                      sx={{ 
+                                        p: 0.5,
+                                        color: theme.palette.text.secondary,
+                                        '&:hover': {
+                                          color: 'success.main'
+                                        }
+                                      }}
+                                      onClick={() => {
+                                        toggleCuttingSelection(batch.id, cutting.id, true);
+                                        onOpenConvertDialog(batch, [cutting.id], false);
+                                      }}
+                                    >
+                                      <LocalFloristIcon sx={{ fontSize: '1rem' }} />
+                                    </IconButton>
+                                  </Tooltip>
+                                </Box>
                                 
-                                {/* Bestehender Vernichten-Button */}
-                                <Tooltip title="Steckling vernichten">
-                                  <IconButton 
-                                    size="small" 
-                                    sx={{ 
-                                      color: 'white',
-                                      backgroundColor: 'error.main',
-                                      '&:hover': {
-                                        backgroundColor: 'error.dark'
-                                      },
-                                      width: '28px',
-                                      height: '28px'
-                                    }}
-                                    onClick={() => {
-                                      toggleCuttingSelection(batch.id, cutting.id);
-                                      onOpenDestroyDialog(batch);
-                                    }}
-                                  >
-                                    <LocalFireDepartmentIcon fontSize="small" />
-                                  </IconButton>
-                                </Tooltip>
+                                {/* Vernichten-Button */}
+                                <Box
+                                  sx={{
+                                    border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
+                                    borderRadius: '4px',
+                                    p: 0.5,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    backgroundColor: theme.palette.background.paper,
+                                    '&:hover': {
+                                      backgroundColor: alpha(theme.palette.error.main, 0.08),
+                                      borderColor: alpha(theme.palette.error.main, 0.5)
+                                    }
+                                  }}
+                                >
+                                  <Tooltip title="Steckling vernichten">
+                                    <IconButton 
+                                      size="small" 
+                                      sx={{ 
+                                        p: 0.5,
+                                        color: theme.palette.text.secondary,
+                                        '&:hover': {
+                                          color: 'error.main'
+                                        }
+                                      }}
+                                      onClick={() => {
+                                        toggleCuttingSelection(batch.id, cutting.id);
+                                        onOpenDestroyDialog(batch);
+                                      }}
+                                    >
+                                      <LocalFireDepartmentIcon sx={{ fontSize: '1rem' }} />
+                                    </IconButton>
+                                  </Tooltip>
+                                </Box>
                               </Box>
                             </TableCell>
                           </TableRow>
@@ -494,7 +647,102 @@ const CuttingTable = ({
         </>
       );
     } else if (tabValue === 1) {
-      // Tab 1: Vernichtete Stecklinge
+      // Tab 1: Zu Blühpflanzen überführte Stecklinge
+      return (
+        <>
+          {commonDetails}
+          
+          {/* Tabelle für überführte Stecklinge */}
+          {convertedBatchCuttings && convertedBatchCuttings[batch.id] ? (
+            <Box sx={{ width: '100%', mt: 2 }}>
+              <Typography variant="subtitle2" color="success.main" gutterBottom>
+                Zu Blühpflanzen überführte Stecklinge
+              </Typography>
+              
+              {convertedBatchCuttings[batch.id]?.length > 0 ? (
+                <>
+                  <TableContainer component={Paper} elevation={1} sx={{ mb: 2 }}>
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow sx={{ backgroundColor: 'success.main' }}>
+                          <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Steckling-Nummer</TableCell>
+                          <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>UUID</TableCell>
+                          <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Überführt am</TableCell>
+                          <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Überführt durch</TableCell>
+                          <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Blühpflanzen-Charge</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {convertedBatchCuttings[batch.id]?.map((cutting, i) => (
+                          <TableRow 
+                            key={cutting.id}
+                            sx={{ 
+                              backgroundColor: theme.palette.background.paper,
+                              '&:nth-of-type(odd)': { backgroundColor: alpha(theme.palette.action.hover, 0.02) }
+                            }}
+                          >
+                            <TableCell>
+                              {cutting.batch_number || `Steckling ${i+1} (Nummer nicht verfügbar)`}
+                            </TableCell>
+                            <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
+                              {cutting.id}
+                            </TableCell>
+                            <TableCell>
+                              {cutting.converted_at ? new Date(cutting.converted_at).toLocaleString('de-DE') : '-'}
+                            </TableCell>
+                            <TableCell>
+                              {cutting.converted_by ? 
+                                (cutting.converted_by.display_name || `${cutting.converted_by.first_name || ''} ${cutting.converted_by.last_name || ''}`.trim()) 
+                                : "-"}
+                            </TableCell>
+                            <TableCell>
+                              {cutting.converted_to ? 
+                                <Button 
+                                  variant="outlined" 
+                                  size="small" 
+                                  color="success"
+                                  component={Link}
+                                  to={`/trace/bluehpflanzen-aus-stecklingen`}
+                                  onClick={() => {
+                                    localStorage.setItem('highlightBatchId', cutting.converted_to);
+                                  }}
+                                >
+                                  Zur Blühpflanze
+                                </Button>
+                                : "-"}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                  
+                  {/* Pagination für die überführten Stecklinge */}
+                  {convertedCuttingsTotalPages[batch.id] > 1 && (
+                    <Box display="flex" justifyContent="center" mt={2} width="100%">
+                      <Pagination 
+                        count={convertedCuttingsTotalPages[batch.id]} 
+                        page={convertedCuttingsCurrentPage[batch.id] || 1} 
+                        onChange={(e, page) => onConvertedCuttingsPageChange(batch.id, e, page)}
+                        color="success"
+                        size="small"
+                      />
+                    </Box>
+                  )}
+                </>
+              ) : (
+                <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 2 }}>
+                  Keine zu Blühpflanzen überführten Stecklinge in dieser Charge.
+                </Typography>
+              )}
+            </Box>
+          ) : (
+            <LoadingIndicator size={24} />
+          )}
+        </>
+      );
+    } else if (tabValue === 2) {
+      // Tab 2: Vernichtete Stecklinge
       return (
         <>
           {commonDetails}
@@ -523,8 +771,8 @@ const CuttingTable = ({
                           <TableRow 
                             key={cutting.id}
                             sx={{ 
-                              backgroundColor: 'white',
-                              '&:nth-of-type(odd)': { backgroundColor: 'rgba(0, 0, 0, 0.02)' }
+                              backgroundColor: theme.palette.background.paper,
+                              '&:nth-of-type(odd)': { backgroundColor: alpha(theme.palette.action.hover, 0.02) }
                             }}
                           >
                             <TableCell>
@@ -574,135 +822,192 @@ const CuttingTable = ({
           )}
         </>
       );
-    } else if (tabValue === 2) {
-      // Tab 2: Zu Blühpflanzen überführte Stecklinge
-      return (
-        <>
-          {commonDetails}
-          
-          {/* Tabelle für überführte Stecklinge */}
-          {convertedBatchCuttings && convertedBatchCuttings[batch.id] ? (
-            <Box sx={{ width: '100%', mt: 2 }}>
-              <Typography variant="subtitle2" color="success.main" gutterBottom>
-                Zu Blühpflanzen überführte Stecklinge
-              </Typography>
-              
-              {convertedBatchCuttings[batch.id]?.length > 0 ? (
-                <>
-                  <TableContainer component={Paper} elevation={1} sx={{ mb: 2 }}>
-                    <Table size="small">
-                      <TableHead>
-                        <TableRow sx={{ backgroundColor: 'success.main' }}>
-                          <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Steckling-Nummer</TableCell>
-                          <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>UUID</TableCell>
-                          <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Überführt am</TableCell>
-                          <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Überführt durch</TableCell>
-                          <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Blühpflanzen-Charge</TableCell>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {convertedBatchCuttings[batch.id]?.map((cutting, i) => (
-                          <TableRow 
-                            key={cutting.id}
-                            sx={{ 
-                              backgroundColor: 'white',
-                              '&:nth-of-type(odd)': { backgroundColor: 'rgba(0, 0, 0, 0.02)' }
-                            }}
-                          >
-                            <TableCell>
-                              {cutting.batch_number || `Steckling ${i+1} (Nummer nicht verfügbar)`}
-                            </TableCell>
-                            <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
-                              {cutting.id}
-                            </TableCell>
-                            <TableCell>
-                              {cutting.converted_at ? new Date(cutting.converted_at).toLocaleString('de-DE') : '-'}
-                            </TableCell>
-                            <TableCell>
-                              {cutting.converted_by ? 
-                                (cutting.converted_by.display_name || `${cutting.converted_by.first_name || ''} ${cutting.converted_by.last_name || ''}`.trim()) 
-                                : "-"}
-                            </TableCell>
-                            <TableCell>
-                              {cutting.converted_to ? 
-                                <Button 
-                                  variant="outlined" 
-                                  size="small" 
-                                  color="success"
-                                  component={Link}
-                                  to={`/trace/bluehpflanzen-aus-stecklingen`}
-                                  onClick={() => {
-                                    // Optional: Speichern der Batch-ID, die in der Zielseite hervorgehoben werden soll
-                                    localStorage.setItem('highlightBatchId', cutting.converted_to);
-                                  }}
-                                >
-                                  Zur Blühpflanze
-                                </Button>
-                                : "-"}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
-                  
-                  {/* Pagination für die überführten Stecklinge */}
-                  {convertedCuttingsTotalPages[batch.id] > 1 && (
-                    <Box display="flex" justifyContent="center" mt={2} width="100%">
-                      <Pagination 
-                        count={convertedCuttingsTotalPages[batch.id]} 
-                        page={convertedCuttingsCurrentPage[batch.id] || 1} 
-                        onChange={(e, page) => onConvertedCuttingsPageChange(batch.id, e, page)}
-                        color="success"
-                        size="small"
-                      />
-                    </Box>
-                  )}
-                </>
-              ) : (
-                <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 2 }}>
-                  Keine zu Blühpflanzen überführten Stecklinge in dieser Charge.
-                </Typography>
-              )}
-            </Box>
-          ) : (
-            <LoadingIndicator size={24} />
-          )}
-        </>
-      );
     }
   }
 
   return (
-    <Box sx={{ width: '100%' }}>
-      <TableHeader columns={getHeaderColumns()} />
-
-      {data && data.length > 0 ? (
-        data.map((batch) => (
-          <AccordionRow
-            key={batch.id}
-            isExpanded={expandedBatchId === batch.id}
-            onClick={() => onExpandBatch(batch.id)}
-            columns={getRowColumns(batch)}
-            borderColor="primary.main"
-          >
-            {renderBatchDetails(batch)}
-          </AccordionRow>
-        ))
-      ) : (
-        <Typography align="center" sx={{ mt: 4, width: '100%' }}>
-          Keine Stecklinge vorhanden
-        </Typography>
+    <Box sx={{ 
+      width: '100%',
+      height: '100%',
+      display: 'flex',
+      flexDirection: 'column',
+      backgroundColor: theme.palette.background.default,
+      overflow: 'hidden'
+    }}>
+      {/* Filter Section - jetzt oben */}
+      {showFilters && (
+        <Box sx={{ 
+          borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+          flexShrink: 0
+        }}>
+          <FilterSection
+            yearFilter={yearFilter}
+            setYearFilter={setYearFilter}
+            monthFilter={monthFilter}
+            setMonthFilter={setMonthFilter}
+            dayFilter={dayFilter}
+            setDayFilter={setDayFilter}
+            onApply={onFilterApply}
+            onReset={onFilterReset}
+            showFilters={showFilters}
+          />
+        </Box>
       )}
+      
+      {/* Scrollbare Container für Header + Content */}
+      <Box sx={{ 
+        width: '100%',
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+        position: 'relative'
+      }}>
+        {/* Scrollbarer Bereich */}
+        <Box sx={{ 
+          flex: 1,
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          mt: 0,
+          pt: 0,
+          // Schöne Scrollbar
+          '&::-webkit-scrollbar': {
+            width: '8px',
+            height: '8px',
+          },
+          '&::-webkit-scrollbar-track': {
+            backgroundColor: 'transparent',
+          },
+          '&::-webkit-scrollbar-thumb': {
+            backgroundColor: theme => alpha(theme.palette.primary.main, 0.2),
+            borderRadius: '4px',
+            '&:hover': {
+              backgroundColor: theme => alpha(theme.palette.primary.main, 0.3),
+            },
+          },
+        }}>
+          {/* Tabellenkopf - sticky innerhalb des scrollbaren Containers */}
+          <Box sx={{ 
+            width: '100%', 
+            display: 'flex',
+            bgcolor: theme.palette.background.paper,
+            height: '40px',
+            alignItems: 'center',
+            borderTop: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+            borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+            position: 'sticky',
+            top: 0,
+            zIndex: 10,
+            mt: 0,
+            '&::after': {
+              content: '""',
+              position: 'absolute',
+              bottom: -1,
+              left: 0,
+              right: 0,
+              height: '2px',
+              background: theme.palette.mode === 'dark'
+                ? 'linear-gradient(to bottom, rgba(255,255,255,0.02), transparent)'
+                : 'linear-gradient(to bottom, rgba(0,0,0,0.02), transparent)',
+              pointerEvents: 'none'
+            }
+          }}>
+            {getHeaderColumns().map((column, index) => (
+              <Box
+                key={index}
+                sx={{ 
+                  width: column.width || 'auto', 
+                  px: 1.5,
+                  textAlign: column.align || 'left', 
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <Typography 
+                  variant="caption" 
+                  sx={{ 
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    color: 'text.secondary',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px'
+                  }}
+                >
+                  {column.label}
+                </Typography>
+              </Box>
+            ))}
+          </Box>
 
-      <PaginationFooter
-        currentPage={currentPage}
-        totalPages={totalPages}
-        onPageChange={onPageChange}
-        hasData={data && data.length > 0}
-        emptyMessage=""
-        color="primary"
-      />
+          {/* Tabellenzeilen */}
+          {data && data.length > 0 ? (
+            data.map((batch) => (
+              <AccordionRow
+                key={batch.id}
+                isExpanded={expandedBatchId === batch.id}
+                onClick={() => onExpandBatch(batch.id)}
+                columns={getRowColumns(batch)}
+                borderColor="primary.main"
+                expandIconPosition="none"
+                borderless={true}
+              >
+                {renderBatchDetails(batch)}
+              </AccordionRow>
+            ))
+          ) : (
+            <Typography align="center" sx={{ mt: 4, width: '100%', color: 'text.secondary' }}>
+              Keine Stecklinge vorhanden
+            </Typography>
+          )}
+        </Box>
+        
+        {/* Pagination - außerhalb des scrollbaren Bereichs */}
+        <Box 
+          sx={{ 
+            borderTop: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+            backgroundColor: theme.palette.background.paper,
+            p: 1,
+            display: 'flex',
+            justifyContent: 'flex-end',
+            alignItems: 'center',
+            flexShrink: 0,
+            minHeight: '56px'
+          }}
+        >
+          {/* PaginationFooter */}
+          {data && data.length > 0 && totalPages > 1 && (
+            <PaginationFooter
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={onPageChange}
+              hasData={true}
+              color="primary"
+            />
+          )}
+          
+          {/* Einträge pro Seite */}
+          <Box sx={{ 
+            display: 'flex', 
+            alignItems: 'center',
+            gap: 1,
+            ml: data && data.length > 0 && totalPages > 1 ? 3 : 0 
+          }}>
+            <Typography variant="body2" sx={{ fontSize: '0.875rem', color: 'text.secondary' }}>
+              Einträge pro Seite
+            </Typography>
+            <FormControl size="small" sx={{ minWidth: 80 }}>
+              <Select
+                value={pageSize}
+                onChange={(e) => onPageSizeChange(Number(e.target.value))}
+                sx={{ fontSize: '0.875rem' }}
+              >
+                {pageSizeOptions.map(option => (
+                  <MenuItem key={option} value={option}>{option}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Box>
+        </Box>
+      </Box>
     </Box>
   )
 }

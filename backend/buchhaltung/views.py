@@ -16,7 +16,7 @@ def get_dashboard_summary():
         amount = get_booking_total(b)
         month = b.datum.strftime('%b')
 
-        if b.typ in ['EINZEL', 'MITGLIEDSBEITRAG', 'FOERDERKREDIT']:
+        if b.typ in ['EINZEL', 'MITGLIEDSBEITRAG']:
             income += amount
             monthly_data[month]['income'] += amount
         else:

@@ -1,17 +1,19 @@
 // frontend/src/apps/trackandtrace/pages/Cutting/CuttingPage.jsx
 import { useState, useEffect } from 'react'
-import { Container, Box, Typography, Fade } from '@mui/material'
+import { Box, Typography, Fade, Snackbar, Alert, alpha, Button } from '@mui/material'
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
+import FilterListIcon from '@mui/icons-material/FilterList'
 import api from '@/utils/api'
 
 // Gemeinsame Komponenten
-import PageHeader from '@/components/common/PageHeader'
-import FilterSection from '@/components/common/FilterSection'
 import TabsHeader from '@/components/common/TabsHeader'
 import LoadingIndicator from '@/components/common/LoadingIndicator'
-import DestroyDialog from '@/components/dialogs/DestroyDialog'
 import AnimatedTabPanel from '@/components/common/AnimatedTabPanel'
+
+// Dialog-Komponenten
+import DestroyDialog from '@/components/dialogs/DestroyDialog'
 import ConvertToBlooming from '@/components/dialogs/ConvertToBlooming'
+import ImageUploadModal from '../../components/ImageUploadModal'
 
 // Spezifische Komponenten
 import CuttingTable from './CuttingTable'
@@ -27,6 +29,8 @@ export default function CuttingPage() {
   const [destroyedBatchCuttings, setDestroyedBatchCuttings] = useState({})
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
+  const [totalCount, setTotalCount] = useState(0)
   const [cuttingsCurrentPage, setCuttingsCurrentPage] = useState({})
   const [cuttingsTotalPages, setCuttingsTotalPages] = useState({})
   const [destroyedCuttingsCurrentPage, setDestroyedCuttingsCurrentPage] = useState({})
@@ -37,6 +41,10 @@ export default function CuttingPage() {
   const [selectedBatch, setSelectedBatch] = useState(null)
   const [selectedCuttings, setSelectedCuttings] = useState({})
   const [loadingOptions, setLoadingOptions] = useState(false)
+  
+  // States für Bilderverwaltung
+  const [openImageModal, setOpenImageModal] = useState(false)
+  const [selectedBatchForImages, setSelectedBatchForImages] = useState(null)
   
   // Animationseinstellungen mit neuem Hook abrufen
   const animSettings = useAnimationSettings('slide', 500, true);
@@ -59,39 +67,50 @@ export default function CuttingPage() {
   const [members, setMembers] = useState([])
   const [destroyedByMemberId, setDestroyedByMemberId] = useState('')
   
-  // Füge neue States für den Konvertierungsdialog hinzu
+  // States für den Konvertierungsdialog
   const [openConvertDialog, setOpenConvertDialog] = useState(false)
   const [selectedForConversion, setSelectedForConversion] = useState([])
-  
-  // State-Variable für "Alle konvertieren"-Modus
   const [convertAllMode, setConvertAllMode] = useState(false)
   
-  // Lade auch Räume
+  // Räume
   const [rooms, setRooms] = useState([])
 
-  // Zusätzlichen Status für überführte Stecklinge
+  // Status für überführte Stecklinge
   const [convertedBatchCuttings, setConvertedBatchCuttings] = useState({})
   const [convertedCuttingsCurrentPage, setConvertedCuttingsCurrentPage] = useState({})
   const [convertedCuttingsTotalPages, setConvertedCuttingsTotalPages] = useState({})
+  
+  // State für globale Snackbar
+  const [globalSnackbar, setGlobalSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'success',
+    duration: 6000
+  })
+  
+  // Optionen für Page Size Dropdown
+  const pageSizeOptions = [5, 10, 15, 25, 50]
+
+  // Snackbar schließen
+  const handleCloseGlobalSnackbar = () => {
+    setGlobalSnackbar(prev => ({ ...prev, open: false }));
+  };
 
   const loadCuttingBatches = async (page = 1) => {
     setLoading(true)
     try {
-      // URL mit Filtern aufbauen
-      let url = `/trackandtrace/cuttingbatches/?page=${page}`;
+      let url = `/trackandtrace/cuttingbatches/?page=${page}&page_size=${pageSize}`;
       
-      // Zeitfilter hinzufügen, wenn vorhanden
       if (yearFilter) url += `&year=${yearFilter}`;
       if (monthFilter) url += `&month=${monthFilter}`;
       if (dayFilter) url += `&day=${dayFilter}`;
       
-      // Je nach Tab filtern
       if (tabValue === 0) {
         url += '&has_active=true';
       } else if (tabValue === 1) {
-        url += '&has_destroyed=true';
-      } else if (tabValue === 2) {
         url += '&has_converted=true';
+      } else if (tabValue === 2) {
+        url += '&has_destroyed=true';
       }
       
       const res = await api.get(url);
@@ -99,25 +118,28 @@ export default function CuttingPage() {
       
       setCuttingBatches(res.data.results || [])
       
-      // Berechne die Gesamtanzahl der Seiten basierend auf der Gesamtanzahl der Einträge
       const total = res.data.count || 0
-      const pages = Math.ceil(total / 5) // pageSize ist 5, wie im Backend definiert
+      setTotalCount(total)
+      const pages = Math.ceil(total / pageSize)
       setTotalPages(pages)
       setCurrentPage(page)
     } catch (error) {
       console.error('Fehler beim Laden der Stecklinge-Chargen:', error)
+      setGlobalSnackbar({
+        open: true, 
+        message: 'Fehler beim Laden der Stecklinge: ' + (error.response?.data?.error || error.message), 
+        severity: 'error',
+        duration: 6000
+      })
     } finally {
       setLoading(false)
     }
   }
   
-  // Separate Funktion zum Laden aller Zähler (unabhängig vom Tab)
   const loadAllCounts = async () => {
     try {
-      // Direkte API-Anfrage für alle Zähler
       const res = await api.get('/trackandtrace/cuttingbatches/counts/?type=all');
       
-      // Setze die State-Variablen
       setActiveBatchesCount(res.data.active_batches_count || 0);
       setActiveCuttingsCount(res.data.active_count || 0);
       setDestroyedBatchesCount(res.data.destroyed_batches_count || 0);
@@ -129,14 +151,12 @@ export default function CuttingPage() {
     }
   };
   
-  // Funktion zum Laden von Mitgliedern
   const loadMembers = async () => {
     setLoadingOptions(true);
     try {
       const response = await api.get('members/')
       console.log('Mitglieder für Vernichtungsdialog geladen:', response.data)
       
-      // Sicherstellen, dass die Mitglieder ein display_name Feld haben
       const formattedMembers = (response.data.results || []).map(member => ({
         ...member,
         display_name: member.display_name || `${member.first_name} ${member.last_name}`
@@ -146,12 +166,17 @@ export default function CuttingPage() {
     } catch (error) {
       console.error('Fehler beim Laden der Mitglieder:', error)
       console.error('Details:', error.response?.data || error.message)
+      setGlobalSnackbar({
+        open: true, 
+        message: 'Fehler beim Laden der Mitglieder: ' + (error.response?.data?.error || error.message), 
+        severity: 'error',
+        duration: 6000
+      })
     } finally {
       setLoadingOptions(false)
     }
   };
   
-  // Funktion zum Laden von Räumen
   const loadRooms = async () => {
     try {
       const response = await api.get('rooms/');
@@ -159,47 +184,118 @@ export default function CuttingPage() {
       setRooms(response.data.results || []);
     } catch (error) {
       console.error('Fehler beim Laden der Räume:', error);
+      setGlobalSnackbar({
+        open: true, 
+        message: 'Fehler beim Laden der Räume: ' + (error.response?.data?.error || error.message), 
+        severity: 'error',
+        duration: 6000
+      })
     }
+  };
+
+  const handleOpenImageModal = (batch, event) => {
+    if (event) event.stopPropagation()
+    setSelectedBatchForImages(batch)
+    setOpenImageModal(true)
+  }
+
+  const handleCloseImageModal = () => {
+    setOpenImageModal(false)
+    setSelectedBatchForImages(null)
+    refreshData()
+  }
+
+  const refreshData = () => {
+    loadCuttingBatches(currentPage)
+    loadAllCounts()
+    
+    if (expandedBatchId) {
+      if (tabValue === 0) {
+        loadCuttingsForBatch(expandedBatchId, cuttingsCurrentPage[expandedBatchId] || 1)
+      } else if (tabValue === 2) {
+        loadDestroyedCuttingsForBatch(expandedBatchId, destroyedCuttingsCurrentPage[expandedBatchId] || 1)
+      } else if (tabValue === 1) {
+        loadConvertedCuttingsForBatch(expandedBatchId, convertedCuttingsCurrentPage[expandedBatchId] || 1)
+      }
+    }
+  }
+
+  const handlePageSizeChange = (newPageSize) => {
+    console.log(`Ändere pageSize von ${pageSize} auf ${newPageSize}`);
+    
+    setPageSize(newPageSize);
+    setCurrentPage(1);
+    
+    setTimeout(() => {
+      let url = `/trackandtrace/cuttingbatches/?page=1&page_size=${newPageSize}`;
+      
+      if (tabValue === 0) {
+        url += '&has_active=true';
+      } else if (tabValue === 1) {
+        url += '&has_converted=true';
+      } else if (tabValue === 2) {
+        url += '&has_destroyed=true';
+      }
+      
+      if (yearFilter) url += `&year=${yearFilter}`;
+      if (monthFilter) url += `&month=${monthFilter}`;
+      if (dayFilter) url += `&day=${dayFilter}`;
+      
+      console.log("Sende API-Anfrage:", url);
+      setLoading(true);
+      
+      api.get(url)
+        .then(res => {
+          console.log('Geladene Stecklinge mit neuer pageSize:', res.data);
+          setCuttingBatches(res.data.results || []);
+          
+          const total = res.data.count || 0;
+          setTotalCount(total);
+          const pages = Math.ceil(total / newPageSize);
+          setTotalPages(pages);
+        })
+        .catch(error => {
+          console.error('Fehler beim Laden der Stecklinge:', error);
+          setGlobalSnackbar({
+            open: true, 
+            message: 'Fehler beim Laden der Stecklinge: ' + (error.response?.data?.error || error.message), 
+            severity: 'error',
+            duration: 6000
+          })
+        })
+        .finally(() => {
+          setLoading(false);
+        });
+    }, 0);
   };
 
   useEffect(() => {
     loadCuttingBatches()
-    loadMembers() // Mitglieder laden
-    loadRooms() // Räume laden
+    loadMembers()
+    loadRooms()
+    loadAllCounts()
   }, [])
   
-  // Separate useEffect für Zähler-Aktualisierung
   useEffect(() => {
-    // Initiale Ladung der Zähler
-    loadAllCounts();
-    
-    // Setze Intervall für regelmäßige Aktualisierung
     const counterInterval = setInterval(() => {
       loadAllCounts();
     }, 2000);
     
-    // Aufräumen beim Unmount der Komponente
     return () => clearInterval(counterInterval);
   }, []);
   
-  // useEffect für Tab-Wechsel
   useEffect(() => {
-    // Zurücksetzen der Seite bei Tab-Wechsel
     setCurrentPage(1);
-    
-    // Je nach Tab die richtigen Daten laden
-    loadCuttingBatches(1);
-    
-    // Zurücksetzen des expandierten Batches beim Tab-Wechsel
     setExpandedBatchId('');
     setBatchCuttings({});
     setDestroyedBatchCuttings({});
     setConvertedBatchCuttings({});
-  }, [tabValue]);
+    
+    loadCuttingBatches(1);
+  }, [tabValue, pageSize]);
 
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue)
-    // Beim Tab-Wechsel alle geöffneten Akkordeons schließen
     setExpandedBatchId('')
     setBatchCuttings({})
     setDestroyedBatchCuttings({})
@@ -212,15 +308,11 @@ export default function CuttingPage() {
     } else {
       setExpandedBatchId(batchId)
       
-      // Je nach Tab die richtigen Daten laden
       if (tabValue === 0) {
-        // Im Tab "Aktive Stecklinge" nur aktive Stecklinge laden
         loadCuttingsForBatch(batchId, 1)
-      } else if (tabValue === 1) {
-        // Im Tab "Vernichtete Stecklinge" nur vernichtete Stecklinge laden
-        loadDestroyedCuttingsForBatch(batchId, 1)
       } else if (tabValue === 2) {
-        // Im Tab "Zu Blühpflanzen konvertierte Stecklinge" laden
+        loadDestroyedCuttingsForBatch(batchId, 1)
+      } else if (tabValue === 1) {
         loadConvertedCuttingsForBatch(batchId, 1)
       }
     }
@@ -229,13 +321,10 @@ export default function CuttingPage() {
   const loadCuttingsForBatch = async (batchId, page = 1) => {
     try {
       console.log("Loading cuttings for batch ID:", batchId);
-      // Immer aktive Stecklinge laden, unabhängig vom Tab
       const res = await api.get(`/trackandtrace/cuttingbatches/${batchId}/cuttings/?page=${page}&destroyed=false`)
       
       console.log('Geladene aktive Stecklinge für Batch:', res.data);
       
-      // Speichern der Stecklinge für diesen Batch
-      // Stelle sicher, dass alle Felder korrekt formatiert sind
       const formattedCuttings = (res.data.results || []).map(cutting => {
         console.log("Cutting batch number:", cutting.batch_number);
         return {
@@ -255,21 +344,18 @@ export default function CuttingPage() {
         [batchId]: formattedCuttings
       }))
       
-      // Speichern der aktuellen Seite für diesen Batch
       setCuttingsCurrentPage(prev => ({
         ...prev,
         [batchId]: page
       }))
       
-      // Berechne die Gesamtanzahl der Seiten für die Stecklinge dieses Batches
       const total = res.data.count || 0
-      const pages = Math.ceil(total / 5) // pageSize ist 5, wie im Backend definiert
+      const pages = Math.ceil(total / 5)
       setCuttingsTotalPages(prev => ({
         ...prev,
         [batchId]: pages
       }))
 
-      // Zurücksetzen der ausgewählten Stecklinge für diesen Batch
       setSelectedCuttings(prev => ({
         ...prev,
         [batchId]: []
@@ -278,7 +364,6 @@ export default function CuttingPage() {
       console.error('Fehler beim Laden der Stecklinge:', error)
       console.error('Details:', error.response?.data || error.message)
       
-      // Bei Fehler leere Daten setzen, um Ladespinner zu beenden
       setBatchCuttings(prev => ({
         ...prev,
         [batchId]: []
@@ -294,7 +379,6 @@ export default function CuttingPage() {
     }
   }
 
-  // Separate Funktion zum Laden vernichteter Stecklinge
   const loadDestroyedCuttingsForBatch = async (batchId, page = 1) => {
     try {
       console.log("Loading destroyed cuttings for batch ID:", batchId);
@@ -302,7 +386,6 @@ export default function CuttingPage() {
       
       console.log('Geladene vernichtete Stecklinge für Batch:', res.data);
       
-      // Speichern der vernichteten Stecklinge für diesen Batch
       const formattedCuttings = (res.data.results || []).map(cutting => {
         return {
           ...cutting,
@@ -321,15 +404,13 @@ export default function CuttingPage() {
         [batchId]: formattedCuttings
       }))
       
-      // Speichern der aktuellen Seite für die vernichteten Stecklinge dieses Batches
       setDestroyedCuttingsCurrentPage(prev => ({
         ...prev,
         [batchId]: page
       }))
       
-      // Berechne die Gesamtanzahl der Seiten für die vernichteten Stecklinge
       const total = res.data.count || 0
-      const pages = Math.ceil(total / 5) // pageSize ist 5, wie im Backend definiert
+      const pages = Math.ceil(total / 5)
       setDestroyedCuttingsTotalPages(prev => ({
         ...prev,
         [batchId]: pages
@@ -338,7 +419,6 @@ export default function CuttingPage() {
       console.error('Fehler beim Laden der vernichteten Stecklinge:', error)
       console.error('Details:', error.response?.data || error.message)
       
-      // Bei Fehler leere Daten setzen
       setDestroyedBatchCuttings(prev => ({
         ...prev,
         [batchId]: []
@@ -354,16 +434,13 @@ export default function CuttingPage() {
     }
   }
 
-  // Funktion zum Laden von überführten Stecklingen
   const loadConvertedCuttingsForBatch = async (batchId, page = 1) => {
     try {
       console.log("Loading converted cuttings for batch ID:", batchId);
-      // Lade Stecklinge, die zu Blühpflanzen konvertiert wurden
       const res = await api.get(`/trackandtrace/cuttingbatches/${batchId}/cuttings/?page=${page}&converted=true`);
       
       console.log('Geladene überführte Stecklinge für Batch:', res.data);
       
-      // Speichern der überführten Stecklinge für diesen Batch
       const formattedCuttings = (res.data.results || []).map(cutting => {
         return {
           ...cutting,
@@ -383,15 +460,13 @@ export default function CuttingPage() {
         [batchId]: formattedCuttings
       }));
       
-      // Speichern der aktuellen Seite für überführte Stecklinge
       setConvertedCuttingsCurrentPage(prev => ({
         ...prev,
         [batchId]: page
       }));
       
-      // Berechne die Gesamtanzahl der Seiten für die überführten Stecklinge
       const total = res.data.count || 0;
-      const pages = Math.ceil(total / 5); // pageSize ist 5, wie im Backend definiert
+      const pages = Math.ceil(total / 5);
       setConvertedCuttingsTotalPages(prev => ({
         ...prev,
         [batchId]: pages
@@ -400,7 +475,6 @@ export default function CuttingPage() {
       console.error('Fehler beim Laden der überführten Stecklinge:', error);
       console.error('Details:', error.response?.data || error.message);
       
-      // Bei Fehler leere Daten setzen
       setConvertedBatchCuttings(prev => ({
         ...prev,
         [batchId]: []
@@ -432,7 +506,6 @@ export default function CuttingPage() {
     loadConvertedCuttingsForBatch(batchId, page);
   };
 
-  // Aktualisierte handleOpenDestroyDialog Funktion
   const handleOpenDestroyDialog = (batch) => {
     setSelectedBatch(batch);
     setDestroyReason('');
@@ -440,13 +513,11 @@ export default function CuttingPage() {
     setOpenDestroyDialog(true);
   };
 
-  // Aktualisierte Funktion zum Öffnen des Konvertierungsdialogs
   const handleOpenConvertDialog = (batch, selectedCuttings, convertAll = false) => {
     console.log("Opening convert dialog for batch:", batch);
     console.log("Selected cuttings:", selectedCuttings);
     console.log("Convert all mode:", convertAll);
     
-    // Stelle sicher, dass nur gültige Stecklinge übergeben werden
     const validCuttings = Array.isArray(selectedCuttings) 
       ? selectedCuttings.filter(cutting => cutting && cutting.id)
       : [];
@@ -457,14 +528,13 @@ export default function CuttingPage() {
     setOpenConvertDialog(true);
   };
   
-  // Aktualisierte Funktion zum Konvertieren von Stecklingen zu Blühpflanzen
-  const handleConvert = async (convertData) => {
+  const handleConvert = async (convertData, rfidMemberId = null) => {
     try {
       console.log("Converting cuttings with data:", convertData);
       
-      // Stelle sicher, dass cutting_ids ein Array ist und keine null-Werte enthält
       const cleanedData = {
         ...convertData,
+        member_id: rfidMemberId || convertData.member_id || null,
         cutting_ids: Array.isArray(convertData.cutting_ids)
           ? convertData.cutting_ids.filter(id => id !== null && id !== undefined)
           : []
@@ -479,37 +549,41 @@ export default function CuttingPage() {
       
       console.log("Conversion response:", response.data);
       
-      // Dialog schließen
       setOpenConvertDialog(false);
       
-      // Daten neu laden (falls der Benutzer auf dieser Seite bleibt)
       loadCuttingsForBatch(selectedBatch.id, cuttingsCurrentPage[selectedBatch.id] || 1);
       loadCuttingBatches(currentPage);
       
-      // Ausgewählte Stecklinge zurücksetzen
       setSelectedCuttings(prev => ({
         ...prev,
         [selectedBatch.id]: []
       }));
       
-      // Erfolgsbenachrichtigung
-      alert(`${convertData.quantity} Blühpflanzen wurden erfolgreich erstellt.`);
+      const memberName = members.find(m => m.id === cleanedData.member_id)?.display_name || "Unbekannt"
       
-      // Batch-ID und Erfolgsstatus im localStorage speichern für eine bessere Benutzererfahrung
-      // auf der Zielseite
+      setGlobalSnackbar({
+        open: true,
+        message: `${convertData.quantity} Blühpflanzen wurden erfolgreich erstellt - Autorisiert durch: ${memberName}`,
+        severity: 'success',
+        duration: 10000
+      })
+      
       localStorage.setItem('lastConvertedBatchId', response.data.batch?.id || '');
       localStorage.setItem('showConversionSuccess', 'true');
       
-      // Zu Blühpflanzen aus Stecklingen navigieren (mit History API)
       window.location.href = '/trace/bluehpflanzen-aus-stecklingen';
     } catch (error) {
       console.error('Fehler bei der Konvertierung:', error);
       console.error('Error details:', error.response?.data);
-      alert(error.response?.data?.error || 'Ein Fehler ist aufgetreten');
+      setGlobalSnackbar({
+        open: true,
+        message: error.response?.data?.error || 'Ein Fehler ist bei der Konvertierung aufgetreten',
+        severity: 'error',
+        duration: 6000
+      })
     }
   };
 
-  // Aktualisierte handleDestroy Funktion
   const handleDestroy = async () => {
     try {
       if (selectedBatch && selectedCuttings[selectedBatch.id]?.length > 0) {
@@ -522,27 +596,39 @@ export default function CuttingPage() {
         setOpenDestroyDialog(false);
         setSelectedBatch(null);
         
-        // Ausgewählte Stecklinge zurücksetzen
         setSelectedCuttings(prev => ({
           ...prev,
           [selectedBatch.id]: []
         }));
         
-        // Je nach Tab die richtigen Daten neu laden
         if (tabValue === 0) {
           loadCuttingsForBatch(selectedBatch.id, cuttingsCurrentPage[selectedBatch.id] || 1);
-        } else if (tabValue === 1) {
-          loadDestroyedCuttingsForBatch(selectedBatch.id, destroyedCuttingsCurrentPage[selectedBatch.id] || 1);
         } else if (tabValue === 2) {
+          loadDestroyedCuttingsForBatch(selectedBatch.id, destroyedCuttingsCurrentPage[selectedBatch.id] || 1);
+        } else if (tabValue === 1) {
           loadConvertedCuttingsForBatch(selectedBatch.id, convertedCuttingsCurrentPage[selectedBatch.id] || 1);
         }
         
-        loadAllCounts(); // Zähler aktualisieren
-        loadCuttingBatches(currentPage); // Batches neu laden für aktualisierte Zahlen
+        loadAllCounts();
+        loadCuttingBatches(currentPage);
+        
+        const memberName = members.find(m => m.id === destroyedByMemberId)?.display_name || "Unbekannt"
+        
+        setGlobalSnackbar({
+          open: true,
+          message: `Stecklinge erfolgreich vernichtet - Autorisiert durch: ${memberName}`,
+          severity: 'success',
+          duration: 10000
+        })
       }
     } catch (error) {
       console.error('Fehler bei der Vernichtung:', error);
-      alert(error.response?.data?.error || 'Ein Fehler ist aufgetreten');
+      setGlobalSnackbar({
+        open: true,
+        message: error.response?.data?.error || 'Ein Fehler ist bei der Vernichtung aufgetreten',
+        severity: 'error',
+        duration: 6000
+      })
     }
   };
 
@@ -579,7 +665,8 @@ export default function CuttingPage() {
   }
   
   const handleFilterApply = () => {
-    loadCuttingBatches(1) // Zurück zur ersten Seite bei Filter-Änderung
+    loadCuttingBatches(1)
+    loadAllCounts()
   }
   
   const handleFilterReset = () => {
@@ -587,10 +674,10 @@ export default function CuttingPage() {
     setMonthFilter('')
     setDayFilter('')
     setShowFilters(false)
-    loadCuttingBatches(1) // Zurück zur ersten Seite nach Filter-Reset
+    loadCuttingBatches(1)
+    loadAllCounts()
   }
 
-  // Tabs definieren mit kleinerer Schriftgröße
   const tabs = [
     { 
       label: (
@@ -628,137 +715,254 @@ export default function CuttingPage() {
   ];
 
   return (
-    <Container maxWidth="xl" sx={{ width: '100%' }}>
-      <Fade in={true} timeout={800}>
-        <Box>
-          <PageHeader 
-            title="Stecklinge-Verwaltung"
-            showFilters={showFilters}
-            setShowFilters={setShowFilters}
-          />
+    <Box sx={{ 
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden'
+    }}>
+      {/* Header mit Titel */}
+      <Box sx={{ 
+        p: 2, 
+        bgcolor: 'background.paper',
+        borderBottom: theme => `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }}>
+        <Typography variant="h5" sx={{ fontWeight: 500 }}>
+          Track & Trace Verwaltung: Step 3 - (Stecklinge)
+        </Typography>
+        
+        {/* Filter-Button oben rechts */}
+        <Box
+          sx={{
+            border: theme => `1px solid ${alpha(theme.palette.divider, 0.3)}`,
+            borderRadius: '4px',
+            p: 0.75,
+            display: 'inline-flex',
+            alignItems: 'center',
+            backgroundColor: 'background.paper',
+            '&:hover': {
+              backgroundColor: theme => alpha(theme.palette.action.hover, 0.08),
+              borderColor: theme => theme.palette.divider
+            }
+          }}
+        >
+          <Button 
+            variant="text" 
+            color="inherit" 
+            onClick={() => setShowFilters(!showFilters)}
+            startIcon={<FilterListIcon />}
+            sx={{ 
+              textTransform: 'none', 
+              color: 'text.primary',
+              fontSize: '0.875rem'
+            }}
+          >
+            {showFilters ? 'Filter ausblenden' : 'Filter anzeigen'}
+          </Button>
         </Box>
-      </Fade>
-      
-      <Fade in={showFilters} timeout={400}>
-        <Box sx={{ display: showFilters ? 'block' : 'none' }}>
-          <FilterSection
-            yearFilter={yearFilter}
-            setYearFilter={setYearFilter}
-            monthFilter={monthFilter}
-            setMonthFilter={setMonthFilter}
-            dayFilter={dayFilter}
-            setDayFilter={setDayFilter}
-            onApply={handleFilterApply}
-            onReset={handleFilterReset}
-            showFilters={showFilters}
-          />
-        </Box>
-      </Fade>
+      </Box>
 
-      <TabsHeader 
-        tabValue={tabValue} 
-        onTabChange={handleTabChange} 
-        tabs={tabs}
-        color="primary"
-        ariaLabel="Stecklinge-Tabs"
-        sx={{ 
-          '& .MuiTab-root': { 
-            minHeight: '36px', 
-            py: 0.5 // Reduzierte vertikale Polsterung
-          }
-        }}
-      />
+      {/* Tabs - direkt anschließend ohne Lücke */}
+      <Box sx={{ flexShrink: 0 }}>
+        <TabsHeader 
+          tabValue={tabValue} 
+          onTabChange={handleTabChange} 
+          tabs={tabs}
+          color="primary"
+          ariaLabel="Stecklinge-Tabs"
+        />
+      </Box>
 
-      {loading ? (
-        <LoadingIndicator />
-      ) : (
-        <>
-          <AnimatedTabPanel 
-            value={tabValue} 
-            index={0} 
-            animationType={animSettings.type} 
-            direction="right" 
-            duration={animSettings.duration}
-          >
-            <CuttingTable 
-              tabValue={0}
-              data={cuttingBatches}
-              expandedBatchId={expandedBatchId}
-              onExpandBatch={handleAccordionChange}
-              onOpenDestroyDialog={handleOpenDestroyDialog}
-              onOpenConvertDialog={handleOpenConvertDialog}
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={handlePageChange}
-              batchCuttings={batchCuttings}
-              destroyedBatchCuttings={destroyedBatchCuttings}
-              cuttingsCurrentPage={cuttingsCurrentPage}
-              cuttingsTotalPages={cuttingsTotalPages}
-              destroyedCuttingsCurrentPage={destroyedCuttingsCurrentPage}
-              destroyedCuttingsTotalPages={destroyedCuttingsTotalPages}
-              onCuttingsPageChange={handleCuttingsPageChange}
-              onDestroyedCuttingsPageChange={handleDestroyedCuttingsPageChange}
-              selectedCuttings={selectedCuttings}
-              toggleCuttingSelection={toggleCuttingSelection}
-              selectAllCuttingsInBatch={selectAllCuttingsInBatch}
-            />
-          </AnimatedTabPanel>
-          
-          <AnimatedTabPanel 
-            value={tabValue} 
-            index={1} 
-            animationType={animSettings.type} 
-            direction="left" 
-            duration={animSettings.duration}
-          >
-            <CuttingTable 
-              tabValue={1}
-              data={cuttingBatches}
-              expandedBatchId={expandedBatchId}
-              onExpandBatch={handleAccordionChange}
-              onOpenDestroyDialog={handleOpenDestroyDialog}
-              onOpenConvertDialog={handleOpenConvertDialog}
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={handlePageChange}
-              batchCuttings={batchCuttings}
-              destroyedBatchCuttings={destroyedBatchCuttings}
-              cuttingsCurrentPage={cuttingsCurrentPage}
-              cuttingsTotalPages={cuttingsTotalPages}
-              destroyedCuttingsCurrentPage={destroyedCuttingsCurrentPage}
-              destroyedCuttingsTotalPages={destroyedCuttingsTotalPages}
-              onCuttingsPageChange={handleCuttingsPageChange}
-              onDestroyedCuttingsPageChange={handleDestroyedCuttingsPageChange}
-              selectedCuttings={selectedCuttings}
-              toggleCuttingSelection={toggleCuttingSelection}
-              selectAllCuttingsInBatch={selectAllCuttingsInBatch}
-            />
-          </AnimatedTabPanel>
-          
-          {/* Neuer Tab für überführte Stecklinge */}
-          <AnimatedTabPanel 
-            value={tabValue} 
-            index={2} 
-            animationType={animSettings.type} 
-            direction="left" 
-            duration={animSettings.duration}
-          >
-            <CuttingTable 
-              tabValue={2}
-              data={cuttingBatches}
-              expandedBatchId={expandedBatchId}
-              onExpandBatch={handleAccordionChange}
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={handlePageChange}
-              convertedBatchCuttings={convertedBatchCuttings}
-              convertedCuttingsCurrentPage={convertedCuttingsCurrentPage}
-              convertedCuttingsTotalPages={convertedCuttingsTotalPages}
-              onConvertedCuttingsPageChange={handleConvertedCuttingsPageChange}
-            />
-          </AnimatedTabPanel>
-        </>
-      )}
+      {/* Hauptinhalt mit Scroll */}
+      <Box sx={{ 
+        flex: 1, 
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+        position: 'relative'
+      }}>
+        {loading ? (
+          <Box sx={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            height: '100%'
+          }}>
+            <LoadingIndicator />
+          </Box>
+        ) : (
+          <Box sx={{ 
+            height: '100%', 
+            display: 'flex', 
+            flexDirection: 'column',
+            overflow: 'hidden'
+          }}>
+            <AnimatedTabPanel 
+              value={tabValue} 
+              index={0} 
+              animationType={animSettings.type} 
+              direction="right" 
+              duration={animSettings.duration}
+              sx={{ 
+                height: '100%', 
+                p: 0,
+                m: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden'
+              }}
+            >
+              <CuttingTable 
+                tabValue={0}
+                data={cuttingBatches}
+                expandedBatchId={expandedBatchId}
+                onExpandBatch={handleAccordionChange}
+                onOpenDestroyDialog={handleOpenDestroyDialog}
+                onOpenConvertDialog={handleOpenConvertDialog}
+                onOpenImageModal={handleOpenImageModal}
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+                pageSize={pageSize}
+                onPageSizeChange={handlePageSizeChange}
+                pageSizeOptions={pageSizeOptions}
+                totalCount={totalCount}
+                batchCuttings={batchCuttings}
+                destroyedBatchCuttings={destroyedBatchCuttings}
+                cuttingsCurrentPage={cuttingsCurrentPage}
+                cuttingsTotalPages={cuttingsTotalPages}
+                destroyedCuttingsCurrentPage={destroyedCuttingsCurrentPage}
+                destroyedCuttingsTotalPages={destroyedCuttingsTotalPages}
+                onCuttingsPageChange={handleCuttingsPageChange}
+                onDestroyedCuttingsPageChange={handleDestroyedCuttingsPageChange}
+                selectedCuttings={selectedCuttings}
+                toggleCuttingSelection={toggleCuttingSelection}
+                selectAllCuttingsInBatch={selectAllCuttingsInBatch}
+                yearFilter={yearFilter}
+                setYearFilter={setYearFilter}
+                monthFilter={monthFilter}
+                setMonthFilter={setMonthFilter}
+                dayFilter={dayFilter}
+                setDayFilter={setDayFilter}
+                showFilters={showFilters}
+                setShowFilters={setShowFilters}
+                onFilterApply={handleFilterApply}
+                onFilterReset={handleFilterReset}
+              />
+            </AnimatedTabPanel>
+            
+            <AnimatedTabPanel 
+              value={tabValue} 
+              index={1} 
+              animationType={animSettings.type} 
+              direction="up" 
+              duration={animSettings.duration}
+              sx={{ 
+                height: '100%', 
+                p: 0,
+                m: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden'
+              }}
+            >
+              <CuttingTable 
+                tabValue={1}
+                data={cuttingBatches}
+                expandedBatchId={expandedBatchId}
+                onExpandBatch={handleAccordionChange}
+                onOpenDestroyDialog={handleOpenDestroyDialog}
+                onOpenConvertDialog={handleOpenConvertDialog}
+                onOpenImageModal={handleOpenImageModal}
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+                pageSize={pageSize}
+                onPageSizeChange={handlePageSizeChange}
+                pageSizeOptions={pageSizeOptions}
+                totalCount={totalCount}
+                batchCuttings={batchCuttings}
+                destroyedBatchCuttings={destroyedBatchCuttings}
+                convertedBatchCuttings={convertedBatchCuttings}
+                convertedCuttingsCurrentPage={convertedCuttingsCurrentPage}
+                convertedCuttingsTotalPages={convertedCuttingsTotalPages}
+                onConvertedCuttingsPageChange={handleConvertedCuttingsPageChange}
+                cuttingsCurrentPage={cuttingsCurrentPage}
+                cuttingsTotalPages={cuttingsTotalPages}
+                destroyedCuttingsCurrentPage={destroyedCuttingsCurrentPage}
+                destroyedCuttingsTotalPages={destroyedCuttingsTotalPages}
+                onCuttingsPageChange={handleCuttingsPageChange}
+                onDestroyedCuttingsPageChange={handleDestroyedCuttingsPageChange}
+                selectedCuttings={selectedCuttings}
+                toggleCuttingSelection={toggleCuttingSelection}
+                selectAllCuttingsInBatch={selectAllCuttingsInBatch}
+                yearFilter={yearFilter}
+                setYearFilter={setYearFilter}
+                monthFilter={monthFilter}
+                setMonthFilter={setMonthFilter}
+                dayFilter={dayFilter}
+                setDayFilter={setDayFilter}
+                showFilters={showFilters}
+                setShowFilters={setShowFilters}
+                onFilterApply={handleFilterApply}
+                onFilterReset={handleFilterReset}
+              />
+            </AnimatedTabPanel>
+            
+            <AnimatedTabPanel 
+              value={tabValue} 
+              index={2} 
+              animationType={animSettings.type} 
+              direction="left" 
+              duration={animSettings.duration}
+              sx={{ 
+                height: '100%', 
+                p: 0,
+                m: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden'
+              }}
+            >
+              <CuttingTable 
+                tabValue={2}
+                data={cuttingBatches}
+                expandedBatchId={expandedBatchId}
+                onExpandBatch={handleAccordionChange}
+                onOpenImageModal={handleOpenImageModal}
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+                pageSize={pageSize}
+                onPageSizeChange={handlePageSizeChange}
+                pageSizeOptions={pageSizeOptions}
+                totalCount={totalCount}
+                destroyedBatchCuttings={destroyedBatchCuttings}
+                destroyedCuttingsCurrentPage={destroyedCuttingsCurrentPage}
+                destroyedCuttingsTotalPages={destroyedCuttingsTotalPages}
+                onDestroyedCuttingsPageChange={handleDestroyedCuttingsPageChange}
+                yearFilter={yearFilter}
+                setYearFilter={setYearFilter}
+                monthFilter={monthFilter}
+                setMonthFilter={setMonthFilter}
+                dayFilter={dayFilter}
+                setDayFilter={setDayFilter}
+                showFilters={showFilters}
+                setShowFilters={setShowFilters}
+                onFilterApply={handleFilterApply}
+                onFilterReset={handleFilterReset}
+              />
+            </AnimatedTabPanel>
+          </Box>
+        )}
+      </Box>
 
       <Fade in={openDestroyDialog} timeout={500}>
         <div style={{ display: openDestroyDialog ? 'block' : 'none' }}>
@@ -779,7 +983,6 @@ export default function CuttingPage() {
         </div>
       </Fade>
       
-      {/* Konvertierungsdialog mit aktualisierten Props */}
       <ConvertToBlooming
         open={openConvertDialog}
         onClose={() => setOpenConvertDialog(false)}
@@ -794,6 +997,32 @@ export default function CuttingPage() {
         convertAll={convertAllMode}
         batchActiveCount={selectedBatch?.active_cuttings_count || 0}
       />
-    </Container>
+      
+      <ImageUploadModal
+        open={openImageModal}
+        onClose={handleCloseImageModal}
+        productType="cutting-batch"
+        productId={selectedBatchForImages?.id}
+        productName={selectedBatchForImages?.batch_number}
+        onImagesUpdated={refreshData}
+      />
+      
+      {/* Globale Snackbar-Komponente */}
+      <Snackbar 
+        open={globalSnackbar.open} 
+        autoHideDuration={globalSnackbar.duration || 6000} 
+        onClose={handleCloseGlobalSnackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert 
+          onClose={handleCloseGlobalSnackbar} 
+          severity={globalSnackbar.severity} 
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          {globalSnackbar.message}
+        </Alert>
+      </Snackbar>
+    </Box>
   )
 }

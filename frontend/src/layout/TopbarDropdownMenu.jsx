@@ -45,7 +45,7 @@ function TopbarDropdownMenu({ isOpen, menuItem, menuRef, handleClickItem }) {
           zIndex: 1000
         }}
       >
-        <Grid container spacing={3} justifyContent="center">
+        <Grid container spacing={3} justifyContent="center" sx={{ width: '100%' }}>
           {menuItem.children.map(sub => {
             // Bestimme den Typ des Menüeintrags
             const isFinance = menuItem.label === 'Buchhaltung';
@@ -61,7 +61,7 @@ function TopbarDropdownMenu({ isOpen, menuItem, menuRef, handleClickItem }) {
             const sData = securityData[sub.label] || {};
             
             return (
-              <Grid item key={sub.label}>
+              <Grid key={sub.label}>
                 <Paper
                   elevation={3}
                   sx={{

@@ -1,28 +1,33 @@
-from rest_framework import viewsets, status, pagination
-from rest_framework.decorators import action
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from django.utils import timezone
+from datetime import timedelta
+from collections import defaultdict
 from django.db import models
-from django.db.models import Q
+from django.db.models import Q, Sum
+from django.utils import timezone
+from rest_framework import pagination, status, viewsets, serializers
+from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.response import Response
+from wawi.models import CannabisStrain
 from .models import (
-    SeedPurchase, MotherPlantBatch, MotherPlant, 
-    FloweringPlantBatch, FloweringPlant, Cutting, CuttingBatch,
-    BloomingCuttingBatch, BloomingCuttingPlant, HarvestBatch, 
-    DryingBatch, ProcessingBatch, LabTestingBatch, PackagingBatch, PackagingUnit, ProductDistribution
+    BloomingCuttingBatch, BloomingCuttingPlant, Cutting, CuttingBatch, DryingBatch,
+    FloweringPlant, FloweringPlantBatch, HarvestBatch, LabTestingBatch, MotherPlant,
+    MotherPlantBatch, PackagingBatch, PackagingUnit, ProcessingBatch, ProductDistribution,
+    SeedPurchaseImage, MotherPlantBatchImage, CuttingBatchImage, BloomingCuttingBatchImage, 
+    FloweringPlantBatchImage, HarvestBatchImage, DryingBatchImage, ProcessingBatchImage, 
+    LabTestingBatchImage, SeedPurchase, PackagingBatchImage, MotherPlantRating,
 )
 from .serializers import (
-    SeedPurchaseSerializer, MotherPlantBatchSerializer, 
-    MotherPlantSerializer, FloweringPlantBatchSerializer,
-    FloweringPlantSerializer, CuttingBatchSerializer, CuttingSerializer,
-    BloomingCuttingBatchSerializer, BloomingCuttingPlantSerializer, 
-    HarvestBatchSerializer, DryingBatchSerializer, ProcessingBatchSerializer,
-    LabTestingBatchSerializer, PackagingBatchSerializer, PackagingUnitSerializer, 
-    ProductDistributionSerializer
+    BloomingCuttingBatchSerializer, BloomingCuttingPlantSerializer, CuttingBatchSerializer,
+    CuttingSerializer, DryingBatchSerializer, FloweringPlantBatchSerializer,
+    FloweringPlantSerializer, HarvestBatchSerializer, LabTestingBatchSerializer,
+    MotherPlantBatchSerializer, MotherPlantSerializer, PackagingBatchSerializer,
+    PackagingUnitSerializer, ProcessingBatchSerializer, ProductDistributionSerializer,
+    SeedPurchaseSerializer, SeedPurchaseImageSerializer, MotherPlantBatchImageSerializer,
+    CuttingBatchImageSerializer, BloomingCuttingBatchImageSerializer, FloweringPlantBatchImageSerializer, 
+    HarvestBatchImageSerializer, DryingBatchImageSerializer, ProcessingBatchImageSerializer, 
+    LabTestingBatchImageSerializer, PackagingBatchImageSerializer, MotherPlantRatingSerializer,
 )
-
-from wawi.models import CannabisStrain
-from wawi.serializers import CannabisStrainSerializer
 
 class StandardResultsSetPagination(pagination.PageNumberPagination):
     page_size = 10
@@ -59,6 +64,11 @@ class StandardResultsSetPagination(pagination.PageNumberPagination):
         # Kein page_size-Parameter, verwende Standard
         return self.page_size
 
+class StrainCardPagination(pagination.PageNumberPagination):
+    """Pagination speziell für StrainCards"""
+    page_size = 12
+    page_size_query_param = 'page_size'
+    max_page_size = 50
 
 class SeedPurchaseViewSet(viewsets.ModelViewSet):
     queryset = SeedPurchase.objects.all().order_by('-created_at')
@@ -1178,6 +1188,38 @@ class MotherPlantViewSet(viewsets.ModelViewSet):
             "message": f"{quantity} Stecklinge wurden von Mutterpflanze {plant.batch_number} erstellt",
             "batch": CuttingBatchSerializer(cutting_batch).data
         })
+    
+    @action(detail=True, methods=['post'])
+    def toggle_premium(self, request, pk=None):
+        """Markiert/Entmarkiert eine Mutterpflanze als Premium"""
+        plant = self.get_object()
+        
+        plant.is_premium_mother = not plant.is_premium_mother
+        if plant.is_premium_mother:
+            plant.premium_marked_at = timezone.now()
+            plant.premium_marked_by = request.user
+        else:
+            plant.premium_marked_at = None
+            plant.premium_marked_by = None
+            
+        plant.save()
+        
+        serializer = MotherPlantSerializer(plant)
+        return Response(serializer.data)
+    
+    @action(detail=True, methods=['get'])
+    def ratings(self, request, pk=None):
+        """Gibt alle Bewertungen für eine Mutterpflanze zurück"""
+        plant = self.get_object()
+        ratings = plant.ratings.all()
+        
+        page = self.paginate_queryset(ratings)
+        if page is not None:
+            serializer = MotherPlantRatingSerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+            
+        serializer = MotherPlantRatingSerializer(ratings, many=True)
+        return Response(serializer.data)
 
 class BloomingCuttingBatchViewSet(viewsets.ModelViewSet):
     queryset = BloomingCuttingBatch.objects.all().order_by('-created_at')
@@ -2381,7 +2423,7 @@ class LabTestingBatchViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def convert_to_packaging(self, request, pk=None):
         """
-        Konvertiert eine freigegebene Laborkontrolle zu mehreren Verpackungen.
+        🆕 ERWEITERT: Konvertiert eine freigegebene Laborkontrolle zu mehreren Verpackungen MIT PREISUNTERSTÜTZUNG.
         Unterstützt sowohl Einzelverpackungen als auch mehrere Verpackungslinien.
         """
         lab_batch = self.get_object()
@@ -2412,6 +2454,24 @@ class LabTestingBatchViewSet(viewsets.ModelViewSet):
         remaining_weight = float(request.data.get('remaining_weight', 0) or 0)
         auto_destroy_remainder = request.data.get('auto_destroy_remainder', False)
         
+        # 🆕 PREIS AUS REQUEST LESEN:
+        price_per_gram = request.data.get('price_per_gram')
+        
+        # 🆕 PREIS-VALIDIERUNG:
+        if price_per_gram is not None:
+            try:
+                price_per_gram = float(price_per_gram)
+                if price_per_gram < 0:
+                    return Response(
+                        {"error": "Der Preis pro Gramm kann nicht negativ sein"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            except (ValueError, TypeError):
+                return Response(
+                    {"error": "Ungültiger Preis pro Gramm. Bitte geben Sie eine gültige Zahl ein."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        
         # Überprüfen, ob es sich um eine Multi-Packaging-Anfrage handelt
         if 'packagings' in request.data and isinstance(request.data['packagings'], list):
             # Multi-Packaging-Verarbeitung
@@ -2425,6 +2485,25 @@ class LabTestingBatchViewSet(viewsets.ModelViewSet):
                     unit_count = int(packaging_data.get('unit_count', 0))
                     unit_weight = float(packaging_data.get('unit_weight', 0))
                     total_line_weight = float(packaging_data.get('total_weight', 0))
+                    
+                    # 🆕 INDIVIDUELLER PREIS PRO LINIE (OPTIONAL):
+                    line_price_per_gram = packaging_data.get('price_per_gram')
+                    if line_price_per_gram is not None:
+                        try:
+                            line_price_per_gram = float(line_price_per_gram)
+                            if line_price_per_gram < 0:
+                                return Response(
+                                    {"error": f"Der Preis pro Gramm in Zeile {idx+1} kann nicht negativ sein"},
+                                    status=status.HTTP_400_BAD_REQUEST
+                                )
+                        except (ValueError, TypeError):
+                            return Response(
+                                {"error": f"Ungültiger Preis pro Gramm in Zeile {idx+1}"},
+                                status=status.HTTP_400_BAD_REQUEST
+                            )
+                    else:
+                        # Fallback auf globalen Preis
+                        line_price_per_gram = price_per_gram
                     
                     # Validierung für diese Verpackungslinie
                     if unit_count <= 0:
@@ -2447,16 +2526,23 @@ class LabTestingBatchViewSet(viewsets.ModelViewSet):
                             status=status.HTTP_400_BAD_REQUEST
                         )
                     
+                    # 🆕 KWARGS FÜR VERPACKUNG MIT PREIS VORBEREITEN:
+                    packaging_kwargs = {
+                        'lab_testing_batch': lab_batch,
+                        'total_weight': total_line_weight,
+                        'unit_count': unit_count,
+                        'unit_weight': unit_weight,
+                        'member_id': member_id,
+                        'room_id': room_id,
+                        'notes': f"{notes} - Zeile {idx+1} von {len(packagings)}: {unit_count}× {unit_weight}g"
+                    }
+                    
+                    # 🆕 PREIS HINZUFÜGEN, FALLS VORHANDEN:
+                    if line_price_per_gram is not None:
+                        packaging_kwargs['price_per_gram'] = line_price_per_gram
+                    
                     # Erstelle die Verpackung für diese Linie
-                    packaging = PackagingBatch.objects.create(
-                        lab_testing_batch=lab_batch,
-                        total_weight=total_line_weight,
-                        unit_count=unit_count,
-                        unit_weight=unit_weight,
-                        member_id=member_id,
-                        room_id=room_id,
-                        notes=f"{notes} - Zeile {idx+1} von {len(packagings)}: {unit_count}× {unit_weight}g"
-                    )
+                    packaging = PackagingBatch.objects.create(**packaging_kwargs)
                     
                     created_packagings.append(packaging)
                     total_weight_used += total_line_weight
@@ -2486,28 +2572,54 @@ class LabTestingBatchViewSet(viewsets.ModelViewSet):
             
             # Erstelle Restbetrag als vernichtete Verpackung, wenn gewünscht
             if auto_destroy_remainder and remaining_weight > 0:
-                PackagingBatch.objects.create(
-                    lab_testing_batch=lab_batch,
-                    total_weight=remaining_weight,
-                    unit_count=1,
-                    unit_weight=remaining_weight,
-                    member_id=member_id,
-                    room_id=room_id,
-                    notes=f"Restmenge aus der Verpackung von {lab_batch.batch_number}. Automatisch zur Vernichtung markiert.",
-                    is_destroyed=True,
-                    destroy_reason=f"Automatische Vernichtung der Restmenge bei Verpackung von {lab_batch.batch_number}",
-                    destroyed_at=timezone.now(),
-                    destroyed_by_id=member_id
-                )
+                remainder_kwargs = {
+                    'lab_testing_batch': lab_batch,
+                    'total_weight': remaining_weight,
+                    'unit_count': 1,
+                    'unit_weight': remaining_weight,
+                    'member_id': member_id,
+                    'room_id': room_id,
+                    'notes': f"Restmenge aus der Verpackung von {lab_batch.batch_number}. Automatisch zur Vernichtung markiert.",
+                    'is_destroyed': True,
+                    'destroy_reason': f"Automatische Vernichtung der Restmenge bei Verpackung von {lab_batch.batch_number}",
+                    'destroyed_at': timezone.now(),
+                    'destroyed_by_id': member_id
+                }
+                
+                # 🆕 AUCH RESTMENGE MIT PREIS VERSEHEN (FÜR BUCHHALTUNG):
+                if price_per_gram is not None:
+                    remainder_kwargs['price_per_gram'] = price_per_gram
+                
+                PackagingBatch.objects.create(**remainder_kwargs)
             
-            # Erfolgsmeldung mit Zusammenfassung
-            return Response({
+            # 🆕 ERWEITERTE ERFOLGSMELDUNG MIT PREISINFORMATIONEN:
+            response_data = {
                 "message": f"{len(created_packagings)} Verpackungsbatches mit insgesamt {total_weight_used}g wurden erstellt",
+                "packaging_count": len(created_packagings),
+                "total_weight": total_weight_used,
                 "packagings": [PackagingBatchSerializer(pkg).data for pkg in created_packagings]
-            })
+            }
+            
+            # 🆕 PREISINFORMATIONEN HINZUFÜGEN:
+            if price_per_gram is not None:
+                total_value = 0
+                for packaging in created_packagings:
+                    if packaging.total_batch_price:
+                        total_value += float(packaging.total_batch_price)
+                
+                response_data.update({
+                    "pricing_info": {
+                        "base_price_per_gram": price_per_gram,
+                        "total_estimated_value": round(total_value, 2),
+                        "currency": "EUR",
+                        "note": "Preise wurden automatisch berechnet"
+                    }
+                })
+            
+            return Response(response_data)
             
         else:
-            # Fallback für Einzelverpackung (bestehender Code, leicht angepasst)
+            # Fallback für Einzelverpackung (bestehender Code, erweitert mit Preis)
             total_weight = float(request.data.get('total_weight', 0) or 0)
             unit_count = int(request.data.get('unit_count', 0) or 0)
             unit_weight = float(request.data.get('unit_weight', 0) or 0)
@@ -2530,17 +2642,78 @@ class LabTestingBatchViewSet(viewsets.ModelViewSet):
                     {"error": "Das Gewicht pro Einheit muss mindestens 5g betragen"},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-                
+            
+            # Prüfen, ob das Gesamtgewicht verfügbar ist
+            available_weight = lab_batch.remaining_weight
+            if total_weight > available_weight:
+                return Response(
+                    {"error": f"Das Gesamtgewicht ({total_weight}g) überschreitet das verfügbare Gewicht ({available_weight}g)"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # 🆕 KWARGS FÜR EINZELVERPACKUNG MIT PREIS VORBEREITEN:
+            packaging_kwargs = {
+                'lab_testing_batch': lab_batch,
+                'total_weight': total_weight,
+                'unit_count': unit_count,
+                'unit_weight': unit_weight,
+                'member_id': member_id,
+                'room_id': room_id,
+                'notes': notes
+            }
+            
+            # 🆕 PREIS HINZUFÜGEN, FALLS VORHANDEN:
+            if price_per_gram is not None:
+                packaging_kwargs['price_per_gram'] = price_per_gram
+            
             # Erstelle die Einzelverpackung
-            packaging = PackagingBatch.objects.create(
-                lab_testing_batch=lab_batch,
-                total_weight=total_weight,
-                unit_count=unit_count,
-                unit_weight=unit_weight,
-                member_id=member_id,
-                room_id=room_id,
-                notes=notes
-            )
+            packaging = PackagingBatch.objects.create(**packaging_kwargs)
+            
+            # Markiere Laborcharge als zu Verpackung konvertiert
+            lab_batch.converted_to_packaging = True
+            lab_batch.converted_to_packaging_at = timezone.now()
+            lab_batch.save()
+            
+            # Erstelle Restbetrag als vernichtete Verpackung, wenn gewünscht
+            if auto_destroy_remainder and remaining_weight > 0:
+                remainder_kwargs = {
+                    'lab_testing_batch': lab_batch,
+                    'total_weight': remaining_weight,
+                    'unit_count': 1,
+                    'unit_weight': remaining_weight,
+                    'member_id': member_id,
+                    'room_id': room_id,
+                    'notes': f"Restmenge aus der Verpackung von {lab_batch.batch_number}. Automatisch zur Vernichtung markiert.",
+                    'is_destroyed': True,
+                    'destroy_reason': f"Automatische Vernichtung der Restmenge bei Verpackung von {lab_batch.batch_number}",
+                    'destroyed_at': timezone.now(),
+                    'destroyed_by_id': member_id
+                }
+                
+                # 🆕 AUCH RESTMENGE MIT PREIS VERSEHEN:
+                if price_per_gram is not None:
+                    remainder_kwargs['price_per_gram'] = price_per_gram
+                
+                PackagingBatch.objects.create(**remainder_kwargs)
+            
+            # 🆕 ERWEITERTE ERFOLGSMELDUNG FÜR EINZELVERPACKUNG:
+            response_data = {
+                "message": f"Verpackung mit {total_weight}g wurde erfolgreich erstellt",
+                "packaging": PackagingBatchSerializer(packaging).data
+            }
+            
+            # 🆕 PREISINFORMATIONEN HINZUFÜGEN:
+            if price_per_gram is not None and packaging.total_batch_price:
+                response_data.update({
+                    "pricing_info": {
+                        "price_per_gram": price_per_gram,
+                        "total_value": float(packaging.total_batch_price),
+                        "unit_price": float(packaging.unit_price) if packaging.unit_price else None,
+                        "currency": "EUR"
+                    }
+                })
+            
+            return Response(response_data)
 
 class PackagingBatchViewSet(viewsets.ModelViewSet):
     queryset = PackagingBatch.objects.all().order_by('-created_at')
@@ -2741,40 +2914,921 @@ class PackagingBatchViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
     
 
+class StrainCardViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    🚀 VOLLSTÄNDIG KORRIGIERTE StrainCard API - Intelligente Sorten-Gruppierung
+    """
+    permission_classes = [IsAuthenticated]
+    pagination_class = StrainCardPagination
+    
+    def get_queryset(self):
+        """
+        Da source_strain eine Property ist, müssen wir die Aggregation in Python machen
+        """
+        # Basis-Query: Nur verfügbare Units mit allen nötigen Relations
+        base_queryset = PackagingUnit.objects.filter(
+            is_destroyed=False
+        ).exclude(
+            distributions__isnull=False
+        ).select_related(
+            'batch',
+            'batch__lab_testing_batch',
+            'batch__lab_testing_batch__processing_batch',
+            'batch__lab_testing_batch__processing_batch__drying_batch',
+            'batch__lab_testing_batch__processing_batch__drying_batch__harvest_batch',
+            'batch__lab_testing_batch__processing_batch__drying_batch__harvest_batch__flowering_batch',
+            'batch__lab_testing_batch__processing_batch__drying_batch__harvest_batch__flowering_batch__seed_purchase',
+            'batch__lab_testing_batch__processing_batch__drying_batch__harvest_batch__flowering_batch__seed_purchase__strain',
+        )
+        
+        # Empfänger-basierte THC-Filterung
+        recipient_id = self.request.query_params.get('recipient_id')
+        if recipient_id:
+            try:
+                from members.models import Member
+                recipient = Member.objects.get(id=recipient_id)
+                if hasattr(recipient, 'age_class') and recipient.age_class == "18+":
+                    base_queryset = base_queryset.filter(
+                        Q(batch__lab_testing_batch__thc_content__lte=10.0) | 
+                        Q(batch__lab_testing_batch__thc_content__isnull=True)
+                    )
+            except Member.DoesNotExist:
+                pass
+        
+        # Backend-Filter anwenden (alles außer strain_name)
+        base_queryset = self._apply_backend_filters(base_queryset)
+        
+        return base_queryset
+    
+    def _apply_backend_filters(self, queryset):
+        """Backend-Filter die in SQL funktionieren"""
+        
+        # Produkttyp-Filter
+        product_type = self.request.query_params.get('product_type')
+        if product_type:
+            queryset = queryset.filter(
+                batch__lab_testing_batch__processing_batch__product_type=product_type
+            )
+        
+        # Gewichts-Filter
+        weight = self.request.query_params.get('weight')
+        if weight:
+            try:
+                weight_value = float(weight)
+                queryset = queryset.filter(weight=weight_value)
+            except (ValueError, TypeError):
+                pass
+        
+        # THC-Filter (zusätzlich zu recipient-basierten)
+        min_thc = self.request.query_params.get('min_thc')
+        if min_thc:
+            try:
+                queryset = queryset.filter(
+                    batch__lab_testing_batch__thc_content__gte=float(min_thc)
+                )
+            except (ValueError, TypeError):
+                pass
+                
+        max_thc = self.request.query_params.get('max_thc')
+        if max_thc:
+            try:
+                queryset = queryset.filter(
+                    batch__lab_testing_batch__thc_content__lte=float(max_thc)
+                )
+            except (ValueError, TypeError):
+                pass
+        
+        # Such-Filter für Batch-Nummer
+        search = self.request.query_params.get('search')
+        if search:
+            queryset = queryset.filter(
+                Q(batch__batch_number__icontains=search) |
+                Q(batch_number__icontains=search)
+            )
+        
+        return queryset
+    
+    def _extract_strain_name(self, unit):
+        """
+        Extrahiert Strain-Namen wie in PackagingUnitViewSet.distinct_strains()
+        """
+        name = None
+        try:
+            name = unit.batch.lab_testing_batch.processing_batch.drying_batch.harvest_batch.flowering_batch.seed_purchase.strain.name
+        except Exception:
+            pass
+        if not name:
+            try:
+                name = unit.batch.flowering_batch.seed_purchase.strain.name
+            except Exception:
+                pass
+        if not name:
+            try:
+                name = unit.batch.seed_purchase.strain.name
+            except Exception:
+                pass
+        if not name:
+            name = getattr(unit.batch, "source_strain", None) or getattr(unit, "source_strain", None)
+        if not name:
+            name = getattr(unit, "strain_name", None)
+        
+        return name if name and name != "Unbekannt" else "Unbekannte Sorte"
+    
+    def _get_cannabis_batch_id(self, unit):
+        """🔧 NEU: Ermittelt die echte Cannabis-Charge-ID"""
+        try:
+            # Versuche über harvest_batch (die echte Cannabis-Charge)
+            if (unit.batch and 
+                unit.batch.lab_testing_batch and 
+                unit.batch.lab_testing_batch.processing_batch and
+                unit.batch.lab_testing_batch.processing_batch.drying_batch and
+                unit.batch.lab_testing_batch.processing_batch.drying_batch.harvest_batch):
+                harvest_batch = unit.batch.lab_testing_batch.processing_batch.drying_batch.harvest_batch
+                return f"harvest_{harvest_batch.id}"
+        except Exception:
+            pass
+        
+        # Fallback: processing_batch
+        try:
+            if (unit.batch and 
+                unit.batch.lab_testing_batch and 
+                unit.batch.lab_testing_batch.processing_batch):
+                processing_batch = unit.batch.lab_testing_batch.processing_batch
+                return f"processing_{processing_batch.id}"
+        except Exception:
+            pass
+        
+        # Notfall-Fallback
+        return f"packaging_{unit.batch.id}" if unit.batch else None
+    
+    def _group_units_to_strain_cards(self, units):
+        """
+        🎯 ERWEITERTE LOGIK: THC-Bereich bei mehreren Cannabis-Chargen + PREISE
+        """
+        strain_filter = self.request.query_params.get('strain_name', '').strip()
+        
+        # Gruppierung nach Sorte
+        strain_groups = defaultdict(lambda: {
+            'units': [],
+            'available_weights': set(),
+            'weight_counts': defaultdict(int),
+            'thc_values_by_batch': defaultdict(list),
+            'cannabis_batches': set(),
+            # 🆕 NEUE PREIS-STRUKTUREN
+            'price_ranges': defaultdict(list),  # Preise pro Gewicht
+            'min_price': float('inf'),
+            'max_price': 0
+        })
+        
+        for unit in units:
+            strain_name = self._extract_strain_name(unit)
+            
+            if strain_filter and strain_name != strain_filter:
+                continue
+            
+            weight = float(unit.weight) if unit.weight else 0
+            
+            strain_data = strain_groups[strain_name]
+            strain_data['units'].append(unit)
+            strain_data['available_weights'].add(weight)
+            strain_data['weight_counts'][weight] += 1
+            
+            # 🆕 PREISE SAMMELN
+            if unit.unit_price:
+                price = float(unit.unit_price)
+                strain_data['price_ranges'][weight].append(price)
+                strain_data['min_price'] = min(strain_data['min_price'], price)
+                strain_data['max_price'] = max(strain_data['max_price'], price)
+            
+            # Cannabis-Charge-ID ermitteln
+            cannabis_batch_id = self._get_cannabis_batch_id(unit)
+            if cannabis_batch_id:
+                strain_data['cannabis_batches'].add(cannabis_batch_id)
+                
+                # THC-Werte pro Cannabis-Charge sammeln
+                if (unit.batch and 
+                    unit.batch.lab_testing_batch and 
+                    unit.batch.lab_testing_batch.thc_content):
+                    thc_value = float(unit.batch.lab_testing_batch.thc_content)
+                    strain_data['thc_values_by_batch'][cannabis_batch_id].append(thc_value)
+        
+        # Konvertiere zu StrainCard-Format
+        strain_cards = []
+        for strain_name, data in strain_groups.items():
+            if not data['units']:
+                continue
+            
+            first_unit = data['units'][0]
+            
+            # Produkttyp ermitteln
+            product_type = 'unknown'
+            product_type_display = 'Unbekannt'
+            if (first_unit.batch and 
+                first_unit.batch.lab_testing_batch and 
+                first_unit.batch.lab_testing_batch.processing_batch):
+                processing_batch = first_unit.batch.lab_testing_batch.processing_batch
+                product_type = processing_batch.product_type
+                product_type_display = processing_batch.get_product_type_display()
+            
+            # THC-BEREICH BERECHNEN (bestehender Code)
+            thc_display = "k.A."
+            if data['thc_values_by_batch']:
+                all_thc_values = set()
+                for cannabis_batch_id, thc_list in data['thc_values_by_batch'].items():
+                    if thc_list:
+                        avg_thc_for_batch = sum(thc_list) / len(thc_list)
+                        all_thc_values.add(round(avg_thc_for_batch, 1))
+                
+                if len(all_thc_values) == 1:
+                    thc_display = f"{list(all_thc_values)[0]}"
+                elif len(all_thc_values) > 1:
+                    min_thc = min(all_thc_values)
+                    max_thc = max(all_thc_values)
+                    thc_display = f"{min_thc} - {max_thc}"
+            
+            # 🆕 PREIS-INFORMATIONEN BERECHNEN
+            price_info = {
+                'has_prices': data['min_price'] != float('inf'),
+                'min_price': data['min_price'] if data['min_price'] != float('inf') else None,
+                'max_price': data['max_price'] if data['max_price'] > 0 else None,
+                'price_by_weight': {}
+            }
+            
+            # Preis pro Gewicht berechnen
+            for weight, prices in data['price_ranges'].items():
+                if prices:
+                    min_price_for_weight = min(prices)
+                    max_price_for_weight = max(prices)
+                    if min_price_for_weight == max_price_for_weight:
+                        price_info['price_by_weight'][weight] = {
+                            'price': min_price_for_weight,
+                            'display': f"{min_price_for_weight:.2f} €"
+                        }
+                    else:
+                        price_info['price_by_weight'][weight] = {
+                            'min': min_price_for_weight,
+                            'max': max_price_for_weight,
+                            'display': f"{min_price_for_weight:.2f} - {max_price_for_weight:.2f} €"
+                        }
+            
+            # Preis pro Gramm berechnen (vom ersten Unit mit Preis)
+            price_per_gram = None
+            for unit in data['units']:
+                if unit.unit_price and unit.weight:
+                    price_per_gram = float(unit.unit_price) / float(unit.weight)
+                    break
+            
+            # Gewichts-Optionen mit Preisen
+            size_options = []
+            for weight in sorted(data['available_weights']):
+                count = data['weight_counts'][weight]
+                price_display = ""
+                if weight in price_info['price_by_weight']:
+                    price_display = f" • {price_info['price_by_weight'][weight]['display']}"
+                size_options.append(f"{weight}g ({count}x){price_display}")
+            
+            # Available units mit Preisen
+            available_units = []
+            for unit in data['units']:
+                unit_data = {
+                    'id': str(unit.id),
+                    'batch_number': unit.batch_number,
+                    'weight': float(unit.weight) if unit.weight else 0,
+                    'packaging_batch_id': unit.batch.id if unit.batch else None,
+                    'cannabis_batch_id': self._get_cannabis_batch_id(unit),
+                    # 🆕 PREIS HINZUFÜGEN
+                    'unit_price': float(unit.unit_price) if unit.unit_price else None,
+                    'price_display': f"{float(unit.unit_price):.2f} €" if unit.unit_price else None
+                }
+                available_units.append(unit_data)
+            
+            cannabis_batch_count = len(data['cannabis_batches'])
+            
+            # StrainCard mit Preisinformationen
+            strain_card = {
+                'id': f"strain_{strain_name.replace(' ', '_')}",
+                'strain_name': strain_name,
+                'product_type': product_type,
+                'product_type_display': product_type_display,
+                'total_unit_count': len(data['units']),
+                'avg_thc_content': thc_display,
+                'size_options': size_options,
+                'available_weights': sorted(data['available_weights']),
+                'batch_count': cannabis_batch_count,
+                'cannabis_batches': list(data['cannabis_batches']),
+                'available_units': available_units,
+                # 🆕 PREIS-INFORMATIONEN
+                'price_info': price_info,
+                'price_per_gram': f"{price_per_gram:.2f}" if price_per_gram else None,
+                'price_display': price_info['price_by_weight'][sorted(data['available_weights'])[0]]['display'] if price_info['has_prices'] and data['available_weights'] else None,
+                'first_unit': {
+                    'id': str(first_unit.id),
+                    'batch_number': first_unit.batch_number,
+                    'weight': float(first_unit.weight) if first_unit.weight else 0,
+                    'unit_price': float(first_unit.unit_price) if first_unit.unit_price else None
+                }
+            }
+            
+            strain_cards.append(strain_card)
+        
+        strain_cards.sort(key=lambda x: x['strain_name'])
+        return strain_cards
+    
+    def list(self, request, *args, **kwargs):
+        """Custom List Response mit manueller Pagination"""
+        # Hole alle Units (mit Filtern)
+        units_queryset = self.get_queryset()
+        
+        print(f"🔍 StrainCard: {units_queryset.count()} verfügbare Units gefunden")
+        
+        # Konvertiere zu StrainCards (in Python, da source_strain Property ist)
+        all_strain_cards = self._group_units_to_strain_cards(units_queryset)
+        
+        print(f"🌿 StrainCard: {len(all_strain_cards)} Strain-Karten erstellt")
+        
+        # 🔧 DEBUG: Zeige erste Karte für Diagnose
+        if all_strain_cards:
+            first_card = all_strain_cards[0]
+            print(f"🔍 Erste Karte: {first_card['strain_name']}")
+            print(f"   - Gewichte: {first_card['available_weights']}")
+            print(f"   - Units: {first_card['total_unit_count']}")
+            print(f"   - Cannabis-Chargen: {first_card['batch_count']}")
+            print(f"   - Chargen-IDs: {first_card['cannabis_batches']}")
+            print(f"   - Available Units: {len(first_card['available_units'])}")
+        
+        # Manuelle Pagination
+        page_size = int(request.query_params.get('page_size', 12))
+        page_number = int(request.query_params.get('page', 1))
+        
+        start_index = (page_number - 1) * page_size
+        end_index = start_index + page_size
+        
+        paginated_cards = all_strain_cards[start_index:end_index]
+        
+        # Response im DRF-Pagination-Format
+        has_next = end_index < len(all_strain_cards)
+        has_previous = page_number > 1
+        
+        response_data = {
+            'count': len(all_strain_cards),
+            'next': f"?page={page_number + 1}&page_size={page_size}" if has_next else None,
+            'previous': f"?page={page_number - 1}&page_size={page_size}" if has_previous else None,
+            'results': paginated_cards
+        }
+        
+        return Response(response_data)
+    
+    @action(detail=False, methods=['get'])
+    def filter_options(self, request):
+        """Lade verfügbare Filter-Optionen"""
+        
+        # Basis-Query ohne Strain-Filter
+        base_queryset = PackagingUnit.objects.filter(
+            is_destroyed=False
+        ).exclude(
+            distributions__isnull=False
+        ).select_related(
+            'batch__lab_testing_batch__processing_batch'
+        )
+        
+        # Empfänger-Filter anwenden
+        recipient_id = request.query_params.get('recipient_id')
+        if recipient_id:
+            try:
+                from members.models import Member
+                recipient = Member.objects.get(id=recipient_id)
+                if hasattr(recipient, 'age_class') and recipient.age_class == "18+":
+                    base_queryset = base_queryset.filter(
+                        Q(batch__lab_testing_batch__thc_content__lte=10.0) | 
+                        Q(batch__lab_testing_batch__thc_content__isnull=True)
+                    )
+            except Member.DoesNotExist:
+                pass
+        
+        # Verfügbare Gewichte (SQL-Abfrage möglich)
+        available_weights = base_queryset.values_list(
+            'weight', flat=True
+        ).distinct().order_by('weight')
+        
+        weight_options = [
+            {'value': str(weight), 'label': f'{weight}g'}
+            for weight in available_weights if weight is not None
+        ]
+        
+        # Verfügbare Sorten (PYTHON-basiert, da source_strain Property ist)
+        available_strains = set()
+        
+        # Nehme eine begrenzte Anzahl Units für Performance
+        sample_units = base_queryset[:500]  # Limitiere für Performance
+        
+        for unit in sample_units:
+            strain_name = self._extract_strain_name(unit)
+            if strain_name and strain_name != 'Unbekannte Sorte':
+                available_strains.add(strain_name)
+        
+        strain_options = [
+            {'name': strain} 
+            for strain in sorted(available_strains)
+        ]
+        
+        print(f"🔍 Filter-Optionen: {len(weight_options)} Gewichte, {len(strain_options)} Sorten")
+        
+        return Response({
+            'weight_options': weight_options,
+            'strain_options': strain_options,
+            'total_available_units': base_queryset.count()
+        })
+    
+    @action(detail=False, methods=['get'])
+    def available_units_for_strain(self, request):
+        """
+        🎯 KORRIGIERTER ENDPOINT: Alle verfügbaren Units einer bestimmten Sorte
+        Ermöglicht das Abrufen aller Units einer Sorte über alle Batches hinweg
+        """
+        strain_name = request.query_params.get('strain_name')
+        weight = request.query_params.get('weight')
+        
+        if not strain_name:
+            return Response(
+                {"error": "strain_name ist erforderlich"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Alle verfügbaren Units der Sorte
+        units = self.get_queryset()
+        
+        # Filtere nach Strain-Namen (in Python, da Property)
+        matching_units = []
+        cannabis_batches = set()
+        
+        for unit in units:
+            unit_strain_name = self._extract_strain_name(unit)
+            if unit_strain_name == strain_name:
+                # Optional: Auch nach Gewicht filtern
+                if weight:
+                    try:
+                        weight_value = float(weight)
+                        if float(unit.weight) == weight_value:
+                            matching_units.append(unit)
+                            # Cannabis-Charge tracken
+                            cannabis_batch_id = self._get_cannabis_batch_id(unit)
+                            if cannabis_batch_id:
+                                cannabis_batches.add(cannabis_batch_id)
+                    except (ValueError, TypeError):
+                        pass
+                else:
+                    matching_units.append(unit)
+                    # Cannabis-Charge tracken
+                    cannabis_batch_id = self._get_cannabis_batch_id(unit)
+                    if cannabis_batch_id:
+                        cannabis_batches.add(cannabis_batch_id)
+        
+        # Gruppiere nach Gewicht für bessere Übersicht
+        weight_groups = defaultdict(list)
+        for unit in matching_units:
+            weight_key = float(unit.weight) if unit.weight else 0
+            weight_groups[weight_key].append(unit)
+        
+        response_data = {
+            'strain_name': strain_name,
+            'total_units': len(matching_units),
+            'cannabis_batch_count': len(cannabis_batches),  # 🔧 NEU: Cannabis-Chargen-Anzahl
+            'cannabis_batches': list(cannabis_batches),     # 🔧 NEU: Liste der Cannabis-Chargen
+            'weight_groups': {}
+        }
+        
+        # 🔧 KORREKTUR: Alle Units zurückgeben (keine Limitierung!)
+        for weight, units_list in weight_groups.items():
+            response_data['weight_groups'][f"{weight}g"] = {
+                'count': len(units_list),
+                'units': PackagingUnitSerializer(units_list, many=True).data  # 🔧 ALLE Units!
+            }
+        
+        print(f"🎯 Units für Sorte '{strain_name}': {len(matching_units)} gefunden, {len(weight_groups)} Gewichtsgruppen, {len(cannabis_batches)} Cannabis-Chargen")
+        
+        return Response(response_data)
+    
+    @action(detail=False, methods=['get'])
+    def product_history(self, request):
+        """
+        🔍 Liefert die komplette Track & Trace Historie für eine Cannabis-Charge
+        
+        Query Parameters:
+        - cannabis_batch_id: ID der Cannabis-Charge (format: harvest_123)
+        """
+        cannabis_batch_id = request.query_params.get('cannabis_batch_id')
+        
+        if not cannabis_batch_id:
+            return Response(
+                {"error": "cannabis_batch_id ist erforderlich"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            # Parse cannabis_batch_id (z.B. "harvest_4ed01949-f03b-4ef3-b74b-bcbb1ff8a2c7")
+            batch_type, batch_id = cannabis_batch_id.split('_', 1)
+            
+            if batch_type != 'harvest':
+                return Response(
+                    {"error": "Nur harvest batches werden derzeit unterstützt"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Importiere Models
+            from trackandtrace.models import HarvestBatch
+            
+            # Lade HarvestBatch mit ALLEN verknüpften Objekten (das ist der Schlüssel!)
+            harvest = HarvestBatch.objects.prefetch_related(
+                'flowering_batch__seed_purchase',
+                'drying_batches',
+                'drying_batches__processing_batches',
+                'drying_batches__processing_batches__lab_testing_batches',
+                'drying_batches__processing_batches__lab_testing_batches__packaging_batches'
+            ).select_related(
+                'flowering_batch__seed_purchase__member',
+                'flowering_batch__seed_purchase__room',
+                'flowering_batch__member',
+                'flowering_batch__room',
+                'member',
+                'room'
+            ).get(id=batch_id)
+            
+            # Baue Timeline
+            timeline = []
+            
+            # 1. Sameneinkauf
+            if harvest.flowering_batch and harvest.flowering_batch.seed_purchase:
+                seed = harvest.flowering_batch.seed_purchase
+                timeline.append({
+                    'step': 1,
+                    'type': 'seed_purchase',
+                    'title': '🌱 Sameneinkauf',
+                    'batch_number': seed.batch_number,
+                    'date': seed.created_at.isoformat(),
+                    'data': {
+                        'strain_name': seed.strain_name,
+                        'quantity': seed.quantity,
+                        'member': str(seed.member) if seed.member else 'Unbekannt',
+                        'room': seed.room.name if seed.room else 'Nicht angegeben',
+                        'thc_range': f"{seed.thc_percentage_min or 'k.A.'} - {seed.thc_percentage_max or 'k.A.'}%",
+                        'cbd_range': f"{seed.cbd_percentage_min or 'k.A.'} - {seed.cbd_percentage_max or 'k.A.'}%"
+                    }
+                })
+            
+            # 2. Blühpflanzen
+            if harvest.flowering_batch:
+                flowering = harvest.flowering_batch
+                timeline.append({
+                    'step': 2,
+                    'type': 'flowering_plant',
+                    'title': '🌸 Blühpflanzen (direkt)',
+                    'batch_number': flowering.batch_number,
+                    'date': flowering.created_at.isoformat(),
+                    'data': {
+                        'quantity': flowering.quantity,
+                        'member': str(flowering.member) if flowering.member else 'Unbekannt',
+                        'room': flowering.room.name if flowering.room else 'Nicht angegeben'
+                    }
+                })
+            
+            # 3. Ernte
+            timeline.append({
+                'step': 3,
+                'type': 'harvest',
+                'title': '🌾 Ernte',
+                'batch_number': harvest.batch_number,
+                'date': harvest.created_at.isoformat(),
+                'data': {
+                    'weight': f"{harvest.weight}g",
+                    'member': str(harvest.member) if harvest.member else 'Unbekannt',
+                    'room': harvest.room.name if harvest.room else 'Nicht angegeben',
+                    'status': harvest.status
+                }
+            })
+            
+            # 4. Trocknungen (kann mehrere geben)
+            for drying in harvest.drying_batches.all():
+                timeline.append({
+                    'step': len(timeline) + 1,
+                    'type': 'drying',
+                    'title': '🍂 Trocknung',
+                    'batch_number': drying.batch_number,
+                    'date': drying.created_at.isoformat(),
+                    'data': {
+                        'initial_weight': f"{drying.initial_weight}g",
+                        'final_weight': f"{drying.final_weight}g",
+                        'weight_loss': f"{drying.weight_loss}g ({drying.weight_loss_percentage:.1f}%)",
+                        'member': str(drying.member) if drying.member else 'Unbekannt',
+                        'room': drying.room.name if drying.room else 'Nicht angegeben'
+                    }
+                })
+                
+                # 5. Verarbeitungen
+                for processing in drying.processing_batches.all():
+                    timeline.append({
+                        'step': len(timeline) + 1,
+                        'type': 'processing',
+                        'title': f"🏭 Verarbeitung zu {processing.get_product_type_display()}",
+                        'batch_number': processing.batch_number,
+                        'date': processing.created_at.isoformat(),
+                        'data': {
+                            'product_type': processing.get_product_type_display(),
+                            'input_weight': f"{processing.input_weight}g",
+                            'output_weight': f"{processing.output_weight}g",
+                            'yield': f"{processing.yield_percentage:.1f}%",
+                            'member': str(processing.member) if processing.member else 'Unbekannt',
+                            'room': processing.room.name if processing.room else 'Nicht angegeben'
+                        }
+                    })
+                    
+                    # 6. Laborkontrollen
+                    for lab_testing in processing.lab_testing_batches.all():
+                        timeline.append({
+                            'step': len(timeline) + 1,
+                            'type': 'lab_testing',
+                            'title': '🔬 Laborkontrolle',
+                            'batch_number': lab_testing.batch_number,
+                            'date': lab_testing.created_at.isoformat(),
+                            'data': {
+                                'status': lab_testing.get_status_display(),
+                                'thc_content': f"{lab_testing.thc_content}%" if lab_testing.thc_content else 'k.A.',
+                                'cbd_content': f"{lab_testing.cbd_content}%" if lab_testing.cbd_content else 'k.A.',
+                                'sample_weight': f"{lab_testing.sample_weight}g",
+                                'member': str(lab_testing.member) if lab_testing.member else 'Unbekannt',
+                                'room': lab_testing.room.name if lab_testing.room else 'Nicht angegeben'
+                            }
+                        })
+                        
+                        # 7. Verpackungen
+                        for packaging in lab_testing.packaging_batches.all():
+                            timeline.append({
+                                'step': len(timeline) + 1,
+                                'type': 'packaging',
+                                'title': '📦 Verpackung',
+                                'batch_number': packaging.batch_number,
+                                'date': packaging.created_at.isoformat(),
+                                'data': {
+                                    'total_weight': f"{packaging.total_weight}g",
+                                    'unit_count': packaging.unit_count,
+                                    'unit_weight': f"{packaging.unit_weight}g pro Einheit",
+                                    'member': str(packaging.member) if packaging.member else 'Unbekannt',
+                                    'room': packaging.room.name if packaging.room else 'Nicht angegeben'
+                                }
+                            })
+            
+            # Response
+            return Response({
+                'cannabis_batch_id': cannabis_batch_id,
+                'strain_name': harvest.source_strain,
+                'timeline': timeline,
+                'total_steps': len(timeline),
+                'complete_chain': any('packaging' in step['type'] for step in timeline)
+            })
+            
+        except HarvestBatch.DoesNotExist:
+            return Response(
+                {"error": f"HarvestBatch mit ID {batch_id} nicht gefunden"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            print(f"❌ Fehler bei product_history: {str(e)}")
+            return Response(
+                {"error": "Fehler beim Laden der Produkthistorie"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
 class PackagingUnitViewSet(viewsets.ModelViewSet):
     queryset = PackagingUnit.objects.all().order_by('-created_at')
     serializer_class = PackagingUnitSerializer
     permission_classes = [IsAuthenticated]
     pagination_class = StandardResultsSetPagination
-    
+
     @action(detail=True, methods=['post'])
     def destroy_unit(self, request, pk=None):
         unit = self.get_object()
         reason = request.data.get('reason', '')
         destroyed_by_id = request.data.get('destroyed_by_id', None)
-        
         if not reason:
-            return Response(
-                {"error": "Ein Vernichtungsgrund ist erforderlich"}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
+            return Response({"error": "Ein Vernichtungsgrund ist erforderlich"}, status=status.HTTP_400_BAD_REQUEST)
         if not destroyed_by_id:
-            return Response(
-                {"error": "Ein verantwortliches Mitglied muss angegeben werden"}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
+            return Response({"error": "Ein verantwortliches Mitglied muss angegeben werden"}, status=status.HTTP_400_BAD_REQUEST)
         unit.is_destroyed = True
         unit.destroy_reason = reason
         unit.destroyed_at = timezone.now()
         unit.destroyed_by_id = destroyed_by_id
         unit.save()
-        
-        return Response({
-            "message": f"Verpackungseinheit {unit.batch_number} wurde vernichtet"
-        })
+        return Response({"message": f"Verpackungseinheit {unit.batch_number} wurde vernichtet"})
     
+    @action(detail=False, methods=['get'])
+    def distinct_weights(self, request):
+        """
+        Liefert eine Liste aller verfügbaren Gewichte für die Dropdown-Auswahl
+        """
+        try:
+            # Hole alle einzigartigen Gewichte aus PackagingUnit
+            weights = PackagingUnit.objects.values_list('weight', flat=True).distinct().order_by('weight')
+            
+            # Filtere None-Werte heraus und konvertiere zu Liste
+            valid_weights = [str(weight) for weight in weights if weight is not None]
+            
+            print(f"🔍 Sir, gefundene Gewichte: {valid_weights}")
+            
+            return Response(valid_weights)
+            
+        except Exception as e:
+            print(f"❌ Fehler beim Laden der Gewichte: {str(e)}")
+            return Response([], status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=['get'])
+    def distinct_strains(self, request):
+        strains = set()
+        for unit in PackagingUnit.objects.all():
+            # Name extrahieren wie in der Tabelle
+            name = None
+            try:
+                name = unit.batch.lab_testing_batch.processing_batch.drying_batch.harvest_batch.flowering_batch.seed_purchase.strain.name
+            except Exception:
+                pass
+            if not name:
+                try:
+                    name = unit.batch.flowering_batch.seed_purchase.strain.name
+                except Exception:
+                    pass
+            if not name:
+                try:
+                    name = unit.batch.seed_purchase.strain.name
+                except Exception:
+                    pass
+            if not name:
+                name = getattr(unit.batch, "source_strain", None) or getattr(unit, "source_strain", None)
+            if not name:
+                name = getattr(unit, "strain_name", None)
+            if name and name != "Unbekannt":
+                strains.add(name)
+        return Response([{"name": n} for n in sorted(strains)])
+
+    @action(detail=False, methods=['get'])
+    def get_units_for_strain_card(self, request):
+        """
+        Lade alle verfügbaren Units für eine spezifische Strain+Weight Kombination
+        """
+        strain_name = request.query_params.get('strain_name')
+        weight = request.query_params.get('weight')
+        
+        if not strain_name or not weight:
+            return Response(
+                {"error": "strain_name und weight sind erforderlich"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            weight_value = float(weight)
+        except (ValueError, TypeError):
+            return Response(
+                {"error": "Ungültiges Gewicht"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Alle verfügbaren Units
+        units = PackagingUnit.objects.filter(
+            is_destroyed=False,
+            weight=weight_value
+        ).exclude(
+            distributions__isnull=False
+        ).select_related(
+            'batch',
+            'batch__lab_testing_batch',
+            'batch__lab_testing_batch__processing_batch',
+            'batch__lab_testing_batch__processing_batch__drying_batch',
+            'batch__lab_testing_batch__processing_batch__drying_batch__harvest_batch',
+            'batch__lab_testing_batch__processing_batch__drying_batch__harvest_batch__flowering_batch',
+            'batch__lab_testing_batch__processing_batch__drying_batch__harvest_batch__flowering_batch__seed_purchase',
+            'batch__lab_testing_batch__processing_batch__drying_batch__harvest_batch__flowering_batch__seed_purchase__strain',
+        )
+        
+        # Filtere Units nach Strain-Namen (in Python)
+        matching_units = []
+        for unit in units:
+            unit_strain_name = self._extract_strain_name_for_unit(unit)
+            if unit_strain_name == strain_name:
+                matching_units.append(unit)
+        
+        # Limitiere für Performance
+        matching_units = matching_units[:10]
+        
+        serializer = PackagingUnitSerializer(matching_units, many=True)
+        return Response(serializer.data)
+    
+    def _extract_strain_name_for_unit(self, unit):
+        """Hilfsfunktion für Strain-Name-Extraktion"""
+        name = None
+        try:
+            name = unit.batch.lab_testing_batch.processing_batch.drying_batch.harvest_batch.flowering_batch.seed_purchase.strain.name
+        except Exception:
+            pass
+        if not name:
+            try:
+                name = unit.batch.flowering_batch.seed_purchase.strain.name
+            except Exception:
+                pass
+        if not name:
+            try:
+                name = unit.batch.seed_purchase.strain.name
+            except Exception:
+                pass
+        if not name:
+            name = getattr(unit.batch, "source_strain", None) or getattr(unit, "source_strain", None)
+        if not name:
+            name = getattr(unit, "strain_name", None)
+        
+        return name if name and name != "Unbekannt" else "Unbekannte Sorte"
+
+    def get_queryset(self):
+        queryset = PackagingUnit.objects.select_related(
+            'batch',
+            'batch__lab_testing_batch',
+            'batch__lab_testing_batch__processing_batch',
+            'batch__lab_testing_batch__processing_batch__drying_batch',
+            'batch__lab_testing_batch__processing_batch__drying_batch__harvest_batch',
+            'batch__lab_testing_batch__processing_batch__drying_batch__harvest_batch__flowering_batch',
+            'batch__lab_testing_batch__processing_batch__drying_batch__harvest_batch__flowering_batch__seed_purchase',
+            'batch__lab_testing_batch__processing_batch__drying_batch__harvest_batch__flowering_batch__seed_purchase__strain',
+        ).all()
+
+        weight = self.request.query_params.get('weight')
+        if weight:
+            try:
+                from decimal import Decimal, InvalidOperation
+                weight_value = Decimal(str(weight).strip())
+                queryset = queryset.filter(weight=weight_value)
+            except (ValueError, TypeError, InvalidOperation):
+                pass
+
+        # Produkttyp-Filter
+        product_type = self.request.query_params.get('product_type')
+        if product_type:
+            queryset = queryset.filter(batch__lab_testing_batch__processing_batch__product_type=product_type)
+
+        # THC-Filter
+        min_thc = self.request.query_params.get('min_thc')
+        if min_thc:
+            try:
+                min_thc_value = float(min_thc)
+                queryset = queryset.filter(batch__lab_testing_batch__thc_content__gte=min_thc_value)
+            except (ValueError, TypeError):
+                pass
+
+        max_thc = self.request.query_params.get('max_thc')
+        if max_thc:
+            try:
+                max_thc_value = float(max_thc)
+                queryset = queryset.filter(batch__lab_testing_batch__thc_content__lte=max_thc_value)
+            except (ValueError, TypeError):
+                pass
+
+        # Strain-Filter (bestehende Logik beibehalten)
+        strain_name = self.request.query_params.get('strain_name')
+        if strain_name:
+            pks = []
+            for unit in queryset:
+                name = None
+                try:
+                    name = unit.batch.lab_testing_batch.processing_batch.drying_batch.harvest_batch.flowering_batch.seed_purchase.strain.name
+                except Exception:
+                    pass
+                if not name:
+                    try:
+                        name = unit.batch.flowering_batch.seed_purchase.strain.name
+                    except Exception:
+                        pass
+                if not name:
+                    try:
+                        name = unit.batch.seed_purchase.strain.name
+                    except Exception:
+                        pass
+                if not name:
+                    name = getattr(unit.batch, "source_strain", None) or getattr(unit, "source_strain", None)
+                if not name:
+                    name = getattr(unit, "strain_name", None)
+                if name == strain_name:
+                    pks.append(unit.pk)
+            queryset = queryset.filter(pk__in=pks)
+
+        # Suchfilter
+        search = self.request.query_params.get('search')
+        if search:
+            queryset = queryset.filter(
+                Q(batch_number__icontains=search) |
+                Q(batch__source_strain__icontains=search) |
+                Q(batch__lab_testing_batch__processing_batch__drying_batch__harvest_batch__flowering_batch__seed_purchase__strain__name__icontains=search)
+            )
+
+        # Debug-Ausgabe für Entwicklung
+        print(f"📊 Queryset Count nach Filterung: {queryset.count()}")
+        
+        return queryset
+    
+
 class ProductDistributionViewSet(viewsets.ModelViewSet):
     queryset = ProductDistribution.objects.all().order_by('-distribution_date')
     serializer_class = ProductDistributionSerializer
@@ -2808,6 +3862,161 @@ class ProductDistributionViewSet(viewsets.ModelViewSet):
             
         return queryset
     
+    def create(self, request, *args, **kwargs):
+        """
+        Erweiterte create-Methode mit Limit-Validierung, Preisberechnung und Kontostand-Update
+        """
+        recipient_id = request.data.get('recipient_id')
+        packaging_unit_ids = request.data.get('packaging_unit_ids', [])
+        
+        if not recipient_id:
+            return Response(
+                {"error": "Empfänger-ID ist erforderlich"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Empfänger laden
+        try:
+            from members.models import Member
+            recipient = Member.objects.get(id=recipient_id)
+        except Member.DoesNotExist:
+            return Response(
+                {"error": "Empfänger nicht gefunden"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Altersklasse bestimmen
+        age_class = recipient.age_class if hasattr(recipient, 'age_class') else "21+"
+        is_u21 = age_class == "18+"
+        
+        # Limits basierend auf Altersklasse
+        daily_limit = 25.0
+        monthly_limit = 30.0 if is_u21 else 50.0
+        max_thc_percentage = 10.0 if is_u21 else None
+        
+        # Aktuelles Datum
+        today = timezone.now().date()
+        month_start = today.replace(day=1)
+        
+        # Bisherige Ausgaben abrufen
+        daily_consumption = ProductDistribution.objects.filter(
+            recipient_id=recipient_id,
+            distribution_date__date=today
+        ).aggregate(
+            total_weight=Sum('packaging_units__weight')
+        )['total_weight'] or 0
+        
+        monthly_consumption = ProductDistribution.objects.filter(
+            recipient_id=recipient_id,
+            distribution_date__date__gte=month_start,
+            distribution_date__date__lte=today
+        ).aggregate(
+            total_weight=Sum('packaging_units__weight')
+        )['total_weight'] or 0
+        
+        # Gewicht der ausgewählten Einheiten berechnen und Preisberechnung
+        selected_weight = 0
+        total_price = 0
+        thc_violations = []
+        
+        for unit_id in packaging_unit_ids:
+            try:
+                unit = PackagingUnit.objects.select_related(
+                    'batch__lab_testing_batch'
+                ).get(id=unit_id)
+                
+                unit_weight = float(unit.weight)
+                selected_weight += unit_weight
+                
+                # Preisberechnung
+                if unit.unit_price:
+                    total_price += float(unit.unit_price)
+                
+                # THC-Prüfung für U21
+                if is_u21 and unit.batch and unit.batch.lab_testing_batch:
+                    thc_content = unit.batch.lab_testing_batch.thc_content
+                    if thc_content and float(thc_content) > max_thc_percentage:
+                        thc_violations.append({
+                            'unit_id': str(unit_id),
+                            'unit_number': unit.batch_number,
+                            'thc_content': float(thc_content),
+                            'strain': unit.batch.source_strain
+                        })
+                        
+            except PackagingUnit.DoesNotExist:
+                continue
+        
+        # Neue Gesamtwerte berechnen
+        new_daily_total = float(daily_consumption) + selected_weight
+        new_monthly_total = float(monthly_consumption) + selected_weight
+        
+        # Validierung
+        errors = []
+        
+        if new_daily_total > daily_limit:
+            remaining = daily_limit - float(daily_consumption)
+            errors.append(f"Tageslimit überschritten! Noch verfügbar: {remaining:.2f}g")
+            
+        if new_monthly_total > monthly_limit:
+            remaining = monthly_limit - float(monthly_consumption)
+            errors.append(f"Monatslimit überschritten! Noch verfügbar: {remaining:.2f}g")
+            
+        if thc_violations:
+            errors.append("THC-Limit überschritten! Max. 10% THC für Mitglieder unter 21 Jahren.")
+        
+        if errors:
+            return Response(
+                {
+                    "error": "Ausgabe nicht möglich",
+                    "details": errors,
+                    "validation": {
+                        "recipient": {
+                            "id": str(recipient.id),
+                            "name": f"{recipient.first_name} {recipient.last_name}",
+                            "age_class": age_class
+                        },
+                        "violations": {
+                            "exceeds_daily_limit": new_daily_total > daily_limit,
+                            "exceeds_monthly_limit": new_monthly_total > monthly_limit,
+                            "thc_violations": thc_violations
+                        },
+                        "remaining": {
+                            "daily_remaining": daily_limit - new_daily_total,
+                            "monthly_remaining": monthly_limit - new_monthly_total
+                        }
+                    }
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Kontostand vor der Transaktion speichern
+        balance_before = float(recipient.kontostand)
+        
+        # Erstelle die Distribution mit Preisinformationen
+        distribution_data = request.data.copy()
+        distribution_data['total_price'] = total_price
+        distribution_data['balance_before'] = balance_before
+        distribution_data['balance_after'] = balance_before - total_price
+        
+        # Serializer mit erweiterten Daten
+        serializer = self.get_serializer(data=distribution_data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        
+        # Kontostand aktualisieren
+        recipient.kontostand = balance_before - total_price
+        recipient.save(update_fields=['kontostand'])
+        
+        # Joomla-Sync
+        try:
+            from members.api_views import sync_joomla_user
+            sync_joomla_user(recipient)
+        except Exception as e:
+            print(f"⚠️ Joomla-Sync fehlgeschlagen: {str(e)}")
+        
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+    
     @action(detail=False, methods=['get'])
     def member_summary(self, request):
         """
@@ -2825,25 +4034,25 @@ class ProductDistributionViewSet(viewsets.ModelViewSet):
         distributed = ProductDistribution.objects.filter(distributor_id=member_id)
         
         # Zeitliche Begrenzung (z.B. letzte 30 Tage für Details)
-        thirty_days_ago = timezone.now() - timezone.timedelta(days=30)
+        thirty_days_ago = timezone.now() - timedelta(days=30)
         
         # Zusammenfassungen erstellen
         summary = {
             'received': {
                 'total_count': received.count(),
                 'recent_count': received.filter(distribution_date__gte=thirty_days_ago).count(),
-                'total_weight': sum(dist.total_weight for dist in received),
+                'total_weight': float(sum(dist.total_weight for dist in received)),
                 'recent_distributions': ProductDistributionSerializer(
-                    received.filter(distribution_date__gte=thirty_days_ago),
+                    received.filter(distribution_date__gte=thirty_days_ago)[:10],
                     many=True
                 ).data
             },
             'distributed': {
                 'total_count': distributed.count(),
                 'recent_count': distributed.filter(distribution_date__gte=thirty_days_ago).count(),
-                'total_weight': sum(dist.total_weight for dist in distributed),
+                'total_weight': float(sum(dist.total_weight for dist in distributed)),
                 'recent_distributions': ProductDistributionSerializer(
-                    distributed.filter(distribution_date__gte=thirty_days_ago),
+                    distributed.filter(distribution_date__gte=thirty_days_ago)[:10],
                     many=True
                 ).data if request.user.groups.filter(name__in=['teamleiter', 'admin']).exists() else []
             }
@@ -2852,33 +4061,596 @@ class ProductDistributionViewSet(viewsets.ModelViewSet):
         return Response(summary)
     
     @action(detail=False, methods=['get'])
+    def member_consumption_summary(self, request):
+        """
+        Erweiterte member_summary mit Limit-Informationen
+        """
+        member_id = request.query_params.get('member_id')
+        if not member_id:
+            return Response(
+                {"error": "Mitglieds-ID ist erforderlich"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            from members.models import Member
+            member = Member.objects.get(id=member_id)
+        except Member.DoesNotExist:
+            return Response(
+                {"error": "Mitglied nicht gefunden"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Zeiträume
+        today = timezone.now().date()
+        month_start = today.replace(day=1)
+        thirty_days_ago = today - timedelta(days=30)
+        
+        # Bestehende Abfragen
+        received = ProductDistribution.objects.filter(recipient_id=member_id)
+        distributed = ProductDistribution.objects.filter(distributor_id=member_id)
+        
+        # Tages- und Monatsverbrauch
+        daily_consumption = received.filter(
+            distribution_date__date=today
+        ).aggregate(
+            total_weight=Sum('packaging_units__weight')
+        )['total_weight'] or 0
+        
+        monthly_consumption = received.filter(
+            distribution_date__date__gte=month_start,
+            distribution_date__date__lte=today
+        ).aggregate(
+            total_weight=Sum('packaging_units__weight')
+        )['total_weight'] or 0
+        
+        # Limits basierend auf Alter
+        age_class = member.age_class if hasattr(member, 'age_class') else "21+"
+        age = member.age if hasattr(member, 'age') else None
+        is_u21 = age_class == "18+"
+        daily_limit = 25.0
+        monthly_limit = 30.0 if is_u21 else 50.0
+        max_thc = 10.0 if is_u21 else None
+        
+        summary = {
+            'member': {
+                'id': str(member.id),
+                'name': f"{member.first_name} {member.last_name}",
+                'age': age,
+                'age_class': age_class,
+                'kontostand': float(member.kontostand),
+                'beitrag': float(member.beitrag),
+                'first_name': member.first_name,
+                'last_name': member.last_name,
+                'email': member.email
+            },
+            'limits': {
+                'daily_limit': daily_limit,
+                'monthly_limit': monthly_limit,
+                'max_thc_percentage': max_thc
+            },
+            'consumption': {
+                'daily': {
+                    'consumed': float(daily_consumption),
+                    'remaining': daily_limit - float(daily_consumption),
+                    'percentage': (float(daily_consumption) / daily_limit * 100) if daily_limit > 0 else 0
+                },
+                'monthly': {
+                    'consumed': float(monthly_consumption),
+                    'remaining': monthly_limit - float(monthly_consumption),
+                    'percentage': (float(monthly_consumption) / monthly_limit * 100) if monthly_limit > 0 else 0
+                }
+            },
+            'received': {
+                'total_count': received.count(),
+                'recent_count': received.filter(distribution_date__gte=thirty_days_ago).count(),
+                'total_weight': float(sum(dist.total_weight for dist in received)),
+                'recent_distributions': ProductDistributionSerializer(
+                    received.filter(distribution_date__gte=thirty_days_ago)[:10],
+                    many=True
+                ).data
+            },
+            'distributed': {
+                'total_count': distributed.count(),
+                'recent_count': distributed.filter(distribution_date__gte=thirty_days_ago).count(),
+                'total_weight': float(sum(dist.total_weight for dist in distributed)),
+            }
+        }
+        
+        return Response(summary)
+    
+    @action(detail=False, methods=['get'])
     def available_units(self, request):
         """
-        Liefert alle verfügbaren (nicht vernichteten, nicht ausgegebenen) Verpackungseinheiten.
+        Erweiterte Version mit THC-Filter basierend auf Empfänger-Alter
         """
-        # Einheiten, die noch nicht ausgegeben wurden
+        # Basis-Query wie bisher
         units = PackagingUnit.objects.filter(
-            is_destroyed=False,                # Nicht vernichtet
+            is_destroyed=False,
         ).exclude(
-            distributions__isnull=False        # Nicht bereits ausgegeben
+            distributions__isnull=False
         )
         
-        # Optional: Filter nach Produkttyp
+        # THC-Filter basierend auf Empfänger
+        recipient_id = request.query_params.get('recipient_id')
+        if recipient_id:
+            try:
+                from members.models import Member
+                recipient = Member.objects.get(id=recipient_id)
+                
+                # Wenn U21, filtere Produkte mit >10% THC
+                if hasattr(recipient, 'age_class') and recipient.age_class == "18+":
+                    units = units.filter(
+                        Q(batch__lab_testing_batch__thc_content__lte=10.0) | 
+                        Q(batch__lab_testing_batch__thc_content__isnull=True)
+                    )
+            except Member.DoesNotExist:
+                pass
+        
+        # Weitere bestehende Filter...
         product_type = request.query_params.get('product_type')
         if product_type:
             units = units.filter(batch__lab_testing_batch__processing_batch__product_type=product_type)
             
-        # Optional: Filter nach maximaler THC-Konzentration (für jüngere Mitglieder)
-        max_thc = request.query_params.get('max_thc')
-        if max_thc:
-            try:
-                max_thc_value = float(max_thc)
-                units = units.filter(
-                    Q(batch__lab_testing_batch__thc_content__lte=max_thc_value) | 
-                    Q(batch__lab_testing_batch__thc_content__isnull=True)
-                )
-            except ValueError:
-                pass
-                
         serializer = PackagingUnitSerializer(units, many=True)
         return Response(serializer.data)
+
+
+# Cannabis-Limit Validierungs-API
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def validate_distribution_limits(request):
+    """
+    Validiert, ob eine geplante Ausgabe die Cannabis-Limits einhält.
+    
+    Input: 
+        - recipient_id: UUID des Empfängers
+        - selected_units: Array von Unit-IDs mit Gewichten
+    
+    Output: 
+        - validation_result mit Details zu Limits und Violations
+    """
+    recipient_id = request.data.get('recipient_id')
+    selected_units = request.data.get('selected_units', [])
+    
+    if not recipient_id:
+        return Response(
+            {"error": "Empfänger-ID ist erforderlich"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # Empfänger laden
+    try:
+        from members.models import Member
+        recipient = Member.objects.get(id=recipient_id)
+    except Member.DoesNotExist:
+        return Response(
+            {"error": "Empfänger nicht gefunden"},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    
+    # Altersklasse bestimmen
+    age_class = recipient.age_class  # Nutzt die property aus dem Member Model
+    is_u21 = age_class == "18+"
+    
+    # Limits basierend auf Altersklasse
+    daily_limit = 25.0  # Beide Altersklassen haben 25g/Tag
+    monthly_limit = 30.0 if is_u21 else 50.0
+    max_thc_percentage = 10.0 if is_u21 else None
+    
+    # Aktuelles Datum für Berechnungen
+    today = timezone.now().date()
+    month_start = today.replace(day=1)
+    
+    # Bisherige Ausgaben heute abrufen
+    daily_consumption = ProductDistribution.objects.filter(
+        recipient_id=recipient_id,
+        distribution_date__date=today
+    ).aggregate(
+        total_weight=Sum('packaging_units__weight')
+    )['total_weight'] or 0
+    
+    # Bisherige Ausgaben diesen Monat abrufen
+    monthly_consumption = ProductDistribution.objects.filter(
+        recipient_id=recipient_id,
+        distribution_date__date__gte=month_start,
+        distribution_date__date__lte=today
+    ).aggregate(
+        total_weight=Sum('packaging_units__weight')
+    )['total_weight'] or 0
+    
+    # Gewicht der ausgewählten Einheiten berechnen
+    selected_weight = 0
+    thc_violations = []
+    
+    for unit_data in selected_units:
+        unit_id = unit_data.get('id')
+        try:
+            unit = PackagingUnit.objects.select_related(
+                'batch__lab_testing_batch'
+            ).get(id=unit_id)
+            
+            unit_weight = float(unit.weight)
+            selected_weight += unit_weight
+            
+            # THC-Prüfung für U21
+            if is_u21 and unit.batch and unit.batch.lab_testing_batch:
+                thc_content = unit.batch.lab_testing_batch.thc_content
+                if thc_content and float(thc_content) > max_thc_percentage:
+                    thc_violations.append({
+                        'unit_id': unit_id,
+                        'unit_number': unit.batch_number,
+                        'thc_content': float(thc_content),
+                        'strain': unit.batch.source_strain
+                    })
+                    
+        except PackagingUnit.DoesNotExist:
+            continue
+    
+    # Neue Gesamtwerte berechnen
+    new_daily_total = float(daily_consumption) + selected_weight
+    new_monthly_total = float(monthly_consumption) + selected_weight
+    
+    # Validierungsergebnis
+    validation_result = {
+        'recipient': {
+            'id': str(recipient.id),
+            'name': f"{recipient.first_name} {recipient.last_name}",
+            'age_class': age_class,
+            'age': recipient.age
+        },
+        'limits': {
+            'daily_limit': daily_limit,
+            'monthly_limit': monthly_limit,
+            'max_thc_percentage': max_thc_percentage
+        },
+        'consumption': {
+            'daily_consumed': float(daily_consumption),
+            'monthly_consumed': float(monthly_consumption),
+            'selected_weight': selected_weight,
+            'new_daily_total': new_daily_total,
+            'new_monthly_total': new_monthly_total
+        },
+        'remaining': {
+            'daily_remaining': daily_limit - new_daily_total,
+            'monthly_remaining': monthly_limit - new_monthly_total
+        },
+        'violations': {
+            'exceeds_daily_limit': new_daily_total > daily_limit,
+            'exceeds_monthly_limit': new_monthly_total > monthly_limit,
+            'thc_violations': thc_violations
+        },
+        'is_valid': (
+            new_daily_total <= daily_limit and 
+            new_monthly_total <= monthly_limit and 
+            len(thc_violations) == 0
+        )
+    }
+    
+    return Response(validation_result)
+
+class BaseProductImageViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+    
+    @action(detail=True, methods=['post'])
+    def regenerate_thumbnail(self, request, pk=None):
+        """Thumbnail neu generieren"""
+        image = self.get_object()
+        if image.image:
+            image.make_thumbnail()
+            image.save()
+            return Response({'message': 'Thumbnail wurde neu generiert'})
+        return Response(
+            {'error': 'Kein Bild vorhanden'}, 
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+class SeedPurchaseImageViewSet(BaseProductImageViewSet):
+    serializer_class = SeedPurchaseImageSerializer
+    
+    def get_queryset(self):
+        queryset = SeedPurchaseImage.objects.all()
+        seed_id = self.request.query_params.get('seed_id')
+        if seed_id:
+            queryset = queryset.filter(seed_purchase_id=seed_id)
+        return queryset
+    
+    def create(self, request, *args, **kwargs):
+        # Debug VOR der Serializer-Validierung
+        print("="*50)
+        print("DEBUG: SeedPurchaseImage Upload")
+        print(f"Request Data Keys: {list(request.data.keys())}")
+        print(f"Request Data: {dict(request.data)}")
+        print("="*50)
+        
+        # Standard create aufrufen
+        return super().create(request, *args, **kwargs)
+    
+    def perform_create(self, serializer):
+        print("DEBUG: In perform_create")
+        seed_id = self.request.data.get('seed_id')
+        
+        if not seed_id:
+            raise serializers.ValidationError({"error": "seed_id ist erforderlich"})
+        
+        serializer.save(seed_purchase_id=seed_id)
+    
+class MotherPlantBatchImageViewSet(BaseProductImageViewSet):
+    serializer_class = MotherPlantBatchImageSerializer
+    
+    def get_queryset(self):
+        queryset = MotherPlantBatchImage.objects.all()
+        batch_id = self.request.query_params.get('batch_id')
+        if batch_id:
+            queryset = queryset.filter(mother_plant_batch_id=batch_id)
+        return queryset
+    
+    def perform_create(self, serializer):
+        # batch_id aus Request Data holen (nicht aus Query Params!)
+        batch_id = self.request.data.get('batch_id')
+        
+        if not batch_id:
+            raise serializers.ValidationError({"error": "batch_id ist erforderlich"})
+        
+        # Speichern mit der batch_id
+        serializer.save(mother_plant_batch_id=batch_id)
+
+class CuttingBatchImageViewSet(BaseProductImageViewSet):
+    serializer_class = CuttingBatchImageSerializer
+    
+    def get_queryset(self):
+        queryset = CuttingBatchImage.objects.all()
+        batch_id = self.request.query_params.get('batch_id')
+        if batch_id:
+            queryset = queryset.filter(cutting_batch_id=batch_id)
+        return queryset
+    
+    def perform_create(self, serializer):
+        # batch_id aus Request Data holen (wie bei MotherPlantBatch)
+        batch_id = self.request.data.get('batch_id')
+        
+        if not batch_id:
+            raise serializers.ValidationError({"error": "batch_id ist erforderlich"})
+        
+        # Speichern mit der batch_id
+        serializer.save(cutting_batch_id=batch_id)
+
+class BloomingCuttingBatchImageViewSet(BaseProductImageViewSet):
+    serializer_class = BloomingCuttingBatchImageSerializer
+    
+    def get_queryset(self):
+        queryset = BloomingCuttingBatchImage.objects.all()
+        batch_id = self.request.query_params.get('batch_id')
+        print(f"DEBUG get_queryset: batch_id = {batch_id}")
+        if batch_id:
+            queryset = queryset.filter(blooming_cutting_batch_id=batch_id)
+        print(f"DEBUG get_queryset: count = {queryset.count()}")
+        return queryset
+    
+    def perform_create(self, serializer):
+        # WICHTIG: batch_id aus request.data holen, nicht aus query_params!
+        batch_id = self.request.data.get('batch_id')
+        print(f"DEBUG perform_create: batch_id from request.data = {batch_id}")
+        print(f"DEBUG perform_create: validated_data = {serializer.validated_data}")
+        
+        if not batch_id:
+            raise serializers.ValidationError({"error": "batch_id ist erforderlich"})
+        
+        # Speichern
+        instance = serializer.save(blooming_cutting_batch_id=batch_id)
+        print(f"DEBUG: Image saved with ID: {instance.id}")
+        print(f"DEBUG: Image path: {instance.image.path if instance.image else 'No image'}")
+    
+    def create(self, request, *args, **kwargs):
+        print(f"DEBUG create: request.FILES = {request.FILES}")
+        print(f"DEBUG create: request.data = {request.data}")
+        return super().create(request, *args, **kwargs)
+    
+class FloweringPlantBatchImageViewSet(BaseProductImageViewSet):
+    """ViewSet für Blühpflanzen-Batch Bilder"""
+    serializer_class = FloweringPlantBatchImageSerializer
+    
+    def get_queryset(self):
+        queryset = FloweringPlantBatchImage.objects.all()
+        batch_id = self.request.query_params.get('batch_id')
+        if batch_id:
+            queryset = queryset.filter(flowering_plant_batch_id=batch_id)
+        return queryset
+    
+    def perform_create(self, serializer):
+        # batch_id aus request.data holen (NICHT aus query_params!)
+        batch_id = self.request.data.get('batch_id')
+        
+        if not batch_id:
+            raise serializers.ValidationError({"error": "batch_id ist erforderlich"})
+        
+        # Speichern mit der korrekten batch_id
+        serializer.save(flowering_plant_batch_id=batch_id)
+
+class HarvestBatchImageViewSet(BaseProductImageViewSet):
+    """ViewSet für Ernte-Batch Bilder"""
+    serializer_class = HarvestBatchImageSerializer
+    
+    def get_queryset(self):
+        queryset = HarvestBatchImage.objects.all()
+        batch_id = self.request.query_params.get('batch_id')
+        if batch_id:
+            queryset = queryset.filter(harvest_batch_id=batch_id)
+        return queryset
+    
+    def perform_create(self, serializer):
+        # WICHTIG: batch_id aus request.data holen, nicht aus query_params!
+        batch_id = self.request.data.get('batch_id')
+        
+        if not batch_id:
+            raise serializers.ValidationError({"error": "batch_id ist erforderlich"})
+        
+        # Speichern mit der korrekten batch_id
+        serializer.save(harvest_batch_id=batch_id)
+
+class DryingBatchImageViewSet(BaseProductImageViewSet):
+    """ViewSet für Trocknungs-Batch Bilder und Videos"""
+    serializer_class = DryingBatchImageSerializer
+    parser_classes = [MultiPartParser, FormParser]  # Wichtig für große Video-Uploads
+    
+    def get_queryset(self):
+        queryset = DryingBatchImage.objects.all()
+        batch_id = self.request.query_params.get('batch_id')
+        if batch_id:
+            queryset = queryset.filter(drying_batch_id=batch_id)
+        return queryset
+    
+    def perform_create(self, serializer):
+        batch_id = self.request.data.get('batch_id')
+        
+        if not batch_id:
+            raise serializers.ValidationError({"error": "batch_id ist erforderlich"})
+        
+        # Automatische Erkennung ob Bild oder Video
+        if 'video' in self.request.FILES:
+            # Video-Upload
+            serializer.save(
+                drying_batch_id=batch_id,
+                video=self.request.FILES['video']
+            )
+        else:
+            # Bild-Upload (Standard)
+            serializer.save(drying_batch_id=batch_id)
+
+
+class ProcessingBatchImageViewSet(BaseProductImageViewSet):
+    """ViewSet für Verarbeitungs-Batch Bilder und Videos"""
+    serializer_class = ProcessingBatchImageSerializer
+    parser_classes = [MultiPartParser, FormParser]  # Wichtig für große Video-Uploads
+    
+    def get_queryset(self):
+        queryset = ProcessingBatchImage.objects.all()
+        batch_id = self.request.query_params.get('batch_id')
+        if batch_id:
+            queryset = queryset.filter(processing_batch_id=batch_id)
+        
+        # Optionale Filter für Stadium und Qualität
+        processing_stage = self.request.query_params.get('processing_stage')
+        if processing_stage:
+            queryset = queryset.filter(processing_stage=processing_stage)
+            
+        product_quality = self.request.query_params.get('product_quality')
+        if product_quality:
+            queryset = queryset.filter(product_quality=product_quality)
+            
+        return queryset
+    
+    def perform_create(self, serializer):
+        batch_id = self.request.data.get('batch_id')
+        
+        if not batch_id:
+            raise serializers.ValidationError({"error": "batch_id ist erforderlich"})
+        
+        # Automatische Erkennung ob Bild oder Video
+        if 'video' in self.request.FILES:
+            # Video-Upload
+            serializer.save(
+                processing_batch_id=batch_id,
+                video=self.request.FILES['video']
+            )
+        else:
+            # Bild-Upload (Standard)
+            serializer.save(processing_batch_id=batch_id)
+
+
+class LabTestingBatchImageViewSet(BaseProductImageViewSet):
+    """ViewSet für Laborkontroll-Batch Bilder und Videos"""
+    serializer_class = LabTestingBatchImageSerializer
+    parser_classes = [MultiPartParser, FormParser]  # Wichtig für große Video-Uploads
+    
+    def get_queryset(self):
+        queryset = LabTestingBatchImage.objects.all()
+        batch_id = self.request.query_params.get('batch_id')
+        if batch_id:
+            queryset = queryset.filter(lab_testing_batch_id=batch_id)
+        
+        # Optionale Filter für Stadium und Test-Typ
+        test_stage = self.request.query_params.get('test_stage')
+        if test_stage:
+            queryset = queryset.filter(test_stage=test_stage)
+            
+        test_type = self.request.query_params.get('test_type')
+        if test_type:
+            queryset = queryset.filter(test_type=test_type)
+            
+        return queryset
+    
+    def perform_create(self, serializer):
+        batch_id = self.request.data.get('batch_id')
+        
+        if not batch_id:
+            raise serializers.ValidationError({"error": "batch_id ist erforderlich"})
+        
+        # Automatische Erkennung ob Bild oder Video
+        if 'video' in self.request.FILES:
+            # Video-Upload
+            serializer.save(
+                lab_testing_batch_id=batch_id,
+                video=self.request.FILES['video']
+            )
+        else:
+            # Bild-Upload (Standard)
+            serializer.save(lab_testing_batch_id=batch_id)
+
+
+class PackagingBatchImageViewSet(BaseProductImageViewSet):
+    """ViewSet für Verpackungs-Batch Bilder und Videos"""
+    serializer_class = PackagingBatchImageSerializer
+    parser_classes = [MultiPartParser, FormParser]  # Wichtig für große Video-Uploads
+    
+    def get_queryset(self):
+        queryset = PackagingBatchImage.objects.all()
+        batch_id = self.request.query_params.get('batch_id')
+        if batch_id:
+            queryset = queryset.filter(packaging_batch_id=batch_id)
+        
+        # Optionale Filter für Stadium und Verpackungstyp
+        packaging_stage = self.request.query_params.get('packaging_stage')
+        if packaging_stage:
+            queryset = queryset.filter(packaging_stage=packaging_stage)
+            
+        package_type = self.request.query_params.get('package_type')
+        if package_type:
+            queryset = queryset.filter(package_type=package_type)
+            
+        return queryset
+    
+    def perform_create(self, serializer):
+        batch_id = self.request.data.get('batch_id')
+        
+        if not batch_id:
+            raise serializers.ValidationError({"error": "batch_id ist erforderlich"})
+        
+        # Automatische Erkennung ob Bild oder Video
+        if 'video' in self.request.FILES:
+            # Video-Upload
+            serializer.save(
+                packaging_batch_id=batch_id,
+                video=self.request.FILES['video']
+            )
+        else:
+            # Bild-Upload (Standard)
+            serializer.save(packaging_batch_id=batch_id)
+
+
+class MotherPlantRatingViewSet(viewsets.ModelViewSet):
+    queryset = MotherPlantRating.objects.all().order_by('-created_at')
+    serializer_class = MotherPlantRatingSerializer
+    permission_classes = [IsAuthenticated]
+    pagination_class = StandardResultsSetPagination
+    
+    def get_queryset(self):
+        queryset = MotherPlantRating.objects.all().order_by('-created_at')
+        
+        # Filter nach Mutterpflanze
+        mother_plant_id = self.request.query_params.get('mother_plant_id')
+        if mother_plant_id:
+            queryset = queryset.filter(mother_plant_id=mother_plant_id)
+            
+        return queryset

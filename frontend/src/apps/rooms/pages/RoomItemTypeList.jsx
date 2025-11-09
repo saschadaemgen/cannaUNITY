@@ -1,142 +1,165 @@
 // frontend/src/apps/rooms/pages/RoomItemTypeList.jsx
-
 import React, { useState, useEffect } from 'react';
 import { 
-  Box, Typography, Button, Container, Paper, 
-  Table, TableBody, TableCell, TableContainer, 
-  TableHead, TableRow, IconButton, Chip
+  Box, Alert, Snackbar, useTheme, alpha
 } from '@mui/material';
-import { Link } from 'react-router-dom';
 import axios from 'axios';
-import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
+
+// Komponenten importieren
+import RoomItemTypeTable from '../components/RoomItemTypeTable';
+import LoadingIndicator from '@/components/common/LoadingIndicator';
 
 const RoomItemTypeList = () => {
-  // Setze einen Anfangswert als leeres Array
+  const theme = useTheme();
   const [itemTypes, setItemTypes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
-  const categoryLabels = {
-    'furniture': 'Möbel',
-    'lighting': 'Beleuchtung',
-    'sensor': 'Sensorik',
-    'access': 'Zugang',
-    'other': 'Sonstiges'
-  };
-  
-  const categoryColors = {
-    'furniture': 'primary',
-    'lighting': 'warning',
-    'sensor': 'info',
-    'access': 'success',
-    'other': 'default'
-  };
+  // Zusätzliche States für erweiterte Funktionalität
+  const [expandedItemId, setExpandedItemId] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [successMessage, setSuccessMessage] = useState('');
   
   useEffect(() => {
     const fetchItemTypes = async () => {
       try {
         const response = await axios.get('/api/room-item-types/');
-        // Überprüfe, ob die Antwort das paginierte Format hat
-        if (response.data && Array.isArray(response.data.results)) {
+        console.log('API response:', response.data);
+        
+        // Prüfen, ob es sich um ein paginiertes Ergebnis handelt
+        if (response.data && response.data.results) {
           setItemTypes(response.data.results);
+          
+          // Berechne die Gesamtanzahl der Seiten
+          const total = response.data.count || 0;
+          const pages = Math.ceil(total / 10);
+          setTotalPages(pages);
         } else if (Array.isArray(response.data)) {
           setItemTypes(response.data);
+          
+          // Bei nicht-paginierten Daten
+          const pages = Math.ceil(response.data.length / 10); 
+          setTotalPages(pages);
         } else {
           console.error('Unerwartetes Datenformat:', response.data);
           setItemTypes([]);
+          setError('Unerwartetes Datenformat von der API');
         }
+        
         setLoading(false);
       } catch (error) {
         console.error('Error fetching room item types:', error);
         setError('Fehler beim Laden der Raumelement-Typen');
+        setItemTypes([]);
         setLoading(false);
       }
     };
     
     fetchItemTypes();
-  }, []);
+  }, [currentPage]);
   
+  const handlePageChange = (event, page) => {
+    setCurrentPage(page);
+    setExpandedItemId('');
+  };
+  
+  const handleAccordionChange = (itemId) => {
+    if (expandedItemId === itemId) {
+      setExpandedItemId('');
+    } else {
+      setExpandedItemId(itemId);
+    }
+  };
+  
+  const handleCloseError = () => {
+    setError(null);
+  };
+  
+  const handleCloseSuccess = () => {
+    setSuccessMessage('');
+  };
+  
+  // Zeige einen Ladeindikator
   if (loading) {
-    return <Typography>Lädt...</Typography>;
+    return (
+      <Box sx={{ 
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center' 
+      }}>
+        <LoadingIndicator />
+      </Box>
+    );
   }
   
-  if (error) {
-    return <Typography color="error">{error}</Typography>;
+  // Sicherheitsprüfung
+  if (!Array.isArray(itemTypes)) {
+    return (
+      <Box sx={{ 
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        p: 2 
+      }}>
+        <Alert severity="error" onClose={handleCloseError}>
+          Die Daten haben ein unerwartetes Format
+        </Alert>
+      </Box>
+    );
   }
   
   return (
-    <Container maxWidth="lg">
-      <Box sx={{ my: 4 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-          <Typography variant="h4" component="h1" gutterBottom>
-            Raumelement-Typen
-          </Typography>
-          <Button 
-            variant="contained" 
-            color="primary" 
-            component={Link} 
-            to="/rooms/item-types/new"
-          >
-            Neuen Elementtyp hinzufügen
-          </Button>
-        </Box>
-        
-        <Paper elevation={3}>
-          <TableContainer>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Name</TableCell>
-                  <TableCell>Kategorie</TableCell>
-                  <TableCell>Standardgröße</TableCell>
-                  <TableCell>Erlaubte Pflanzenanzahl</TableCell>
-                  <TableCell align="right">Aktionen</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {Array.isArray(itemTypes) && itemTypes.map((itemType) => (
-                  <TableRow key={itemType.id}>
-                    <TableCell>{itemType.name}</TableCell>
-                    <TableCell>
-                      <Chip 
-                        label={categoryLabels[itemType.category] || itemType.category} 
-                        color={categoryColors[itemType.category] || 'default'} 
-                        size="small" 
-                      />
-                    </TableCell>
-                    <TableCell>{itemType.default_width} × {itemType.default_height} cm</TableCell>
-                    <TableCell>
-                      {itemType.allowed_quantities && itemType.allowed_quantities.length > 0 
-                        ? itemType.allowed_quantities.join(', ') 
-                        : '-'}
-                    </TableCell>
-                    <TableCell align="right">
-                      <IconButton 
-                        component={Link} 
-                        to={`/rooms/item-types/${itemType.id}/edit`}
-                        color="primary"
-                        size="small"
-                      >
-                        <EditIcon />
-                      </IconButton>
-                      <IconButton 
-                        component={Link} 
-                        to={`/rooms/item-types/${itemType.id}/delete`}
-                        color="error"
-                        size="small"
-                      >
-                        <DeleteIcon />
-                      </IconButton>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </Paper>
+    <Box sx={{ 
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden',
+      backgroundColor: theme.palette.background.default
+    }}>
+      {error && (
+        <Alert 
+          severity="error" 
+          onClose={handleCloseError}
+          sx={{ 
+            borderRadius: 0,
+            flexShrink: 0 
+          }}
+        >
+          {error}
+        </Alert>
+      )}
+      
+      {/* ItemType Table - volle Höhe und Breite */}
+      <Box sx={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
+        <RoomItemTypeTable 
+          data={itemTypes}
+          expandedItemId={expandedItemId}
+          onExpandItem={handleAccordionChange}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={handlePageChange}
+        />
       </Box>
-    </Container>
+      
+      <Snackbar
+        open={!!successMessage}
+        autoHideDuration={6000}
+        onClose={handleCloseSuccess}
+        message={successMessage}
+      />
+    </Box>
   );
 };
 

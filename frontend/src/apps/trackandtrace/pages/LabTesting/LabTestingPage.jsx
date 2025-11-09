@@ -1,22 +1,27 @@
 // frontend/src/apps/trackandtrace/pages/LabTesting/LabTestingPage.jsx
 import { useState, useEffect } from 'react'
-import { Container, Box, Typography, Fade, Alert, Snackbar } from '@mui/material'
+import { Box, Typography, Fade, Snackbar, Alert, alpha, Button } from '@mui/material'
 import SpeedIcon from '@mui/icons-material/Speed'
 import ScienceIcon from '@mui/icons-material/Science'
+import FilterListIcon from '@mui/icons-material/FilterList'
 import api from '@/utils/api'
 
 // Gemeinsame Komponenten
-import PageHeader from '@/components/common/PageHeader'
-import FilterSection from '@/components/common/FilterSection'
 import TabsHeader from '@/components/common/TabsHeader'
 import LoadingIndicator from '@/components/common/LoadingIndicator'
-import DestroyDialog from '@/components/dialogs/DestroyDialog'
 import AnimatedTabPanel from '@/components/common/AnimatedTabPanel'
+
+// Dialog-Komponenten
+import DestroyDialog from '@/components/dialogs/DestroyDialog'
+import ImageUploadModal from '../../components/ImageUploadModal'
+import UpdateLabResultsDialog from '@/components/dialogs/UpdateLabResultsDialog'
+import EnhancedConvertToPackagingDialog from '@/components/dialogs/ConvertToPackagingDialog'
 
 // Spezifische Komponenten
 import LabTestingTable from './LabTestingTable'
-import UpdateLabResultsDialog from '@/components/dialogs/UpdateLabResultsDialog'
-import EnhancedConvertToPackagingDialog from '@/components/dialogs/EnhancedConvertToPackagingDialog'
+
+// Animations-Hook importieren
+import useAnimationSettings from '@/hooks/useAnimationSettings'
 
 export default function LabTestingPage() {
   const [labTestingBatches, setLabTestingBatches] = useState([])
@@ -24,11 +29,16 @@ export default function LabTestingPage() {
   const [expandedLabTestingId, setExpandedLabTestingId] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
+  const [totalCount, setTotalCount] = useState(0)
   const [tabValue, setTabValue] = useState(0)
   const [openDestroyDialog, setOpenDestroyDialog] = useState(false)
   const [destroyReason, setDestroyReason] = useState('')
   const [selectedLabTesting, setSelectedLabTesting] = useState(null)
   const [loadingOptions, setLoadingOptions] = useState(false)
+  
+  // Animationseinstellungen mit neuem Hook abrufen
+  const animSettings = useAnimationSettings('slide', 500, true);
   
   // Dialoge für Laborergebnisse und Konvertierung
   const [openUpdateLabResultsDialog, setOpenUpdateLabResultsDialog] = useState(false)
@@ -51,16 +61,61 @@ export default function LabTestingPage() {
   const [destroyedCount, setDestroyedCount] = useState(0)
   const [destroyedWeight, setDestroyedWeight] = useState(0)
   
-  // Mitglieder für Vernichtungen
+  // Mitglieder und Räume
   const [members, setMembers] = useState([])
   const [destroyedByMemberId, setDestroyedByMemberId] = useState('')
-  
-  // Räume
   const [rooms, setRooms] = useState([])
+
+  // States für Image Modal
+  const [openImageModal, setOpenImageModal] = useState(false)
+  const [selectedBatchForImages, setSelectedBatchForImages] = useState(null)
+
+  // State für globale Snackbar
+  const [globalSnackbar, setGlobalSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'success',
+    duration: 6000
+  })
   
-  // Erfolgsmeldungen
-  const [showSuccessAlert, setShowSuccessAlert] = useState(false)
-  const [successMessage, setSuccessMessage] = useState('')
+  // Optionen für Page Size Dropdown
+  const pageSizeOptions = [5, 10, 15, 25, 50]
+
+  // Snackbar schließen
+  const handleCloseGlobalSnackbar = () => {
+    setGlobalSnackbar(prev => ({ ...prev, open: false }));
+  };
+
+  // Zusätzliche Felder für LabTesting definieren
+  const labTestingAdditionalFields = [
+    {
+      name: 'test_stage',
+      label: 'Test-Stadium',
+      type: 'select',
+      options: [
+        { value: '', label: 'Kein Stadium' },
+        { value: 'sample_prep', label: 'Probenvorbereitung' },
+        { value: 'testing', label: 'Während des Tests' },
+        { value: 'results', label: 'Testergebnisse' },
+        { value: 'microscopy', label: 'Mikroskopie' },
+        { value: 'chromatography', label: 'Chromatographie' }
+      ]
+    },
+    {
+      name: 'test_type',
+      label: 'Test-Typ',
+      type: 'select',
+      options: [
+        { value: '', label: 'Kein Test-Typ' },
+        { value: 'cannabinoid', label: 'Cannabinoid-Profil' },
+        { value: 'terpene', label: 'Terpen-Analyse' },
+        { value: 'microbial', label: 'Mikrobiologie' },
+        { value: 'pesticide', label: 'Pestizid-Screening' },
+        { value: 'heavy_metal', label: 'Schwermetalle' },
+        { value: 'visual', label: 'Visuelle Inspektion' }
+      ]
+    }
+  ]
 
   // Separate Funktion für die Zähler
   const loadTabCounts = async () => {
@@ -86,29 +141,21 @@ export default function LabTestingPage() {
   const loadLabTestingBatches = async (page = 1) => {
     setLoading(true)
     try {
-      // URL mit Filtern aufbauen
-      let url = `/trackandtrace/labtesting/?page=${page}`;
+      let url = `/trackandtrace/labtesting/?page=${page}&page_size=${pageSize}`;
       
-      // Zeitfilter hinzufügen, wenn vorhanden
       if (yearFilter) url += `&year=${yearFilter}`;
       if (monthFilter) url += `&month=${monthFilter}`;
       if (dayFilter) url += `&day=${dayFilter}`;
       
-      // Produkttyp-Filter hinzufügen, wenn vorhanden
       if (productTypeFilter) url += `&product_type=${productTypeFilter}`;
       
-      // Je nach aktivem Tab nach Status filtern
       if (tabValue === 0) {
-        // Tab 0: Alle in Bearbeitung
         url += '&status=pending&destroyed=false';
       } else if (tabValue === 1) {
-        // Tab 1: Alle freigegeben
         url += '&status=passed&destroyed=false';
       } else if (tabValue === 2) {
-        // Tab 2: Alle nicht bestanden
         url += '&status=failed&destroyed=false';
       } else if (tabValue === 3) {
-        // Tab 3: Alle vernichtet
         url += '&destroyed=true';
       }
       
@@ -117,13 +164,19 @@ export default function LabTestingPage() {
       
       setLabTestingBatches(res.data.results || [])
       
-      // Berechne die Gesamtanzahl der Seiten
       const total = res.data.count || 0
-      const pages = Math.ceil(total / 10) // pageSize ist 10, wie im Backend definiert
+      setTotalCount(total)
+      const pages = Math.ceil(total / pageSize)
       setTotalPages(pages)
       setCurrentPage(page)
     } catch (error) {
       console.error('Fehler beim Laden der Laborkontrollen:', error)
+      setGlobalSnackbar({
+        open: true, 
+        message: 'Fehler beim Laden der Laborkontrollen: ' + (error.response?.data?.error || error.message), 
+        severity: 'error',
+        duration: 6000
+      })
     } finally {
       setLoading(false)
     }
@@ -134,7 +187,6 @@ export default function LabTestingPage() {
     try {
       const response = await api.get('members/')
       
-      // Sicherstellen, dass die Mitglieder ein display_name Feld haben
       const formattedMembers = (response.data.results || []).map(member => ({
         ...member,
         display_name: member.display_name || `${member.first_name} ${member.last_name}`
@@ -159,18 +211,71 @@ export default function LabTestingPage() {
     }
   };
 
-  // Funktion zum Überprüfen und Anzeigen der Konvertierungserfolgs-Nachricht
   const checkForConversionSuccess = () => {
     const showSuccess = localStorage.getItem('showLabTestingSuccess');
     
     if (showSuccess === 'true') {
-      // Setze die Erfolgsmeldung
-      setSuccessMessage('Laborkontrolle wurde erfolgreich erstellt!');
-      setShowSuccessAlert(true);
+      setGlobalSnackbar({
+        open: true,
+        message: 'Laborkontrolle wurde erfolgreich erstellt!',
+        severity: 'success',
+        duration: 10000
+      });
       
-      // Reinige die localStorage Flags
       localStorage.removeItem('showLabTestingSuccess');
     }
+  };
+
+  const handlePageSizeChange = (newPageSize) => {
+    console.log(`Ändere pageSize von ${pageSize} auf ${newPageSize}`);
+    
+    setPageSize(newPageSize);
+    setCurrentPage(1);
+    
+    setTimeout(() => {
+      let url = `/trackandtrace/labtesting/?page=1&page_size=${newPageSize}`;
+      
+      if (tabValue === 0) {
+        url += '&status=pending&destroyed=false';
+      } else if (tabValue === 1) {
+        url += '&status=passed&destroyed=false';
+      } else if (tabValue === 2) {
+        url += '&status=failed&destroyed=false';
+      } else if (tabValue === 3) {
+        url += '&destroyed=true';
+      }
+      
+      if (yearFilter) url += `&year=${yearFilter}`;
+      if (monthFilter) url += `&month=${monthFilter}`;
+      if (dayFilter) url += `&day=${dayFilter}`;
+      if (productTypeFilter) url += `&product_type=${productTypeFilter}`;
+      
+      console.log("Sende API-Anfrage:", url);
+      setLoading(true);
+      
+      api.get(url)
+        .then(res => {
+          console.log('Geladene Laborkontrollen mit neuer pageSize:', res.data);
+          setLabTestingBatches(res.data.results || []);
+          
+          const total = res.data.count || 0;
+          setTotalCount(total);
+          const pages = Math.ceil(total / newPageSize);
+          setTotalPages(pages);
+        })
+        .catch(error => {
+          console.error('Fehler beim Laden der Laborkontrollen:', error);
+          setGlobalSnackbar({
+            open: true, 
+            message: 'Fehler beim Laden der Laborkontrollen: ' + (error.response?.data?.error || error.message), 
+            severity: 'error',
+            duration: 6000
+          })
+        })
+        .finally(() => {
+          setLoading(false);
+        });
+    }, 0);
   };
 
   useEffect(() => {
@@ -178,12 +283,9 @@ export default function LabTestingPage() {
     loadTabCounts();
     loadMembers();
     loadRooms();
-    
-    // Prüfen, ob wir gerade von einer Konvertierung kommen
     checkForConversionSuccess();
   }, []);
   
-  // Regelmäßige Aktualisierung der Zähler
   useEffect(() => {
     const counterInterval = setInterval(() => {
       loadTabCounts();
@@ -192,15 +294,15 @@ export default function LabTestingPage() {
     return () => clearInterval(counterInterval);
   }, []);
 
-  // Hook für Tab-Wechsel
   useEffect(() => {
     setCurrentPage(1);
-    loadLabTestingBatches(1);
     setExpandedLabTestingId('');
-  }, [tabValue]);
+    loadLabTestingBatches(1);
+  }, [tabValue, pageSize]);
 
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue)
+    setExpandedLabTestingId('')
   }
 
   const handleAccordionChange = (labTestingId) => {
@@ -231,6 +333,23 @@ export default function LabTestingPage() {
     setSelectedLabTesting(labTesting);
     setOpenConvertToPackagingDialog(true);
   };
+
+  const handleOpenImageModal = (batch, event) => {
+    if (event) event.stopPropagation()
+    setSelectedBatchForImages(batch)
+    setOpenImageModal(true)
+  }
+
+  const handleCloseImageModal = () => {
+    setOpenImageModal(false)
+    setSelectedBatchForImages(null)
+    refreshData()
+  }
+
+  const refreshData = () => {
+    loadLabTestingBatches(currentPage)
+    loadTabCounts()
+  }
   
   const handleUpdateLabResults = async (formData) => {
     try {
@@ -240,43 +359,60 @@ export default function LabTestingPage() {
         setOpenUpdateLabResultsDialog(false);
         setSelectedLabTesting(null);
         
-        // Laborkontrollen neu laden
         loadLabTestingBatches(currentPage);
         loadTabCounts();
         
-        // Erfolgsmeldung anzeigen
-        setSuccessMessage('Laborergebnisse wurden erfolgreich aktualisiert!');
-        setShowSuccessAlert(true);
+        setGlobalSnackbar({
+          open: true,
+          message: 'Laborergebnisse wurden erfolgreich aktualisiert!',
+          severity: 'success',
+          duration: 10000
+        });
       }
     } catch (error) {
       console.error('Fehler bei der Aktualisierung der Laborergebnisse:', error);
-      alert(error.response?.data?.error || 'Ein Fehler ist aufgetreten');
+      setGlobalSnackbar({
+        open: true,
+        message: error.response?.data?.error || 'Ein Fehler ist bei der Aktualisierung aufgetreten',
+        severity: 'error',
+        duration: 6000
+      })
     }
   };
   
-  const handleConvertToPackaging = async (formData) => {
+  const handleConvertToPackaging = async (formData, rfidMemberId = null) => {
     try {
       if (selectedLabTesting) {
+        if (rfidMemberId) {
+          formData.member_id = rfidMemberId;
+        }
+        
         const response = await api.post(`/trackandtrace/labtesting/${selectedLabTesting.id}/convert_to_packaging/`, formData);
         
         setOpenConvertToPackagingDialog(false);
         setSelectedLabTesting(null);
         
-        // Laborkontrollen neu laden
         loadLabTestingBatches(currentPage);
         loadTabCounts();
         
-        // Erfolgsmeldung anzeigen
         const createdCount = response.data.created_count || 1;
-        setSuccessMessage(`${createdCount} Verpackung${createdCount > 1 ? 'en wurden' : ' wurde'} erfolgreich erstellt!`);
-        setShowSuccessAlert(true);
+        setGlobalSnackbar({
+          open: true,
+          message: `${createdCount} Verpackung${createdCount > 1 ? 'en wurden' : ' wurde'} erfolgreich erstellt!`,
+          severity: 'success',
+          duration: 10000
+        });
         
-        // Erfolg im localStorage speichern für die Verpackungs-Seite
         localStorage.setItem('showPackagingSuccess', 'true');
       }
     } catch (error) {
       console.error('Fehler bei der Konvertierung zur Verpackung:', error);
-      alert(error.response?.data?.error || 'Ein Fehler ist aufgetreten');
+      setGlobalSnackbar({
+        open: true,
+        message: error.response?.data?.error || 'Ein Fehler ist bei der Konvertierung aufgetreten',
+        severity: 'error',
+        duration: 6000
+      })
     }
   };
 
@@ -291,22 +427,32 @@ export default function LabTestingPage() {
         setOpenDestroyDialog(false);
         setSelectedLabTesting(null);
         
-        // Laborkontrollen neu laden
         loadLabTestingBatches(currentPage);
         loadTabCounts();
         
-        // Erfolgsmeldung anzeigen
-        setSuccessMessage('Laborkontrolle wurde erfolgreich vernichtet!');
-        setShowSuccessAlert(true);
+        const memberName = members.find(m => m.id === destroyedByMemberId)?.display_name || "Unbekannt"
+        
+        setGlobalSnackbar({
+          open: true,
+          message: `Laborkontrolle erfolgreich vernichtet - Autorisiert durch: ${memberName}`,
+          severity: 'success',
+          duration: 10000
+        })
       }
     } catch (error) {
       console.error('Fehler bei der Vernichtung:', error);
-      alert(error.response?.data?.error || 'Ein Fehler ist aufgetreten');
+      setGlobalSnackbar({
+        open: true,
+        message: error.response?.data?.error || 'Ein Fehler ist bei der Vernichtung aufgetreten',
+        severity: 'error',
+        duration: 6000
+      })
     }
   };
 
   const handleFilterApply = () => {
-    loadLabTestingBatches(1) // Zurück zur ersten Seite bei Filter-Änderung
+    loadLabTestingBatches(1)
+    loadTabCounts()
   }
   
   const handleFilterReset = () => {
@@ -315,10 +461,10 @@ export default function LabTestingPage() {
     setDayFilter('')
     setProductTypeFilter('')
     setShowFilters(false)
-    loadLabTestingBatches(1) // Zurück zur ersten Seite nach Filter-Reset
+    loadLabTestingBatches(1)
+    loadTabCounts()
   }
 
-  // Tab-Definition als separate Variable
   const tabs = [
     { 
       label: (
@@ -367,140 +513,279 @@ export default function LabTestingPage() {
   ];
 
   return (
-    <Container maxWidth="xl" sx={{ width: '100%' }}>
-      {/* Erfolgsbenachrichtigung */}
-      <Snackbar 
-        open={showSuccessAlert} 
-        autoHideDuration={6000} 
-        onClose={() => setShowSuccessAlert(false)}
-        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-      >
-        <Alert 
-          onClose={() => setShowSuccessAlert(false)} 
-          severity="success" 
-          variant="filled"
-          sx={{ width: '100%' }}
+    <Box sx={{ 
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden'
+    }}>
+      {/* Header mit Titel */}
+      <Box sx={{ 
+        p: 2, 
+        bgcolor: 'background.paper',
+        borderBottom: theme => `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }}>
+        <Typography variant="h5" sx={{ fontWeight: 500 }}>
+          Track & Trace Verwaltung: Step 10 - (Laborkontrolle)
+        </Typography>
+        
+        {/* Filter-Button oben rechts */}
+        <Box
+          sx={{
+            border: theme => `1px solid ${alpha(theme.palette.divider, 0.3)}`,
+            borderRadius: '4px',
+            p: 0.75,
+            display: 'inline-flex',
+            alignItems: 'center',
+            backgroundColor: 'background.paper',
+            '&:hover': {
+              backgroundColor: theme => alpha(theme.palette.action.hover, 0.08),
+              borderColor: theme => theme.palette.divider
+            }
+          }}
         >
-          {successMessage}
-        </Alert>
-      </Snackbar>
-      
-      <Fade in={true} timeout={800}>
-        <Box>
-          <PageHeader 
-            title="Laborkontroll-Verwaltung"
-            showFilters={showFilters}
-            setShowFilters={setShowFilters}
-          />
+          <Button 
+            variant="text" 
+            color="inherit" 
+            onClick={() => setShowFilters(!showFilters)}
+            startIcon={<FilterListIcon />}
+            sx={{ 
+              textTransform: 'none', 
+              color: 'text.primary',
+              fontSize: '0.875rem'
+            }}
+          >
+            {showFilters ? 'Filter ausblenden' : 'Filter anzeigen'}
+          </Button>
         </Box>
-      </Fade>
-      
-      <Fade in={showFilters} timeout={400}>
-        <Box sx={{ display: showFilters ? 'block' : 'none' }}>
-          <FilterSection
-            yearFilter={yearFilter}
-            setYearFilter={setYearFilter}
-            monthFilter={monthFilter}
-            setMonthFilter={setMonthFilter}
-            dayFilter={dayFilter}
-            setDayFilter={setDayFilter}
-            onApply={handleFilterApply}
-            onReset={handleFilterReset}
-            showFilters={showFilters}
-            productTypeFilter={productTypeFilter}
-            setProductTypeFilter={setProductTypeFilter}
-            showProductTypeFilter={true}
-          />
-        </Box>
-      </Fade>
+      </Box>
 
-      <TabsHeader 
-        tabValue={tabValue} 
-        onTabChange={handleTabChange} 
-        tabs={tabs}
-        color={tabValue === 0 ? 'info' : (tabValue === 1 ? 'success' : (tabValue === 2 ? 'warning' : 'error'))}
-        ariaLabel="Laborkontroll-Tabs"
-      />
+      {/* Tabs - direkt anschließend ohne Lücke */}
+      <Box sx={{ flexShrink: 0 }}>
+        <TabsHeader 
+          tabValue={tabValue} 
+          onTabChange={handleTabChange} 
+          tabs={tabs}
+          color={tabValue === 0 ? 'info' : (tabValue === 1 ? 'success' : (tabValue === 2 ? 'warning' : 'error'))}
+          ariaLabel="Laborkontroll-Tabs"
+        />
+      </Box>
 
-      {loading ? (
-        <LoadingIndicator />
-      ) : (
-        <>
-          <AnimatedTabPanel 
-            value={tabValue} 
-            index={0} 
-            direction="right"
-          >
-            <LabTestingTable 
-              tabValue={0}
-              data={labTestingBatches}
-              expandedLabTestingId={expandedLabTestingId}
-              onExpandLabTesting={handleAccordionChange}
-              onOpenDestroyDialog={handleOpenDestroyDialog}
-              onOpenUpdateLabResultsDialog={handleOpenUpdateLabResultsDialog}
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={handlePageChange}
-            />
-          </AnimatedTabPanel>
-          
-          <AnimatedTabPanel 
-            value={tabValue} 
-            index={1} 
-            direction="left"
-          >
-            <LabTestingTable 
-              tabValue={1}
-              data={labTestingBatches}
-              expandedLabTestingId={expandedLabTestingId}
-              onExpandLabTesting={handleAccordionChange}
-              onOpenDestroyDialog={handleOpenDestroyDialog}
-              onOpenConvertToPackagingDialog={handleOpenConvertToPackagingDialog}
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={handlePageChange}
-            />
-          </AnimatedTabPanel>
-          
-          <AnimatedTabPanel 
-            value={tabValue} 
-            index={2} 
-            direction="left"
-          >
-            <LabTestingTable 
-              tabValue={2}
-              data={labTestingBatches}
-              expandedLabTestingId={expandedLabTestingId}
-              onExpandLabTesting={handleAccordionChange}
-              onOpenDestroyDialog={handleOpenDestroyDialog}
-              onOpenUpdateLabResultsDialog={handleOpenUpdateLabResultsDialog}
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={handlePageChange}
-            />
-          </AnimatedTabPanel>
-          
-          <AnimatedTabPanel 
-            value={tabValue} 
-            index={3} 
-            direction="left"
-          >
-            <LabTestingTable 
-              tabValue={3}
-              data={labTestingBatches}
-              expandedLabTestingId={expandedLabTestingId}
-              onExpandLabTesting={handleAccordionChange}
-              onOpenDestroyDialog={handleOpenDestroyDialog}
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={handlePageChange}
-            />
-          </AnimatedTabPanel>
-        </>
-      )}
+      {/* Hauptinhalt mit Scroll */}
+      <Box sx={{ 
+        flex: 1, 
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+        position: 'relative'
+      }}>
+        {loading ? (
+          <Box sx={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            height: '100%'
+          }}>
+            <LoadingIndicator />
+          </Box>
+        ) : (
+          <Box sx={{ 
+            height: '100%', 
+            display: 'flex', 
+            flexDirection: 'column',
+            overflow: 'hidden'
+          }}>
+            <AnimatedTabPanel 
+              value={tabValue} 
+              index={0} 
+              animationType={animSettings.type} 
+              direction="right" 
+              duration={animSettings.duration}
+              sx={{ 
+                height: '100%', 
+                p: 0,
+                m: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden'
+              }}
+            >
+              <LabTestingTable 
+                tabValue={0}
+                data={labTestingBatches}
+                expandedLabTestingId={expandedLabTestingId}
+                onExpandLabTesting={handleAccordionChange}
+                onOpenDestroyDialog={handleOpenDestroyDialog}
+                onOpenUpdateLabResultsDialog={handleOpenUpdateLabResultsDialog}
+                onOpenImageModal={handleOpenImageModal}
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+                pageSize={pageSize}
+                onPageSizeChange={handlePageSizeChange}
+                pageSizeOptions={pageSizeOptions}
+                totalCount={totalCount}
+                yearFilter={yearFilter}
+                setYearFilter={setYearFilter}
+                monthFilter={monthFilter}
+                setMonthFilter={setMonthFilter}
+                dayFilter={dayFilter}
+                setDayFilter={setDayFilter}
+                productTypeFilter={productTypeFilter}
+                setProductTypeFilter={setProductTypeFilter}
+                showFilters={showFilters}
+                setShowFilters={setShowFilters}
+                onFilterApply={handleFilterApply}
+                onFilterReset={handleFilterReset}
+              />
+            </AnimatedTabPanel>
+            
+            <AnimatedTabPanel 
+              value={tabValue} 
+              index={1} 
+              animationType={animSettings.type} 
+              direction="left" 
+              duration={animSettings.duration}
+              sx={{ 
+                height: '100%', 
+                p: 0,
+                m: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden'
+              }}
+            >
+              <LabTestingTable 
+                tabValue={1}
+                data={labTestingBatches}
+                expandedLabTestingId={expandedLabTestingId}
+                onExpandLabTesting={handleAccordionChange}
+                onOpenDestroyDialog={handleOpenDestroyDialog}
+                onOpenConvertToPackagingDialog={handleOpenConvertToPackagingDialog}
+                onOpenImageModal={handleOpenImageModal}
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+                pageSize={pageSize}
+                onPageSizeChange={handlePageSizeChange}
+                pageSizeOptions={pageSizeOptions}
+                totalCount={totalCount}
+                yearFilter={yearFilter}
+                setYearFilter={setYearFilter}
+                monthFilter={monthFilter}
+                setMonthFilter={setMonthFilter}
+                dayFilter={dayFilter}
+                setDayFilter={setDayFilter}
+                productTypeFilter={productTypeFilter}
+                setProductTypeFilter={setProductTypeFilter}
+                showFilters={showFilters}
+                setShowFilters={setShowFilters}
+                onFilterApply={handleFilterApply}
+                onFilterReset={handleFilterReset}
+              />
+            </AnimatedTabPanel>
+            
+            <AnimatedTabPanel 
+              value={tabValue} 
+              index={2} 
+              animationType={animSettings.type} 
+              direction="left" 
+              duration={animSettings.duration}
+              sx={{ 
+                height: '100%', 
+                p: 0,
+                m: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden'
+              }}
+            >
+              <LabTestingTable 
+                tabValue={2}
+                data={labTestingBatches}
+                expandedLabTestingId={expandedLabTestingId}
+                onExpandLabTesting={handleAccordionChange}
+                onOpenDestroyDialog={handleOpenDestroyDialog}
+                onOpenUpdateLabResultsDialog={handleOpenUpdateLabResultsDialog}
+                onOpenImageModal={handleOpenImageModal}
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+                pageSize={pageSize}
+                onPageSizeChange={handlePageSizeChange}
+                pageSizeOptions={pageSizeOptions}
+                totalCount={totalCount}
+                yearFilter={yearFilter}
+                setYearFilter={setYearFilter}
+                monthFilter={monthFilter}
+                setMonthFilter={setMonthFilter}
+                dayFilter={dayFilter}
+                setDayFilter={setDayFilter}
+                productTypeFilter={productTypeFilter}
+                setProductTypeFilter={setProductTypeFilter}
+                showFilters={showFilters}
+                setShowFilters={setShowFilters}
+                onFilterApply={handleFilterApply}
+                onFilterReset={handleFilterReset}
+              />
+            </AnimatedTabPanel>
+            
+            <AnimatedTabPanel 
+              value={tabValue} 
+              index={3} 
+              animationType={animSettings.type} 
+              direction="left" 
+              duration={animSettings.duration}
+              sx={{ 
+                height: '100%', 
+                p: 0,
+                m: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden'
+              }}
+            >
+              <LabTestingTable 
+                tabValue={3}
+                data={labTestingBatches}
+                expandedLabTestingId={expandedLabTestingId}
+                onExpandLabTesting={handleAccordionChange}
+                onOpenDestroyDialog={handleOpenDestroyDialog}
+                onOpenImageModal={handleOpenImageModal}
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+                pageSize={pageSize}
+                onPageSizeChange={handlePageSizeChange}
+                pageSizeOptions={pageSizeOptions}
+                totalCount={totalCount}
+                yearFilter={yearFilter}
+                setYearFilter={setYearFilter}
+                monthFilter={monthFilter}
+                setMonthFilter={setMonthFilter}
+                dayFilter={dayFilter}
+                setDayFilter={setDayFilter}
+                productTypeFilter={productTypeFilter}
+                setProductTypeFilter={setProductTypeFilter}
+                showFilters={showFilters}
+                setShowFilters={setShowFilters}
+                onFilterApply={handleFilterApply}
+                onFilterReset={handleFilterReset}
+              />
+            </AnimatedTabPanel>
+          </Box>
+        )}
+      </Box>
 
       {/* Vernichtungsdialog */}
-      <Fade in={openDestroyDialog} timeout={400}>
+      <Fade in={openDestroyDialog} timeout={500}>
         <div style={{ display: openDestroyDialog ? 'block' : 'none' }}>
           <DestroyDialog 
             open={openDestroyDialog}
@@ -523,6 +808,7 @@ export default function LabTestingPage() {
         onClose={() => setOpenUpdateLabResultsDialog(false)}
         onUpdateLabResults={handleUpdateLabResults}
         labTesting={selectedLabTesting}
+        rooms={rooms}
       />
       
       {/* Konvertierung zu Verpackung - Erweiterte Version */}
@@ -535,6 +821,33 @@ export default function LabTestingPage() {
         rooms={rooms}
         loadingOptions={loadingOptions}
       />
-    </Container>
+
+      <ImageUploadModal
+        open={openImageModal}
+        onClose={handleCloseImageModal}
+        productType="lab-testing-batch"
+        productId={selectedBatchForImages?.id}
+        productName={`${selectedBatchForImages?.batch_number} - ${selectedBatchForImages?.source_strain || 'Laborkontrolle'}`}
+        onImagesUpdated={refreshData}
+        additionalFields={labTestingAdditionalFields}
+      />
+      
+      {/* Globale Snackbar-Komponente */}
+      <Snackbar 
+        open={globalSnackbar.open} 
+        autoHideDuration={globalSnackbar.duration || 6000} 
+        onClose={handleCloseGlobalSnackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert 
+          onClose={handleCloseGlobalSnackbar} 
+          severity={globalSnackbar.severity} 
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          {globalSnackbar.message}
+        </Alert>
+      </Snackbar>
+    </Box>
   )
 }

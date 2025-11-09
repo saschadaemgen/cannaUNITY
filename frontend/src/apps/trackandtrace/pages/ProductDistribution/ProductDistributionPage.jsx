@@ -1,464 +1,760 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  Container, Box, Typography, Paper, Divider, Grid, 
-  TextField, Button, Autocomplete, Chip, FormControl,
-  InputLabel, MenuItem, Select, FormHelperText, Snackbar,
-  Alert, List, ListItem, ListItemText, ListItemSecondaryAction,
-  IconButton, Card, CardContent, Table, TableBody, TableCell,
-  TableContainer, TableHead, TableRow
-} from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
-import RemoveIcon from '@mui/icons-material/Remove';
-import LocalFloristIcon from '@mui/icons-material/LocalFlorist';
-import FilterDramaIcon from '@mui/icons-material/FilterDrama';
-import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
-import api from '@/utils/api';
+// frontend/src/apps/trackandtrace/pages/ProductDistribution/ProductDistributionPage.jsx
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { Box, Typography, Fade, Paper, Tabs, Tab, alpha, Button } from '@mui/material'
+import LocalShippingIcon from '@mui/icons-material/LocalShipping'
+import HistoryIcon from '@mui/icons-material/History'
+import AssignmentIcon from '@mui/icons-material/Assignment'
+import LocalFloristIcon from '@mui/icons-material/LocalFlorist'
+import PeopleIcon from '@mui/icons-material/People'
+import InventoryIcon from '@mui/icons-material/Inventory'
+import FilterListIcon from '@mui/icons-material/FilterList'
+import api from '@/utils/api'
 
 // Gemeinsame Komponenten
-import PageHeader from '@/components/common/PageHeader';
-import LoadingIndicator from '@/components/common/LoadingIndicator';
+import TabsHeader from '@/components/common/TabsHeader'
+import FilterSection from '@/components/common/FilterSection'
+import LoadingIndicator from '@/components/common/LoadingIndicator'
+import AnimatedTabPanel from '@/components/common/AnimatedTabPanel'
 
-const ProductDistributionPage = () => {
-  // Zustände für Formularelemente
-  const [distributorId, setDistributorId] = useState('');
-  const [recipientId, setRecipientId] = useState('');
-  const [selectedUnits, setSelectedUnits] = useState([]);
-  const [notes, setNotes] = useState('');
+// Spezifische Komponenten
+import NewDistribution from './components/NewDistribution/NewDistribution'
+import DistributionHistory from './components/DistributionHistory/DistributionHistory'
+import DistributionAnalytics from './components/DistributionAnalytics/DistributionAnalytics'
+
+// Animations-Hook importieren
+import useAnimationSettings from '@/hooks/useAnimationSettings'
+
+export default function ProductDistributionPage() {
+  // States
+  const [loading, setLoading] = useState(false)
+  const [tabValue, setTabValue] = useState(0)
+  const [showFilters, setShowFilters] = useState(false)
   
-  // Verfügbare Daten
-  const [availableUnits, setAvailableUnits] = useState([]);
-  const [members, setMembers] = useState([]);
+  // Filter-States
+  const [yearFilter, setYearFilter] = useState('')
+  const [monthFilter, setMonthFilter] = useState('')
+  const [dayFilter, setDayFilter] = useState('')
+  const [recipientFilter, setRecipientFilter] = useState('')
+  const [distributorFilter, setDistributorFilter] = useState('')
   
-  // UI-Zustände
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [success, setSuccess] = useState(false);
-  const [error, setError] = useState(null);
-  const [filterProductType, setFilterProductType] = useState('');
+  // Daten-States
+  const [members, setMembers] = useState([])
+  const [rooms, setRooms] = useState([])
+  const [availableUnits, setAvailableUnits] = useState([])
+  const [distributions, setDistributions] = useState([])
   
-  // Berechnete Werte
-  const totalWeight = selectedUnits.reduce((sum, unit) => sum + parseFloat(unit.weight || 0), 0);
+  // Animationseinstellungen mit neuem Hook abrufen
+  const animSettings = useAnimationSettings('slide', 500, true);
   
-  // Gruppieren nach Produkttyp für die Zusammenfassung
-  const productSummary = selectedUnits.reduce((acc, unit) => {
-    const batch = unit.batch || {};
-    const productType = batch.product_type || 'unknown';
-    const displayType = batch.product_type_display || (
-      productType === 'marijuana' ? 'Marihuana' : 
-      productType === 'hashish' ? 'Haschisch' : 'Unbekannt'
-    );
-    
-    if (!acc[productType]) {
-      acc[productType] = {
-        displayType: displayType,
-        count: 0,
-        weight: 0
-      };
+  // Statistiken
+  const [statistics, setStatistics] = useState({
+    // Heute
+    todayCount: 0,
+    todayWeight: 0,
+    todayActiveMembers: 0,
+    // Monat
+    monthCount: 0,
+    monthWeight: 0,
+    monthActiveMembers: 0,
+    // Jahr  
+    yearCount: 0,
+    yearWeight: 0,
+    yearActiveMembers: 0,
+    // Sonstige
+    availableUnits: 0,
+    marijuanaDistributed: 0,
+    hashishDistributed: 0
+  })
+
+  // KORRIGIERT: Refs um mehrfache Aufrufe zu verhindern
+  const loadingRef = useRef(false)
+  const baseDataLoadedRef = useRef(false)
+  
+  // KORRIGIERT: Basis-Daten laden mit Guards und parallelen Aufrufen
+  const loadBaseData = useCallback(async () => {
+    // Verhindere mehrfache gleichzeitige Aufrufe
+    if (loadingRef.current || baseDataLoadedRef.current) {
+      console.log('🔒 Sir, Basis-Daten werden bereits geladen oder sind geladen')
+      return
     }
     
-    acc[productType].count += 1;
-    acc[productType].weight += parseFloat(unit.weight || 0);
-    
-    return acc;
-  }, {});
-  
-  // Daten laden
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        // Verfügbare Verpackungseinheiten laden
-        const unitsResponse = await api.get('/trackandtrace/distributions/available_units/');
-        setAvailableUnits(unitsResponse.data);
-        
-        // Mitglieder laden
-        const membersResponse = await api.get('/members/?limit=1000');
-        setMembers(membersResponse.data.results || membersResponse.data || []);
-        
-        setError(null);
-      } catch (err) {
-        console.error('Fehler beim Laden der Daten:', err);
-        setError('Die benötigten Daten konnten nicht geladen werden');
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchData();
-  }, []);
-  
-  // Handler für Formularaktualisierungen
-  const handleAddUnit = (unit) => {
-    if (unit && !selectedUnits.some(u => u.id === unit.id)) {
-      setSelectedUnits([...selectedUnits, unit]);
-    }
-  };
-  
-  const handleRemoveUnit = (unitId) => {
-    setSelectedUnits(selectedUnits.filter(unit => unit.id !== unitId));
-  };
-  
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    if (!distributorId) {
-      setError('Bitte wählen Sie einen ausgebenden Mitarbeiter aus');
-      return;
-    }
-    
-    if (!recipientId) {
-      setError('Bitte wählen Sie ein empfangendes Mitglied aus');
-      return;
-    }
-    
-    if (selectedUnits.length === 0) {
-      setError('Bitte wählen Sie mindestens eine Verpackungseinheit aus');
-      return;
-    }
-    
-    setSubmitting(true);
+    loadingRef.current = true
+    setLoading(true)
+    console.log('🚀 Sir, lade Basis-Daten...')
     
     try {
-      const response = await api.post('/trackandtrace/distributions/', {
-        distributor_id: distributorId,
-        recipient_id: recipientId,
-        packaging_unit_ids: selectedUnits.map(unit => unit.id),
-        notes: notes,
-        distribution_date: new Date().toISOString()
-      });
+      // KORRIGIERT: Parallele API-Aufrufe für bessere Performance
+      const [membersRes, roomsRes, unitsRes] = await Promise.all([
+        api.get('/members/?limit=1000'),
+        api.get('/rooms/'),
+        api.get('/trackandtrace/distributions/available_units/')
+      ])
       
-      // Erfolgsmeldung anzeigen
-      setSuccess(true);
+      console.log('✅ Sir, Basis-Daten geladen')
       
-      // Formular zurücksetzen
-      setSelectedUnits([]);
-      setNotes('');
+      // State updates batchen
+      const membersData = membersRes.data.results || membersRes.data || []
+      const roomsData = roomsRes.data.results || roomsRes.data || []
+      const unitsData = unitsRes.data || []
       
-      // Verfügbare Einheiten aktualisieren
-      const unitsResponse = await api.get('/trackandtrace/distributions/available_units/');
-      setAvailableUnits(unitsResponse.data);
+      setMembers(membersData)
+      setRooms(roomsData)
+      setAvailableUnits(unitsData)
       
-      setError(null);
-    } catch (err) {
-      console.error('Fehler beim Speichern der Produktausgabe:', err);
-      setError(err.response?.data?.error || 'Die Produktausgabe konnte nicht gespeichert werden');
+      // Setze die Anzahl der verfügbaren Einheiten in den Statistiken
+      setStatistics(prev => ({
+        ...prev,
+        availableUnits: unitsData.length
+      }))
+      
+      baseDataLoadedRef.current = true
+      
+      // Statistiken nur einmal laden, wenn noch nicht geladen
+      if (statistics.todayCount === 0) {
+        console.log('📊 Sir, lade Statistiken...')
+        await loadStatisticsOnce()
+      }
+      
+    } catch (error) {
+      console.error('❌ Sir, Fehler beim Laden der Basisdaten:', error)
+      baseDataLoadedRef.current = false
     } finally {
-      setSubmitting(false);
+      loadingRef.current = false
+      setLoading(false)
     }
-  };
+  }, []) // KORRIGIERT: Leere Dependencies, da alle nötigen Daten intern verwaltet werden
   
-  // Filtere verfügbare Einheiten basierend auf dem ausgewählten Produkttyp
-  const filteredUnits = filterProductType
-    ? availableUnits.filter(unit => {
-        const batch = unit.batch || {};
-        const labBatch = batch.lab_testing_batch || {};
-        const processingBatch = labBatch.processing_batch || {};
-        return processingBatch.product_type === filterProductType;
-      })
-    : availableUnits;
+  // KORRIGIERT: Statistiken laden - nur einmalig
+  const loadStatisticsOnce = useCallback(async () => {
+    try {
+      const today = new Date()
+      const year = today.getFullYear()
+      const month = today.getMonth() + 1
+      const day = today.getDate()
+      
+      console.log('📈 Sir, lade Statistiken für:', { year, month, day })
+      
+      // Lade Daten für verschiedene Zeiträume parallel
+      const [todayRes, monthRes, yearRes] = await Promise.all([
+        // Heute
+        api.get(`/trackandtrace/distributions/?year=${year}&month=${month}&day=${day}`),
+        // Dieser Monat
+        api.get(`/trackandtrace/distributions/?year=${year}&month=${month}`),
+        // Dieses Jahr
+        api.get(`/trackandtrace/distributions/?year=${year}`)
+      ])
+      
+      const todayDistributions = todayRes.data.results || todayRes.data || []
+      const monthDistributions = monthRes.data.results || monthRes.data || []
+      const yearDistributions = yearRes.data.results || yearRes.data || []
+      
+      // Berechnungen für heute
+      const todayWeight = todayDistributions.reduce((sum, dist) => sum + (dist.total_weight || 0), 0)
+      const todayActiveMembers = new Set(todayDistributions.map(d => d.recipient?.id)).size
+      
+      // Berechnungen für diesen Monat
+      const monthWeight = monthDistributions.reduce((sum, dist) => sum + (dist.total_weight || 0), 0)
+      const monthActiveMembers = new Set(monthDistributions.map(d => d.recipient?.id)).size
+      
+      // Berechnungen für dieses Jahr
+      const yearWeight = yearDistributions.reduce((sum, dist) => sum + (dist.total_weight || 0), 0)
+      const yearActiveMembers = new Set(yearDistributions.map(d => d.recipient?.id)).size
+      
+      setStatistics(prev => ({
+        // Heute
+        todayCount: todayDistributions.length,
+        todayWeight: todayWeight.toFixed(2),
+        todayActiveMembers: todayActiveMembers,
+        // Monat
+        monthCount: monthDistributions.length,
+        monthWeight: monthWeight.toFixed(2),
+        monthActiveMembers: monthActiveMembers,
+        // Jahr
+        yearCount: yearDistributions.length,
+        yearWeight: yearWeight.toFixed(2),
+        yearActiveMembers: yearActiveMembers,
+        // Sonstige - behalte vorherigen Wert für availableUnits
+        availableUnits: prev.availableUnits || 0,
+        marijuanaDistributed: todayDistributions.filter(d => 
+          d.product_type_summary?.some(p => p.type.includes('Marihuana'))
+        ).length,
+        hashishDistributed: todayDistributions.filter(d => 
+          d.product_type_summary?.some(p => p.type.includes('Haschisch'))
+        ).length
+      }))
+      
+      console.log('✅ Sir, Statistiken geladen')
+      
+    } catch (error) {
+      console.error('❌ Sir, Fehler beim Laden der Statistiken:', error)
+    }
+  }, [])
   
-  if (loading) {
-    return (
-      <Container maxWidth="xl">
-        <PageHeader title="Produktausgabe" />
-        <LoadingIndicator />
-      </Container>
-    );
+  // KORRIGIERT: Historie laden nur bei Bedarf
+  const loadDistributions = useCallback(async () => {
+    try {
+      let url = '/trackandtrace/distributions/?'
+      
+      // Filter anwenden
+      if (yearFilter) url += `year=${yearFilter}&`
+      if (monthFilter) url += `month=${monthFilter}&`
+      if (dayFilter) url += `day=${dayFilter}&`
+      if (recipientFilter) url += `recipient_id=${recipientFilter}&`
+      if (distributorFilter) url += `distributor_id=${distributorFilter}&`
+      
+      console.log('📜 Sir, lade Distributionen:', url)
+      
+      const res = await api.get(url)
+      setDistributions(res.data.results || res.data || [])
+    } catch (error) {
+      console.error('❌ Sir, Fehler beim Laden der Distributionen:', error)
+    }
+  }, [yearFilter, monthFilter, dayFilter, recipientFilter, distributorFilter])
+  
+  // KORRIGIERT: Initialer Load nur einmal
+  useEffect(() => {
+    if (!baseDataLoadedRef.current && !loadingRef.current) {
+      console.log('🎯 Sir, starte initialen Daten-Load...')
+      loadBaseData()
+    }
+  }, [loadBaseData])
+  
+  // KORRIGIERT: Distributionen nur laden wenn Tab 1 aktiv ist
+  useEffect(() => {
+    if (tabValue === 1 && baseDataLoadedRef.current) {
+      console.log('📋 Sir, lade Distributionen für Historie-Tab...')
+      loadDistributions()
+    }
+  }, [tabValue, loadDistributions])
+  
+  const handleTabChange = (event, newValue) => {
+    console.log('🏷️ Sir, Tab gewechselt zu:', newValue)
+    setTabValue(newValue)
   }
   
+  const handleFilterApply = () => {
+    if (tabValue === 1) {
+      loadDistributions()
+    }
+  }
+  
+  const handleFilterReset = () => {
+    setYearFilter('')
+    setMonthFilter('')
+    setDayFilter('')
+    setRecipientFilter('')
+    setDistributorFilter('')
+    if (tabValue === 1) {
+      loadDistributions()
+    }
+  }
+  
+  // KORRIGIERT: Refresh-Funktion optimiert
+  const refreshData = useCallback(async () => {
+    console.log('🔄 Sir, aktualisiere Daten...')
+    
+    // Nur Statistiken und Units neu laden, nicht alles
+    try {
+      const unitsRes = await api.get('/trackandtrace/distributions/available_units/')
+      const unitsData = unitsRes.data || []
+      setAvailableUnits(unitsData)
+      
+      setStatistics(prev => ({
+        ...prev,
+        availableUnits: unitsData.length
+      }))
+      
+      // Statistiken neu laden
+      await loadStatisticsOnce()
+      
+      // Distributionen nur neu laden wenn History-Tab aktiv
+      if (tabValue === 1) {
+        await loadDistributions()
+      }
+      
+      console.log('✅ Sir, Daten aktualisiert')
+      
+    } catch (error) {
+      console.error('❌ Sir, Fehler beim Aktualisieren:', error)
+    }
+  }, [tabValue, loadDistributions, loadStatisticsOnce])
+
+  const tabs = [
+    { 
+      label: (
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <Typography component="span" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>NEUE AUSGABE</Typography>
+          <Typography component="span" sx={{ mx: 0.3, color: 'success.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${availableUnits.length} verfügbar)`}</Typography>
+        </Box>
+      ) 
+    },
+    { 
+      label: (
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <Typography component="span" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>AUSGABENHISTORIE</Typography>
+          <Typography component="span" sx={{ mx: 0.3, color: 'primary.main', fontWeight: 500, fontSize: '0.75rem' }}>{`(${statistics.todayCount} heute)`}</Typography>
+        </Box>
+      )
+    },
+    { 
+      label: (
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <Typography component="span" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>ANALYSEN</Typography>
+        </Box>
+      )
+    }
+  ];
+  
   return (
-    <Container maxWidth="xl">
-      <PageHeader title="Produktausgabe" />
-      
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
-        </Alert>
-      )}
-      
-      <Snackbar 
-        open={success} 
-        autoHideDuration={6000} 
-        onClose={() => setSuccess(false)}
-        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-      >
-        <Alert severity="success" variant="filled">
-          Produktausgabe wurde erfolgreich gespeichert!
-        </Alert>
-      </Snackbar>
-      
-      <Paper sx={{ p: 3, mb: 4 }}>
-        <Typography variant="h6" gutterBottom>
-          Neue Produktausgabe erstellen
+    <Box sx={{ 
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden'
+    }}>
+      {/* Header mit Titel */}
+      <Box sx={{ 
+        p: 2, 
+        bgcolor: 'background.paper',
+        borderBottom: theme => `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }}>
+        <Typography variant="h5" sx={{ fontWeight: 500 }}>
+          Cannabis Produktausgabe an Mitglieder
         </Typography>
         
-        <Grid container spacing={3} component="form" onSubmit={handleSubmit}>
-          {/* Ausgeber & Empfänger */}
-          <Grid item xs={12} md={6}>
-            <Autocomplete
-              id="distributor-select"
-              options={members}
-              getOptionLabel={(option) => `${option.first_name} ${option.last_name}`}
-              onChange={(_, newValue) => setDistributorId(newValue?.id || '')}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="Ausgebender Mitarbeiter"
-                  required
-                  helperText="Wer gibt das Produkt aus?"
-                />
-              )}
-              fullWidth
-            />
-          </Grid>
-          
-          <Grid item xs={12} md={6}>
-            <Autocomplete
-              id="recipient-select"
-              options={members}
-              getOptionLabel={(option) => `${option.first_name} ${option.last_name}`}
-              onChange={(_, newValue) => setRecipientId(newValue?.id || '')}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="Empfangendes Mitglied"
-                  required
-                  helperText="Wer erhält das Produkt?"
-                />
-              )}
-              fullWidth
-            />
-          </Grid>
-          
-          {/* Produktauswahl */}
-          <Grid item xs={12}>
-            <Typography variant="subtitle1" gutterBottom>
-              Produktauswahl
-            </Typography>
-            
-            <Box sx={{ mb: 2 }}>
-              <FormControl sx={{ minWidth: 200 }}>
-                <InputLabel id="product-type-filter-label">Nach Produkttyp filtern</InputLabel>
-                <Select
-                  labelId="product-type-filter-label"
-                  id="product-type-filter"
-                  value={filterProductType}
-                  label="Nach Produkttyp filtern"
-                  onChange={(e) => setFilterProductType(e.target.value)}
-                >
-                  <MenuItem value="">Alle Produkttypen</MenuItem>
-                  <MenuItem value="marijuana">Marihuana</MenuItem>
-                  <MenuItem value="hashish">Haschisch</MenuItem>
-                </Select>
-                <FormHelperText>Optional: Einheiten nach Produkttyp filtern</FormHelperText>
-              </FormControl>
-            </Box>
-            
-            <Grid container spacing={2}>
-              <Grid item xs={12} md={6}>
-                <Typography variant="subtitle2" gutterBottom>
-                  Verfügbare Verpackungseinheiten ({filteredUnits.length})
-                </Typography>
-                
-                <TableContainer component={Paper} variant="outlined" sx={{ height: 300, overflow: 'auto' }}>
-                  <Table size="small" stickyHeader>
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Einheits-Nr.</TableCell>
-                        <TableCell>Produkttyp</TableCell>
-                        <TableCell align="right">Gewicht</TableCell>
-                        <TableCell>THC</TableCell>
-                        <TableCell></TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {filteredUnits.length > 0 ? (
-                        filteredUnits.map((unit) => {
-                          const batch = unit.batch || {};
-                          const productType = batch.product_type_display || 'Unbekannt';
-                          const isMarijuana = productType.toLowerCase().includes('marihuana');
-                          
-                          return (
-                            <TableRow key={unit.id}>
-                              <TableCell>{unit.batch_number || '—'}</TableCell>
-                              <TableCell>
-                                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                  {isMarijuana ? (
-                                    <LocalFloristIcon fontSize="small" color="success" sx={{ mr: 0.5 }} />
-                                  ) : (
-                                    <FilterDramaIcon fontSize="small" color="warning" sx={{ mr: 0.5 }} />
-                                  )}
-                                  {productType}
-                                </Box>
-                              </TableCell>
-                              <TableCell align="right">{parseFloat(unit.weight).toFixed(2)}g</TableCell>
-                              <TableCell>
-                                {batch.thc_content ? `${batch.thc_content}%` : 'k.A.'}
-                              </TableCell>
-                              <TableCell>
-                                <IconButton 
-                                  size="small" 
-                                  color="primary" 
-                                  onClick={() => handleAddUnit(unit)}
-                                  disabled={selectedUnits.some(u => u.id === unit.id)}
-                                >
-                                  <AddIcon fontSize="small" />
-                                </IconButton>
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })
-                      ) : (
-                        <TableRow>
-                          <TableCell colSpan={5} align="center">
-                            Keine verfügbaren Einheiten
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              </Grid>
-              
-              <Grid item xs={12} md={6}>
-                <Typography variant="subtitle2" gutterBottom>
-                  Ausgewählte Einheiten ({selectedUnits.length})
-                </Typography>
-                
-                <TableContainer component={Paper} variant="outlined" sx={{ height: 300, overflow: 'auto' }}>
-                  <Table size="small" stickyHeader>
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Einheits-Nr.</TableCell>
-                        <TableCell>Produkttyp</TableCell>
-                        <TableCell align="right">Gewicht</TableCell>
-                        <TableCell></TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {selectedUnits.length > 0 ? (
-                        selectedUnits.map((unit) => {
-                          const batch = unit.batch || {};
-                          const productType = batch.product_type_display || 'Unbekannt';
-                          const isMarijuana = productType.toLowerCase().includes('marihuana');
-                          
-                          return (
-                            <TableRow key={unit.id}>
-                              <TableCell>{unit.batch_number || '—'}</TableCell>
-                              <TableCell>
-                                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                  {isMarijuana ? (
-                                    <LocalFloristIcon fontSize="small" color="success" sx={{ mr: 0.5 }} />
-                                  ) : (
-                                    <FilterDramaIcon fontSize="small" color="warning" sx={{ mr: 0.5 }} />
-                                  )}
-                                  {productType}
-                                </Box>
-                              </TableCell>
-                              <TableCell align="right">{parseFloat(unit.weight).toFixed(2)}g</TableCell>
-                              <TableCell>
-                                <IconButton 
-                                  size="small" 
-                                  color="error" 
-                                  onClick={() => handleRemoveUnit(unit.id)}
-                                >
-                                  <RemoveIcon fontSize="small" />
-                                </IconButton>
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })
-                      ) : (
-                        <TableRow>
-                          <TableCell colSpan={4} align="center">
-                            Keine Einheiten ausgewählt
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              </Grid>
-            </Grid>
-          </Grid>
-          
-          {/* Zusammenfassung */}
-          {selectedUnits.length > 0 && (
-            <Grid item xs={12}>
-              <Card sx={{ bgcolor: '#f9fbff' }}>
-                <CardContent>
-                  <Typography variant="subtitle1" gutterBottom>
-                    Zusammenfassung
-                  </Typography>
-                  
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
-                    {Object.values(productSummary).map((product, idx) => (
-                      <Chip
-                        key={idx}
-                        icon={product.displayType.toLowerCase().includes('marihuana') ? 
-                              <LocalFloristIcon /> : <FilterDramaIcon />}
-                        label={`${product.displayType}: ${product.count}× (${product.weight.toFixed(2)}g)`}
-                        color={product.displayType.toLowerCase().includes('marihuana') ? 
-                               'success' : 'warning'}
-                      />
-                    ))}
-                  </Box>
-                  
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Typography variant="subtitle2">
-                      Gesamtgewicht:
-                    </Typography>
-                    <Typography variant="h6" color="primary">
-                      {totalWeight.toFixed(2)}g
-                    </Typography>
-                  </Box>
-                </CardContent>
-              </Card>
-            </Grid>
-          )}
-          
-          {/* Notizen */}
-          <Grid item xs={12}>
-            <TextField
-              label="Bemerkungen"
-              multiline
-              rows={3}
-              fullWidth
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-            />
-          </Grid>
-          
-          {/* Buttons */}
-          <Grid item xs={12}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2 }}>
-              <Button 
-                variant="outlined" 
-                color="secondary"
-                onClick={() => {
-                  setSelectedUnits([]);
-                  setNotes('');
-                }}
-                disabled={selectedUnits.length === 0 && !notes}
-              >
-                Zurücksetzen
-              </Button>
-              
-              <Button 
-                type="submit"
-                variant="contained" 
-                color="primary"
-                disabled={!distributorId || !recipientId || selectedUnits.length === 0 || submitting}
-                endIcon={<ArrowForwardIcon />}
-              >
-                {submitting ? 'Speichern...' : 'Produkt ausgeben'}
-              </Button>
-            </Box>
-          </Grid>
-        </Grid>
-      </Paper>
-    </Container>
-  );
-};
+        {/* Filter-Button oben rechts - nur für Tab 1 sichtbar */}
+        {tabValue === 1 && (
+          <Box
+            sx={{
+              border: theme => `1px solid ${alpha(theme.palette.divider, 0.3)}`,
+              borderRadius: '4px',
+              p: 0.75,
+              display: 'inline-flex',
+              alignItems: 'center',
+              backgroundColor: 'background.paper',
+              '&:hover': {
+                backgroundColor: theme => alpha(theme.palette.action.hover, 0.08),
+                borderColor: theme => theme.palette.divider
+              }
+            }}
+          >
+            <Button 
+              variant="text" 
+              color="inherit" 
+              onClick={() => setShowFilters(!showFilters)}
+              startIcon={<FilterListIcon />}
+              sx={{ 
+                textTransform: 'none', 
+                color: 'text.primary',
+                fontSize: '0.875rem'
+              }}
+            >
+              {showFilters ? 'Filter ausblenden' : 'Filter anzeigen'}
+            </Button>
+          </Box>
+        )}
+      </Box>
 
-export default ProductDistributionPage;
+      {/* Statistik-Karten im neuen Design */}
+      <Box sx={{ 
+        p: 2,
+        bgcolor: 'background.paper',
+        borderBottom: theme => `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+        flexShrink: 0
+      }}>
+        <Box sx={{ 
+          display: 'grid', 
+          gridTemplateColumns: {
+            xs: '1fr',
+            sm: 'repeat(2, 1fr)',
+            md: 'repeat(4, 1fr)'
+          },
+          gap: 2
+        }}>
+          {/* Ausgaben */}
+          <Box sx={{ 
+            bgcolor: theme => alpha(theme.palette.success.main, 0.04),
+            borderRadius: 1,
+            overflow: 'hidden',
+            border: theme => `1px solid ${alpha(theme.palette.success.main, 0.12)}`,
+            transition: 'all 0.2s ease',
+            '&:hover': {
+              transform: 'translateY(-2px)',
+              borderColor: theme => alpha(theme.palette.success.main, 0.3)
+            }
+          }}>
+            <Box sx={{ 
+              p: 1.5,
+              position: 'relative'
+            }}>
+              <LocalShippingIcon sx={{ 
+                position: 'absolute',
+                right: 12,
+                top: 12,
+                fontSize: 24,
+                color: 'success.main',
+                opacity: 0.3
+              }} />
+              
+              <Typography variant="h4" fontWeight="bold" color="success.main">
+                {statistics.todayCount}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Ausgaben heute
+              </Typography>
+            </Box>
+            
+            <Box sx={{ 
+              display: 'grid', 
+              gridTemplateColumns: '1fr 1fr',
+              bgcolor: theme => alpha(theme.palette.success.main, 0.04),
+              borderTop: theme => `1px solid ${alpha(theme.palette.success.main, 0.12)}`
+            }}>
+              <Box sx={{ 
+                p: 0.75, 
+                textAlign: 'center',
+                borderRight: theme => `1px solid ${alpha(theme.palette.success.main, 0.12)}`
+              }}>
+                <Typography variant="body2" fontWeight="bold" color="success.main">
+                  {statistics.monthCount}
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
+                  Monat
+                </Typography>
+              </Box>
+              <Box sx={{ p: 0.75, textAlign: 'center' }}>
+                <Typography variant="body2" fontWeight="bold" color="success.main">
+                  {statistics.yearCount}
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
+                  Jahr
+                </Typography>
+              </Box>
+            </Box>
+          </Box>
+          
+          {/* Gesamtmenge */}
+          <Box sx={{ 
+            bgcolor: theme => alpha(theme.palette.success.main, 0.04),
+            borderRadius: 1,
+            overflow: 'hidden',
+            border: theme => `1px solid ${alpha(theme.palette.success.main, 0.12)}`,
+            transition: 'all 0.2s ease',
+            '&:hover': {
+              transform: 'translateY(-2px)',
+              borderColor: theme => alpha(theme.palette.success.main, 0.3)
+            }
+          }}>
+            <Box sx={{ 
+              p: 1.5,
+              position: 'relative'
+            }}>
+              <LocalFloristIcon sx={{ 
+                position: 'absolute',
+                right: 12,
+                top: 12,
+                fontSize: 24,
+                color: 'success.main',
+                opacity: 0.3
+              }} />
+              
+              <Typography variant="h4" fontWeight="bold" color="success.main">
+                {statistics.todayWeight}g
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Gesamtmenge heute
+              </Typography>
+            </Box>
+            
+            <Box sx={{ 
+              display: 'grid', 
+              gridTemplateColumns: '1fr 1fr',
+              bgcolor: theme => alpha(theme.palette.success.main, 0.04),
+              borderTop: theme => `1px solid ${alpha(theme.palette.success.main, 0.12)}`
+            }}>
+              <Box sx={{ 
+                p: 0.75, 
+                textAlign: 'center',
+                borderRight: theme => `1px solid ${alpha(theme.palette.success.main, 0.12)}`
+              }}>
+                <Typography variant="body2" fontWeight="bold" color="success.main">
+                  {statistics.monthWeight}g
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
+                  Monat
+                </Typography>
+              </Box>
+              <Box sx={{ p: 0.75, textAlign: 'center' }}>
+                <Typography variant="body2" fontWeight="bold" color="success.main">
+                  {statistics.yearWeight}g
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
+                  Jahr
+                </Typography>
+              </Box>
+            </Box>
+          </Box>
+          
+          {/* Aktive Mitglieder */}
+          <Box sx={{ 
+            bgcolor: theme => alpha(theme.palette.info.main, 0.04),
+            borderRadius: 1,
+            overflow: 'hidden',
+            border: theme => `1px solid ${alpha(theme.palette.info.main, 0.12)}`,
+            transition: 'all 0.2s ease',
+            '&:hover': {
+              transform: 'translateY(-2px)',
+              borderColor: theme => alpha(theme.palette.info.main, 0.3)
+            }
+          }}>
+            <Box sx={{ 
+              p: 1.5,
+              position: 'relative'
+            }}>
+              <PeopleIcon sx={{ 
+                position: 'absolute',
+                right: 12,
+                top: 12,
+                fontSize: 24,
+                color: 'info.main',
+                opacity: 0.3
+              }} />
+              
+              <Typography variant="h4" fontWeight="bold" color="info.main">
+                {statistics.todayActiveMembers}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Aktive Mitglieder heute
+              </Typography>
+            </Box>
+            
+            <Box sx={{ 
+              display: 'grid', 
+              gridTemplateColumns: '1fr 1fr',
+              bgcolor: theme => alpha(theme.palette.info.main, 0.04),
+              borderTop: theme => `1px solid ${alpha(theme.palette.info.main, 0.12)}`
+            }}>
+              <Box sx={{ 
+                p: 0.75, 
+                textAlign: 'center',
+                borderRight: theme => `1px solid ${alpha(theme.palette.info.main, 0.12)}`
+              }}>
+                <Typography variant="body2" fontWeight="bold" color="info.main">
+                  {statistics.monthActiveMembers}
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
+                  Monat
+                </Typography>
+              </Box>
+              <Box sx={{ p: 0.75, textAlign: 'center' }}>
+                <Typography variant="body2" fontWeight="bold" color="info.main">
+                  {statistics.yearActiveMembers}
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
+                  Jahr
+                </Typography>
+              </Box>
+            </Box>
+          </Box>
+          
+          {/* Verfügbare Einheiten */}
+          <Box sx={{ 
+            bgcolor: theme => alpha(theme.palette.warning.main, 0.04),
+            borderRadius: 1,
+            overflow: 'hidden',
+            border: theme => `1px solid ${alpha(theme.palette.warning.main, 0.12)}`,
+            transition: 'all 0.2s ease',
+            '&:hover': {
+              transform: 'translateY(-2px)',
+              borderColor: theme => alpha(theme.palette.warning.main, 0.3)
+            }
+          }}>
+            <Box sx={{ 
+              p: 1.5,
+              position: 'relative'
+            }}>
+              <InventoryIcon sx={{ 
+                position: 'absolute',
+                right: 12,
+                top: 12,
+                fontSize: 24,
+                color: 'warning.main',
+                opacity: 0.3
+              }} />
+              
+              <Typography variant="h4" fontWeight="bold" color="warning.main">
+                {statistics.availableUnits}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Verfügbare Einheiten
+              </Typography>
+            </Box>
+            
+            <Box sx={{ 
+              display: 'grid', 
+              gridTemplateColumns: '1fr 1fr',
+              bgcolor: theme => alpha(theme.palette.warning.main, 0.04),
+              borderTop: theme => `1px solid ${alpha(theme.palette.warning.main, 0.12)}`
+            }}>
+              <Box sx={{ 
+                p: 0.75, 
+                textAlign: 'center',
+                borderRight: theme => `1px solid ${alpha(theme.palette.warning.main, 0.12)}`
+              }}>
+                <Typography variant="body2" fontWeight="bold" color="warning.main">
+                  {statistics.marijuanaDistributed}
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
+                  Marihuana heute
+                </Typography>
+              </Box>
+              <Box sx={{ p: 0.75, textAlign: 'center' }}>
+                <Typography variant="body2" fontWeight="bold" color="warning.main">
+                  {statistics.hashishDistributed}
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
+                  Haschisch heute
+                </Typography>
+              </Box>
+            </Box>
+          </Box>
+        </Box>
+      </Box>
+
+      {/* Tabs - direkt anschließend ohne Lücke */}
+      <Box sx={{ flexShrink: 0 }}>
+        <TabsHeader 
+          tabValue={tabValue} 
+          onTabChange={handleTabChange} 
+          tabs={tabs}
+          color="primary"
+          ariaLabel="Produktausgabe-Tabs"
+        />
+      </Box>
+
+      {/* Hauptinhalt mit Scroll */}
+      <Box sx={{ 
+        flex: 1, 
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+        position: 'relative'
+      }}>
+        {loading ? (
+          <Box sx={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            height: '100%'
+          }}>
+            <LoadingIndicator />
+          </Box>
+        ) : (
+          <Box sx={{ 
+            height: '100%', 
+            display: 'flex', 
+            flexDirection: 'column',
+            overflow: 'hidden'
+          }}>
+            <AnimatedTabPanel 
+              value={tabValue} 
+              index={0} 
+              animationType={animSettings.type} 
+              direction="right" 
+              duration={animSettings.duration}
+              sx={{ 
+                height: '100%', 
+                p: 0,
+                m: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden'
+              }}
+            >
+              <NewDistribution 
+                members={members}
+                rooms={rooms}
+                availableUnits={availableUnits}
+                onSuccess={refreshData}
+              />
+            </AnimatedTabPanel>
+            
+            <AnimatedTabPanel 
+              value={tabValue} 
+              index={1} 
+              animationType={animSettings.type} 
+              direction="up" 
+              duration={animSettings.duration}
+              sx={{ 
+                height: '100%', 
+                p: 0,
+                m: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden'
+              }}
+            >
+              {/* Filter Section für Historie */}
+              {showFilters && tabValue === 1 && (
+                <Box sx={{ 
+                  borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+                  flexShrink: 0
+                }}>
+                  <FilterSection
+                    yearFilter={yearFilter}
+                    setYearFilter={setYearFilter}
+                    monthFilter={monthFilter}
+                    setMonthFilter={setMonthFilter}
+                    dayFilter={dayFilter}
+                    setDayFilter={setDayFilter}
+                    onApply={handleFilterApply}
+                    onReset={handleFilterReset}
+                    showFilters={showFilters}
+                  />
+                </Box>
+              )}
+              
+              <DistributionHistory 
+                distributions={distributions}
+                members={members}
+                onRefresh={loadDistributions}
+                recipientFilter={recipientFilter}
+                setRecipientFilter={setRecipientFilter}
+                distributorFilter={distributorFilter}
+                setDistributorFilter={setDistributorFilter}
+              />
+            </AnimatedTabPanel>
+            
+            <AnimatedTabPanel 
+              value={tabValue} 
+              index={2} 
+              animationType={animSettings.type} 
+              direction="left" 
+              duration={animSettings.duration}
+              sx={{ 
+                height: '100%', 
+                p: 3,
+                m: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'auto'
+              }}
+            >
+              <DistributionAnalytics 
+                distributions={distributions}
+                statistics={statistics}
+              />
+            </AnimatedTabPanel>
+          </Box>
+        )}
+      </Box>
+    </Box>
+  )
+}

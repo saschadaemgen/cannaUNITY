@@ -30,6 +30,21 @@ class Room(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    unifi_device_id = models.CharField(
+        max_length=255, 
+        blank=True, 
+        null=True,
+        unique=True,  # WICHTIG: Nur ein Raum pro Device!
+        help_text="UniFi Access Device ID für Türzugang"
+    )
+
+    protect_sensors = models.ManyToManyField(
+        'unifi_protect.ProtectSensor',
+        blank=True,
+        related_name='rooms',
+        help_text="UniFi Protect Sensoren in diesem Raum"
+    )
+
     def __str__(self):
         return self.name
     

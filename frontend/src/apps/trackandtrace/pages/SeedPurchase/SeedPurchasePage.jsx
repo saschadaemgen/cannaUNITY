@@ -1,12 +1,11 @@
 // frontend/src/apps/trackandtrace/pages/SeedPurchase/SeedPurchasePage.jsx
 import { useState, useEffect } from 'react'
-import { Container, Button, Box, Typography, Fade } from '@mui/material'
+import { Box, Typography, Fade, Snackbar, Alert, alpha, Button } from '@mui/material'
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
+import FilterListIcon from '@mui/icons-material/FilterList'
 import api from '@/utils/api'
 
 // Gemeinsame Komponenten
-import PageHeader from '@/components/common/PageHeader'
-import FilterSection from '@/components/common/FilterSection'
 import TabsHeader from '@/components/common/TabsHeader'
 import LoadingIndicator from '@/components/common/LoadingIndicator'
 import AnimatedTabPanel from '@/components/common/AnimatedTabPanel'
@@ -15,6 +14,7 @@ import AnimatedTabPanel from '@/components/common/AnimatedTabPanel'
 import SeedPurchaseForm from './SeedPurchaseForm'
 import ConvertDialog from '@/components/dialogs/ConvertDialog'
 import DestroyDialog from '@/components/dialogs/DestroyDialog'
+import ImageUploadModal from '../../components/ImageUploadModal'
 
 // Spezifische Komponenten
 import SeedTable from './components/SeedTable'
@@ -39,6 +39,18 @@ export default function SeedPurchasePage() {
   const [totalPages, setTotalPages] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [totalCount, setTotalCount] = useState(0)
+  
+  // State für Bilderverwaltung
+  const [openImageModal, setOpenImageModal] = useState(false)
+  const [selectedProductForImages, setSelectedProductForImages] = useState(null)
+  
+  // State für globale Snackbar
+  const [globalSnackbar, setGlobalSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'success',
+    duration: 6000
+  })
   
   // Optionen für Page Size Dropdown
   const pageSizeOptions = [5, 10, 15, 25, 50]
@@ -77,12 +89,35 @@ export default function SeedPurchasePage() {
   // State für die Mitglieder- und Raumauswahl bei Konvertierung
   const [selectedMemberId, setSelectedMemberId] = useState('')
   const [selectedRoomId, setSelectedRoomId] = useState('')
+  
+  // NEU: Separater State für Destroy-Dialog Raum (optional, falls du Convert und Destroy trennen willst)
+  const [destroyRoomId, setDestroyRoomId] = useState('')
 
   // State für die Mitgliederauswahl bei Vernichtung
   const [destroyedByMemberId, setDestroyedByMemberId] = useState('')
   
   // Akkordeon-State
   const [expandedSeedId, setExpandedSeedId] = useState('')
+
+  // Snackbar schließen
+  const handleCloseGlobalSnackbar = () => {
+    setGlobalSnackbar(prev => ({ ...prev, open: false }));
+  };
+
+  // Handler für Bilder-Modal
+  const handleOpenImageModal = (item, event) => {
+    if (event) {
+      event.stopPropagation()
+    }
+    setSelectedProductForImages(item)
+    setOpenImageModal(true)
+  }
+
+  const handleCloseImageModal = () => {
+    setOpenImageModal(false)
+    setSelectedProductForImages(null)
+    refreshData() // Um die Bildanzahl zu aktualisieren
+  }
 
   const loadSeeds = async (page = 1) => {
     setLoading(true)
@@ -116,6 +151,12 @@ export default function SeedPurchasePage() {
       setCurrentPage(page);
     } catch (error) {
       console.error('Fehler beim Laden der Samen:', error)
+      setGlobalSnackbar({
+        open: true, 
+        message: 'Fehler beim Laden der Samen: ' + (error.response?.data?.error || error.message), 
+        severity: 'error',
+        duration: 6000
+      })
     } finally {
       setLoading(false)
     }
@@ -147,6 +188,12 @@ export default function SeedPurchasePage() {
       setCurrentPage(page);
     } catch (error) {
       console.error('Fehler beim Laden der Mutterpflanzen-Batches:', error);
+      setGlobalSnackbar({
+        open: true, 
+        message: 'Fehler beim Laden der Mutterpflanzen-Batches: ' + (error.response?.data?.error || error.message), 
+        severity: 'error',
+        duration: 6000
+      })
     } finally {
       setLoading(false);
     }
@@ -178,6 +225,12 @@ export default function SeedPurchasePage() {
       setCurrentPage(page);
     } catch (error) {
       console.error('Fehler beim Laden der Blühpflanzen-Batches:', error);
+      setGlobalSnackbar({
+        open: true, 
+        message: 'Fehler beim Laden der Blühpflanzen-Batches: ' + (error.response?.data?.error || error.message), 
+        severity: 'error',
+        duration: 6000
+      })
     } finally {
       setLoading(false);
     }
@@ -204,6 +257,12 @@ export default function SeedPurchasePage() {
       setRooms(roomsRes.data.results || [])
     } catch (error) {
       console.error('Fehler beim Laden der Mitglieder und Räume:', error)
+      setGlobalSnackbar({
+        open: true, 
+        message: 'Fehler beim Laden der Mitglieder und Räume: ' + (error.response?.data?.error || error.message), 
+        severity: 'error',
+        duration: 6000
+      })
     } finally {
       setLoadingOptions(false)
     }
@@ -227,6 +286,12 @@ export default function SeedPurchasePage() {
       setFloweringPlantCount(res.data.flowering_plant_count || 0);
     } catch (error) {
       console.error('Fehler beim Laden der Zähler:', error);
+      setGlobalSnackbar({
+        open: true, 
+        message: 'Fehler beim Laden der Zähler: ' + (error.response?.data?.error || error.message), 
+        severity: 'error',
+        duration: 6000
+      })
     }
   };
 
@@ -241,6 +306,21 @@ export default function SeedPurchasePage() {
     }
     
     loadCounts();
+  };
+  
+  // Erfolgshandler für Seed-Erstellung
+  const handleSeedSuccess = (message, memberName) => {
+    setOpenForm(false);
+    setSelectedSeed(null);
+    refreshData();
+    
+    // Ausführlichere Snackbar-Meldung mit längerer Anzeigedauer
+    setGlobalSnackbar({
+      open: true,
+      message: `${message} - Autorisiert durch: ${memberName || 'Unbekannt'} - Samen ist jetzt in der Übersicht sichtbar`,
+      severity: 'success',
+      duration: 10000 // 10 Sekunden anzeigen statt der Standard 6 Sekunden
+    });
   };
 
   // Handler für Änderung der Anzahl der Einträge pro Seite
@@ -289,6 +369,12 @@ export default function SeedPurchasePage() {
           })
           .catch(error => {
             console.error('Fehler beim Laden der Samen:', error);
+            setGlobalSnackbar({
+              open: true, 
+              message: 'Fehler beim Laden der Samen: ' + (error.response?.data?.error || error.message), 
+              severity: 'error',
+              duration: 6000
+            })
           })
           .finally(() => {
             setLoading(false);
@@ -317,6 +403,12 @@ export default function SeedPurchasePage() {
           })
           .catch(error => {
             console.error('Fehler beim Laden der Mutterpflanzen-Batches:', error);
+            setGlobalSnackbar({
+              open: true, 
+              message: 'Fehler beim Laden der Mutterpflanzen-Batches: ' + (error.response?.data?.error || error.message), 
+              severity: 'error',
+              duration: 6000
+            })
           })
           .finally(() => {
             setLoading(false);
@@ -345,6 +437,12 @@ export default function SeedPurchasePage() {
           })
           .catch(error => {
             console.error('Fehler beim Laden der Blühpflanzen-Batches:', error);
+            setGlobalSnackbar({
+              open: true, 
+              message: 'Fehler beim Laden der Blühpflanzen-Batches: ' + (error.response?.data?.error || error.message), 
+              severity: 'error',
+              duration: 6000
+            })
           })
           .finally(() => {
             setLoading(false);
@@ -418,7 +516,7 @@ export default function SeedPurchasePage() {
     setOpenConvertDialog(true)
   }
 
-  const handleConvert = async () => {
+  const handleConvert = async (rfidMemberId = null) => {
     if (!selectedSeed || !convertType) return
 
     try {
@@ -426,18 +524,34 @@ export default function SeedPurchasePage() {
         ? `/trackandtrace/seeds/${selectedSeed.id}/convert_to_mother/`
         : `/trackandtrace/seeds/${selectedSeed.id}/convert_to_flower/`
 
-      await api.post(endpoint, {
+      const response = await api.post(endpoint, {
         quantity: convertQuantity,
         notes: convertNotes,
-        member_id: selectedMemberId || null,
+        member_id: rfidMemberId || selectedMemberId || null,
         room_id: selectedRoomId || null
       })
 
       setOpenConvertDialog(false)
       refreshData()
+      
+      // Finde den Member-Namen für die Snackbar-Meldung
+      const memberName = members.find(m => m.id === selectedMemberId)?.display_name || "Unbekannt"
+      
+      // Erfolgsbenachrichtigung anzeigen
+      setGlobalSnackbar({
+        open: true,
+        message: `Samen erfolgreich zu ${convertType === 'mother' ? 'Mutterpflanzen' : 'Blühpflanzen'} konvertiert - Autorisiert durch: ${memberName}`,
+        severity: 'success',
+        duration: 10000
+      })
     } catch (error) {
       console.error('Fehler bei der Konvertierung:', error)
-      alert(error.response?.data?.error || 'Ein Fehler ist aufgetreten')
+      setGlobalSnackbar({
+        open: true,
+        message: error.response?.data?.error || 'Ein Fehler ist bei der Konvertierung aufgetreten',
+        severity: 'error',
+        duration: 6000
+      })
     }
   }
 
@@ -451,6 +565,14 @@ export default function SeedPurchasePage() {
     setDestroyReason('')
     setDestroyQuantity(1)
     setDestroyedByMemberId('')
+    
+    // NEU: Setze den Raum für Destroy-Dialog
+    // Option 1: Verwende den gemeinsamen selectedRoomId
+    setSelectedRoomId(seed?.room?.id || '')
+    
+    // Option 2: Verwende den separaten destroyRoomId (falls du sie trennen willst)
+    // setDestroyRoomId(seed?.room?.id || '')
+    
     setOpenDestroyDialog(true)
   }
   
@@ -473,6 +595,17 @@ export default function SeedPurchasePage() {
           quantity: destroyQuantity,
           destroyed_by_id: destroyedByMemberId || null
         });
+        
+        // Finde den Member-Namen für die Snackbar-Meldung
+        const memberName = members.find(m => m.id === destroyedByMemberId)?.display_name || "Unbekannt"
+        
+        // Erfolgsbenachrichtigung anzeigen
+        setGlobalSnackbar({
+          open: true,
+          message: `Samen erfolgreich vernichtet - Autorisiert durch: ${memberName}`,
+          severity: 'success',
+          duration: 10000
+        })
       }
 
       setOpenDestroyDialog(false);
@@ -480,7 +613,12 @@ export default function SeedPurchasePage() {
       refreshData();
     } catch (error) {
       console.error('Fehler bei der Vernichtung:', error);
-      alert(error.response?.data?.error || 'Ein Fehler ist aufgetreten');
+      setGlobalSnackbar({
+        open: true,
+        message: error.response?.data?.error || 'Ein Fehler ist bei der Vernichtung aufgetreten',
+        severity: 'error',
+        duration: 6000
+      })
     }
   }
   
@@ -581,161 +719,276 @@ export default function SeedPurchasePage() {
     }
   ];
 
+  // Gemeinsame Styles für AnimatedTabPanel
+  const tabPanelStyles = {
+    height: '100%', 
+    p: 0,
+    m: 0,
+    mt: 0, // Explizit kein margin-top
+    pt: 0, // Explizit kein padding-top
+    '& > div': { // Direktes Kind-Div von AnimatedTabPanel
+      height: '100%',
+      margin: 0,
+      marginTop: 0,
+      padding: 0,
+      paddingTop: 0
+    },
+    '& > div > div': { // Zweite Ebene für sicheres Styling
+      marginTop: 0,
+      paddingTop: 0
+    },
+    display: 'flex',
+    flexDirection: 'column',
+    overflow: 'hidden'
+  };
+
   return (
-    <Container maxWidth="xl" sx={{ width: '100%' }}>
-      <Fade in={true} timeout={800}>
-        <Box>
-          <PageHeader 
-            title="Track & Trace Verwaltung: Step 1 - (Samenbeschaffung)"
-            showFilters={showFilters}
-            setShowFilters={setShowFilters}
-            actions={
-              tabValue === 0 && (
-                <Button 
-                  variant="contained" 
-                  color="success"
-                  onClick={() => {
-                    setSelectedSeed(null)
-                    setOpenForm(true)
-                  }}
-                >
-                  NEUER SAMEN EINKAUF
-                </Button>
-              )
+    <Box sx={{ 
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden'
+    }}>
+      {/* Header mit Titel */}
+      <Box sx={{ 
+        p: 2, 
+        bgcolor: 'background.paper',
+        borderBottom: theme => `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }}>
+        <Typography variant="h5" sx={{ fontWeight: 500 }}>
+          Track & Trace Verwaltung: Step 1 - (Samenbeschaffung)
+        </Typography>
+        
+        {/* Filter-Button oben rechts */}
+        <Box
+          sx={{
+            border: theme => `1px solid ${alpha(theme.palette.divider, 0.3)}`,
+            borderRadius: '4px',
+            p: 0.75,
+            display: 'inline-flex',
+            alignItems: 'center',
+            backgroundColor: 'background.paper',
+            '&:hover': {
+              backgroundColor: theme => alpha(theme.palette.action.hover, 0.08),
+              borderColor: theme => theme.palette.divider
             }
-          />
+          }}
+        >
+          <Button 
+            variant="text" 
+            color="inherit" 
+            onClick={() => setShowFilters(!showFilters)}
+            startIcon={<FilterListIcon />}
+            sx={{ 
+              textTransform: 'none', 
+              color: 'text.primary',
+              fontSize: '0.875rem'
+            }}
+          >
+            {showFilters ? 'Filter ausblenden' : 'Filter anzeigen'}
+          </Button>
         </Box>
-      </Fade>
-      
-      <Fade in={showFilters} timeout={400}>
-        <Box sx={{ display: showFilters ? 'block' : 'none' }}>
-          <FilterSection
-            yearFilter={yearFilter}
-            setYearFilter={setYearFilter}
-            monthFilter={monthFilter}
-            setMonthFilter={setMonthFilter}
-            dayFilter={dayFilter}
-            setDayFilter={setDayFilter}
-            onApply={handleFilterApply}
-            onReset={handleFilterReset}
-            showFilters={showFilters}
-          />
-        </Box>
-      </Fade>
+      </Box>
 
-      <TabsHeader 
-        tabValue={tabValue} 
-        onTabChange={handleTabChange} 
-        tabs={tabs}
-        color="success"
-        ariaLabel="Samen-Tabs"
-      />
+      {/* Tabs - direkt anschließend ohne Lücke */}
+      <Box sx={{ flexShrink: 0 }}>
+        <TabsHeader 
+          tabValue={tabValue} 
+          onTabChange={handleTabChange} 
+          tabs={tabs}
+          color="success"
+          ariaLabel="Samen-Tabs"
+        />
+      </Box>
 
-      {loading ? (
-        <LoadingIndicator />
-      ) : (
-        <>
-          <AnimatedTabPanel 
-            value={tabValue} 
-            index={0} 
-            animationType={animSettings.type} 
-            direction="right" 
-            duration={animSettings.duration}
-          >
-            <SeedTable 
-              tabValue={0}
-              data={displayedData}
-              expandedSeedId={expandedSeedId}
-              onExpandSeed={handleAccordionChange}
-              onOpenConvertDialog={handleOpenConvertDialog}
-              onOpenDestroyDialog={handleOpenDestroyDialog}
-              onOpenEditForm={handleOpenEditForm}
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={handlePageChange}
-              pageSize={pageSize}
-              onPageSizeChange={handlePageSizeChange}
-              pageSizeOptions={pageSizeOptions}
-              totalCount={totalCount}
-            />
-          </AnimatedTabPanel>
+      {/* Hauptinhalt mit Scroll */}
+      <Box sx={{ 
+        flex: 1, 
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden', // Wichtig: Container selbst nicht scrollen
+        position: 'relative'
+      }}>
+        {loading ? (
+          <Box sx={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            height: '100%'
+          }}>
+            <LoadingIndicator />
+          </Box>
+        ) : (
+          <Box sx={{ 
+            height: '100%', 
+            display: 'flex', 
+            flexDirection: 'column',
+            overflow: 'hidden' // Kein Scroll hier
+          }}>
+            <AnimatedTabPanel 
+              value={tabValue} 
+              index={0} 
+              animationType={animSettings.type} 
+              direction="right" 
+              duration={animSettings.duration}
+              sx={{ 
+                height: '100%', 
+                p: 0,
+                m: 0, // Kein Margin
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden'
+              }}
+            >
+              <SeedTable 
+                tabValue={0}
+                data={displayedData}
+                expandedSeedId={expandedSeedId}
+                onExpandSeed={handleAccordionChange}
+                onOpenConvertDialog={handleOpenConvertDialog}
+                onOpenDestroyDialog={handleOpenDestroyDialog}
+                onOpenEditForm={handleOpenEditForm}
+                onOpenImageModal={handleOpenImageModal}
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+                pageSize={pageSize}
+                onPageSizeChange={handlePageSizeChange}
+                pageSizeOptions={pageSizeOptions}
+                totalCount={totalCount}
+                yearFilter={yearFilter}
+                setYearFilter={setYearFilter}
+                monthFilter={monthFilter}
+                setMonthFilter={setMonthFilter}
+                dayFilter={dayFilter}
+                setDayFilter={setDayFilter}
+                showFilters={showFilters}
+                setShowFilters={setShowFilters}
+                onFilterApply={handleFilterApply}
+                onFilterReset={handleFilterReset}
+              />
+            </AnimatedTabPanel>
 
-          <AnimatedTabPanel 
-            value={tabValue} 
-            index={1} 
-            animationType={animSettings.type} 
-            direction="up" 
-            duration={animSettings.duration}
-          >
-            <SeedTable 
-              tabValue={1}
-              data={displayedData}
-              expandedSeedId={expandedSeedId}
-              onExpandSeed={handleAccordionChange}
-              onOpenConvertDialog={handleOpenConvertDialog}
-              onOpenDestroyDialog={handleOpenDestroyDialog}
-              onOpenEditForm={handleOpenEditForm}
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={handlePageChange}
-              pageSize={pageSize}
-              onPageSizeChange={handlePageSizeChange}
-              pageSizeOptions={pageSizeOptions}
-              totalCount={totalCount}
-            />
-          </AnimatedTabPanel>
+            <AnimatedTabPanel 
+              value={tabValue} 
+              index={1} 
+              animationType={animSettings.type} 
+              direction="up" 
+              duration={animSettings.duration}
+              sx={{ height: '100%', p: 0 }}
+            >
+              <SeedTable 
+                tabValue={1}
+                data={displayedData}
+                expandedSeedId={expandedSeedId}
+                onExpandSeed={handleAccordionChange}
+                onOpenConvertDialog={handleOpenConvertDialog}
+                onOpenDestroyDialog={handleOpenDestroyDialog}
+                onOpenEditForm={handleOpenEditForm}
+                onOpenImageModal={handleOpenImageModal}
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+                pageSize={pageSize}
+                onPageSizeChange={handlePageSizeChange}
+                pageSizeOptions={pageSizeOptions}
+                totalCount={totalCount}
+                yearFilter={yearFilter}
+                setYearFilter={setYearFilter}
+                monthFilter={monthFilter}
+                setMonthFilter={setMonthFilter}
+                dayFilter={dayFilter}
+                setDayFilter={setDayFilter}
+                showFilters={showFilters}
+                setShowFilters={setShowFilters}
+                onFilterApply={handleFilterApply}
+                onFilterReset={handleFilterReset}
+              />
+            </AnimatedTabPanel>
 
-          <AnimatedTabPanel 
-            value={tabValue} 
-            index={2} 
-            animationType={animSettings.type} 
-            direction="up" 
-            duration={animSettings.duration}
-          >
-            <SeedTable 
-              tabValue={2}
-              data={displayedData}
-              expandedSeedId={expandedSeedId}
-              onExpandSeed={handleAccordionChange}
-              onOpenConvertDialog={handleOpenConvertDialog}
-              onOpenDestroyDialog={handleOpenDestroyDialog}
-              onOpenEditForm={handleOpenEditForm}
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={handlePageChange}
-              pageSize={pageSize}
-              onPageSizeChange={handlePageSizeChange}
-              pageSizeOptions={pageSizeOptions}
-              totalCount={totalCount}
-            />
-          </AnimatedTabPanel>
+            <AnimatedTabPanel 
+              value={tabValue} 
+              index={2} 
+              animationType={animSettings.type} 
+              direction="up" 
+              duration={animSettings.duration}
+              sx={{ height: '100%' }}
+            >
+              <SeedTable 
+                tabValue={2}
+                data={displayedData}
+                expandedSeedId={expandedSeedId}
+                onExpandSeed={handleAccordionChange}
+                onOpenConvertDialog={handleOpenConvertDialog}
+                onOpenDestroyDialog={handleOpenDestroyDialog}
+                onOpenEditForm={handleOpenEditForm}
+                onOpenImageModal={handleOpenImageModal}
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+                pageSize={pageSize}
+                onPageSizeChange={handlePageSizeChange}
+                pageSizeOptions={pageSizeOptions}
+                totalCount={totalCount}
+                yearFilter={yearFilter}
+                setYearFilter={setYearFilter}
+                monthFilter={monthFilter}
+                setMonthFilter={setMonthFilter}
+                dayFilter={dayFilter}
+                setDayFilter={setDayFilter}
+                showFilters={showFilters}
+                setShowFilters={setShowFilters}
+                onFilterApply={handleFilterApply}
+                onFilterReset={handleFilterReset}
+              />
+            </AnimatedTabPanel>
 
-          <AnimatedTabPanel 
-            value={tabValue} 
-            index={3} 
-            animationType={animSettings.type} 
-            direction="left" 
-            duration={animSettings.duration}
-          >
-            <SeedTable 
-              tabValue={3}
-              data={displayedData}
-              expandedSeedId={expandedSeedId}
-              onExpandSeed={handleAccordionChange}
-              onOpenConvertDialog={handleOpenConvertDialog}
-              onOpenDestroyDialog={handleOpenDestroyDialog}
-              onOpenEditForm={handleOpenEditForm}
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={handlePageChange}
-              pageSize={pageSize}
-              onPageSizeChange={handlePageSizeChange}
-              pageSizeOptions={pageSizeOptions}
-              totalCount={totalCount}
-            />
-          </AnimatedTabPanel>
-        </>
-      )}
+            <AnimatedTabPanel 
+              value={tabValue} 
+              index={3} 
+              animationType={animSettings.type} 
+              direction="left" 
+              duration={animSettings.duration}
+              sx={{ height: '100%' }}
+            >
+              <SeedTable 
+                tabValue={3}
+                data={displayedData}
+                expandedSeedId={expandedSeedId}
+                onExpandSeed={handleAccordionChange}
+                onOpenConvertDialog={handleOpenConvertDialog}
+                onOpenDestroyDialog={handleOpenDestroyDialog}
+                onOpenEditForm={handleOpenEditForm}
+                onOpenImageModal={handleOpenImageModal}
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+                pageSize={pageSize}
+                onPageSizeChange={handlePageSizeChange}
+                pageSizeOptions={pageSizeOptions}
+                totalCount={totalCount}
+                yearFilter={yearFilter}
+                setYearFilter={setYearFilter}
+                monthFilter={monthFilter}
+                setMonthFilter={setMonthFilter}
+                dayFilter={dayFilter}
+                setDayFilter={setDayFilter}
+                showFilters={showFilters}
+                setShowFilters={setShowFilters}
+                onFilterApply={handleFilterApply}
+                onFilterReset={handleFilterReset}
+              />
+            </AnimatedTabPanel>
+          </Box>
+        )}
+      </Box>
 
       <Fade in={openForm} timeout={500}>
         <div style={{ display: openForm ? 'block' : 'none' }}>
@@ -745,11 +998,7 @@ export default function SeedPurchasePage() {
               setOpenForm(false)
               setSelectedSeed(null)
             }}
-            onSuccess={() => {
-              setOpenForm(false)
-              setSelectedSeed(null)
-              refreshData()
-            }}
+            onSuccess={handleSeedSuccess}
             initialData={selectedSeed || {}}
           />
         </div>
@@ -793,9 +1042,41 @@ export default function SeedPurchasePage() {
             setQuantity={setDestroyQuantity}
             showQuantity={tabValue === 0}
             maxQuantity={selectedSeed?.remaining_quantity || 1}
+            rooms={rooms}
+            selectedRoomId={selectedRoomId}  // Option 1: Gemeinsamer State
+            setSelectedRoomId={setSelectedRoomId}  // Option 1: Gemeinsamer State
+            // selectedRoomId={destroyRoomId}  // Option 2: Separater State
+            // setSelectedRoomId={setDestroyRoomId}  // Option 2: Separater State
           />
         </div>
       </Fade>
-    </Container>
+
+      {/* Image Upload Modal */}
+      <ImageUploadModal
+        open={openImageModal}
+        onClose={handleCloseImageModal}
+        productType="seed"
+        productId={selectedProductForImages?.id}
+        productName={selectedProductForImages?.strain_name}
+        onImagesUpdated={refreshData}
+      />
+      
+      {/* Globale Snackbar-Komponente */}
+      <Snackbar 
+        open={globalSnackbar.open} 
+        autoHideDuration={globalSnackbar.duration || 6000} 
+        onClose={handleCloseGlobalSnackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }} // Gut sichtbar am unteren Bildschirmrand
+      >
+        <Alert 
+          onClose={handleCloseGlobalSnackbar} 
+          severity={globalSnackbar.severity} 
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          {globalSnackbar.message}
+        </Alert>
+      </Snackbar>
+    </Box>
   )
 }

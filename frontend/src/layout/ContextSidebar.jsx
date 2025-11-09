@@ -21,33 +21,35 @@ import WawiMenu from '../apps/wawi/components/WawiMenu'
 import RoomMenu from '../apps/rooms/components/RoomMenu'
 import SecurityMenu from '../apps/security/components/SecurityMenu'
 import OptionsMenu from '../apps/options/components/OptionsMenu'
+import TaskManagerMenu from '../apps/taskmanager/components/TaskManagerMenu'
 
 export default function ContextSidebar() {
   const theme = useTheme()
   const location = useLocation()
-  const [collapsed, setCollapsed] = useState(true)  // Default: eingeklappt
+  const [collapsed, setCollapsed] = useState(true)
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   
-  // Initialer Zustand: immer eingeklappt, außer explizit anders gespeichert
+  // Check if we're in Track & Trace section
+  const isTrackTrace = location.pathname.startsWith('/trackandtrace') || location.pathname.startsWith('/trace')
+  
+  // Track & Trace hat immer 64px und keinen Toggle
+  const sidebarWidth = isTrackTrace ? 64 : (collapsed ? 64 : 240)
+  
+  // Initialer Zustand
   useEffect(() => {
     const savedState = localStorage.getItem('sidebarCollapsed')
-    // Nur wenn explizit ausgeklappt gespeichert, sonst immer eingeklappt
-    if (savedState === 'false') {
+    if (savedState === 'false' && !isTrackTrace) {
       setCollapsed(false)
     } else {
-      // In allen anderen Fällen: eingeklappt
       setCollapsed(true)
-      // Speichern des Zustands
       localStorage.setItem('sidebarCollapsed', 'true')
     }
-  }, [])
+  }, [isTrackTrace])
   
-  // Sidebar-Zustand speichern UND EVENT AUSLÖSEN, wenn er sich ändert
+  // Sidebar-Zustand speichern UND EVENT AUSLÖSEN
   useEffect(() => {
-    // Zustand im localStorage speichern
     localStorage.setItem('sidebarCollapsed', collapsed.toString())
     
-    // Explizites Event auslösen für das MainLayout
     const event = new CustomEvent('sidebarToggle', { 
       detail: { collapsed: collapsed } 
     })
@@ -56,15 +58,18 @@ export default function ContextSidebar() {
   
   // Toggle-Funktion für die Sidebar
   const toggleSidebar = () => {
-    setCollapsed(!collapsed)
+    if (!isTrackTrace) {
+      setCollapsed(!collapsed)
+    }
   }
   
   // Bestimmen des aktiven Menüs basierend auf dem aktuellen Pfad
   const renderMenu = () => {
     if (location.pathname.startsWith('/mitglieder')) {
       return <MemberMenu collapsed={collapsed} />
-    } else if (location.pathname.startsWith('/trackandtrace') || location.pathname.startsWith('/trace')) {
-      return <TrackTraceMenu collapsed={collapsed} />
+    } else if (isTrackTrace) {
+      // Track & Trace braucht keine collapsed prop mehr
+      return <TrackTraceMenu />
     } else if (location.pathname.startsWith('/buchhaltung')) {
       return <BuchhaltungMenu collapsed={collapsed} />
     } else if (location.pathname.startsWith('/wawi')) {
@@ -79,6 +84,8 @@ export default function ContextSidebar() {
       return <SecurityMenu collapsed={collapsed} />
     } else if (location.pathname.startsWith('/options')) {
       return <OptionsMenu collapsed={collapsed} />
+    } else if (location.pathname.startsWith('/taskmanager')) {
+      return <TaskManagerMenu collapsed={collapsed} />
     } else {
       return <DefaultMenu collapsed={collapsed} />
     }
@@ -87,8 +94,8 @@ export default function ContextSidebar() {
   return (
     <Box
       sx={{
-        width: collapsed ? 64 : 240,
-        transition: 'width 0.3s ease',
+        width: sidebarWidth,
+        transition: isTrackTrace ? 'none' : 'width 0.3s ease',
         bgcolor:
           theme.palette.mode === 'dark'
             ? theme.palette.grey[900]
@@ -98,7 +105,7 @@ export default function ContextSidebar() {
           theme.palette.mode === 'dark'
             ? theme.palette.grey[800]
             : theme.palette.grey[300],
-        pt: 2,
+        pt: isTrackTrace ? 0 : 2, // Kein padding-top für Track & Trace
         position: 'relative',
         height: '100%',
         display: 'flex',
@@ -110,38 +117,40 @@ export default function ContextSidebar() {
         {renderMenu()}
       </Box>
       
-      {/* Toggle-Button unten in der Sidebar */}
-      <Box
-        sx={{
-          display: 'flex',
-          justifyContent: 'center',
-          padding: '12px 0',
-          borderTop: '1px solid',
-          borderTopColor:
-            theme.palette.mode === 'dark'
-              ? alpha(theme.palette.grey[700], 0.5)
-              : alpha(theme.palette.grey[300], 0.5),
-        }}
-      >
-        <IconButton
-          onClick={toggleSidebar}
-          size="small"
+      {/* Toggle-Button nur für NICHT Track & Trace */}
+      {!isTrackTrace && (
+        <Box
           sx={{
-            backgroundColor: alpha(theme.palette.primary.main, 0.1),
-            '&:hover': {
-              backgroundColor: alpha(theme.palette.primary.main, 0.2)
-            },
-            width: 32,
-            height: 32,
-            padding: 0,
             display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
+            justifyContent: 'center',
+            padding: '12px 0',
+            borderTop: '1px solid',
+            borderTopColor:
+              theme.palette.mode === 'dark'
+                ? alpha(theme.palette.grey[700], 0.5)
+                : alpha(theme.palette.grey[300], 0.5),
           }}
         >
-          {collapsed ? <MenuIcon /> : <MenuOpenIcon />}
-        </IconButton>
-      </Box>
+          <IconButton
+            onClick={toggleSidebar}
+            size="small"
+            sx={{
+              backgroundColor: alpha(theme.palette.primary.main, 0.1),
+              '&:hover': {
+                backgroundColor: alpha(theme.palette.primary.main, 0.2)
+              },
+              width: 32,
+              height: 32,
+              padding: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            {collapsed ? <MenuIcon /> : <MenuOpenIcon />}
+          </IconButton>
+        </Box>
+      )}
     </Box>
   )
 }

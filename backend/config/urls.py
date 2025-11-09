@@ -1,4 +1,3 @@
-# config/urls.py
 from django.contrib import admin
 from django.urls import path, include, re_path
 from django.conf import settings
@@ -52,7 +51,8 @@ urlpatterns = [
     path('buchhaltung/journal/', BookingJournalAPIView.as_view(), name='booking-journal'),
 
     # 🌱 Track and Trace
-    path('api/trackandtrace/', include('trackandtrace.urls')),
+    path('api/trackandtrace/', include('trackandtrace.api_urls')),
+    path('trackandtrace/', include('trackandtrace.urls')),
     path('api/', include('rooms.api_urls')),
 
     # 🔑 WaWi
@@ -60,8 +60,19 @@ urlpatterns = [
     path('api/wawi/', include('wawi.api_urls')),
 
     # 🌱 Grow Controller
-    path('controller/', include('controller.urls')),           # Für Port 8000 (Build Mode)
-    path('api/controller/', include('controller.api_urls')),   # Für Vite (Dev Mode)
+    path('api/controller/', include('controller.api_urls')),
+
+    # ⚙️ Labor Berichte
+    path('laborreports/', include('laborreports.api_urls')),      # für Port 8000 (Build-Modus)
+    path('api/laborreports/', include('laborreports.api_urls')),  # für Port 5173 (Dev-Modus)
+
+    path("api/unifi_api_debug/", include("unifi_api_debug.api_urls")),
+    path("unifi_api_debug/", include("unifi_api_debug.api_urls")),  # für Build-Modus
+
+    # TaskManager API-Routen
+    path('taskmanager/', include('taskmanager.api_urls')),           # für Port 8000 (Build-Modus)
+    path('api/taskmanager/', include('taskmanager.api_urls')),       # für Port 5173
+
 ]
 
 # 🔁 Fallback für alle nicht-API-URLs → React SPA laden

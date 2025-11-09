@@ -1,19 +1,18 @@
 // frontend/src/apps/members/pages/MemberList.jsx
 import React, { useState, useEffect } from 'react';
 import { 
-  Box, Typography, Button, Container, Paper, 
-  Fade, Alert, Snackbar
+  Box, Alert, Snackbar, alpha, Typography, Button
 } from '@mui/material';
-import { Link } from 'react-router-dom';
-import AddIcon from '@mui/icons-material/Add';
+import { useNavigate } from 'react-router-dom';
+import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import api from '@/utils/api';
 
 // Komponenten importieren
 import MemberTable from '../components/MemberTable';
-import PageHeader from '@/components/common/PageHeader';
 import LoadingIndicator from '@/components/common/LoadingIndicator';
 
 const MemberList = () => {
+  const navigate = useNavigate();
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -23,7 +22,6 @@ const MemberList = () => {
   const [expandedMemberId, setExpandedMemberId] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [showFilters, setShowFilters] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   
   // Benutzergruppen laden
@@ -55,7 +53,7 @@ const MemberList = () => {
           
           // Berechne die Gesamtanzahl der Seiten basierend auf der Gesamtanzahl der Einträge
           const total = response.data.count || 0;
-          const pages = Math.ceil(total / 25); // 25 Einträge pro Seite (MemberPagination)
+          const pages = Math.ceil(total / 25); // 25 Einträge pro Seite
           setTotalPages(pages);
         } else if (Array.isArray(response.data)) {
           setMembers(response.data);
@@ -107,98 +105,137 @@ const MemberList = () => {
   // Zeige einen Ladeindikator, falls die Daten noch geladen werden
   if (loading) {
     return (
-      <Container maxWidth="xl" sx={{ width: '100%' }}>
-        <Box sx={{ my: 4 }}>
-          <PageHeader 
-            title="Mitgliederliste"
-            showFilters={false}
-            setShowFilters={() => {}}
-            actions={
-              <Button 
-                variant="contained" 
-                color="primary" 
-                component={Link} 
-                to="/mitglieder/neu"
-                startIcon={<AddIcon />}
-                disabled
-              >
-                Neues Mitglied hinzufügen
-              </Button>
-            }
-          />
-          <LoadingIndicator />
-        </Box>
-      </Container>
+      <Box sx={{ 
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center' 
+      }}>
+        <LoadingIndicator />
+      </Box>
     );
   }
   
   // Sicherheitsprüfung vor dem Rendern
   if (!Array.isArray(members)) {
     return (
-      <Container maxWidth="xl" sx={{ width: '100%' }}>
-        <Box sx={{ my: 4 }}>
-          <Alert severity="error" onClose={handleCloseError}>
-            Die Daten haben ein unerwartetes Format
-          </Alert>
-        </Box>
-      </Container>
+      <Box sx={{ 
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        p: 2 
+      }}>
+        <Alert severity="error" onClose={handleCloseError}>
+          Die Daten haben ein unerwartetes Format
+        </Alert>
+      </Box>
     );
   }
   
   return (
-    <Container maxWidth="xl" sx={{ width: '100%' }}>
-      <Fade in={true} timeout={800}>
-        <Box sx={{ my: 4 }}>
-          <PageHeader 
-            title="Mitgliederliste"
-            showFilters={showFilters}
-            setShowFilters={setShowFilters}
-            actions={
-              <Button 
-                variant="contained" 
-                color="primary" 
-                component={Link} 
-                to="/mitglieder/neu"
-                startIcon={<AddIcon />}
-              >
-                Neues Mitglied hinzufügen
-              </Button>
+    <Box sx={{ 
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden'
+    }}>
+      {/* Header mit Titel */}
+      <Box sx={{ 
+        p: 2, 
+        bgcolor: 'background.paper',
+        borderBottom: theme => `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }}>
+        <Typography variant="h5" sx={{ fontWeight: 500 }}>
+          Mitgliederverwaltung: Übersicht
+        </Typography>
+        
+        {/* Neues Mitglied Button oben rechts */}
+        <Box
+          sx={{
+            border: theme => `1px solid ${alpha(theme.palette.divider, 0.3)}`,
+            borderRadius: '4px',
+            p: 0.75,
+            display: 'inline-flex',
+            alignItems: 'center',
+            backgroundColor: 'background.paper',
+            '&:hover': {
+              backgroundColor: theme => alpha(theme.palette.success.main, 0.08),
+              borderColor: theme => alpha(theme.palette.success.main, 0.5)
             }
-          />
-          
-          {error && (
-            <Alert 
-              severity="error" 
-              onClose={handleCloseError}
-              sx={{ mb: 2 }}
-            >
-              {error}
-            </Alert>
-          )}
-          
-          {/* Hier kann später ein Filter-Bereich eingefügt werden */}
-          {showFilters && (
-            <Fade in={showFilters} timeout={500}>
-              <Paper sx={{ p: 2, mb: 2 }}>
-                <Typography variant="subtitle1">
-                  Filter-Optionen können hier später hinzugefügt werden
-                </Typography>
-              </Paper>
-            </Fade>
-          )}
-          
-          {/* MemberTable Komponente einbinden */}
-          <MemberTable 
-            data={members}
-            expandedMemberId={expandedMemberId}
-            onExpandMember={handleAccordionChange}
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={handlePageChange}
-            isTeamleiter={isTeamleiter}
-          />
+          }}
+        >
+          <Button 
+            variant="text" 
+            color="success" 
+            onClick={() => navigate('/mitglieder/neu')}
+            startIcon={<PersonAddIcon />}
+            sx={{ 
+              textTransform: 'none',
+              fontSize: '0.875rem'
+            }}
+          >
+            Neues Mitglied
+          </Button>
         </Box>
-      </Fade>
+      </Box>
+      
+      {error && (
+        <Alert 
+          severity="error" 
+          onClose={handleCloseError}
+          sx={{ 
+            borderRadius: 0,
+            flexShrink: 0 
+          }}
+        >
+          {error}
+        </Alert>
+      )}
+      
+      {/* MemberTable Komponente - volle Höhe und Breite */}
+      <Box sx={{ 
+        flex: 1, 
+        overflow: 'auto',
+        position: 'relative',
+        // Schöne Scrollbar für Webkit-Browser
+        '&::-webkit-scrollbar': {
+          width: '8px',
+          height: '8px',
+        },
+        '&::-webkit-scrollbar-track': {
+          backgroundColor: 'transparent',
+        },
+        '&::-webkit-scrollbar-thumb': {
+          backgroundColor: theme => alpha(theme.palette.primary.main, 0.2),
+          borderRadius: '4px',
+          '&:hover': {
+            backgroundColor: theme => alpha(theme.palette.primary.main, 0.3),
+          },
+        },
+      }}>
+        <MemberTable 
+          data={members}
+          expandedMemberId={expandedMemberId}
+          onExpandMember={handleAccordionChange}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={handlePageChange}
+          isTeamleiter={isTeamleiter}
+        />
+      </Box>
       
       <Snackbar
         open={!!successMessage}
@@ -206,7 +243,7 @@ const MemberList = () => {
         onClose={handleCloseSuccess}
         message={successMessage}
       />
-    </Container>
+    </Box>
   );
 };
 

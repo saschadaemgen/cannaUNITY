@@ -13,14 +13,26 @@ function MainLayout() {
   const [sidebarWidth, setSidebarWidth] = useState(240)
   const mainContentRef = useRef(null)
   
+  // Check if we're in Track & Trace section
+  const isTrackTrace = location.pathname.startsWith('/trackandtrace') || location.pathname.startsWith('/trace')
+  
   // Überwachen des localStorage und custom Events
   useEffect(() => {
     const updateLayout = () => {
+      // Track & Trace hat immer 64px
+      if (isTrackTrace) {
+        setSidebarWidth(64)
+        if (mainContentRef.current) {
+          mainContentRef.current.style.width = `calc(100% - 64px)`
+        }
+        return
+      }
+      
+      // Für andere Bereiche: normales Collapse-Verhalten
       const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true'
       const newWidth = isCollapsed ? 64 : 240
       setSidebarWidth(newWidth)
       
-      // Direkte DOM-Manipulation für den Hauptinhalt, falls der React-Ansatz nicht funktioniert
       if (mainContentRef.current) {
         mainContentRef.current.style.width = `calc(100% - ${newWidth}px)`
       }
@@ -33,30 +45,37 @@ function MainLayout() {
     window.addEventListener('storage', updateLayout)
     window.addEventListener('sidebarToggle', updateLayout)
     
-    // Custom Event zur manuellen Triggerung (kann bei Bedarf verwendet werden)
-    const customEvent = new CustomEvent('layoutUpdate')
-    window.dispatchEvent(customEvent)
-    
     // Cleanup
     return () => {
       window.removeEventListener('storage', updateLayout)
       window.removeEventListener('sidebarToggle', updateLayout)
     }
-  }, [])
+  }, [isTrackTrace])
   
   // Manuelles Update des Layouts bei Routenwechsel
   useEffect(() => {
+    // Track & Trace hat immer 64px
+    if (isTrackTrace) {
+      setSidebarWidth(64)
+      setTimeout(() => {
+        if (mainContentRef.current) {
+          mainContentRef.current.style.width = `calc(100% - 64px)`
+        }
+      }, 50)
+      return
+    }
+    
+    // Für andere Bereiche
     const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true'
     setSidebarWidth(isCollapsed ? 64 : 240)
     
-    // Verzögerung hinzufügen, um sicherzustellen, dass Änderungen wirksam werden
     setTimeout(() => {
       if (mainContentRef.current) {
         const newWidth = isCollapsed ? 64 : 240
         mainContentRef.current.style.width = `calc(100% - ${newWidth}px)`
       }
     }, 50)
-  }, [location.pathname])
+  }, [location.pathname, isTrackTrace])
   
   return (
     <Box
@@ -77,7 +96,7 @@ function MainLayout() {
         <Box sx={{ 
           width: sidebarWidth, 
           flexShrink: 0,
-          transition: 'width 0.3s ease',
+          transition: isTrackTrace ? 'none' : 'width 0.3s ease',
           position: 'relative',
           zIndex: 2
         }}>
@@ -91,11 +110,11 @@ function MainLayout() {
           sx={{
             flexGrow: 1,
             overflowY: 'auto',
-            p: 3,
+            p: 0,  // KEIN PADDING MEHR! Jede Komponente entscheidet selbst
             bgcolor: 'background.default',
             borderTop: (theme) => `1px solid ${theme.palette.divider}`,
             borderLeft: (theme) => `1px solid ${theme.palette.divider}`,
-            transition: 'width 0.3s ease',
+            transition: isTrackTrace ? 'none' : 'width 0.3s ease',
             width: `calc(100% - ${sidebarWidth}px)`,
             position: 'absolute',
             right: 0,

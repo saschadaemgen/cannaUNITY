@@ -74,11 +74,11 @@ export default function Dashboard() {
             background: theme.palette.mode === 'dark' ? '#1e1e1e' : '#f7f9f8'
           }}
         >
-          <Grid container spacing={2} alignItems="center">
-            <Grid item>
+          <Grid container spacing={2} alignItems="center" sx={{ width: '100%' }}>
+            <Grid>
               <AccessTime fontSize="large" color="success" sx={{ verticalAlign: 'middle', position: 'relative', top: -2 }} />
             </Grid>
-            <Grid item xs>
+            <Grid size="grow">
               <Typography variant="subtitle2" color="textSecondary">
                 Letzte Aktivität
               </Typography>
@@ -96,8 +96,8 @@ export default function Dashboard() {
       )}
 
       {/* 🎛️ Filterleiste */}
-      <Grid container spacing={2} alignItems="center" sx={{ mb: 2 }}>
-        <Grid item xs={12} sm={4} md={3}>
+      <Grid container spacing={2} alignItems="center" sx={{ mb: 2, width: '100%' }}>
+        <Grid size={{ xs: 12, sm: 4, md: 3 }}>
           <TextField
             label="Suche (Name oder Tür)"
             variant="outlined"
@@ -106,7 +106,7 @@ export default function Dashboard() {
             onChange={(e) => setFilters({ ...filters, search: e.target.value })}
           />
         </Grid>
-        <Grid item xs={6} sm={4} md={2.5}>
+        <Grid size={{ xs: 6, sm: 4, md: 2.5 }}>
           <TextField
             select
             label="Jahr"
@@ -121,7 +121,7 @@ export default function Dashboard() {
             ))}
           </TextField>
         </Grid>
-        <Grid item xs={6} sm={4} md={2.5}>
+        <Grid size={{ xs: 6, sm: 4, md: 2.5 }}>
           <TextField
             select
             label="Zeitraum"
@@ -135,7 +135,7 @@ export default function Dashboard() {
             <MenuItem value="month">Aktueller Monat</MenuItem>
           </TextField>
         </Grid>
-        <Grid item xs={6} sm={4} md={2.5}>
+        <Grid size={{ xs: 6, sm: 4, md: 2.5 }}>
           <TextField
             select
             label="Authentifizierung"

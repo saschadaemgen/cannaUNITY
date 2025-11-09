@@ -6,15 +6,28 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.permissions import IsAuthenticated
 from django.db import models
 from django.utils import timezone
-from django.db.models import Q
+from django.db.models import Q, Sum, Count
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
+from trackandtrace.models import SeedPurchase, MotherPlantBatch, FloweringPlantBatch
 import os
 import uuid
 import json
 
-from .models import CannabisStrain, StrainImage, StrainInventory
-from .serializers import CannabisStrainSerializer, StrainImageSerializer, StrainInventorySerializer
+from .models import (
+    CannabisStrain, 
+    StrainImage, 
+    StrainInventory, 
+    StrainHistory,
+    StrainPriceTier
+)
+from .serializers import (
+    CannabisStrainSerializer, 
+    StrainImageSerializer, 
+    StrainInventorySerializer, 
+    StrainHistorySerializer,
+    StrainPriceTierSerializer
+)
 
 class StandardResultsSetPagination(pagination.PageNumberPagination):
     page_size = 10
@@ -85,10 +98,64 @@ class CannabisStrainViewSet(viewsets.ModelViewSet):
             available_quantity=0
         )
         
+        # History-Eintrag erstellen
+        member_id = self.request.data.get('member_id')
+        if member_id:
+            StrainHistory.objects.create(
+                strain=strain,
+                member_id=member_id,
+                action='created'
+            )
+        
         # Verarbeite alle temporär gespeicherten Bilder für diese Strain
         temp_id = self.request.data.get('temp_id', None)
         if temp_id:
             self._process_pending_images(strain, temp_id)
+    
+    def perform_update(self, serializer):
+        # Original-Objekt vor Änderungen abrufen (als Referenz)
+        original_strain = self.get_object()
+        original_data = CannabisStrainSerializer(original_strain).data
+        
+        # Aktualisierten Strain speichern
+        strain = serializer.save()
+        
+        # Neue Daten nach der Speicherung
+        updated_data = CannabisStrainSerializer(strain).data
+        
+        # Änderungen ermitteln - nur geänderte Felder sammeln
+        changes = {}
+        for field, new_value in updated_data.items():
+            # Felder ignorieren, die nicht relevant sind
+            if field in ['updated_at', 'created_at', 'id', 'images']:
+                continue
+                
+            # Prüfen, ob ein Wert geändert wurde (mit Sonderbehandlung für None/Empty)
+            if field in original_data:
+                old_value = original_data[field]
+                # Vergleich mit spezieller Behandlung für None/leere Werte
+                if ((old_value is None and new_value) or 
+                    (new_value is None and old_value) or
+                    (old_value != new_value)):
+                    # Änderung gefunden
+                    changes[field] = {
+                        'old': old_value,
+                        'new': new_value
+                    }
+        
+        # History-Eintrag erstellen, nur wenn es tatsächlich Änderungen gab
+        if changes:
+            member_id = self.request.data.get('member_id')
+            if member_id:
+                StrainHistory.objects.create(
+                    strain=strain,
+                    member_id=member_id,
+                    action='updated',
+                    changes=changes  # Speichern der detaillierten Änderungen
+                )
+        else:
+            # Debug-Ausgabe, wenn keine Änderungen gefunden wurden
+            print("Keine Änderungen gefunden bei der Aktualisierung von Strain:", strain.id)
     
     def _process_pending_images(self, strain, temp_id):
         """Verarbeite temporäre Bilder und verknüpfe sie mit der neuen Strain"""
@@ -165,12 +232,32 @@ class CannabisStrainViewSet(viewsets.ModelViewSet):
         
         if serializer.is_valid():
             # If marked as primary, unmark other images
-            if request.data.get('is_primary') == 'true':
+            is_primary = request.data.get('is_primary') == 'true'
+            if is_primary:
                 StrainImage.objects.filter(strain=strain, is_primary=True).update(is_primary=False)
                 serializer.validated_data['is_primary'] = True
             
             # Save the image
-            serializer.save(strain=strain)
+            image = serializer.save(strain=strain)
+            
+            # Bild-Upload in Historie erfassen, falls member_id vorhanden
+            member_id = request.data.get('member_id')
+            if member_id:
+                # Bilddetails für den Verlauf speichern
+                image_data = {
+                    'operation': 'upload',
+                    'image_id': str(image.id),
+                    'filename': os.path.basename(image.image.name),
+                    'is_primary': is_primary,
+                    'caption': image.caption
+                }
+                
+                StrainHistory.objects.create(
+                    strain=strain,
+                    member_id=member_id,
+                    action='image_uploaded',
+                    image_data=image_data  # Speichere die Bilddaten im JSONField
+                )
             
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         
@@ -270,7 +357,34 @@ class CannabisStrainViewSet(viewsets.ModelViewSet):
         
         try:
             image = StrainImage.objects.get(id=image_id, strain=strain)
+            
+            # Bildinformationen vor dem Löschen erfassen
+            image_info = {
+                'image_id': str(image.id),
+                'filename': os.path.basename(image.image.name),
+                'is_primary': image.is_primary,
+                'caption': image.caption
+            }
+            
+            # Bild löschen
             image.delete()
+            
+            # Bild-Entfernung in Historie erfassen, falls member_id vorhanden
+            member_id = request.query_params.get('member_id')
+            if member_id:
+                # Bilddetails für den Verlauf speichern
+                image_data = {
+                    'operation': 'remove',
+                    **image_info
+                }
+                
+                StrainHistory.objects.create(
+                    strain=strain,
+                    member_id=member_id,
+                    action='image_removed',
+                    image_data=image_data  # Speichere die Bilddaten im JSONField
+                )
+            
             return Response(status=status.HTTP_204_NO_CONTENT)
         except StrainImage.DoesNotExist:
             return Response({"error": "Image not found"}, status=status.HTTP_404_NOT_FOUND)
@@ -292,6 +406,15 @@ class CannabisStrainViewSet(viewsets.ModelViewSet):
                 serializer.validated_data['last_restocked'] = timezone.now()
             
             serializer.save()
+            
+            # Bestandsänderung in Historie erfassen, falls member_id vorhanden
+            member_id = request.data.get('member_id')
+            if member_id:
+                StrainHistory.objects.create(
+                    strain=strain,
+                    member_id=member_id,
+                    action='inventory_updated'
+                )
             
             return Response(serializer.data)
         
@@ -388,8 +511,32 @@ class CannabisStrainViewSet(viewsets.ModelViewSet):
         
         try:
             image = StrainImage.objects.get(id=image_id, strain=strain)
+            
+            # Ursprüngliche Beschriftung speichern
+            old_caption = image.caption
+            
+            # Caption aktualisieren
             image.caption = caption
             image.save()
+            
+            # Caption-Änderung in Historie erfassen, falls member_id vorhanden
+            member_id = request.data.get('member_id')
+            if member_id:
+                # Bilddetails für den Verlauf speichern
+                image_data = {
+                    'operation': 'update_caption',
+                    'image_id': str(image.id),
+                    'filename': os.path.basename(image.image.name),
+                    'old_caption': old_caption,
+                    'new_caption': caption
+                }
+                
+                StrainHistory.objects.create(
+                    strain=strain,
+                    member_id=member_id,
+                    action='image_caption_updated',
+                    image_data=image_data  # Speichere die Bilddaten im JSONField
+                )
             
             serializer = StrainImageSerializer(image)
             return Response(serializer.data)
@@ -406,6 +553,10 @@ class CannabisStrainViewSet(viewsets.ModelViewSet):
             return Response({"error": "image_id is required"}, status=status.HTTP_400_BAD_REQUEST)
         
         try:
+            # Aktuelles primäres Bild identifizieren
+            old_primary = StrainImage.objects.filter(strain=strain, is_primary=True).first()
+            old_primary_id = str(old_primary.id) if old_primary else None
+            
             # Zunächst alle als nicht-primär markieren
             StrainImage.objects.filter(strain=strain).update(is_primary=False)
             
@@ -414,6 +565,224 @@ class CannabisStrainViewSet(viewsets.ModelViewSet):
             image.is_primary = True
             image.save()
             
+            # Primärbild-Änderung in Historie erfassen, falls member_id vorhanden
+            member_id = request.data.get('member_id')
+            if member_id:
+                # Bilddetails für den Verlauf speichern
+                image_data = {
+                    'operation': 'set_primary',
+                    'old_primary_image_id': old_primary_id,
+                    'new_primary_image_id': str(image.id),
+                    'new_primary_filename': os.path.basename(image.image.name)
+                }
+                
+                StrainHistory.objects.create(
+                    strain=strain,
+                    member_id=member_id,
+                    action='primary_image_changed',
+                    image_data=image_data  # Speichere die Bilddaten im JSONField
+                )
+            
             return Response({"success": True})
         except StrainImage.DoesNotExist:
             return Response({"error": "Image not found"}, status=status.HTTP_404_NOT_FOUND)
+            
+    @action(detail=True, methods=['get'])
+    def history(self, request, pk=None):
+        """Gibt die Änderungshistorie einer Cannabis-Sorte zurück"""
+        strain = self.get_object()
+        history = StrainHistory.objects.filter(strain=strain).order_by('-timestamp')
+        
+        # Pagination implementieren
+        page = self.paginate_queryset(history)
+        if page is not None:
+            serializer = StrainHistorySerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = StrainHistorySerializer(history, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=True, methods=['get', 'post'])
+    def price_tiers(self, request, pk=None):
+        """Verwaltet Preisstaffeln einer Sorte"""
+        strain = self.get_object()
+        
+        if request.method == 'GET':
+            tiers = strain.price_tiers.all()
+            serializer = StrainPriceTierSerializer(tiers, many=True)
+            return Response(serializer.data)
+        
+        elif request.method == 'POST':
+            # Wenn es die erste Preisstaffel ist, automatisch als Standard setzen
+            if not strain.price_tiers.exists():
+                request.data['is_default'] = True
+            
+            serializer = StrainPriceTierSerializer(data=request.data)
+            if serializer.is_valid():
+                # Wenn als Standard markiert, andere zurücksetzen
+                if request.data.get('is_default'):
+                    strain.price_tiers.update(is_default=False)
+                
+                serializer.save(strain=strain)
+                
+                # History-Eintrag
+                member_id = request.data.get('member_id')
+                if member_id:
+                    StrainHistory.objects.create(
+                        strain=strain,
+                        member_id=member_id,
+                        action='updated',
+                        changes={'price_tier_added': {
+                            'tier_name': serializer.data.get('tier_name'),
+                            'quantity': serializer.data.get('quantity'),
+                            'price': str(serializer.data.get('total_price'))
+                        }}
+                    )
+                
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['patch', 'delete'], url_path='price_tiers/(?P<tier_id>[^/.]+)')
+    def manage_price_tier(self, request, pk=None, tier_id=None):
+        """Aktualisiert oder löscht eine einzelne Preisstaffel"""
+        strain = self.get_object()
+        
+        try:
+            tier = strain.price_tiers.get(id=tier_id)
+        except StrainPriceTier.DoesNotExist:
+            return Response(
+                {'error': 'Preisstaffel nicht gefunden'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        if request.method == 'PATCH':
+            serializer = StrainPriceTierSerializer(tier, data=request.data, partial=True)
+            if serializer.is_valid():
+                # Wenn als Standard markiert, andere zurücksetzen
+                if request.data.get('is_default'):
+                    strain.price_tiers.exclude(id=tier_id).update(is_default=False)
+                
+                serializer.save()
+                
+                # History-Eintrag
+                member_id = request.data.get('member_id')
+                if member_id:
+                    StrainHistory.objects.create(
+                        strain=strain,
+                        member_id=member_id,
+                        action='updated',
+                        changes={'price_tier_updated': {
+                            'tier_id': str(tier_id),
+                            'updates': request.data
+                        }}
+                    )
+                
+                return Response(serializer.data)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        elif request.method == 'DELETE':
+            # Verhindere Löschen, wenn es die einzige Preisstaffel ist
+            if strain.price_tiers.count() <= 1:
+                return Response(
+                    {'error': 'Die letzte Preisstaffel kann nicht gelöscht werden'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Wenn es der Standard war, setze eine andere als Standard
+            if tier.is_default:
+                other_tier = strain.price_tiers.exclude(id=tier_id).first()
+                if other_tier:
+                    other_tier.is_default = True
+                    other_tier.save()
+            
+            tier_data = {
+                'tier_name': tier.tier_name,
+                'quantity': tier.quantity,
+                'price': str(tier.total_price)
+            }
+            
+            tier.delete()
+            
+            # History-Eintrag
+            member_id = request.query_params.get('member_id')
+            if member_id:
+                StrainHistory.objects.create(
+                    strain=strain,
+                    member_id=member_id,
+                    action='updated',
+                    changes={'price_tier_deleted': tier_data}
+                )
+            
+            return Response(status=status.HTTP_204_NO_CONTENT)
+    
+    @action(detail=True, methods=['get'])
+    def track_and_trace_stats(self, request, pk=None):
+        """
+        Gibt aggregierte Statistiken aus dem Track and Trace System für eine Cannabis-Sorte zurück.
+        """
+        strain = self.get_object()
+        
+        # Alle Samenkäufe für diese Sorte
+        seed_purchases = SeedPurchase.objects.filter(strain=strain)
+        
+        # Gesamtstatistiken
+        total_purchased = seed_purchases.aggregate(
+            total=Sum('quantity')
+        )['total'] or 0
+        
+        total_available = seed_purchases.filter(is_destroyed=False).aggregate(
+            total=Sum('remaining_quantity')
+        )['total'] or 0
+        
+        # Anzahl der Einkäufe (Chargen)
+        purchase_count = seed_purchases.count()
+        
+        # Berechne die Anzahl der zu Mutterpflanzen konvertierten Samen
+        mother_plants_count = 0
+        for purchase in seed_purchases:
+            # Zähle alle Mutterpflanzen-Batches für diesen Einkauf
+            mother_batches = MotherPlantBatch.objects.filter(seed_purchase=purchase)
+            for batch in mother_batches:
+                mother_plants_count += batch.quantity
+        
+        # Berechne die Anzahl der zu Blühpflanzen konvertierten Samen
+        flowering_plants_count = 0
+        for purchase in seed_purchases:
+            # Zähle alle Blühpflanzen-Batches für diesen Einkauf
+            flowering_batches = FloweringPlantBatch.objects.filter(seed_purchase=purchase)
+            for batch in flowering_batches:
+                flowering_plants_count += batch.quantity
+        
+        # Detaillierte Einkaufsliste
+        purchase_details = []
+        for purchase in seed_purchases.order_by('-created_at'):
+            # Berechne für jeden Einkauf die Konvertierungen
+            mother_count = MotherPlantBatch.objects.filter(
+                seed_purchase=purchase
+            ).aggregate(total=Sum('quantity'))['total'] or 0
+            
+            flowering_count = FloweringPlantBatch.objects.filter(
+                seed_purchase=purchase
+            ).aggregate(total=Sum('quantity'))['total'] or 0
+            
+            purchase_details.append({
+                'id': str(purchase.id),
+                'batch_number': purchase.batch_number,
+                'quantity': purchase.quantity,
+                'remaining_quantity': purchase.remaining_quantity,
+                'destroyed_quantity': purchase.destroyed_quantity,
+                'is_destroyed': purchase.is_destroyed,
+                'created_at': purchase.created_at,
+                'member': f"{purchase.member.first_name} {purchase.member.last_name}" if purchase.member else None,
+                'mother_plants_created': mother_count,
+                'flowering_plants_created': flowering_count
+            })
+        
+        return Response({
+            'total_purchased': total_purchased,
+            'total_available': total_available,
+            'mother_plants_count': mother_plants_count,
+            'flowering_plants_count': flowering_plants_count,
+            'purchase_count': purchase_count,
+            'purchase_details': purchase_details
+        })

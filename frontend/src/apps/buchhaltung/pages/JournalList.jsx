@@ -1,16 +1,17 @@
 import React, { useEffect, useState } from 'react'
 import {
-  Box, Typography, TextField, MenuItem,
-  Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  Paper, TablePagination, Card, CardContent, IconButton, Collapse, Tooltip, Divider, Button, Chip
+  Box, Typography, TextField, MenuItem, Button, Chip,
+  IconButton, Collapse, Tooltip, Divider, FormControl, Select,
+  useTheme, alpha
 } from '@mui/material'
 import {
-  ExpandMore, ExpandLess,
+  ExpandMore,
   Delete as DeleteIcon
 } from '@mui/icons-material'
 import axios from '@/utils/api'
 
 export default function JournalList() {
+  const theme = useTheme()
   const [entries, setEntries] = useState([])
   const [filtered, setFiltered] = useState([])
   const [search, setSearch] = useState('')
@@ -21,10 +22,12 @@ export default function JournalList() {
   const [rowsPerPage, setRowsPerPage] = useState(25)
   const [expandedRows, setExpandedRows] = useState([])
   const [availableYears, setAvailableYears] = useState([])
+  
+  const pageSizeOptions = [25, 50, 100]
 
   // Akzentfarbe für Storno-Buchungen (grün)
-  const accentColor = '#2e7d32'; // Die grüne Farbe aus den Bildern
-  const stornoColor = '#e74c3c'; // Rot für stornierte Buchungen
+  const accentColor = '#2e7d32';
+  const stornoColor = '#e74c3c';
 
   // Liste der Monate für den Filter
   const months = [
@@ -52,10 +55,9 @@ export default function JournalList() {
       setEntries(list)
       setFiltered(list)
       
-      // Verfügbare Jahre aus den Buchungen extrahieren
       if (list && list.length > 0) {
         const years = [...new Set(list.map(entry => new Date(entry.datum).getFullYear()))];
-        years.sort((a, b) => b - a); // Absteigend sortieren (neueste zuerst)
+        years.sort((a, b) => b - a);
         setAvailableYears(years);
       }
     })
@@ -64,26 +66,22 @@ export default function JournalList() {
   useEffect(() => {
     let result = [...entries]
 
-    // Typ-Filter anwenden
     if (typeFilter === 'STORNIERT') {
       result = result.filter(e => e.storniert || e.is_storno)
     } else if (typeFilter !== 'ALL') {
       result = result.filter(e => e.typ === typeFilter && !e.storniert)
     }
 
-    // Jahr-Filter anwenden
     if (yearFilter !== 'ALL') {
       const year = parseInt(yearFilter);
       result = result.filter(entry => new Date(entry.datum).getFullYear() === year);
     }
 
-    // Monats-Filter anwenden
     if (monthFilter !== 'ALL') {
       const month = parseInt(monthFilter);
       result = result.filter(entry => new Date(entry.datum).getMonth() + 1 === month);
     }
 
-    // Suchtext-Filter anwenden
     if (search) {
       const lower = search.toLowerCase()
       result = result.filter(entry =>
@@ -97,16 +95,15 @@ export default function JournalList() {
     setPage(0)
   }, [search, entries, typeFilter, yearFilter, monthFilter])
   
-  // Restlicher Code bleibt unverändert...
   const handleToggle = (id) => {
     setExpandedRows(prev =>
       prev.includes(id) ? prev.filter(row => row !== id) : [...prev, id]
     )
   }
 
-  const handleChangePage = (e, newPage) => setPage(newPage)
-  const handleChangeRowsPerPage = (e) => {
-    setRowsPerPage(parseInt(e.target.value, 10))
+  const handlePageChange = (e, newPage) => setPage(newPage)
+  const handlePageSizeChange = (newPageSize) => {
+    setRowsPerPage(newPageSize)
     setPage(0)
   }
 
@@ -126,7 +123,7 @@ export default function JournalList() {
       axios.post(`/buchhaltung/bookings/${id}/storno/`)
         .then(() => {
           alert("Buchung erfolgreich storniert.")
-          fetchBookings() // Alle Buchungen neu laden
+          fetchBookings()
         })
         .catch((err) => {
           console.error(err)
@@ -135,10 +132,8 @@ export default function JournalList() {
     }
   }
 
-  // GoB-konforme Formatierung für stornierte Einträge
   const getStyledText = (text, isStorniert, isStornoBuchung) => {
     if (isStorniert && !isStornoBuchung) {
-      // Original-Buchung wurde storniert (durchgestrichen)
       return (
         <span style={{
           textDecoration: 'line-through',
@@ -149,7 +144,6 @@ export default function JournalList() {
         </span>
       )
     } else if (isStornoBuchung) {
-      // Dies ist eine Storno-Buchung (grün markiert)
       return (
         <span style={{
           color: accentColor,
@@ -159,7 +153,6 @@ export default function JournalList() {
         </span>
       )
     }
-    // Normale Buchung
     return <span>{text}</span>
   }
 
@@ -174,7 +167,6 @@ export default function JournalList() {
       parts.push(<span key="storno-buchung-icon" style={{marginRight: '4px', color: accentColor}}>↩️</span>)
     }
     
-    // Für Mehrfachbuchungen M hinzufügen
     let buchungsnummer = entry.buchungsnummer;
     if (entry.typ === 'MEHRFACH' && !buchungsnummer.endsWith('-M') && !buchungsnummer.endsWith('M')) {
       buchungsnummer += '-M';
@@ -190,14 +182,10 @@ export default function JournalList() {
       )
     }
     
-    return (
-      <div>
-        {parts}
-      </div>
-    )
+    return <div>{parts}</div>
   }
 
-  // Verbesserte T-Konten-Darstellung
+  // T-Konten-Darstellung
   const TKontenDarstellung = ({ transactions, isStorniert, isStornoBuchung }) => {
     return (
       <Box sx={{ mt: 2 }}>
@@ -209,35 +197,28 @@ export default function JournalList() {
           display: 'flex', 
           justifyContent: 'center',
           position: 'relative',
-          border: '1px solid #ddd',
+          border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
           borderRadius: '8px',
           overflow: 'hidden',
-          background: '#f8f8f8'
+          background: theme.palette.background.paper
         }}>
-          {/* Vertikale Linie in der Mitte */}
           <Box sx={{ 
             position: 'absolute', 
             top: 0, 
             bottom: 0, 
             left: '50%', 
             width: '1px', 
-            backgroundColor: '#ddd',
+            backgroundColor: alpha(theme.palette.divider, 0.12),
             zIndex: 1
           }}/>
           
-          {/* Soll-Seite */}
-          <Box sx={{ 
-            flex: 1, 
-            padding: 2,
-            position: 'relative',
-            borderRight: 'none'
-          }}>
+          <Box sx={{ flex: 1, padding: 2, position: 'relative', borderRight: 'none' }}>
             <Typography variant="subtitle2" sx={{ 
               textAlign: 'center', 
               fontWeight: 'bold', 
               mb: 1,
               pb: 1,
-              borderBottom: '1px solid #ddd'
+              borderBottom: `1px solid ${alpha(theme.palette.divider, 0.12)}`
             }}>
               SOLL
             </Typography>
@@ -247,7 +228,7 @@ export default function JournalList() {
                 display: 'flex', 
                 justifyContent: 'space-between',
                 py: 0.5,
-                borderBottom: i < transactions.length - 1 ? '1px dashed #eee' : 'none'
+                borderBottom: i < transactions.length - 1 ? `1px dashed ${alpha(theme.palette.divider, 0.08)}` : 'none'
               }}>
                 <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
                   {getStyledText(tx.soll_konto?.kontonummer, isStorniert, isStornoBuchung)}
@@ -259,19 +240,13 @@ export default function JournalList() {
             ))}
           </Box>
           
-          {/* Haben-Seite */}
-          <Box sx={{ 
-            flex: 1, 
-            padding: 2,
-            position: 'relative',
-            borderLeft: 'none'
-          }}>
+          <Box sx={{ flex: 1, padding: 2, position: 'relative', borderLeft: 'none' }}>
             <Typography variant="subtitle2" sx={{ 
               textAlign: 'center', 
               fontWeight: 'bold', 
               mb: 1,
               pb: 1,
-              borderBottom: '1px solid #ddd'
+              borderBottom: `1px solid ${alpha(theme.palette.divider, 0.12)}`
             }}>
               HABEN
             </Typography>
@@ -281,7 +256,7 @@ export default function JournalList() {
                 display: 'flex', 
                 justifyContent: 'space-between',
                 py: 0.5,
-                borderBottom: i < transactions.length - 1 ? '1px dashed #eee' : 'none'
+                borderBottom: i < transactions.length - 1 ? `1px dashed ${alpha(theme.palette.divider, 0.08)}` : 'none'
               }}>
                 <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
                   {getStyledText(tx.haben_konto?.kontonummer, isStorniert, isStornoBuchung)}
@@ -297,22 +272,19 @@ export default function JournalList() {
     );
   };
 
-  // Zusätzliche Komponente für Stornoinformationen
   const StornoInfoBox = ({ entry }) => {
     const navigateToDetail = (id) => {
       window.location.href = `/buchhaltung/bookings/${id}/`;
     };
 
-    // Wenn es eine stornierte Original-Buchung ist
     if (entry.storniert && !entry.is_storno) {
-      // Hier würden wir idealerweise die Storno-Buchung suchen, die auf diese Originalbuchung verweist
-      // Da wir diese Information nicht direkt haben, zeigen wir einen generischen Hinweis
       return (
         <Box sx={{ 
           p: 2, 
-          backgroundColor: 'rgba(231, 76, 60, 0.1)', 
+          backgroundColor: alpha(stornoColor, 0.08), 
           borderRadius: 1,
-          mb: 2
+          mb: 2,
+          border: `1px solid ${alpha(stornoColor, 0.2)}`
         }}>
           <Typography variant="subtitle2" sx={{ fontWeight: 'bold', display: 'flex', alignItems: 'center' }}>
             <span style={{ marginRight: '8px' }}>❌</span> 
@@ -325,14 +297,14 @@ export default function JournalList() {
       );
     }
     
-    // Wenn es eine Storno-Buchung ist
     if (entry.is_storno && entry.original_buchung_id) {
       return (
         <Box sx={{ 
           p: 2, 
-          backgroundColor: 'rgba(46, 125, 50, 0.1)', 
+          backgroundColor: alpha(accentColor, 0.08), 
           borderRadius: 1,
-          mb: 2
+          mb: 2,
+          border: `1px solid ${alpha(accentColor, 0.2)}`
         }}>
           <Typography variant="subtitle2" sx={{ fontWeight: 'bold', display: 'flex', alignItems: 'center' }}>
             <span style={{ marginRight: '8px' }}>↩️</span> 
@@ -353,7 +325,6 @@ export default function JournalList() {
             >
               {entry.original_buchung_nr}
             </Button>
-            
             {' '}. Diese Buchung macht alle Kontenänderungen der Originalbuchung rückgängig.
           </Typography>
         </Box>
@@ -364,15 +335,52 @@ export default function JournalList() {
   };
 
   const paginated = filtered.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+
+  // Header-Spalten definieren
+  const getHeaderColumns = () => [
+    { label: '', width: '3%', align: 'center' },
+    { label: '#', width: '5%' },
+    { label: 'Betrag (€)', width: '10%' },
+    { label: 'Typ', width: '12%' },
+    { label: 'Buchungsnummer', width: '15%' },
+    { label: 'Verwendungszweck', width: '25%' },
+    { label: 'Mitglied', width: '15%' },
+    { label: 'Datum', width: '10%' },
+    { label: 'Aktionen', width: '5%', align: 'center' }
+  ]
   
   return (
-    <Box p={3}>
-      <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
-        📘 Buchungsjournal
-      </Typography>
+    <Box sx={{ 
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden'
+    }}>
+      {/* Header mit Titel */}
+      <Box sx={{ 
+        p: 2, 
+        bgcolor: 'background.paper',
+        borderBottom: theme => `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+      }}>
+        <Typography variant="h5" sx={{ fontWeight: 500 }}>
+          📘 Buchungsjournal
+        </Typography>
+      </Box>
 
-      {/* Erweiterte Filteroptionen mit Jahr und Monat */}
-      <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
+      {/* Filterzeile */}
+      <Box sx={{ 
+        p: 2,
+        bgcolor: 'background.paper',
+        borderBottom: theme => `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+        display: 'flex',
+        gap: 2,
+        flexWrap: 'wrap',
+        alignItems: 'center'
+      }}>
         <TextField
           label="Suche"
           size="small"
@@ -394,7 +402,6 @@ export default function JournalList() {
           <MenuItem value="STORNIERT">Stornierte & Stornos</MenuItem>
         </TextField>
         
-        {/* Neuer Filter für Jahr */}
         <TextField
           label="Jahr"
           size="small"
@@ -402,8 +409,6 @@ export default function JournalList() {
           value={yearFilter}
           onChange={(e) => {
             setYearFilter(e.target.value);
-            // Wenn ein Jahr ausgewählt wird, aber der Monat auf ALL steht, behalten wir das so
-            // Wenn wir zurück zu "Alle Jahre" gehen, setzen wir auch den Monat zurück
             if (e.target.value === 'ALL') {
               setMonthFilter('ALL');
             }
@@ -416,7 +421,6 @@ export default function JournalList() {
           ))}
         </TextField>
         
-        {/* Neuer Filter für Monat */}
         <TextField
           label="Monat"
           size="small"
@@ -424,7 +428,7 @@ export default function JournalList() {
           value={monthFilter}
           onChange={(e) => setMonthFilter(e.target.value)}
           sx={{ minWidth: '120px' }}
-          disabled={yearFilter === 'ALL'} // Nur aktivieren, wenn ein Jahr ausgewählt ist
+          disabled={yearFilter === 'ALL'}
         >
           <MenuItem value="ALL">Alle Monate</MenuItem>
           {months.map(month => (
@@ -432,9 +436,8 @@ export default function JournalList() {
           ))}
         </TextField>
         
-        {/* Filterbadges für schnelles Zurücksetzen der Filter */}
         {(yearFilter !== 'ALL' || monthFilter !== 'ALL' || typeFilter !== 'ALL' || search) && (
-          <Box sx={{ display: 'flex', alignItems: 'center', ml: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', ml: 'auto', gap: 1 }}>
             {yearFilter !== 'ALL' && (
               <Chip 
                 label={`Jahr: ${yearFilter}`} 
@@ -443,7 +446,6 @@ export default function JournalList() {
                   setYearFilter('ALL');
                   setMonthFilter('ALL');
                 }}
-                sx={{ mr: 1 }}
               />
             )}
             {monthFilter !== 'ALL' && (
@@ -451,7 +453,6 @@ export default function JournalList() {
                 label={`Monat: ${months.find(m => m.value === parseInt(monthFilter))?.name}`} 
                 size="small" 
                 onDelete={() => setMonthFilter('ALL')}
-                sx={{ mr: 1 }}
               />
             )}
             {typeFilter !== 'ALL' && (
@@ -459,7 +460,6 @@ export default function JournalList() {
                 label={`Typ: ${typeFilter}`} 
                 size="small" 
                 onDelete={() => setTypeFilter('ALL')}
-                sx={{ mr: 1 }}
               />
             )}
             {search && (
@@ -467,7 +467,6 @@ export default function JournalList() {
                 label={`Suche: ${search}`} 
                 size="small" 
                 onDelete={() => setSearch('')}
-                sx={{ mr: 1 }}
               />
             )}
             <Button 
@@ -479,276 +478,425 @@ export default function JournalList() {
                 setSearch('');
               }}
               variant="outlined"
+              sx={{ height: '24px' }}
             >
-              Alle Filter zurücksetzen
+              Alle zurücksetzen
             </Button>
           </Box>
         )}
       </Box>
 
-      <Card elevation={1}>
-        <CardContent>
-          <TableContainer component={Paper}>
-            <Table size="small">
-              <TableHead>
-                <TableRow sx={{ backgroundColor: '#f9f9f9' }}>
-                  <TableCell padding="checkbox">🔽</TableCell>
-                  <TableCell>#</TableCell>
-                  <TableCell>Betrag (€)</TableCell>
-                  <TableCell>Typ</TableCell>
-                  <TableCell>Buchungsnummer</TableCell>
-                  <TableCell>Verwendungszweck</TableCell>
-                  <TableCell>Mitglied</TableCell>
-                  <TableCell>Datum</TableCell>
-                  <TableCell align="center">Aktionen</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {paginated.map((entry, index) => {
-                  const isStorniert = entry.storniert
-                  const isStornoBuchung = entry.is_storno
-                  const totalAmount = entry.subtransactions.reduce((sum, tx) => sum + parseFloat(tx.betrag), 0)
-                  
-                  return (
-                    <React.Fragment key={entry.id}>
-                      <TableRow 
-                        hover
-                        sx={{
-                          // GoB-konforme Darstellung mit neueren MUI Styles:
-                          position: 'relative',
-                          // Stornierte Buchungen leicht rötlich
-                          ...(isStorniert && !isStornoBuchung && {
-                            opacity: 0.75,
-                            backgroundColor: 'rgba(231, 76, 60, 0.05)',
-                            textDecoration: 'line-through',
-                            textDecorationColor: stornoColor,
-                            '&::after': {
-                              content: '""',
-                              position: 'absolute',
-                              left: 0,
-                              right: 0,
-                              top: '50%',
-                              height: '1px',
-                              backgroundColor: stornoColor,
-                              zIndex: 1
-                            }
-                          }),
-                          // Storno-Buchungen leicht grünlich
-                          ...(isStornoBuchung && {
-                            backgroundColor: 'rgba(46, 125, 50, 0.05)'
-                          })
+      {/* Hauptinhalt mit Scroll */}
+      <Box sx={{ 
+        flex: 1, 
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+        position: 'relative',
+        backgroundColor: theme.palette.background.default
+      }}>
+        {/* Scrollbarer Bereich */}
+        <Box sx={{ 
+          flex: 1,
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          // Schöne Scrollbar
+          '&::-webkit-scrollbar': {
+            width: '8px',
+            height: '8px',
+          },
+          '&::-webkit-scrollbar-track': {
+            backgroundColor: 'transparent',
+          },
+          '&::-webkit-scrollbar-thumb': {
+            backgroundColor: theme => alpha(theme.palette.primary.main, 0.2),
+            borderRadius: '4px',
+            '&:hover': {
+              backgroundColor: theme => alpha(theme.palette.primary.main, 0.3),
+            },
+          },
+        }}>
+          {/* Tabellenkopf - sticky */}
+          <Box sx={{ 
+            width: '100%', 
+            display: 'flex',
+            bgcolor: theme.palette.background.paper,
+            height: '40px',
+            alignItems: 'center',
+            borderTop: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+            borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+            position: 'sticky',
+            top: 0,
+            zIndex: 10,
+            mt: 0
+          }}>
+            {getHeaderColumns().map((column, index) => (
+              <Box
+                key={index}
+                sx={{ 
+                  width: column.width || 'auto', 
+                  px: 1.5,
+                  textAlign: column.align || 'left', 
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <Typography 
+                  variant="caption" 
+                  sx={{ 
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    color: 'text.secondary',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px'
+                  }}
+                >
+                  {column.label}
+                </Typography>
+              </Box>
+            ))}
+          </Box>
+
+          {/* Tabellenzeilen */}
+          {paginated.map((entry, index) => {
+            const isStorniert = entry.storniert
+            const isStornoBuchung = entry.is_storno
+            const totalAmount = entry.subtransactions.reduce((sum, tx) => sum + parseFloat(tx.betrag), 0)
+            
+            return (
+              <React.Fragment key={entry.id}>
+                {/* Hauptzeile */}
+                <Box
+                  sx={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    minHeight: '48px',
+                    px: 1.5,
+                    py: 1,
+                    backgroundColor: theme.palette.background.default,
+                    borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+                    transition: 'background-color 0.2s ease',
+                    cursor: 'pointer',
+                    position: 'relative',
+                    // GoB-konforme Darstellung
+                    ...(isStorniert && !isStornoBuchung && {
+                      opacity: 0.75,
+                      backgroundColor: alpha(stornoColor, 0.03),
+                      '&::after': {
+                        content: '""',
+                        position: 'absolute',
+                        left: 0,
+                        right: 0,
+                        top: '50%',
+                        height: '1px',
+                        backgroundColor: stornoColor,
+                        zIndex: 1
+                      }
+                    }),
+                    ...(isStornoBuchung && {
+                      backgroundColor: alpha(accentColor, 0.03)
+                    }),
+                    '&:hover': {
+                      backgroundColor: alpha(theme.palette.action.hover, 0.03)
+                    }
+                  }}
+                  onClick={() => handleToggle(entry.id)}
+                >
+                  <Box sx={{ width: '3%', px: 0.5, display: 'flex', justifyContent: 'center' }}>
+                    <IconButton 
+                      size="small" 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleToggle(entry.id);
+                      }}
+                      sx={{ 
+                        p: 0.5,
+                        transform: expandedRows.includes(entry.id) ? 'rotate(180deg)' : 'rotate(0deg)',
+                        transition: 'transform 300ms ease-in-out'
+                      }}
+                    >
+                      <ExpandMore fontSize="small" />
+                    </IconButton>
+                  </Box>
+                  <Box sx={{ width: '5%', px: 1 }}>
+                    <Typography variant="body2">
+                      {page * rowsPerPage + index + 1}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ width: '10%', px: 1 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                      {getStyledText(totalAmount.toFixed(2), isStorniert, isStornoBuchung)}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ width: '12%', px: 1 }}>
+                    <Typography variant="body2">
+                      {getStyledText(entry.typ, isStorniert, isStornoBuchung)}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ width: '15%', px: 1 }}>
+                    {getBookingLabel(entry)}
+                  </Box>
+                  <Box sx={{ width: '25%', px: 1 }}>
+                    <Tooltip title={entry.verwendungszweck}>
+                      <Typography 
+                        variant="body2"
+                        sx={{ 
+                          whiteSpace: 'nowrap', 
+                          overflow: 'hidden', 
+                          textOverflow: 'ellipsis' 
                         }}
                       >
-                        <TableCell padding="checkbox">
-                          <IconButton size="small" onClick={() => handleToggle(entry.id)}>
-                            {expandedRows.includes(entry.id) ? <ExpandLess /> : <ExpandMore />}
+                        {getStyledText(entry.verwendungszweck, isStorniert, isStornoBuchung)}
+                      </Typography>
+                    </Tooltip>
+                  </Box>
+                  <Box sx={{ width: '15%', px: 1 }}>
+                    <Typography 
+                      variant="body2"
+                      sx={{ 
+                        whiteSpace: 'nowrap', 
+                        overflow: 'hidden', 
+                        textOverflow: 'ellipsis' 
+                      }}
+                      title={entry.mitgliedsname}
+                    >
+                      {entry.mitgliedsname ? getStyledText(entry.mitgliedsname, isStorniert, isStornoBuchung) : '–'}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ width: '10%', px: 1 }}>
+                    <Typography variant="body2">
+                      {getStyledText(new Date(entry.datum).toLocaleDateString('de-DE'), isStorniert, isStornoBuchung)}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ width: '5%', px: 1, display: 'flex', justifyContent: 'center', gap: 0.5 }}>
+                    {!isStorniert && !isStornoBuchung && (
+                      <>
+                        <Tooltip title="Löschen & Rückrechnen">
+                          <IconButton 
+                            size="small" 
+                            color="error" 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDelete(entry.id);
+                            }}
+                            sx={{ p: 0.5 }}
+                          >
+                            <DeleteIcon fontSize="small" />
                           </IconButton>
-                        </TableCell>
-                        <TableCell>{page * rowsPerPage + index + 1}</TableCell>
-                        <TableCell>
-                          {getStyledText(
-                            totalAmount.toFixed(2),
-                            isStorniert,
-                            isStornoBuchung
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {getStyledText(entry.typ, isStorniert, isStornoBuchung)}
-                        </TableCell>
-                        <TableCell>
-                          {getBookingLabel(entry)}
-                        </TableCell>
-                        <TableCell>
-                          <Tooltip title={entry.verwendungszweck}>
-                            {getStyledText(
-                              entry.verwendungszweck,
-                              isStorniert,
-                              isStornoBuchung
-                            )}
-                          </Tooltip>
-                        </TableCell>
-                        <TableCell>
-                          {entry.mitgliedsname ? (
-                            <Tooltip title={entry.mitgliedsname}>
-                              {getStyledText(
-                                entry.mitgliedsname,
-                                isStorniert,
-                                isStornoBuchung
-                              )}
-                            </Tooltip>
-                          ) : '–'}
-                        </TableCell>
-                        <TableCell>
-                          {getStyledText(
-                            new Date(entry.datum).toLocaleDateString('de-DE'),
-                            isStorniert,
-                            isStornoBuchung
-                          )}
-                        </TableCell>
-                        <TableCell align="center">
-                          {!isStorniert && !isStornoBuchung && (
-                            <>
-                              <Tooltip title="Löschen & Rückrechnen">
-                                <IconButton size="small" color="error" onClick={() => handleDelete(entry.id)}>
-                                  <DeleteIcon fontSize="small" />
-                                </IconButton>
-                              </Tooltip>
-                              <Tooltip title="Buchung stornieren">
-                                <IconButton size="small" onClick={() => handleStorno(entry.id)}>
-                                  ❌
-                                </IconButton>
-                              </Tooltip>
-                            </>
-                          )}
-                          {isStorniert && !isStornoBuchung && (
-                            <Tooltip title="Storniert">
-                              <Chip 
-                                label="Storniert"
-                                size="small"
-                                color="error"
-                                variant="outlined"
-                              />
-                            </Tooltip>
-                          )}
-                          {isStornoBuchung && (
-                            <Tooltip title={`Storno zu ${entry.original_buchung_nr}`}>
-                              <Chip
-                                label="Storno-Buchung"
-                                size="small"
-                                style={{ color: accentColor, borderColor: accentColor }}
-                                variant="outlined"
-                              />
-                            </Tooltip>
-                          )}
-                        </TableCell>
-                      </TableRow>
+                        </Tooltip>
+                        <Tooltip title="Buchung stornieren">
+                          <IconButton 
+                            size="small" 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleStorno(entry.id);
+                            }}
+                            sx={{ p: 0.5 }}
+                          >
+                            ❌
+                          </IconButton>
+                        </Tooltip>
+                      </>
+                    )}
+                    {isStorniert && !isStornoBuchung && (
+                      <Chip 
+                        label="Storniert"
+                        size="small"
+                        color="error"
+                        variant="outlined"
+                        sx={{ height: '20px', fontSize: '0.7rem' }}
+                      />
+                    )}
+                    {isStornoBuchung && (
+                      <Chip
+                        label="Storno"
+                        size="small"
+                        style={{ color: accentColor, borderColor: accentColor }}
+                        variant="outlined"
+                        sx={{ height: '20px', fontSize: '0.7rem' }}
+                      />
+                    )}
+                  </Box>
+                </Box>
 
-                      <TableRow>
-                        <TableCell colSpan={9} sx={{ p: 0, border: 0 }}>
-                          <Collapse in={expandedRows.includes(entry.id)} timeout="auto" unmountOnExit>
-                            <Box sx={{ p: 2, backgroundColor: '#fafafa' }}>
-                              {/* Neue Komponente für Storno-Informationen */}
-                              <StornoInfoBox entry={entry} />
-                            
-                              <Table size="small" sx={{ width: '100%' }}>
-                                <TableHead>
-                                  <TableRow>
-                                    <TableCell>#</TableCell>
-                                    {/* Spalte "Sub-Buchungsnummer" nur bei Mehrfachbuchungen anzeigen */}
-                                    {entry.typ === 'MEHRFACH' && (
-                                      <TableCell>Sub-Buchungsnummer</TableCell>
-                                    )}
-                                    <TableCell>Betrag</TableCell>
-                                    <TableCell>Soll-Konto</TableCell>
-                                    <TableCell>Haben-Konto</TableCell>
-                                    <TableCell>Zweck</TableCell>
-                                  </TableRow>
-                                </TableHead>
-                                <TableBody>
-                                  {entry.subtransactions.map((tx, i) => (
-                                    <TableRow key={tx.id}>
-                                      <TableCell>{tx.laufende_nummer || ''}</TableCell>
-                                      {/* Spalte "Sub-Buchungsnummer" nur bei Mehrfachbuchungen anzeigen */}
-                                      {entry.typ === 'MEHRFACH' && (
-                                        <TableCell>
-                                          {getStyledText(
-                                            tx.buchungsnummer_sub || '',
-                                            isStorniert,
-                                            isStornoBuchung
-                                          )}
-                                        </TableCell>
-                                      )}
-                                      <TableCell>
-                                        {getStyledText(
-                                          parseFloat(tx.betrag).toFixed(2),
-                                          isStorniert,
-                                          isStornoBuchung
-                                        )}
-                                      </TableCell>
-                                      <TableCell>
-                                        {getStyledText(
-                                          `${tx.soll_konto?.kontonummer} · ${tx.soll_konto?.name}`,
-                                          isStorniert,
-                                          isStornoBuchung
-                                        )}
-                                        <Typography variant="caption" sx={{ display: 'block', color: 'gray' }}>
-                                          ({tx.soll_konto?.konto_typ})
-                                        </Typography>
-                                      </TableCell>
-                                      <TableCell>
-                                        {getStyledText(
-                                          `${tx.haben_konto?.kontonummer} · ${tx.haben_konto?.name}`,
-                                          isStorniert,
-                                          isStornoBuchung
-                                        )}
-                                        <Typography variant="caption" sx={{ display: 'block', color: 'gray' }}>
-                                          ({tx.haben_konto?.konto_typ})
-                                        </Typography>
-                                      </TableCell>
-                                      <TableCell>
-                                        {getStyledText(
-                                          tx.verwendungszweck || '–',
-                                          isStorniert,
-                                          isStornoBuchung
-                                        )}
-                                      </TableCell>
-                                    </TableRow>
-                                  ))}
-                                </TableBody>
-                              </Table>
-
-                              <Divider sx={{ my: 2 }} />
-                              
-                              {/* Verbesserte T-Konten-Darstellung */}
-                              <TKontenDarstellung 
-                                transactions={entry.subtransactions} 
-                                isStorniert={isStorniert} 
-                                isStornoBuchung={isStornoBuchung}
-                              />
+                {/* Erweiterte Details */}
+                <Collapse in={expandedRows.includes(entry.id)} timeout="auto" unmountOnExit>
+                  <Box sx={{ 
+                    p: 3, 
+                    backgroundColor: alpha(theme.palette.background.paper, 0.5),
+                    borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}`
+                  }}>
+                    <StornoInfoBox entry={entry} />
+                    
+                    {/* Sub-Transaktionen Tabelle */}
+                    <Box sx={{ mb: 3 }}>
+                      <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold' }}>
+                        📝 Sub-Transaktionen
+                      </Typography>
+                      <Box sx={{ 
+                        border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+                        borderRadius: 1,
+                        overflow: 'hidden'
+                      }}>
+                        {/* Header */}
+                        <Box sx={{ 
+                          display: 'flex',
+                          backgroundColor: alpha(theme.palette.primary.main, 0.04),
+                          borderBottom: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+                          p: 1
+                        }}>
+                          <Box sx={{ width: '10%', px: 1 }}>
+                            <Typography variant="caption" sx={{ fontWeight: 'bold' }}>#</Typography>
+                          </Box>
+                          {entry.typ === 'MEHRFACH' && (
+                            <Box sx={{ width: '20%', px: 1 }}>
+                              <Typography variant="caption" sx={{ fontWeight: 'bold' }}>Sub-Buchungsnummer</Typography>
                             </Box>
-                          </Collapse>
-                        </TableCell>
-                      </TableRow>
-                    </React.Fragment>
-                  )
-                })}
-              </TableBody>
-            </Table>
-          </TableContainer>
+                          )}
+                          <Box sx={{ width: entry.typ === 'MEHRFACH' ? '15%' : '20%', px: 1 }}>
+                            <Typography variant="caption" sx={{ fontWeight: 'bold' }}>Betrag</Typography>
+                          </Box>
+                          <Box sx={{ width: '25%', px: 1 }}>
+                            <Typography variant="caption" sx={{ fontWeight: 'bold' }}>Soll-Konto</Typography>
+                          </Box>
+                          <Box sx={{ width: '25%', px: 1 }}>
+                            <Typography variant="caption" sx={{ fontWeight: 'bold' }}>Haben-Konto</Typography>
+                          </Box>
+                          <Box sx={{ flex: 1, px: 1 }}>
+                            <Typography variant="caption" sx={{ fontWeight: 'bold' }}>Zweck</Typography>
+                          </Box>
+                        </Box>
+                        
+                        {/* Rows */}
+                        {entry.subtransactions.map((tx, i) => (
+                          <Box 
+                            key={tx.id} 
+                            sx={{ 
+                              display: 'flex',
+                              borderBottom: i < entry.subtransactions.length - 1 ? `1px solid ${alpha(theme.palette.divider, 0.08)}` : 'none',
+                              p: 1,
+                              '&:hover': {
+                                backgroundColor: alpha(theme.palette.action.hover, 0.03)
+                              }
+                            }}
+                          >
+                            <Box sx={{ width: '10%', px: 1 }}>
+                              <Typography variant="body2">{tx.laufende_nummer || ''}</Typography>
+                            </Box>
+                            {entry.typ === 'MEHRFACH' && (
+                              <Box sx={{ width: '20%', px: 1 }}>
+                                <Typography variant="body2">
+                                  {getStyledText(tx.buchungsnummer_sub || '', isStorniert, isStornoBuchung)}
+                                </Typography>
+                              </Box>
+                            )}
+                            <Box sx={{ width: entry.typ === 'MEHRFACH' ? '15%' : '20%', px: 1 }}>
+                              <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                                {getStyledText(parseFloat(tx.betrag).toFixed(2), isStorniert, isStornoBuchung)}
+                              </Typography>
+                            </Box>
+                            <Box sx={{ width: '25%', px: 1 }}>
+                              <Typography variant="body2">
+                                {getStyledText(`${tx.soll_konto?.kontonummer} · ${tx.soll_konto?.name}`, isStorniert, isStornoBuchung)}
+                              </Typography>
+                              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                                ({tx.soll_konto?.konto_typ})
+                              </Typography>
+                            </Box>
+                            <Box sx={{ width: '25%', px: 1 }}>
+                              <Typography variant="body2">
+                                {getStyledText(`${tx.haben_konto?.kontonummer} · ${tx.haben_konto?.name}`, isStorniert, isStornoBuchung)}
+                              </Typography>
+                              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                                ({tx.haben_konto?.konto_typ})
+                              </Typography>
+                            </Box>
+                            <Box sx={{ flex: 1, px: 1 }}>
+                              <Typography variant="body2">
+                                {getStyledText(tx.verwendungszweck || '–', isStorniert, isStornoBuchung)}
+                              </Typography>
+                            </Box>
+                          </Box>
+                        ))}
+                      </Box>
+                    </Box>
 
-          {/* Paginationsanzeige */}
-          <TablePagination
-            component="div"
-            count={filtered.length}
-            page={page}
-            onPageChange={handleChangePage}
-            rowsPerPage={rowsPerPage}
-            onRowsPerPageChange={handleChangeRowsPerPage}
-            rowsPerPageOptions={[25, 50, 100]}
-            labelRowsPerPage="Einträge pro Seite"
-            labelDisplayedRows={({ from, to, count }) => `${from}–${to} von ${count}`}
-          />
+                    <Divider sx={{ my: 2 }} />
+                    
+                    <TKontenDarstellung 
+                      transactions={entry.subtransactions} 
+                      isStorniert={isStorniert} 
+                      isStornoBuchung={isStornoBuchung}
+                    />
+                  </Box>
+                </Collapse>
+              </React.Fragment>
+            )
+          })}
           
-          {/* Zusammenfassung der angezeigten Daten */}
+          {paginated.length === 0 && (
+            <Typography align="center" sx={{ mt: 4, width: '100%', color: 'text.secondary' }}>
+              Keine Buchungen gefunden
+            </Typography>
+          )}
+        </Box>
+        
+        {/* Footer mit Pagination und Zusammenfassung */}
+        <Box 
+          sx={{ 
+            borderTop: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+            backgroundColor: theme.palette.background.paper,
+            p: 1,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexShrink: 0,
+            minHeight: '56px'
+          }}
+        >
+          {/* Zusammenfassung links */}
           {filtered.length > 0 && (
-            <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
               <Typography variant="body2" color="text.secondary">
                 {filtered.length} Buchungen gefunden
                 {yearFilter !== 'ALL' && ` (Jahr ${yearFilter})`}
                 {monthFilter !== 'ALL' && ` (${months.find(m => m.value === parseInt(monthFilter))?.name})`}
               </Typography>
               
-              <Box>
-                <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                  Summe: {filtered.reduce((sum, entry) => 
-                    sum + entry.subtransactions.reduce((txSum, tx) => txSum + parseFloat(tx.betrag), 0), 0
-                  ).toFixed(2)} €
-                </Typography>
-              </Box>
+              <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                Summe: {filtered.reduce((sum, entry) => 
+                  sum + entry.subtransactions.reduce((txSum, tx) => txSum + parseFloat(tx.betrag), 0), 0
+                ).toFixed(2)} €
+              </Typography>
             </Box>
           )}
-        </CardContent>
-      </Card>
+          
+          {/* Pagination rechts */}
+          <Box sx={{ 
+            display: 'flex', 
+            alignItems: 'center',
+            gap: 1
+          }}>
+            <Typography variant="body2" sx={{ fontSize: '0.875rem', color: 'text.secondary' }}>
+              Einträge pro Seite
+            </Typography>
+            <FormControl size="small" sx={{ minWidth: 80 }}>
+              <Select
+                value={rowsPerPage}
+                onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+                sx={{ fontSize: '0.875rem' }}
+              >
+                {pageSizeOptions.map(option => (
+                  <MenuItem key={option} value={option}>{option}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <Typography variant="body2" sx={{ mx: 2, color: 'text.secondary' }}>
+              {page * rowsPerPage + 1}–{Math.min((page + 1) * rowsPerPage, filtered.length)} von {filtered.length}
+            </Typography>
+          </Box>
+        </Box>
+      </Box>
     </Box>
   )
 }

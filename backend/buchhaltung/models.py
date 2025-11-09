@@ -27,7 +27,6 @@ class Booking(models.Model):
         ('EINZEL', 'Einzelbuchung'),
         ('MEHRFACH', 'Mehrfachbuchung'),
         ('MITGLIEDSBEITRAG', 'Mitgliedsbeitragseinzahlung'),
-        ('FOERDERKREDIT', 'Förderkrediteinzahlung'),
     ]
 
     buchungsnummer = models.CharField(
@@ -48,7 +47,6 @@ class Booking(models.Model):
     # Neue Felder für den Snapshot des Mitgliedszustandes:
     mitgliedsname = models.CharField(max_length=255, blank=True, null=True, verbose_name="Mitgliedsname")
     kontostand_snapshot = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"), verbose_name="Kontostand")
-    foerderkredit_stand = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"), verbose_name="Förderkredit-Stand")
 
     def __str__(self):
         return f"Buchung {self.id} ({self.typ}) - {self.verwendungszweck}"
@@ -60,10 +58,8 @@ class Booking(models.Model):
             try:
                 member_account = MemberAccount.objects.get(mitglied=self.mitglied)
                 self.kontostand_snapshot = member_account.kontostand
-                self.foerderkredit_stand = member_account.foerderkredit_guthaben
             except MemberAccount.DoesNotExist:
                 self.kontostand_snapshot = Decimal("0.00")
-                self.foerderkredit_stand = Decimal("0.00")
         super().save(*args, **kwargs)
 
 class SubTransaction(models.Model):
@@ -81,11 +77,10 @@ class SubTransaction(models.Model):
 
 class MemberAccount(models.Model):
     """
-    Speichert den Finanzstatus eines Mitglieds, inklusive Kontostand und Förderkredit-Guthaben.
+    Speichert den Finanzstatus eines Mitglieds, inklusive Kontostand.
     """
     mitglied = models.OneToOneField(Member, on_delete=models.CASCADE, verbose_name="Mitglied")
     kontostand = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"), verbose_name="Kontostand")
-    foerderkredit_guthaben = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"), verbose_name="Förderkredit-Guthaben")
     letzte_aktualisierung = models.DateTimeField(auto_now=True, verbose_name="Letzte Aktualisierung")
 
     def __str__(self):

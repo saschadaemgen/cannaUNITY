@@ -207,9 +207,6 @@ class AccountImportAPIView(APIView):
         skipped = 0
 
         for nummer, name, typ, category, saldo in STANDARD_KONTORAHMEN:
-            if "Förderkredit" in name:
-                continue
-
             account, created_obj = Account.objects.get_or_create(
                 kontonummer=nummer,
                 defaults={

@@ -1,26 +1,23 @@
 // src/apps/trackandtrace/components/TrackTraceMenu.jsx
-import React from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import {
   List,
   ListItem,
   ListItemButton,
   ListItemIcon,
-  ListItemText,
-  Typography,
   Box,
   Divider,
   useTheme,
   alpha,
-  Paper,
+  IconButton,
   Tooltip
 } from '@mui/material'
 import { NavLink, useLocation } from 'react-router-dom'
 
-// Bestehende Icons
+// Icons
 import GrassIcon from '@mui/icons-material/Grass'
 import LocalFloristIcon from '@mui/icons-material/LocalFlorist'
 import ContentCutIcon from '@mui/icons-material/ContentCut'
-import AcUnitIcon from '@mui/icons-material/AcUnit'
 import AgricultureIcon from '@mui/icons-material/Agriculture'
 import ScienceIcon from '@mui/icons-material/Science'
 import BiotechIcon from '@mui/icons-material/Biotech'
@@ -29,12 +26,13 @@ import ShoppingBasketIcon from '@mui/icons-material/ShoppingBasket'
 import YardIcon from '@mui/icons-material/Yard'
 import OpacityIcon from '@mui/icons-material/Opacity'
 import ThermostatIcon from '@mui/icons-material/Thermostat'
-
-// Neue Icons für die zusätzlichen Funktionen
 import QrCode2Icon from '@mui/icons-material/QrCode2'
 import DescriptionIcon from '@mui/icons-material/Description'
 import DashboardIcon from '@mui/icons-material/Dashboard'
 import VerifiedUserIcon from '@mui/icons-material/VerifiedUser'
+import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline'
+import RemoveRedEyeIcon from '@mui/icons-material/RemoveRedEye'
+import BarChartIcon from '@mui/icons-material/BarChart'
 
 // Prozessschritte
 const processSteps = [
@@ -44,6 +42,11 @@ const processSteps = [
     icon: <GrassIcon />, 
     pathOld: '/trace/samen',
     pathNew: '/trackandtrace/seeds',
+    actions: [
+      { icon: <AddCircleOutlineIcon />, tooltip: 'Neuer Samen Einkauf', path: '/trace/samen/neu', color: 'success' },
+      { icon: <RemoveRedEyeIcon />, tooltip: 'Übersicht', path: '/trace/samen' },
+      { icon: <BarChartIcon />, tooltip: 'Statistiken', path: '/trace/samen/stats' }
+    ]
   },
   { 
     label: 'Mutterpflanzen', 
@@ -119,7 +122,7 @@ const processSteps = [
   }
 ]
 
-// Neue administrative Funktionen
+// Administrative Funktionen
 const adminFunctions = [
   {
     label: 'Produktscan',
@@ -147,9 +150,13 @@ const adminFunctions = [
   }
 ]
 
-export default function TrackTraceMenu({ collapsed = false }) {
+export default function TrackTraceMenu() {
   const theme = useTheme()
   const location = useLocation()
+  const [hoveredItem, setHoveredItem] = useState(null)
+  const [mouseInActionBar, setMouseInActionBar] = useState(false)
+  const [actionBarPosition, setActionBarPosition] = useState({ top: 0 })
+  const itemRefs = useRef({})
   
   // Ermittle, ob wir das alte oder neue Pfadsystem verwenden
   const useNewPaths = location.pathname.includes('/trackandtrace')
@@ -169,265 +176,197 @@ export default function TrackTraceMenu({ collapsed = false }) {
     return location.pathname === path
   }
 
+  // Verbesserte Hover-Logik
+  const handleItemMouseEnter = (path, event) => {
+    setHoveredItem(path)
+    // Berechne Position der Action Bar
+    if (itemRefs.current[path]) {
+      const rect = itemRefs.current[path].getBoundingClientRect()
+      setActionBarPosition({ top: rect.top })
+    }
+  }
+
+  const handleItemMouseLeave = (path) => {
+    // Nur schließen wenn wir nicht in der Action Bar sind
+    setTimeout(() => {
+      if (!mouseInActionBar) {
+        setHoveredItem(null)
+      }
+    }, 100)
+  }
+
+  const handleActionBarMouseEnter = () => {
+    setMouseInActionBar(true)
+  }
+
+  const handleActionBarMouseLeave = () => {
+    setMouseInActionBar(false)
+    setHoveredItem(null)
+  }
+
   // Funktion zum Rendern eines Menüelements
   const renderMenuItem = (item, index) => {
     const active = isActive(item.path)
+    const isHovered = hoveredItem === item.path
+    const hasActions = item.actions && item.actions.length > 0
     
-    // Basis-Komponente für Listen-Items
-    const menuItem = (
-      <ListItemButton
-        component={NavLink}
-        to={item.path}
-        sx={{
+    return (
+      <ListItem 
+        key={item.path} 
+        disablePadding 
+        sx={{ 
           position: 'relative',
-          borderRadius: '8px',
-          height: collapsed ? '42px' : (item.subtitle ? '48px' : '42px'),
-          color: active ? theme.palette.primary.main : theme.palette.text.primary,
-          backgroundColor: active ? alpha(theme.palette.primary.main, 0.1) : 'transparent',
-          padding: collapsed ? '8px' : undefined,
-          justifyContent: collapsed ? 'center' : undefined,
-          '&:hover': {
+          height: '48px',
+        }}
+        ref={(el) => itemRefs.current[item.path] = el}
+        onMouseEnter={(e) => handleItemMouseEnter(item.path, e)}
+        onMouseLeave={() => handleItemMouseLeave(item.path)}
+      >
+        {/* Icon Button - OHNE TOOLTIP! */}
+        <ListItemButton
+          component={NavLink}
+          to={item.path}
+          sx={{
+            height: '48px',
+            width: '64px',
+            justifyContent: 'center',
+            color: active ? theme.palette.primary.main : theme.palette.text.secondary,
             backgroundColor: active 
-              ? alpha(theme.palette.primary.main, 0.15) 
-              : alpha(theme.palette.action.hover, 0.08)
-          },
-          '&.active': {
-            fontWeight: 'bold',
-            '&::before': {
+              ? alpha(theme.palette.primary.main, 0.08)
+              : 'transparent',
+            borderRadius: 0, // KEINE RUNDUNG!
+            '&:hover': {
+              backgroundColor: alpha(theme.palette.primary.main, 0.08),
+              borderRadius: 0, // KEINE RUNDUNG!
+            },
+            // Aktiver Indikator als linker Balken
+            '&::before': active ? {
               content: '""',
               position: 'absolute',
-              left: collapsed ? '-4px' : '-8px',
+              left: 0,
               top: '50%',
               transform: 'translateY(-50%)',
               height: '60%',
-              width: '4px',
+              width: '3px',
               backgroundColor: theme.palette.primary.main,
-              borderRadius: '0 4px 4px 0'
-            }
-          }
-        }}
-      >
-        <ListItemIcon 
-          sx={{ 
-            color: active ? theme.palette.primary.main : theme.palette.text.secondary,
-            minWidth: collapsed ? 0 : '36px',
-            marginRight: collapsed ? 0 : undefined
+            } : {},
           }}
         >
-          {item.icon}
-        </ListItemIcon>
-        
-        {!collapsed && (
-          <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-            {item.stepLabel && (
-              <Typography 
-                variant="caption" 
-                sx={{ 
-                  fontSize: '0.65rem', 
-                  fontWeight: 'bold',
-                  color: theme.palette.text.secondary,
-                  lineHeight: 1,
-                  letterSpacing: '0.5px'
-                }}
-              >
-                {item.stepLabel}
-              </Typography>
-            )}
-            <Typography 
-              sx={{
-                fontSize: '0.9rem',
-                fontWeight: active ? 600 : 400,
-                lineHeight: 1.2,
-                mt: item.stepLabel ? '1px' : 0
-              }}
-            >
-              {item.label}
-            </Typography>
-            {item.subtitle && (
-              <Typography 
-                variant="caption" 
-                sx={{ 
-                  fontSize: '0.7rem', 
-                  color: theme.palette.text.secondary,
-                  ml: 0,
-                  lineHeight: 1,
-                  mt: '-1px'
-                }}
-              >
-                {item.subtitle}
-              </Typography>
-            )}
+          <ListItemIcon 
+            sx={{ 
+              color: active ? theme.palette.primary.main : theme.palette.text.secondary,
+              minWidth: 0,
+              justifyContent: 'center'
+            }}
+          >
+            {item.icon}
+          </ListItemIcon>
+        </ListItemButton>
+
+        {/* Action Bar mit solidem Hintergrund */}
+        {hasActions && isHovered && (
+          <Box
+            sx={{
+              position: 'fixed',
+              left: '64px',
+              top: actionBarPosition.top || 0,
+              display: 'flex',
+              alignItems: 'center',
+              height: '48px',
+              gap: 0.5,
+              // Weißer/Dunkler Hintergrund je nach Theme
+              backgroundColor: theme.palette.background.paper,
+              // Grünes Overlay darüber
+              '&::after': {
+                content: '""',
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: alpha(theme.palette.primary.main, 0.08),
+                pointerEvents: 'none',
+              },
+              px: 1.5,
+              zIndex: 9999,
+              boxShadow: theme.shadows[8],
+              border: `1px solid ${theme.palette.divider}`,
+              borderLeft: 'none',
+              // Smooth slide-in Animation
+              animation: 'slideIn 0.15s ease-out',
+              '@keyframes slideIn': {
+                from: {
+                  transform: 'translateX(-10px)',
+                  opacity: 0,
+                },
+                to: {
+                  transform: 'translateX(0)',
+                  opacity: 1,
+                }
+              },
+              // Unsichtbare Erweiterung für bessere Hover-Detection
+              '&::before': {
+                content: '""',
+                position: 'absolute',
+                left: '-10px',
+                top: 0,
+                bottom: 0,
+                width: '10px',
+              }
+            }}
+            onMouseEnter={handleActionBarMouseEnter}
+            onMouseLeave={handleActionBarMouseLeave}
+          >
+            {item.actions.map((action, actionIndex) => (
+              <Tooltip key={actionIndex} title={action.tooltip} placement="top">
+                <IconButton
+                  component={action.path ? NavLink : 'button'}
+                  to={action.path}
+                  size="small"
+                  sx={{
+                    width: '36px',
+                    height: '36px',
+                    color: action.color ? theme.palette[action.color].main : theme.palette.text.primary,
+                    position: 'relative',
+                    zIndex: 1,
+                    '&:hover': {
+                      backgroundColor: alpha(theme.palette.primary.main, 0.15),
+                    }
+                  }}
+                >
+                  {action.icon}
+                </IconButton>
+              </Tooltip>
+            ))}
           </Box>
         )}
-        
-        {/* Active-Indikator-Punkt nur anzeigen, wenn nicht kollabiert */}
-        {active && !collapsed && (
-          <Box 
-            sx={{ 
-              position: 'absolute',
-              right: '8px',
-              width: '6px',
-              height: '6px',
-              borderRadius: '50%',
-              backgroundColor: theme.palette.primary.main,
-            }}
-          />
-        )}
-      </ListItemButton>
-    )
-    
-    // Im kollabierten Zustand: Tooltip um das Element herum
-    return (
-      <ListItem key={item.label} disablePadding sx={{ mb: 0.5, px: collapsed ? 0.5 : 0 }}>
-        {collapsed ? (
-          <Tooltip 
-            title={
-              <Box>
-                {item.stepLabel && (
-                  <Typography variant="caption" sx={{ fontWeight: 'bold' }}>
-                    {item.stepLabel}
-                  </Typography>
-                )}
-                <Typography variant="body2">{item.label}</Typography>
-                {item.subtitle && (
-                  <Typography variant="caption">{item.subtitle}</Typography>
-                )}
-              </Box>
-            } 
-            placement="right"
-            arrow
-          >
-            {menuItem}
-          </Tooltip>
-        ) : menuItem}
       </ListItem>
     )
   }
 
-  // Überschriften-Rendering anpassen
-  const renderHeader = () => {
-    if (collapsed) {
-      return null;  // Wir zeigen kein Header im eingeklappten Modus
-    }
-    
-    return (
-      <Paper 
-        elevation={0}
-        sx={{ 
-          mx: 2, 
-          mb: 2, 
-          p: 1.5, 
-          background: alpha(theme.palette.primary.main, 0.05),
-          borderRadius: '8px',
-          borderLeft: `4px solid ${theme.palette.primary.main}`
-        }}
-      >
-        <Typography 
-          variant="subtitle1" 
-          color="primary" 
-          sx={{ 
-            fontWeight: 'bold', 
-            display: 'flex', 
-            alignItems: 'center'
-          }}
-        >
-          Track & Trace
-        </Typography>
-        <Typography variant="caption" color="text.secondary">
-          Verwaltung des Pflanzenlebenszyklus
-        </Typography>
-      </Paper>
-    )
-  }
-  
-  // Admin-Titel-Rendering anpassen
-  const renderAdminSeparator = () => {
-    if (collapsed) {
-      return <Divider sx={{ my: 2, mx: 1 }} />
-    }
-    
-    return (
-      <Box sx={{ mx: 2, my: 2 }}>
-        <Divider>
-          <Box 
-            sx={{ 
-              px: 1.5,
-              py: 0.5,
-              borderRadius: '12px',
-              backgroundColor: alpha(theme.palette.primary.main, 0.05),
-              border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-            }}
-          >
-            <Typography 
-              variant="caption" 
-              sx={{ 
-                fontSize: '0.7rem',
-                fontWeight: 'bold',
-                color: theme.palette.text.secondary,
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px'
-              }}
-            >
-              Admin-Tools
-            </Typography>
-          </Box>
-        </Divider>
-      </Box>
-    )
-  }
-  
-  // Footer anpassen
-  const renderFooter = () => {
-    if (collapsed) return null
-    
-    return (
-      <Box 
-        sx={{ 
-          mt: 2, 
-          mx: 2, 
-          p: 1.5, 
-          backgroundColor: alpha(theme.palette.grey[500], 0.05),
-          borderRadius: '8px',
-          boxShadow: 'inset 0 0 8px rgba(0,0,0,0.03)',
-          borderTop: `1px solid ${alpha(theme.palette.grey[500], 0.1)}`
-        }}
-      >
-        <Typography 
-          variant="caption" 
-          color="text.secondary"
-          sx={{ 
-            display: 'block', 
-            fontSize: '0.7rem',
-            fontStyle: 'italic'
-          }}
-        >
-          Track & Trace System v1.2
-        </Typography>
-      </Box>
-    )
-  }
-
   return (
-    <>
-      {renderHeader()}
-      
+    <Box 
+      sx={{ 
+        height: '100%', 
+        width: '64px',
+        display: 'flex', 
+        flexDirection: 'column',
+      }}
+    >
       {/* Prozessschritte */}
-      <Box sx={{ px: collapsed ? 0 : 1 }}>
-        <List>
-          {processMenuItems.map(renderMenuItem)}
+      <Box sx={{ flexGrow: 1, overflowY: 'auto' }}>
+        <List sx={{ p: 0 }}>
+          {processMenuItems.map((item, index) => renderMenuItem(item, index))}
+        </List>
+        
+        {/* Admin Separator */}
+        <Divider sx={{ my: 1 }} />
+        
+        {/* Administrative Funktionen */}
+        <List sx={{ p: 0 }}>
+          {adminMenuItems.map((item, index) => renderMenuItem(item, index))}
         </List>
       </Box>
-      
-      {renderAdminSeparator()}
-      
-      {/* Administrative Funktionen */}
-      <Box sx={{ px: collapsed ? 0 : 1 }}>
-        <List>
-          {adminMenuItems.map(renderMenuItem)}
-        </List>
-      </Box>
-      
-      {renderFooter()}
-    </>
+    </Box>
   )
 }

@@ -12,7 +12,7 @@ class KontoInfoSerializer(serializers.ModelSerializer):
         model = Account
         fields = ['id', 'kontonummer', 'name', 'konto_typ']
 
-# Normales AccountSerializer (z. B. für Kontolisten & Verwaltung)
+# Normales AccountSerializer (z. B. für Kontolisten & Verwaltung)
 class AccountSerializer(serializers.ModelSerializer):
     class Meta:
         model = Account
@@ -66,7 +66,6 @@ class BookingSerializer(serializers.ModelSerializer):
             'mitglied',
             'mitgliedsname',
             'kontostand_snapshot',
-            'foerderkredit_stand',
             'subtransactions'
         ]
     
@@ -163,7 +162,7 @@ class BookingSerializer(serializers.ModelSerializer):
 
         return booking
 
-# Für Statistiken oder Dashboards (z. B. GuV)
+# Für Statistiken oder Dashboards (z. B. GuV)
 class BookingSummarySerializer(serializers.Serializer):
     total_income = serializers.DecimalField(max_digits=10, decimal_places=2)
     total_expense = serializers.DecimalField(max_digits=10, decimal_places=2)

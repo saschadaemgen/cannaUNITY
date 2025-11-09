@@ -1,9 +1,11 @@
 # wawi/models.py
-import uuid
-import os
+import uuid, os
 from django.db import models
 from django.utils import timezone
 from django.core.files.storage import default_storage
+from django.db.models import JSONField  # Import für Django 3.1+
+# Alternative für PostgreSQL:
+# from django.contrib.postgres.fields import JSONField
 from members.models import Member
 
 class CannabisStrain(models.Model):
@@ -325,9 +327,61 @@ class CannabisStrain(models.Model):
     def __str__(self):
         return f"{self.name} ({self.breeder})"
     
+    @property
+    def lowest_unit_price(self):
+        """Gibt den günstigsten Stückpreis zurück"""
+        price_tiers = self.price_tiers.all()
+        if price_tiers:
+            return min(tier.unit_price for tier in price_tiers)
+        return None
+
+    @property
+    def default_price_display(self):
+        """Gibt den Standardpreis für die Anzeige zurück"""
+        default_tier = self.price_tiers.filter(is_default=True).first()
+        if default_tier:
+            return f"{default_tier.quantity}× {default_tier.total_price}€"
+        return "Kein Preis definiert"
+    
     class Meta:
         verbose_name = "Cannabis-Sorte"
         verbose_name_plural = "Cannabis-Sorten"
+
+    @property
+    def price_range(self):
+        """Gibt die Preisspanne als Dictionary zurück"""
+        price_tiers = self.price_tiers.all()
+        if not price_tiers:
+            return None
+        
+        # Berechne alle Stückpreise
+        unit_prices = [tier.unit_price for tier in price_tiers if tier.quantity > 0]
+        
+        if not unit_prices:
+            return None
+        
+        return {
+            'min': min(unit_prices),
+            'max': max(unit_prices)
+        }
+
+    @property
+    def price_range_display(self):
+        """Gibt die formatierte Preisspanne für die Anzeige zurück"""
+        price_range = self.price_range
+        
+        if not price_range:
+            return "Kein Preis"
+        
+        min_price = price_range['min']
+        max_price = price_range['max']
+        
+        # Wenn min und max gleich sind (nur eine Preisstaffel)
+        if min_price == max_price:
+            return f"{min_price:.0f}€"
+        
+        # Formatierung der Preisspanne
+        return f"{min_price:.0f}-{max_price:.0f}€"
 
 
 class StrainImage(models.Model):
@@ -405,3 +459,120 @@ class StrainInventory(models.Model):
     class Meta:
         verbose_name = "Sortenbestand"
         verbose_name_plural = "Sortenbestände"
+
+class StrainHistory(models.Model):
+    """Modell zur Nachverfolgung von Änderungen an Cannabis-Sorten"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    strain = models.ForeignKey(
+        CannabisStrain,
+        on_delete=models.CASCADE,
+        related_name='history'
+    )
+    member = models.ForeignKey(
+        Member,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='strain_history'
+    )
+    action = models.CharField(
+        max_length=20,
+        choices=[
+            ('created', 'Erstellt'),
+            ('updated', 'Aktualisiert'),
+            ('deactivated', 'Deaktiviert'),
+        ],
+        default='updated',
+        verbose_name="Aktion"
+    )
+    # Neue JSONFields
+    changes = JSONField(
+        blank=True, null=True,
+        verbose_name="Detaillierte Änderungen"
+    )
+    image_data = JSONField(
+        blank=True, null=True,
+        verbose_name="Bildoperationsdetails"
+    )
+    timestamp = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        verbose_name = "Sortenhistorie"
+        verbose_name_plural = "Sortenhistorien"
+        ordering = ['-timestamp']  # Neueste Einträge zuerst
+
+    def __str__(self):
+        if self.member:
+            return f"{self.get_action_display()} von {self.member.first_name} {self.member.last_name} am {self.timestamp.strftime('%d.%m.%Y %H:%M')}"
+        return f"{self.get_action_display()} am {self.timestamp.strftime('%d.%m.%Y %H:%M')}"
+    
+class StrainPriceTier(models.Model):
+    """Preisstaffel für Cannabis-Sorten"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    strain = models.ForeignKey(
+        CannabisStrain,
+        on_delete=models.CASCADE,
+        related_name='price_tiers'
+    )
+    tier_name = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name="Staffelbezeichnung"
+    )
+    quantity = models.IntegerField(
+        verbose_name="Menge (Samen pro Packung)"
+    )
+    total_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        verbose_name="Gesamtpreis pro Packung"
+    )
+    is_default = models.BooleanField(
+        default=False,
+        verbose_name="Standardpreis"
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    @property
+    def unit_price(self):
+        """Berechnet den Stückpreis"""
+        if self.quantity > 0:
+            return self.total_price / self.quantity
+        return 0
+    
+    @property
+    def discount_percentage(self):
+        """Berechnet den Rabatt im Vergleich zur kleinsten Packung"""
+        smallest_tier = self.strain.price_tiers.order_by('quantity').first()
+        if smallest_tier and smallest_tier != self:
+            smallest_unit_price = smallest_tier.unit_price
+            if smallest_unit_price > 0:
+                return ((smallest_unit_price - self.unit_price) / smallest_unit_price) * 100
+        return 0
+    
+    @property
+    def purchased_seeds(self):
+        """Wird später mit externem System verknüpft"""
+        return 0
+
+    @property
+    def flowering_plants(self):
+        """Wird später mit externem System verknüpft"""
+        return 0
+
+    @property
+    def mother_plants(self):
+        """Wird später mit externem System verknüpft"""
+        return 0
+    
+    @property
+    def available_seeds(self):
+        """Berechnet verfügbare Samen"""
+        return self.purchased_seeds - (self.flowering_plants + self.mother_plants)
+    
+    class Meta:
+        verbose_name = "Preisstaffel"
+        verbose_name_plural = "Preisstaffeln"
+        ordering = ['quantity']
+        unique_together = ['strain', 'quantity']

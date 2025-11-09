@@ -35,7 +35,7 @@ const RoomEdit = () => {
     
     try {
       await axios.put(`/api/rooms/${id}/`, formData);
-      navigate(`/rooms/${id}`);
+      navigate('/rooms'); // HIER IST DIE ÄNDERUNG - ohne ID!
     } catch (error) {
       console.error('Error updating room:', error);
       setError('Ein Fehler ist beim Aktualisieren des Raums aufgetreten.');
@@ -70,8 +70,8 @@ const RoomEdit = () => {
         />
         
         <Box sx={{ mt: 2 }}>
-          <Button component={Link} to={`/rooms/${id}`} variant="text">
-            Zurück zu Raumdetails
+          <Button component={Link} to="/rooms" variant="text">
+            Zurück zur Raumliste
           </Button>
         </Box>
       </Box>

@@ -1,9 +1,12 @@
-import uuid
+import uuid, io
 from django.db import models
 from django.utils import timezone
 from members.models import Member
 from rooms.models import Room
 from wawi.models import CannabisStrain
+from django.core.files.storage import default_storage
+from django.core.validators import FileExtensionValidator, ValidationError, MinValueValidator, MaxValueValidator
+from PIL import Image
 
 class SeedPurchase(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -111,6 +114,42 @@ class MotherPlant(models.Model):
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    is_premium_mother = models.BooleanField(
+        default=False,
+        help_text="Markiert besonders erfolgreiche Mutterpflanzen"
+    )
+    premium_marked_at = models.DateTimeField(blank=True, null=True)
+    premium_marked_by = models.ForeignKey(
+        Member, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        related_name='marked_premium_mothers'
+    )
+    
+    # Properties für aggregierte Werte
+    @property
+    def average_rating(self):
+        """Durchschnittliche Gesamtbewertung"""
+        ratings = self.ratings.all()
+        if not ratings:
+            return None
+        return sum(r.overall_score for r in ratings) / len(ratings)
+    
+    @property
+    def total_cuttings_produced(self):
+        """Gesamtzahl produzierter Stecklinge"""
+        return sum(rating.cuttings_harvested for rating in self.ratings.all())
+    
+    @property
+    def last_rating(self):
+        """Letzte Bewertung"""
+        return self.ratings.first()  # Da ordering = ['-created_at']
+    
+    @property
+    def rating_count(self):
+        """Anzahl der Bewertungen"""
+        return self.ratings.count()
     
     def save(self, *args, **kwargs):
         # Generiere Batch-Nummer falls nicht vorhanden
@@ -127,6 +166,88 @@ class MotherPlant(models.Model):
             self.batch_number = f"mother-plant:{today.strftime('%d:%m:%Y')}:{count:04d}"
         
         super().save(*args, **kwargs)
+
+class MotherPlantRating(models.Model):
+    """Bewertungsmodell für Mutterpflanzen-Performance"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    mother_plant = models.ForeignKey(MotherPlant, related_name='ratings', on_delete=models.CASCADE)
+    
+    # Allgemeine Bewertung
+    overall_health = models.IntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(10)],
+        help_text="Allgemeine Pflanzengesundheit (1-10 Sterne)"
+    )
+    health_notes = models.TextField(blank=True, null=True)
+    
+    # Wuchscharakteristik
+    growth_structure = models.IntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(10)],
+        help_text="Wuchsstruktur und Verzweigung (1-10)"
+    )
+    growth_notes = models.TextField(blank=True, null=True)
+    
+    # Regeneration
+    regeneration_ability = models.IntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(10)],
+        help_text="Regenerationsfähigkeit nach Schnitt (1-10)"
+    )
+    regeneration_notes = models.TextField(blank=True, null=True)
+    
+    # Nachwachsgeschwindigkeit
+    REGROWTH_SPEED_CHOICES = [
+        ('very_fast', 'Sehr schnell (< 7 Tage)'),
+        ('fast', 'Schnell (7-14 Tage)'),
+        ('normal', 'Normal (14-21 Tage)'),
+        ('slow', 'Langsam (> 21 Tage)'),
+    ]
+    regrowth_speed = models.CharField(max_length=20, choices=REGROWTH_SPEED_CHOICES)
+    regrowth_speed_rating = models.IntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(10)]
+    )
+    
+    # Stecklingsertrag
+    cuttings_harvested = models.PositiveIntegerField(
+        help_text="Anzahl geernteter Stecklinge bei diesem Schnitt"
+    )
+    cutting_quality = models.IntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(10)],
+        help_text="Qualität der Stecklinge (1-10)"
+    )
+    rooting_success_rate = models.DecimalField(
+        max_digits=5, decimal_places=2,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        help_text="Bewurzelungs-Erfolgsquote in %",
+        null=True, blank=True
+    )
+    
+    # Tracking
+    rated_by = models.ForeignKey(Member, on_delete=models.SET_NULL, null=True, related_name='mother_plant_ratings')
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    # Verknüpfung zum Stecklingsschnitt (optional)
+    cutting_batch = models.ForeignKey(
+        'CuttingBatch', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        related_name='mother_rating',
+        help_text="Verknüpfung zum zugehörigen Stecklingsschnitt"
+    )
+    
+    class Meta:
+        ordering = ['-created_at']
+        
+    @property
+    def overall_score(self):
+        """Berechnet den Gesamt-Performance-Score"""
+        scores = [
+            self.overall_health,
+            self.growth_structure,
+            self.regeneration_ability,
+            self.regrowth_speed_rating,
+            self.cutting_quality
+        ]
+        return sum(scores) / len(scores)
 
 class FloweringPlantBatch(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -414,6 +535,33 @@ class HarvestBatch(models.Model):
         else:
             return 'active'
     
+    def generate_batch_number(self):
+        """Generiert eine eindeutige Batch-Nummer für Ernten"""
+        prefix = "harvest"  # WICHTIG: Muss "harvest" sein!
+        
+        # Aktuelles Datum
+        now = timezone.now()
+        date_part = now.strftime("%d:%m:%Y")
+        
+        # Zähler für den Tag
+        start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_of_day = now.replace(hour=23, minute=59, second=59, microsecond=999999)
+        
+        # Zähle Batches vom gleichen Tag
+        count = HarvestBatch.objects.filter(
+            created_at__range=(start_of_day, end_of_day)
+        ).count()
+        
+        # Batch-Nummer mit führenden Nullen
+        batch_number = f"{prefix}:{date_part}:{count + 1:04d}"
+        
+        return batch_number
+    
+    def save(self, *args, **kwargs):
+        if not self.batch_number:
+            self.batch_number = self.generate_batch_number()
+        super().save(*args, **kwargs)
+    
 class DryingBatch(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     batch_number = models.CharField(max_length=50, unique=True, blank=True, null=True)
@@ -490,6 +638,33 @@ class DryingBatch(models.Model):
             return self.harvest_batch.source_strain
         return "Unbekannt"
     
+    def generate_batch_number(self):
+        """Generiert eine eindeutige Batch-Nummer für Trocknungen"""
+        prefix = "drying"  # WICHTIG: Muss "drying" sein!
+        
+        # Aktuelles Datum
+        now = timezone.now()
+        date_part = now.strftime("%d:%m:%Y")
+        
+        # Zähler für den Tag
+        start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_of_day = now.replace(hour=23, minute=59, second=59, microsecond=999999)
+        
+        # Zähle Batches vom gleichen Tag
+        count = DryingBatch.objects.filter(
+            created_at__range=(start_of_day, end_of_day)
+        ).count()
+        
+        # Batch-Nummer mit führenden Nullen
+        batch_number = f"{prefix}:{date_part}:{count + 1:04d}"
+        
+        return batch_number
+    
+    def save(self, *args, **kwargs):
+        if not self.batch_number:
+            self.batch_number = self.generate_batch_number()
+        super().save(*args, **kwargs)  
+    
 # Produkt-Typen als Choices
 PRODUCT_TYPE_CHOICES = [
     ('marijuana', 'Marihuana'),
@@ -528,6 +703,15 @@ class ProcessingBatch(models.Model):
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        indexes = [
+            # Index für Produkttyp-Filter
+            models.Index(
+                fields=['product_type'], 
+                name='processing_batch_type_idx'
+            ),
+        ]
     
     def save(self, *args, **kwargs):
         # Generiere Batch-Nummer falls nicht vorhanden
@@ -631,6 +815,21 @@ class LabTestingBatch(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
+    class Meta:
+        indexes = [
+            # Index für THC-Gehalt (für Filter und Sortierung)
+            models.Index(
+                fields=['thc_content'], 
+                name='lab_testing_thc_idx'
+            ),
+            
+            # Index für Processing-Batch Relations
+            models.Index(
+                fields=['processing_batch'], 
+                name='lab_testing_processing_idx'
+            )
+        ]
+    
     def save(self, *args, **kwargs):
         # Generiere Batch-Nummer falls nicht vorhanden
         if not self.batch_number:
@@ -694,6 +893,29 @@ class PackagingBatch(models.Model):
     unit_count = models.PositiveIntegerField()  # Anzahl der Verpackungseinheiten
     unit_weight = models.DecimalField(max_digits=6, decimal_places=2)  # Gewicht pro Einheit in Gramm
     
+    # 🆕 NEUE PREISFELDER HINZUFÜGEN:
+    price_per_gram = models.DecimalField(
+        max_digits=8, 
+        decimal_places=2, 
+        null=True, 
+        blank=True,
+        help_text="Preis pro Gramm in Euro"
+    )
+    total_batch_price = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        null=True, 
+        blank=True,
+        help_text="Gesamtpreis für diese Verpackung (automatisch berechnet)"
+    )
+    unit_price = models.DecimalField(
+        max_digits=8, 
+        decimal_places=2, 
+        null=True, 
+        blank=True,
+        help_text="Preis pro Verpackungseinheit (automatisch berechnet)"
+    )
+    
     # Mitglieder- und Raumzuordnung
     member = models.ForeignKey(Member, on_delete=models.SET_NULL, null=True, blank=True,
                               related_name='packaging_batches')
@@ -709,6 +931,27 @@ class PackagingBatch(models.Model):
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        indexes = [
+            # Index für Lab-Testing-Batch Relations
+            models.Index(
+                fields=['lab_testing_batch'], 
+                name='packaging_batch_lab_idx'
+            ),
+            
+            # Index für Batch-Nummer
+            models.Index(
+                fields=['batch_number'], 
+                name='packaging_batch_number_idx'
+            ),
+            
+            # Index für Erstellungsdatum
+            models.Index(
+                fields=['-created_at'], 
+                name='packaging_batch_created_idx'
+            )
+        ]
     
     def save(self, *args, **kwargs):
         # Speichere zuerst den Status, bevor der erste save
@@ -727,6 +970,15 @@ class PackagingBatch(models.Model):
             ).count() + 1
             
             self.batch_number = f"charge:{prefix}:{today.strftime('%d:%m:%Y')}:{count:04d}"
+        
+        # 🆕 AUTOMATISCHE PREISBERECHNUNG:
+        if self.price_per_gram and self.total_weight:
+            # Berechne Gesamtpreis der Verpackung
+            self.total_batch_price = float(self.price_per_gram) * float(self.total_weight)
+            
+            # Berechne Preis pro Verpackungseinheit
+            if self.unit_weight:
+                self.unit_price = float(self.price_per_gram) * float(self.unit_weight)
         
         super().save(*args, **kwargs)
         
@@ -777,7 +1029,6 @@ class PackagingBatch(models.Model):
             return self.lab_testing_batch.cbd_content
         return None
     
-# models.py (neues Modell am Ende der Datei hinzufügen)
 
 class PackagingUnit(models.Model):
     """Modell für individuelle Verpackungseinheiten innerhalb eines Verpackungs-Batches"""
@@ -786,6 +1037,15 @@ class PackagingUnit(models.Model):
     batch_number = models.CharField(max_length=50, unique=True, blank=True, null=True)
     weight = models.DecimalField(max_digits=6, decimal_places=2)  # Gewicht in Gramm
     notes = models.TextField(blank=True, null=True)
+    
+    # 🆕 NEUES PREISFELD HINZUFÜGEN:
+    unit_price = models.DecimalField(
+        max_digits=8, 
+        decimal_places=2, 
+        null=True, 
+        blank=True,
+        help_text="Preis für diese Verpackungseinheit in Euro"
+    )
     
     # Mitgliederzuordnung für Vernichtung
     destroyed_by = models.ForeignKey(Member, on_delete=models.SET_NULL, null=True, blank=True,
@@ -797,6 +1057,43 @@ class PackagingUnit(models.Model):
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        # 🔧 KORRIGIERTE INDIZES - nur existierende Fields verwenden
+        indexes = [
+            # Basis-Index für Verfügbarkeits-Filter
+            models.Index(
+                fields=['is_destroyed'], 
+                name='packaging_unit_available_idx'
+            ),
+            
+            # Index für Gewichts-Filter
+            models.Index(
+                fields=['weight'], 
+                name='packaging_unit_weight_idx'
+            ),
+            
+            # Index für Batch-Relation
+            models.Index(
+                fields=['batch'], 
+                name='packaging_unit_batch_idx'
+            ),
+            
+            # Composite Index für häufige Kombinationen
+            models.Index(
+                fields=['is_destroyed', 'weight'], 
+                name='packaging_unit_filters_idx'
+            ),
+            
+            # Index für Erstellungsdatum (für Sortierung)
+            models.Index(
+                fields=['-created_at'], 
+                name='packaging_unit_created_idx'
+            )
+        ]
+        
+        # 🔧 KORRIGIERTES ORDERING - nur direkte Fields
+        ordering = ['-created_at', 'batch_number']
     
     def save(self, *args, **kwargs):
         # Generiere Batch-Nummer falls nicht vorhanden
@@ -818,7 +1115,18 @@ class PackagingUnit(models.Model):
             # Generiere Batch-Nummer
             self.batch_number = f"unit:{product_type_prefix}:{today.strftime('%d:%m:%Y')}:{count:04d}"
         
+        # 🆕 PREISBERECHNUNG AUS DEM BATCH, FALLS NICHT GESETZT:
+        if not self.unit_price and self.batch and self.batch.price_per_gram and self.weight:
+            self.unit_price = float(self.batch.price_per_gram) * float(self.weight)
+        
         super().save(*args, **kwargs)
+    
+    @property
+    def price_per_gram_calculated(self):
+        """Berechnet den Preis pro Gramm für diese Einheit"""
+        if self.unit_price and self.weight and float(self.weight) > 0:
+            return float(self.unit_price) / float(self.weight)
+        return None
 
 class ProductDistribution(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -836,6 +1144,31 @@ class ProductDistribution(models.Model):
     # Ausgabeinformationen
     distribution_date = models.DateTimeField(default=timezone.now)
     notes = models.TextField(blank=True, null=True)
+    
+    # 🆕 Neue Preis-Felder
+    total_price = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        null=True, 
+        blank=True,
+        verbose_name="Gesamtpreis"
+    )
+    
+    balance_before = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        null=True, 
+        blank=True,
+        verbose_name="Kontostand vorher"
+    )
+    
+    balance_after = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        null=True, 
+        blank=True,
+        verbose_name="Kontostand nachher"
+    )
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -866,3 +1199,433 @@ class ProductDistribution(models.Model):
             product_type = unit.batch.product_type if unit.batch else "Unbekannt"
             types[product_type] = types.get(product_type, 0) + float(unit.weight)
         return types
+    
+    # 🆕 Property für Preisberechnung
+    @property
+    def calculated_total_price(self):
+        """Berechnet den Gesamtpreis basierend auf den Verpackungseinheiten"""
+        if self.total_price:
+            return float(self.total_price)
+        
+        total = 0
+        for unit in self.packaging_units.all():
+            if unit.unit_price:
+                total += float(unit.unit_price)
+        return total
+    
+    @property
+    def price_per_gram(self):
+        """Berechnet den durchschnittlichen Preis pro Gramm"""
+        if self.total_weight > 0:
+            return self.calculated_total_price / self.total_weight
+        return 0
+    
+    def __str__(self):
+        return f"Distribution {self.batch_number} - {self.recipient} ({self.total_weight}g)"
+    
+    class Meta:
+        ordering = ['-distribution_date']
+        verbose_name = "Cannabis-Ausgabe"
+        verbose_name_plural = "Cannabis-Ausgaben"
+
+import io
+from PIL import Image
+from django.db import models
+from django.core.exceptions import ValidationError
+from django.core.validators import FileExtensionValidator
+from members.models import Member  # Anpassen je nach deiner App-Struktur
+
+
+class BaseProductImage(models.Model):
+    """Abstrakte Basisklasse für Produktbilder UND Videos im Track & Trace System"""
+    
+    # Bild-Feld (jetzt optional, da entweder Bild ODER Video)
+    image = models.ImageField(
+        upload_to='trackandtrace/images/%Y/%m/%d/',
+        blank=True,
+        null=True,
+        help_text="Bild-Datei (JPEG, PNG, etc.)"
+    )
+    
+    # Thumbnail (automatisch generiert für Bilder)
+    thumbnail = models.ImageField(
+        upload_to='trackandtrace/thumbnails/%Y/%m/%d/', 
+        blank=True, 
+        null=True,
+        help_text="Automatisch generiertes Vorschaubild"
+    )
+    
+    # NEU: Video-Feld
+    video = models.FileField(
+        upload_to='trackandtrace/videos/%Y/%m/%d/',
+        blank=True,
+        null=True,
+        validators=[
+            FileExtensionValidator(allowed_extensions=['mp4', 'mov', 'avi', 'webm', 'mkv'])
+        ],
+        help_text="Video-Datei (max. 100MB)"
+    )
+    
+    # NEU: Media-Type für einfachere Unterscheidung
+    media_type = models.CharField(
+        max_length=10,
+        choices=[
+            ('image', 'Bild'),
+            ('video', 'Video'),
+        ],
+        default='image',
+        editable=False  # Wird automatisch gesetzt
+    )
+    
+    # Metadaten
+    title = models.CharField(max_length=200, blank=True)
+    description = models.TextField(blank=True)
+    image_type = models.CharField(
+        max_length=50, 
+        choices=[
+            ('overview', 'Übersicht'),
+            ('detail', 'Detail'),
+            ('quality', 'Qualitätskontrolle'),
+            ('documentation', 'Dokumentation'),
+        ], 
+        default='overview',
+        help_text="Art/Zweck der Aufnahme"
+    )
+    
+    # Tracking
+    uploaded_by = models.ForeignKey(
+        Member, 
+        on_delete=models.SET_NULL, 
+        null=True,
+        related_name='uploaded_%(class)s_media'  # Angepasst für Bilder UND Videos
+    )
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        abstract = True
+        ordering = ['-uploaded_at']
+    
+    def clean(self):
+        """Validierung: Entweder Bild ODER Video, nicht beides"""
+        super().clean()
+        if self.image and self.video:
+            raise ValidationError("Es kann nur entweder ein Bild oder ein Video hochgeladen werden, nicht beides.")
+        if not self.image and not self.video:
+            raise ValidationError("Es muss entweder ein Bild oder ein Video hochgeladen werden.")
+    
+    def make_thumbnail(self):
+        """Erstellt automatisch ein Thumbnail (150x150px) - nur für Bilder"""
+        if not self.image:
+            return None
+            
+        img = Image.open(self.image)
+        
+        # Konvertiere RGBA zu RGB falls nötig
+        if img.mode in ('RGBA', 'LA', 'P'):
+            # Erstelle einen weißen Hintergrund
+            background = Image.new('RGB', img.size, (255, 255, 255))
+            # Konvertiere zu RGB
+            if img.mode == 'P':
+                img = img.convert('RGBA')
+            background.paste(img, mask=img.split()[-1] if img.mode == 'RGBA' else None)
+            img = background
+        
+        # Thumbnail erstellen
+        img.thumbnail((150, 150), Image.Resampling.LANCZOS)
+        
+        thumb_io = io.BytesIO()
+        img.save(thumb_io, format='JPEG', quality=85)
+        thumb_io.seek(0)
+        
+        # Generiere Dateinamen für Thumbnail
+        thumb_filename = f"thumb_{self.image.name.split('/')[-1]}"
+        # Ändere Dateiendung zu .jpg falls nötig
+        if not thumb_filename.lower().endswith(('.jpg', '.jpeg')):
+            thumb_filename = thumb_filename.rsplit('.', 1)[0] + '.jpg'
+        
+        # Speichere Thumbnail
+        self.thumbnail.save(thumb_filename, thumb_io, save=False)
+        
+        return self.thumbnail
+    
+    def save(self, *args, **kwargs):
+        # Automatisch media_type setzen basierend auf hochgeladenem Content
+        if self.video:
+            self.media_type = 'video'
+        else:
+            self.media_type = 'image'
+        
+        # Speichere zuerst das Objekt
+        super().save(*args, **kwargs)
+        
+        # Generiere Thumbnail nur für Bilder und nur wenn noch keins existiert
+        if self.image and self.media_type == 'image' and not self.thumbnail:
+            self.make_thumbnail()
+            # Speichere nochmal um das Thumbnail zu persistieren
+            super().save(update_fields=['thumbnail'])
+    
+    def get_media_url(self):
+        """Hilfsmethode um die URL des Mediums zu bekommen (Bild oder Video)"""
+        if self.media_type == 'video' and self.video:
+            return self.video.url
+        elif self.media_type == 'image' and self.image:
+            return self.image.url
+        return None
+    
+    def get_display_url(self):
+        """Gibt die URL für die Anzeige zurück (Thumbnail für Bilder, Video-URL für Videos)"""
+        if self.media_type == 'image' and self.thumbnail:
+            return self.thumbnail.url
+        return self.get_media_url()
+    
+    def __str__(self):
+        media_str = "Video" if self.media_type == 'video' else "Bild"
+        return f"{media_str}: {self.title or 'Unbenannt'} ({self.get_image_type_display()})"
+
+# Konkrete Image-Models für jeden Schritt:
+
+class SeedPurchaseImage(BaseProductImage):
+    seed_purchase = models.ForeignKey(
+        SeedPurchase, 
+        related_name='images', 
+        on_delete=models.CASCADE
+    )
+    
+    def __str__(self):
+        return f"Bild für {self.seed_purchase.batch_number} - {self.title or 'Ohne Titel'}"
+
+
+class MotherPlantBatchImage(BaseProductImage):
+    mother_plant_batch = models.ForeignKey(
+        MotherPlantBatch, 
+        related_name='images', 
+        on_delete=models.CASCADE
+    )
+    growth_stage = models.CharField(
+        max_length=50, 
+        blank=True,
+        choices=[
+            ('seedling', 'Sämling'),
+            ('vegetative', 'Vegetativ'),
+            ('pre_flowering', 'Vorblüte'),
+            ('mother', 'Mutterpflanze')
+        ],
+        help_text="Wachstumsstadium der Pflanzen"
+    )
+    
+    def __str__(self):
+        return f"Bild für {self.mother_plant_batch.batch_number} - {self.title or 'Ohne Titel'}"
+    
+class CuttingBatchImage(BaseProductImage):
+    cutting_batch = models.ForeignKey(
+        CuttingBatch, 
+        related_name='images', 
+        on_delete=models.CASCADE
+    )
+    
+    def __str__(self):
+        return f"Bild für {self.cutting_batch.batch_number} - {self.title or 'Ohne Titel'}"
+    
+class BloomingCuttingBatchImage(BaseProductImage):
+    blooming_cutting_batch = models.ForeignKey(
+        BloomingCuttingBatch, 
+        related_name='images', 
+        on_delete=models.CASCADE
+    )
+    
+    def __str__(self):
+        return f"Bild für {self.blooming_cutting_batch.batch_number} - {self.title or 'Ohne Titel'}"
+    
+class FloweringPlantBatchImage(BaseProductImage):
+    """Bilder für Blühpflanzen direkt aus Samen"""
+    flowering_plant_batch = models.ForeignKey(
+        'FloweringPlantBatch',
+        on_delete=models.CASCADE,
+        related_name='images'
+    )
+    
+    class Meta:
+        db_table = 'trackandtrace_flowering_plant_batch_image'
+        verbose_name = 'Blühpflanzen-Batch Bild'
+        verbose_name_plural = 'Blühpflanzen-Batch Bilder'
+        ordering = ['-uploaded_at']
+
+class HarvestBatchImage(BaseProductImage):
+    """Bilder für Ernte-Chargen"""
+    harvest_batch = models.ForeignKey(
+        'HarvestBatch',
+        on_delete=models.CASCADE,
+        related_name='images'
+    )
+    
+    # Zusätzliches Feld für Ernte-Stadium
+    harvest_stage = models.CharField(
+        max_length=50,
+        blank=True,
+        choices=[
+            ('fresh', 'Frisch geerntet'),
+            ('trimmed', 'Getrimmt'),
+            ('packed', 'Verpackt für Trocknung'),
+        ],
+        help_text="Stadium der Ernte"
+    )
+    
+    class Meta:
+        db_table = 'trackandtrace_harvest_batch_image'
+        verbose_name = 'Ernte-Batch Bild'
+        verbose_name_plural = 'Ernte-Batch Bilder'
+        ordering = ['-uploaded_at']
+
+class DryingBatchImage(BaseProductImage):
+    """Bilder und Videos für Trocknungs-Chargen"""
+    drying_batch = models.ForeignKey(
+        'DryingBatch',
+        on_delete=models.CASCADE,
+        related_name='images'  # Behalten wir als 'images' für Kompatibilität
+    )
+    
+    # Zusätzliches Feld für Trocknungs-Stadium
+    drying_stage = models.CharField(
+        max_length=50,
+        blank=True,
+        choices=[
+            ('wet', 'Feucht (Tag 1-3)'),
+            ('drying', 'Trocknend (Tag 4-7)'),
+            ('dry', 'Trocken (Tag 8+)'),
+            ('curing', 'Reifend'),
+        ],
+        help_text="Stadium der Trocknung"
+    )
+    
+    class Meta:
+        db_table = 'trackandtrace_drying_batch_image'
+        verbose_name = 'Trocknungs-Batch Bild/Video'
+        verbose_name_plural = 'Trocknungs-Batch Bilder/Videos'
+        ordering = ['-uploaded_at']
+
+class ProcessingBatchImage(BaseProductImage):
+    """Bilder und Videos für Verarbeitungs-Chargen"""
+    processing_batch = models.ForeignKey(
+        'ProcessingBatch',
+        on_delete=models.CASCADE,
+        related_name='images'
+    )
+    
+    # Zusätzliches Feld für Verarbeitungs-Stadium
+    processing_stage = models.CharField(
+        max_length=50,
+        blank=True,
+        choices=[
+            ('input', 'Input Material'),
+            ('processing', 'Während der Verarbeitung'),
+            ('output', 'Fertiges Produkt'),
+            ('quality', 'Qualitätskontrolle'),
+        ],
+        help_text="Stadium der Verarbeitung"
+    )
+    
+    # Produkttyp-spezifisches Feld
+    product_quality = models.CharField(
+        max_length=50,
+        blank=True,
+        choices=[
+            ('premium', 'Premium Qualität'),
+            ('standard', 'Standard Qualität'),
+            ('budget', 'Budget Qualität'),
+        ],
+        help_text="Qualitätseinstufung des Produkts"
+    )
+    
+    class Meta:
+        db_table = 'trackandtrace_processing_batch_image'
+        verbose_name = 'Verarbeitungs-Batch Bild/Video'
+        verbose_name_plural = 'Verarbeitungs-Batch Bilder/Videos'
+        ordering = ['-uploaded_at']
+
+class LabTestingBatchImage(BaseProductImage):
+    """Bilder und Videos für Laborkontroll-Chargen"""
+    lab_testing_batch = models.ForeignKey(
+        'LabTestingBatch',
+        on_delete=models.CASCADE,
+        related_name='images'
+    )
+    
+    # Zusätzliches Feld für Test-Stadium
+    test_stage = models.CharField(
+        max_length=50,
+        blank=True,
+        choices=[
+            ('sample_prep', 'Probenvorbereitung'),
+            ('testing', 'Während des Tests'),
+            ('results', 'Testergebnisse'),
+            ('microscopy', 'Mikroskopie'),
+            ('chromatography', 'Chromatographie'),
+        ],
+        help_text="Stadium des Labortests"
+    )
+    
+    # Test-spezifisches Feld
+    test_type = models.CharField(
+        max_length=50,
+        blank=True,
+        choices=[
+            ('cannabinoid', 'Cannabinoid-Profil'),
+            ('terpene', 'Terpen-Analyse'),
+            ('microbial', 'Mikrobiologie'),
+            ('pesticide', 'Pestizid-Screening'),
+            ('heavy_metal', 'Schwermetalle'),
+            ('visual', 'Visuelle Inspektion'),
+        ],
+        help_text="Art des durchgeführten Tests"
+    )
+    
+    class Meta:
+        db_table = 'trackandtrace_lab_testing_batch_image'
+        verbose_name = 'Laborkontroll-Batch Bild/Video'
+        verbose_name_plural = 'Laborkontroll-Batch Bilder/Videos'
+        ordering = ['-uploaded_at']
+
+class PackagingBatchImage(BaseProductImage):
+    """Bilder und Videos für Verpackungs-Chargen"""
+    packaging_batch = models.ForeignKey(
+        'PackagingBatch',
+        on_delete=models.CASCADE,
+        related_name='images'
+    )
+    
+    # Zusätzliches Feld für Verpackungs-Stadium
+    packaging_stage = models.CharField(
+        max_length=50,
+        blank=True,
+        choices=[
+            ('pre_packaging', 'Vor der Verpackung'),
+            ('packaging_process', 'Während der Verpackung'),
+            ('final_product', 'Fertiges Produkt'),
+            ('labeling', 'Etikettierung'),
+            ('sealing', 'Versiegelung'),
+            ('batch_photo', 'Chargen-Übersicht'),
+        ],
+        help_text="Stadium der Verpackung"
+    )
+    
+    # Verpackungs-spezifisches Feld
+    package_type = models.CharField(
+        max_length=50,
+        blank=True,
+        choices=[
+            ('primary', 'Primärverpackung'),
+            ('secondary', 'Sekundärverpackung'),
+            ('label', 'Etikett/Label'),
+            ('seal', 'Siegel/Verschluss'),
+            ('batch_overview', 'Chargen-Übersicht'),
+        ],
+        help_text="Art der dokumentierten Verpackung"
+    )
+    
+    class Meta:
+        db_table = 'trackandtrace_packaging_batch_image'
+        verbose_name = 'Verpackungs-Batch Bild/Video'
+        verbose_name_plural = 'Verpackungs-Batch Bilder/Videos'
+        ordering = ['-uploaded_at']
+
+

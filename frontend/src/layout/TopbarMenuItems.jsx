@@ -17,7 +17,6 @@ import ShoppingBasketIcon from '@mui/icons-material/ShoppingBasket';
 import BusinessIcon from '@mui/icons-material/Business';
 import StorefrontIcon from '@mui/icons-material/Storefront';
 import CategoryIcon from '@mui/icons-material/Category';
-import AddIcon from '@mui/icons-material/Add';
 import DashboardCustomizeIcon from '@mui/icons-material/DashboardCustomize';
 import SecurityIcon from '@mui/icons-material/Security';
 import SensorsIcon from '@mui/icons-material/Sensors';
@@ -25,9 +24,14 @@ import QrCode2Icon from '@mui/icons-material/QrCode2';
 import DescriptionIcon from '@mui/icons-material/Description';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
-import MonitorHeartIcon from '@mui/icons-material/MonitorHeart'; // Neues Icon für Grow Control
-import OpacityIcon from '@mui/icons-material/Opacity'; // Für Bewässerung
-import WbSunnyIcon from '@mui/icons-material/WbSunny'; // Für Lichtsteuerung
+import MonitorHeartIcon from '@mui/icons-material/MonitorHeart';
+import AssessmentIcon from '@mui/icons-material/Assessment';
+import SchoolIcon from '@mui/icons-material/School';
+import ForumIcon from '@mui/icons-material/Forum';
+import HowToVoteIcon from '@mui/icons-material/HowToVote';
+import AssignmentIcon from '@mui/icons-material/Assignment';
+import VideoCameraFrontIcon from '@mui/icons-material/VideoCameraFront';
+import GavelIcon from '@mui/icons-material/Gavel';
 
 // Definierte Menüstruktur mit allen Hauptmenüs und Untermenüs
 const TopbarMenuItems = [
@@ -41,61 +45,42 @@ const TopbarMenuItems = [
         path: '/mitglieder', 
         icon: <GroupsIcon />,
         subtitle: 'Übersicht aller Netzwerkmitglieder'
-      }
-    ]
-  },
-  {
-    id: 'showGrowControl',
-    label: 'Grow Control', 
-    icon: <MonitorHeartIcon />,
-    children: [
-      { 
-        label: 'Grow Controller', 
-        path: '/controllers', 
-        icon: <DashboardIcon />,
-        subtitle: 'Zentrale Steuerungsübersicht'
       },
       { 
-        label: 'Bewässerungssteuerung', 
-        path: '/controllers/irrigation', 
-        icon: <OpacityIcon />,
-        subtitle: 'Kontrolle der Wasserzufuhr und Bewässerungszyklen'
+        label: 'Online Versammlungen', 
+        path: '/versammlungen', 
+        icon: <VideoCameraFrontIcon />,
+        subtitle: 'Videokonferenzen und virtuelle Treffen'
       },
       { 
-        label: 'Lichtsteuerung', 
-        path: '/controllers/lighting', 
-        icon: <WbSunnyIcon />,
-        subtitle: 'Management der Beleuchtungszyklen und -intensität'
+        label: 'Online Abstimmungen', 
+        path: '/abstimmungen', 
+        icon: <HowToVoteIcon />,
+        subtitle: 'Demokratische Entscheidungsprozesse'
       },
       { 
-        label: 'Raumliste', 
-        path: '/rooms', 
-        icon: <CategoryIcon />,
-        subtitle: 'Übersicht aller verfügbaren Räume'
+        label: 'Aufgabenverwaltung', 
+        path: 'taskmanager/', 
+        icon: <AssignmentIcon />,
+        subtitle: 'Projekte und Aufgabenverteilung'
       },
       { 
-        label: 'Neuer Raum', 
-        path: '/rooms/new', 
-        icon: <AddIcon />,
-        subtitle: 'Erstellung eines neuen Raumes'
+        label: 'Fortbildungen', 
+        path: '/fortbildungen', 
+        icon: <SchoolIcon />,
+        subtitle: 'Weiterbildungsangebote und Kurse'
       },
       { 
-        label: 'Elemente-Bibliothek', 
-        path: '/rooms/item-types', 
-        icon: <CategoryIcon />,
-        subtitle: 'Verwaltung der Raumelemente'
+        label: 'Nachrichtenzentrum', 
+        path: '/nachrichten', 
+        icon: <ForumIcon />,
+        subtitle: 'Interne Kommunikationsplattform'
       },
       { 
-        label: 'Neuer Elementtyp', 
-        path: '/rooms/item-types/new', 
-        icon: <AddIcon />,
-        subtitle: 'Hinzufügen neuer Elementtypen'
-      },
-      { 
-        label: 'Raumdesigner', 
-        path: '/rooms', 
-        icon: <DashboardCustomizeIcon />, 
-        subtitle: 'Wähle zuerst einen Raum aus der Liste' 
+        label: 'Beschlüsse', 
+        path: '/beschluesse', 
+        icon: <GavelIcon />,
+        subtitle: 'Dokumentation gemeinschaftlicher Entscheidungen'
       }
     ]
   },
@@ -105,7 +90,7 @@ const TopbarMenuItems = [
     icon: <TimelineIcon />, 
     children: [
       { 
-        label: 'Step 1 - Samen', 
+        label: 'Step 1 - Sameneinkauf', 
         path: '/trace/samen', 
         icon: <GrassIcon />,
         subtitle: 'Ausgangsmaterial'
@@ -120,7 +105,7 @@ const TopbarMenuItems = [
         label: 'Step 3 - Stecklinge', 
         path: '/trace/stecklinge', 
         icon: <ContentCutIcon />,
-        subtitle: 'überführt aus Mutterpflanzen'
+        subtitle: 'überführt aus Stecklingen'
       },
       { 
         label: 'Step 4a - Blühpflanzen', 
@@ -197,6 +182,37 @@ const TopbarMenuItems = [
       }
     ]
   },
+    {
+    id: 'showGrowControl',
+    label: 'Grow Control', 
+    icon: <MonitorHeartIcon />,
+    children: [
+      { 
+        label: 'S7 Grow Controller', 
+        path: '/controller', 
+        icon: <DashboardIcon />,
+        subtitle: 'Zentrale Steuerungsübersicht'
+      },
+      { 
+        label: 'Raumverwaltung', 
+        path: '/rooms', 
+        icon: <CategoryIcon />,
+        subtitle: 'Übersicht aller verfügbaren Räume'
+      },
+      { 
+        label: 'Elemente-Bibliothek', 
+        path: '/rooms/item-types', 
+        icon: <CategoryIcon />,
+        subtitle: 'Verwaltung der Raumelemente'
+      },
+      { 
+        label: 'Raumdesigner', 
+        path: '/rooms', 
+        icon: <DashboardCustomizeIcon />, 
+        subtitle: 'Wähle zuerst einen Raum aus der Liste' 
+      }
+    ]
+  },
   {
     id: 'showSecurity', 
     label: 'Sicherheit', 
@@ -227,12 +243,6 @@ const TopbarMenuItems = [
         icon: <GrassIcon />,
         subtitle: 'Verwaltung der Samenbestände'
       },
-      { 
-        label: 'Hersteller-Verwaltung', 
-        path: '/trace/hersteller', 
-        icon: <BusinessIcon />,
-        subtitle: 'Verwaltung der Herstellerbeziehungen'
-      }
     ]
   },
   {
@@ -253,22 +263,10 @@ const TopbarMenuItems = [
         subtitle: 'Verwaltung der Finanzkonten'
       },
       { 
-        label: 'Neues Konto', 
-        path: '/buchhaltung/konten/neu', 
-        icon: <AddIcon />,
-        subtitle: 'Erstellung eines neuen Kontos'
-      },
-      { 
         label: 'Buchungsjournal', 
         path: '/buchhaltung/journal', 
         icon: <TimelineIcon />,
         subtitle: 'Übersicht aller Buchungsvorgänge'
-      },
-      { 
-        label: 'Neue Buchung', 
-        path: '/buchhaltung/buchung/neu', 
-        icon: <AddIcon />,
-        subtitle: 'Erfassung einer neuen Buchung'
       },
       { 
         label: 'GuV', 
@@ -287,6 +285,19 @@ const TopbarMenuItems = [
         path: '/buchhaltung/jahresabschluss', 
         icon: <TimelineIcon />,
         subtitle: 'Erstellung des Jahresabschlusses'
+      }
+    ]
+  },
+  {
+    id: 'showReports',
+    label: 'Berichte', 
+    icon: <AssessmentIcon />,
+    children: [
+      { 
+        label: 'Laborberichte', 
+        path: '/laborreports', 
+        icon: <BiotechIcon />,
+        subtitle: 'Laboranalysen und Qualitätskontrollen'
       }
     ]
   }

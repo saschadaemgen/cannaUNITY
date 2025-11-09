@@ -28,7 +28,7 @@ import {
     if (!showFilters) return null
   
     return (
-      <Paper sx={{ mb: 2, p: 2, width: '100%' }}>
+      <Paper sx={{ m: 0, p: 2, width: '100%', borderRadius: 0 }}>
         <Grid container spacing={2} alignItems="center">
           <Grid item xs={12} sm={6} md={3}>
             <TextField

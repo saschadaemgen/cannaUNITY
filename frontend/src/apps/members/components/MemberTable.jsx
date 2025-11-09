@@ -2,8 +2,7 @@
 import React from 'react';
 import { 
   Box, Typography, Button, IconButton, Tooltip, Chip,
-  TableContainer, TableHead, TableRow, TableCell, TableBody,
-  Paper
+  useTheme, alpha
 } from '@mui/material';
 import { Link } from 'react-router-dom';
 import EditIcon from '@mui/icons-material/Edit';
@@ -23,15 +22,17 @@ import FemaleIcon from '@mui/icons-material/Female';
 import TransgenderIcon from '@mui/icons-material/Transgender';
 import WorkIcon from '@mui/icons-material/Work';
 import WorkOffIcon from '@mui/icons-material/WorkOff';
+import HistoryIcon from '@mui/icons-material/History';
+import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 
-import AccordionRow from '@/components/common//AccordionRow';
-import TableHeader from '@/components/common//TableHeader';
-import PaginationFooter from '@/components/common/PaginationFooter';
+import AccordionRow from '@/components/common/AccordionRow';
 import DetailCards from '@/components/common/DetailCards';
+import PaginationFooter from '@/components/common/PaginationFooter';
 import MemberDistributionHistory from './MemberDistributionHistory';
 
 /**
  * MemberTable Komponente für die Darstellung der Mitgliederliste mit Details
+ * Vollständig mit Dark Mode Unterstützung
  */
 const MemberTable = ({
   data,
@@ -42,7 +43,8 @@ const MemberTable = ({
   onPageChange,
   isTeamleiter
 }) => {
-  // Gibt die Anrede basierend auf dem Gender-Wert zurück
+  const theme = useTheme();
+  
   const getGenderDisplay = (gender) => {
     const genderMap = {
       'male': 'Herr',
@@ -52,7 +54,6 @@ const MemberTable = ({
     return genderMap[gender] || 'Herr';
   };
   
-  // Gibt das Gender-Icon basierend auf dem Gender-Wert zurück
   const getGenderIcon = (gender) => {
     switch (gender) {
       case 'female':
@@ -65,7 +66,6 @@ const MemberTable = ({
     }
   };
 
-  // Berechnet Alter basierend auf Geburtsdatum
   const calculateAge = (birthdate) => {
     if (!birthdate) return null;
     const today = new Date();
@@ -80,7 +80,6 @@ const MemberTable = ({
     return age;
   };
   
-  // Bestimmt die Altersklasse basierend auf dem Alter
   const getAgeClass = (birthdate) => {
     const age = calculateAge(birthdate);
     if (!age) return '21+';
@@ -89,7 +88,6 @@ const MemberTable = ({
     return '21+';
   };
 
-  // Hilfsfunktion für Status-Chip
   const renderStatusChip = (status) => {
     const statusConfig = {
       active: { label: 'Aktiv', color: 'success', icon: CheckCircleIcon },
@@ -116,7 +114,6 @@ const MemberTable = ({
     );
   };
 
-  // Hilfsfunktion für Age-Class-Chip
   const renderAgeClassChip = (birthdate) => {
     const ageClass = getAgeClass(birthdate);
     const ageClassConfig = {
@@ -154,7 +151,6 @@ const MemberTable = ({
     );
   };
   
-  // Hilfsfunktion für Beschäftigungs-Chip
   const renderEmploymentChip = (isEmployed, hours) => {
     if (!isEmployed) {
       return (
@@ -193,7 +189,6 @@ const MemberTable = ({
     );
   };
 
-  // Formatierung des deutschen Datums
   const formatDate = (dateString) => {
     if (!dateString) return '—';
     const date = new Date(dateString);
@@ -203,15 +198,15 @@ const MemberTable = ({
   // Spalten für den Tabellenkopf definieren
   const headerColumns = [
     { label: '', width: '3%', align: 'center' },
-    { label: 'Name', width: '19%', align: 'left' },
+    { label: 'Name', width: '20%', align: 'left' },
     { label: 'Status', width: '10%', align: 'center' },
-    { label: 'Altersklasse', width: '9%', align: 'center' },
-    { label: 'Minijob', width: '9%', align: 'center' },
-    { label: 'Pflichtstunden', width: '10%', align: 'center' },
+    { label: 'Altersklasse', width: '10%', align: 'center' },
+    { label: 'Minijob', width: '10%', align: 'center' },
+    { label: 'Pflichtstunden', width: '11%', align: 'center' },
     { label: 'Kontostand', width: '10%', align: 'center' },
-    { label: 'Beitrag', width: '8%', align: 'center' },
-    { label: 'Verwarnungen', width: '8%', align: 'center' },
-    { label: 'Aktionen', width: '14%', align: 'center' }
+    { label: 'Beitrag', width: '9%', align: 'center' },
+    { label: 'Verwarnungen', width: '10%', align: 'center' },
+    { label: 'Aktionen', width: '7%', align: 'center' }
   ];
 
   // Funktion zum Erstellen der Spalten für eine Zeile
@@ -244,13 +239,19 @@ const MemberTable = ({
       {
         content: (
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <GenderIcon color="primary" fontSize="small" sx={{ mr: 1 }} />
-            <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
+            <GenderIcon 
+              sx={{ 
+                mr: 1, 
+                fontSize: '1.2rem',
+                color: 'primary.main' 
+              }} 
+            />
+            <Typography variant="body2" sx={{ fontWeight: 500 }}>
               {getGenderDisplay(member.gender)} {member.first_name} {member.last_name}
             </Typography>
           </Box>
         ),
-        width: '19%',
+        width: '20%',
         align: 'left'
       },
       {
@@ -260,12 +261,12 @@ const MemberTable = ({
       },
       {
         content: renderAgeClassChip(member.birthdate),
-        width: '9%',
+        width: '10%',
         align: 'center'
       },
       {
         content: renderEmploymentChip(member.is_marginally_employed, member.working_hours_per_month),
-        width: '9%',
+        width: '10%',
         align: 'center'
       },
       {
@@ -274,14 +275,14 @@ const MemberTable = ({
             {member.duty_hours || 0} / 12 Std.
           </Typography>
         ),
-        width: '10%',
+        width: '11%',
         align: 'center'
       },
       {
         content: (
           <Typography variant="body2" sx={{ 
             fontSize: '0.8rem',
-            fontWeight: 'medium',
+            fontWeight: 500,
             color: parseFloat(member.kontostand) < 0 ? 'error.main' : 'success.main',
           }}>
             {parseFloat(member.kontostand || 0).toFixed(2)} €
@@ -294,81 +295,126 @@ const MemberTable = ({
         content: (
           <Typography variant="body2" sx={{ 
             fontSize: '0.8rem',
-            fontWeight: 'medium',
+            fontWeight: 500,
             color: 'info.main',
           }}>
             {parseFloat(member.beitrag || 0).toFixed(2)} €
           </Typography>
         ),
-        width: '8%',
+        width: '9%',
         align: 'center'
       },
       {
         content: member.warnings ? 'Ja' : 'Nein',
-        width: '8%',
+        width: '10%',
         align: 'center',
         color: member.warnings ? 'error.main' : 'success.main'
       },
       {
         content: (
-          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', width: '100%' }}>
-            <Tooltip title="Details anzeigen">
-              <IconButton 
-                component={Link} 
-                to={`/mitglieder/${member.id}`}
-                size="small"
-                sx={{ 
-                  color: 'white',
-                  backgroundColor: 'info.main',
-                  '&:hover': { backgroundColor: 'info.dark' },
-                  width: '28px',
-                  height: '28px',
-                  mr: 0.5
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 0.5 }}>
+            {/* Details anzeigen */}
+            <Box
+              sx={{
+                border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
+                borderRadius: '4px',
+                p: 0.5,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: theme.palette.background.paper,
+                '&:hover': {
+                  backgroundColor: alpha(theme.palette.action.hover, 0.1),
+                  borderColor: theme.palette.divider
+                }
+              }}
+            >
+              <Tooltip title="Details anzeigen">
+                <IconButton 
+                  component={Link} 
+                  to={`/mitglieder/${member.id}`}
+                  size="small"
+                  sx={{ 
+                    p: 0.5,
+                    color: theme.palette.text.secondary
+                  }}
+                >
+                  <VisibilityIcon sx={{ fontSize: '1rem' }} />
+                </IconButton>
+              </Tooltip>
+            </Box>
+            
+            {/* Bearbeiten - nur für Teamleiter */}
+            {isTeamleiter && (
+              <Box
+                sx={{
+                  border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
+                  borderRadius: '4px',
+                  p: 0.5,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: theme.palette.background.paper,
+                  '&:hover': {
+                    backgroundColor: alpha(theme.palette.action.hover, 0.1),
+                    borderColor: theme.palette.divider
+                  }
                 }}
               >
-                <VisibilityIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-            {isTeamleiter && (
-              <>
                 <Tooltip title="Bearbeiten">
                   <IconButton 
                     component={Link} 
                     to={`/mitglieder/${member.id}/edit`}
                     size="small"
                     sx={{ 
-                      color: 'white',
-                      backgroundColor: 'primary.main',
-                      '&:hover': { backgroundColor: 'primary.dark' },
-                      width: '28px',
-                      height: '28px',
-                      mr: 0.5
+                      p: 0.5,
+                      color: theme.palette.text.secondary
                     }}
                   >
-                    <EditIcon fontSize="small" />
+                    <EditIcon sx={{ fontSize: '1rem' }} />
                   </IconButton>
                 </Tooltip>
+              </Box>
+            )}
+            
+            {/* Löschen - nur für Teamleiter */}
+            {isTeamleiter && (
+              <Box
+                sx={{
+                  border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
+                  borderRadius: '4px',
+                  p: 0.5,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: theme.palette.background.paper,
+                  '&:hover': {
+                    backgroundColor: alpha(theme.palette.error.main, 0.08),
+                    borderColor: alpha(theme.palette.error.main, 0.5)
+                  }
+                }}
+              >
                 <Tooltip title="Löschen">
                   <IconButton 
                     component={Link} 
                     to={`/mitglieder/${member.id}/delete`}
                     size="small"
                     sx={{ 
-                      color: 'white',
-                      backgroundColor: 'error.main',
-                      '&:hover': { backgroundColor: 'error.dark' },
-                      width: '28px',
-                      height: '28px'
+                      p: 0.5,
+                      color: theme.palette.text.secondary,
+                      '&:hover': {
+                        color: 'error.main'
+                      }
                     }}
                   >
-                    <DeleteIcon fontSize="small" />
+                    <DeleteIcon sx={{ fontSize: '1rem' }} />
                   </IconButton>
                 </Tooltip>
-              </>
+              </Box>
             )}
           </Box>
         ),
-        width: '14%',
+        width: '7%',
         align: 'center'
       }
     ];
@@ -379,7 +425,6 @@ const MemberTable = ({
     return `Mitglied ${getGenderDisplay(member.gender)} ${member.first_name} ${member.last_name} wurde am ${new Date(member.created || new Date()).toLocaleDateString('de-DE')} erstellt.`;
   };
 
-  // Status-Label für die Detailansicht
   const getStatusLabel = (status) => {
     const statusLabels = {
       active: 'Aktiv',
@@ -390,7 +435,6 @@ const MemberTable = ({
     return statusLabels[status] || 'Aktiv';
   };
 
-  // Status-Farbe für die Detailansicht
   const getStatusColor = (status) => {
     const statusColors = {
       active: 'success.main',
@@ -413,16 +457,40 @@ const MemberTable = ({
           sx={{ 
             p: 2, 
             mb: 3, 
-            backgroundColor: 'white', 
+            backgroundColor: theme.palette.background.paper, 
             borderLeft: '4px solid',
             borderColor: 'primary.main',
             borderRadius: '4px',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+            boxShadow: theme.palette.mode === 'dark' 
+              ? '0 1px 3px rgba(0,0,0,0.3)' 
+              : '0 1px 3px rgba(0,0,0,0.1)'
           }}
         >
-          <Typography variant="body2" sx={{ fontStyle: 'italic', color: 'rgba(0, 0, 0, 0.6)' }}>
+          <Typography variant="body2" sx={{ fontStyle: 'italic', color: 'text.secondary' }}>
             {getActivityMessage(member)}
           </Typography>
+        </Box>
+
+        {/* Cannabis-Produkthistorie */}
+        <Box mb={3}>
+          <DetailCards
+            cards={[
+              {
+                title: 'Cannabis-Produkthistorie',
+                content: (
+                  <Box>
+                    <MemberDistributionHistory 
+                      memberId={member.id}
+                      memberAge={age}
+                      memberBirthDate={member.birthdate}
+                      member={member}
+                    />
+                  </Box>
+                )
+              }
+            ]}
+            color="primary.main"
+          />
         </Box>
 
         {/* Mitgliedsdetails mit DetailCards */}
@@ -433,15 +501,15 @@ const MemberTable = ({
               content: (
                 <Box>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                    <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
                       Name:
                     </Typography>
-                    <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.87)' }}>
+                    <Typography variant="body2" sx={{ color: 'text.primary' }}>
                       {getGenderDisplay(member.gender)} {member.first_name} {member.last_name}
                     </Typography>
                   </Box>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                    <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
                       Status:
                     </Typography>
                     <Typography variant="body2" sx={{ color: getStatusColor(member.status), fontWeight: 'bold' }}>
@@ -449,23 +517,23 @@ const MemberTable = ({
                     </Typography>
                   </Box>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                    <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
                       Geburtsdatum:
                     </Typography>
-                    <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.87)' }}>
+                    <Typography variant="body2" sx={{ color: 'text.primary' }}>
                       {formatDate(member.birthdate)}
                     </Typography>
                   </Box>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                    <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
                       Alter:
                     </Typography>
-                    <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.87)' }}>
+                    <Typography variant="body2" sx={{ color: 'text.primary' }}>
                       {age ? `${age} Jahre` : '—'}
                     </Typography>
                   </Box>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                    <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
                       Altersklasse:
                     </Typography>
                     <Typography variant="body2" sx={{ 
@@ -476,7 +544,7 @@ const MemberTable = ({
                     </Typography>
                   </Box>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                    <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
                       Pflichtstunden:
                     </Typography>
                     <Typography variant="body2" sx={{ 
@@ -487,10 +555,10 @@ const MemberTable = ({
                     </Typography>
                   </Box>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                    <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
                       UUID:
                     </Typography>
-                    <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.87)' }}>
+                    <Typography variant="body2" sx={{ color: 'text.primary' }}>
                       <code>{member.uuid || '—'}</code>
                     </Typography>
                   </Box>
@@ -502,7 +570,7 @@ const MemberTable = ({
               content: (
                 <Box>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                    <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
                       Geringfügig beschäftigt:
                     </Typography>
                     <Typography variant="body2" sx={{ 
@@ -515,7 +583,7 @@ const MemberTable = ({
                   {member.is_marginally_employed && (
                     <>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                        <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)' }}>
+                        <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
                           Arbeitsstunden/Monat:
                         </Typography>
                         <Typography variant="body2" sx={{ color: 'info.main', fontWeight: 'bold' }}>
@@ -523,18 +591,18 @@ const MemberTable = ({
                         </Typography>
                       </Box>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                        <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)' }}>
+                        <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
                           Maximale Stunden:
                         </Typography>
-                        <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.87)' }}>
+                        <Typography variant="body2" sx={{ color: 'text.primary' }}>
                           {member.max_working_hours || 40} Stunden
                         </Typography>
                       </Box>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                        <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)' }}>
+                        <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
                           Stundenlohn:
                         </Typography>
-                        <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.87)' }}>
+                        <Typography variant="body2" sx={{ color: 'text.primary' }}>
                           {parseFloat(member.hourly_wage || 12).toFixed(2)} €/Std
                         </Typography>
                       </Box>
@@ -548,7 +616,7 @@ const MemberTable = ({
               content: (
                 <Box>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                    <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
                       Kontostand:
                     </Typography>
                     <Typography variant="body2" sx={{ 
@@ -559,7 +627,7 @@ const MemberTable = ({
                     </Typography>
                   </Box>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                    <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
                       Monatsbeitrag:
                     </Typography>
                     <Typography variant="body2" sx={{ 
@@ -590,34 +658,34 @@ const MemberTable = ({
                 content: (
                   <Box>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                      <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)' }}>
+                      <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
                         E-Mail:
                       </Typography>
-                      <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.87)' }}>
+                      <Typography variant="body2" sx={{ color: 'text.primary' }}>
                         {member.email || '—'}
                       </Typography>
                     </Box>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                      <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)' }}>
+                      <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
                         Telefon:
                       </Typography>
-                      <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.87)' }}>
+                      <Typography variant="body2" sx={{ color: 'text.primary' }}>
                         {member.phone || '—'}
                       </Typography>
                     </Box>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                      <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)' }}>
+                      <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
                         Straße & Nr.:
                       </Typography>
-                      <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.87)' }}>
+                      <Typography variant="body2" sx={{ color: 'text.primary' }}>
                         {member.street} {member.house_number}
                       </Typography>
                     </Box>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                      <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)' }}>
+                      <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
                         PLZ & Ort:
                       </Typography>
-                      <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.87)' }}>
+                      <Typography variant="body2" sx={{ color: 'text.primary' }}>
                         {member.zip_code} {member.city}
                       </Typography>
                     </Box>
@@ -629,22 +697,22 @@ const MemberTable = ({
                 content: (
                   <Box>
                     <Box sx={{ mb: 2 }}>
-                      <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)', mb: 0.5 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'text.secondary', mb: 0.5 }}>
                         Körperliche Einschränkungen:
                       </Typography>
                       <Box
                         sx={{
-                          backgroundColor: 'white',
+                          backgroundColor: theme.palette.background.paper,
                           p: 1.5,
                           borderRadius: '4px',
-                          border: '1px solid rgba(0, 0, 0, 0.12)',
+                          border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
                         }}
                       >
                         <Typography 
                           variant="body2" 
                           sx={{ 
                             fontStyle: member.physical_limitations ? 'normal' : 'italic',
-                            color: member.physical_limitations ? 'rgba(0, 0, 0, 0.87)' : 'rgba(0, 0, 0, 0.6)',
+                            color: member.physical_limitations ? 'text.primary' : 'text.secondary',
                           }}
                         >
                           {member.physical_limitations || 'Keine körperlichen Einschränkungen vorhanden'}
@@ -652,22 +720,22 @@ const MemberTable = ({
                       </Box>
                     </Box>
                     <Box>
-                      <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.6)', mb: 0.5 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'text.secondary', mb: 0.5 }}>
                         Geistige Einschränkungen:
                       </Typography>
                       <Box
                         sx={{
-                          backgroundColor: 'white',
+                          backgroundColor: theme.palette.background.paper,
                           p: 1.5,
                           borderRadius: '4px',
-                          border: '1px solid rgba(0, 0, 0, 0.12)',
+                          border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
                         }}
                       >
                         <Typography 
                           variant="body2" 
                           sx={{ 
                             fontStyle: member.mental_limitations ? 'normal' : 'italic',
-                            color: member.mental_limitations ? 'rgba(0, 0, 0, 0.87)' : 'rgba(0, 0, 0, 0.6)',
+                            color: member.mental_limitations ? 'text.primary' : 'text.secondary',
                           }}
                         >
                           {member.mental_limitations || 'Keine geistigen Einschränkungen vorhanden'}
@@ -692,10 +760,10 @@ const MemberTable = ({
                   content: (
                     <Box
                       sx={{
-                        backgroundColor: 'white',
+                        backgroundColor: theme.palette.background.paper,
                         p: 1.5,
                         borderRadius: '4px',
-                        border: '1px solid rgba(255, 0, 0, 0.3)',
+                        border: `1px solid ${alpha(theme.palette.error.main, 0.3)}`,
                         borderLeft: '4px solid',
                         borderLeftColor: 'error.main',
                       }}
@@ -711,10 +779,10 @@ const MemberTable = ({
                   content: (
                     <Box
                       sx={{
-                        backgroundColor: 'white',
+                        backgroundColor: theme.palette.background.paper,
                         p: 1.5,
                         borderRadius: '4px',
-                        border: '1px solid rgba(0, 0, 0, 0.12)',
+                        border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
                       }}
                     >
                       <Typography variant="body2">
@@ -729,55 +797,144 @@ const MemberTable = ({
           </Box>
         )}
 
-        {/* Produkthistorie hinzufügen */}
-        <Box mt={3}>
-          <DetailCards
-            cards={[
-              {
-                title: 'Cannabis-Produkthistorie',
-                content: (
-                  <Box>
-                    {/* MemberDistributionHistory-Komponente einbinden */}
-                    <MemberDistributionHistory memberId={member.id} />
-                  </Box>
-                )
-              }
-            ]}
-            color="primary.main"
-          />
-        </Box>
-
         {/* Aktionsbereich mit ausreichend Abstand zu den Karten darüber */}
-        <Box sx={{ display: 'flex', gap: 2, mt: 4, mb: 1 }}>
-          <Button 
-            variant="contained" 
-            color="info" 
-            component={Link} 
-            to={`/mitglieder/${member.id}`}
-            startIcon={<VisibilityIcon />}
+        <Box sx={{ display: 'flex', gap: 1, mt: 4, mb: 1, flexWrap: 'wrap' }}>
+          {/* Details anzeigen */}
+          <Box
+            sx={{
+              border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
+              borderRadius: '4px',
+              p: 0.75,
+              display: 'inline-flex',
+              alignItems: 'center',
+              backgroundColor: theme.palette.background.paper,
+              '&:hover': {
+                backgroundColor: alpha(theme.palette.action.hover, 0.08),
+                borderColor: theme.palette.divider
+              }
+            }}
           >
-            Details anzeigen
-          </Button>
+            <Button 
+              variant="text" 
+              color="inherit" 
+              component={Link} 
+              to={`/mitglieder/${member.id}`}
+              startIcon={<VisibilityIcon />}
+              sx={{ textTransform: 'none', color: 'text.primary' }}
+            >
+              Details anzeigen
+            </Button>
+          </Box>
+          
+          {/* Produkthistorie */}
+          <Box
+            sx={{
+              border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
+              borderRadius: '4px',
+              p: 0.75,
+              display: 'inline-flex',
+              alignItems: 'center',
+              backgroundColor: theme.palette.background.paper,
+              '&:hover': {
+                backgroundColor: alpha(theme.palette.action.hover, 0.08),
+                borderColor: theme.palette.divider
+              }
+            }}
+          >
+            <Button 
+              variant="text" 
+              color="inherit" 
+              component={Link} 
+              to={`/mitglieder/${member.id}/history`}
+              startIcon={<HistoryIcon />}
+              sx={{ textTransform: 'none', color: 'text.primary' }}
+            >
+              Vollständige Produkthistorie
+            </Button>
+          </Box>
+          
+          {/* Kontohistorie */}
+          <Box
+            sx={{
+              border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
+              borderRadius: '4px',
+              p: 0.75,
+              display: 'inline-flex',
+              alignItems: 'center',
+              backgroundColor: theme.palette.background.paper,
+              '&:hover': {
+                backgroundColor: alpha(theme.palette.action.hover, 0.08),
+                borderColor: theme.palette.divider
+              }
+            }}
+          >
+            <Button 
+              variant="text" 
+              color="inherit" 
+              component={Link} 
+              to={`/mitglieder/${member.id}/account`}
+              startIcon={<AccountBalanceWalletIcon />}
+              sx={{ textTransform: 'none', color: 'text.primary' }}
+            >
+              Kontohistorie anzeigen
+            </Button>
+          </Box>
+          
           {isTeamleiter && (
             <>
-              <Button 
-                variant="contained" 
-                color="primary" 
-                component={Link} 
-                to={`/mitglieder/${member.id}/edit`}
-                startIcon={<EditIcon />}
+              {/* Bearbeiten */}
+              <Box
+                sx={{
+                  border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
+                  borderRadius: '4px',
+                  p: 0.75,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  backgroundColor: theme.palette.background.paper,
+                  '&:hover': {
+                    backgroundColor: alpha(theme.palette.action.hover, 0.08),
+                    borderColor: theme.palette.divider
+                  }
+                }}
               >
-                Mitglied bearbeiten
-              </Button>
-              <Button 
-                variant="outlined" 
-                color="error" 
-                component={Link} 
-                to={`/mitglieder/${member.id}/delete`}
-                startIcon={<DeleteIcon />}
+                <Button 
+                  variant="text" 
+                  color="inherit" 
+                  component={Link} 
+                  to={`/mitglieder/${member.id}/edit`}
+                  startIcon={<EditIcon />}
+                  sx={{ textTransform: 'none', color: 'text.primary' }}
+                >
+                  Mitglied bearbeiten
+                </Button>
+              </Box>
+              
+              {/* Löschen */}
+              <Box
+                sx={{
+                  border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
+                  borderRadius: '4px',
+                  p: 0.75,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  backgroundColor: theme.palette.background.paper,
+                  '&:hover': {
+                    backgroundColor: alpha(theme.palette.error.main, 0.08),
+                    borderColor: alpha(theme.palette.error.main, 0.5)
+                  }
+                }}
               >
-                Mitglied löschen
-              </Button>
+                <Button 
+                  variant="text" 
+                  color="error" 
+                  component={Link} 
+                  to={`/mitglieder/${member.id}/delete`}
+                  startIcon={<DeleteIcon />}
+                  sx={{ textTransform: 'none' }}
+                >
+                  Mitglied löschen
+                </Button>
+              </Box>
             </>
           )}
         </Box>
@@ -785,45 +942,169 @@ const MemberTable = ({
     );
   };
 
-  // Tabellenkopf mit der TableHeader-Komponente
+  // Dark Mode kompatibler Tabellenkopf
   const renderTableHeader = () => {
-    return <TableHeader columns={headerColumns} />;
+    return (
+      <Box sx={{ 
+        width: '100%', 
+        display: 'flex',
+        bgcolor: theme.palette.background.paper,
+        height: '40px',
+        alignItems: 'center',
+        borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+        flexShrink: 0,  // Prevent header from shrinking
+        // Subtiler Schatten beim Scrollen
+        '&::after': {
+          content: '""',
+          position: 'absolute',
+          bottom: -1,
+          left: 0,
+          right: 0,
+          height: '2px',
+          background: theme.palette.mode === 'dark'
+            ? 'linear-gradient(to bottom, rgba(255,255,255,0.02), transparent)'
+            : 'linear-gradient(to bottom, rgba(0,0,0,0.02), transparent)',
+          pointerEvents: 'none'
+        }
+      }}>
+        {headerColumns.map((column, index) => (
+          <Box
+            key={index}
+            sx={{ 
+              width: column.width || 'auto', 
+              px: 1.5,
+              textAlign: column.align || 'left', 
+              whiteSpace: 'nowrap',
+            }}
+          >
+            <Typography 
+              variant="caption" 
+              sx={{ 
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                color: 'text.secondary',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px'
+              }}
+            >
+              {column.label}
+            </Typography>
+          </Box>
+        ))}
+      </Box>
+    );
   };
 
   return (
-    <Box sx={{ width: '100%', overflowX: 'auto' }}>
-      {/* Tabellenkopf */}
-      {renderTableHeader()}
+    <Box sx={{ 
+      width: '100%',
+      height: '100%',
+      display: 'flex',
+      flexDirection: 'column',
+      backgroundColor: theme.palette.background.default,
+      overflow: 'hidden'  // Prevent outer container from scrolling
+    }}>
+      {/* Scrollbare Container für Header + Content */}
+      <Box sx={{ 
+        width: '100%',
+        flex: 1,
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        position: 'relative'
+      }}>
+        {/* Tabellenkopf - sticky innerhalb des scrollbaren Containers */}
+        <Box sx={{ 
+          width: '100%', 
+          display: 'flex',
+          bgcolor: theme.palette.background.paper,
+          height: '40px',
+          alignItems: 'center',
+          borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+          position: 'sticky',
+          top: 0,
+          zIndex: 10,
+          // Subtiler Schatten beim Scrollen
+          '&::after': {
+            content: '""',
+            position: 'absolute',
+            bottom: -1,
+            left: 0,
+            right: 0,
+            height: '2px',
+            background: theme.palette.mode === 'dark'
+              ? 'linear-gradient(to bottom, rgba(255,255,255,0.02), transparent)'
+              : 'linear-gradient(to bottom, rgba(0,0,0,0.02), transparent)',
+            pointerEvents: 'none'
+          }
+        }}>
+          {headerColumns.map((column, index) => (
+            <Box
+              key={index}
+              sx={{ 
+                width: column.width || 'auto', 
+                px: 1.5,
+                textAlign: column.align || 'left', 
+                whiteSpace: 'nowrap',
+              }}
+            >
+              <Typography 
+                variant="caption" 
+                sx={{ 
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  color: 'text.secondary',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px'
+                }}
+              >
+                {column.label}
+              </Typography>
+            </Box>
+          ))}
+        </Box>
   
-      {/* Tabellenzeilen */}
-      {data && data.length > 0 ? (
-        data.map((member) => (
-          <AccordionRow
-            key={member.id}
-            isExpanded={expandedMemberId === member.id}
-            onClick={() => onExpandMember(member.id)}
-            columns={getRowColumns(member)}
-            borderColor="primary.main"
-            expandIconPosition="none" // Deaktiviere das Standard-Icon, da wir ein eigenes verwenden
+        {/* Tabellenzeilen */}
+        {data && data.length > 0 ? (
+          data.map((member) => (
+            <AccordionRow
+              key={member.id}
+              isExpanded={expandedMemberId === member.id}
+              onClick={() => onExpandMember(member.id)}
+              columns={getRowColumns(member)}
+              borderColor="primary.main"
+              expandIconPosition="none"
+              borderless={true}
+            >
+              {renderMemberDetails(member)}
+            </AccordionRow>
+          ))
+        ) : (
+          <Typography align="center" sx={{ mt: 4, width: '100%', color: 'text.secondary' }}>
+            Keine Mitglieder vorhanden
+          </Typography>
+        )}
+        
+        {/* Pagination innerhalb des scrollbaren Bereichs */}
+        {data && data.length > 0 && totalPages > 1 && (
+          <Box 
+            sx={{ 
+              borderTop: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+              mt: 2,
+              pt: 2,
+              pb: 1,
+              backgroundColor: theme.palette.background.paper
+            }}
           >
-            {renderMemberDetails(member)}
-          </AccordionRow>
-        ))
-      ) : (
-        <Typography align="center" sx={{ mt: 4, width: '100%' }}>
-          Keine Mitglieder vorhanden
-        </Typography>
-      )}
-  
-      {/* Pagination mit der PaginationFooter-Komponente */}
-      <PaginationFooter
-        currentPage={currentPage}
-        totalPages={totalPages}
-        onPageChange={onPageChange}
-        hasData={data && data.length > 0}
-        emptyMessage="Keine Mitglieder vorhanden"
-        color="primary"
-      />
+            <PaginationFooter
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={onPageChange}
+              hasData={true}
+              color="primary"
+            />
+          </Box>
+        )}
+      </Box>
     </Box>
   );
 };

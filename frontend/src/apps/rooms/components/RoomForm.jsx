@@ -6,6 +6,8 @@ import {
   Typography, Paper, Slider, Divider, Grid, 
   Select, MenuItem, InputLabel, FormControl
 } from '@mui/material';
+import UnifiDeviceSelector from '@/components/UnifiDeviceSelector';
+import ProtectSensorSelector from '@/components/ProtectSensorSelector';
 
 const RoomForm = ({ initialData, onSubmit, isLoading }) => {
   const [formData, setFormData] = useState({
@@ -18,7 +20,9 @@ const RoomForm = ({ initialData, onSubmit, isLoading }) => {
     length: 500,  // 5m default
     width: 500,   // 5m default
     height: 250,  // 2.5m default
-    grid_size: 10 // 10cm default
+    grid_size: 10, // 10cm default
+    unifi_device_id: '',
+    protect_sensors: []
   });
   
   useEffect(() => {
@@ -33,7 +37,9 @@ const RoomForm = ({ initialData, onSubmit, isLoading }) => {
         length: initialData.length || 500,
         width: initialData.width || 500,
         height: initialData.height || 250,
-        grid_size: initialData.grid_size || 10
+        grid_size: initialData.grid_size || 10,
+        unifi_device_id: initialData.unifi_device_id || '',
+        protect_sensors: initialData.protect_sensors || []
       });
     }
   }, [initialData]);
@@ -62,7 +68,9 @@ const RoomForm = ({ initialData, onSubmit, isLoading }) => {
       length: parseInt(formData.length, 10),
       width: parseInt(formData.width, 10),
       height: parseInt(formData.height, 10),
-      grid_size: parseInt(formData.grid_size, 10)
+      grid_size: parseInt(formData.grid_size, 10),
+      unifi_device_id: formData.unifi_device_id || null,
+      protect_sensors: formData.protect_sensors
     });
   };
   
@@ -101,6 +109,18 @@ const RoomForm = ({ initialData, onSubmit, isLoading }) => {
               <MenuItem value="other">Sonstiges</MenuItem>
             </Select>
           </FormControl>
+
+          <UnifiDeviceSelector
+            value={formData.unifi_device_id}
+            onChange={(deviceId) => setFormData({ ...formData, unifi_device_id: deviceId })}
+            currentRoomId={initialData?.id}
+          />
+
+          <ProtectSensorSelector
+            value={formData.protect_sensors}
+            onChange={(sensorIds) => setFormData({ ...formData, protect_sensors: sensorIds })}
+            currentRoomId={initialData?.id}
+          />
           
           <TextField
             label="Beschreibung"
@@ -112,8 +132,8 @@ const RoomForm = ({ initialData, onSubmit, isLoading }) => {
             fullWidth
           />
           
-          <Grid container spacing={2}>
-            <Grid item xs={12} md={6}>
+          <Grid container spacing={2} sx={{ width: '100%' }}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <TextField
                 label="Kapazität (Personen)"
                 name="capacity"
@@ -124,7 +144,7 @@ const RoomForm = ({ initialData, onSubmit, isLoading }) => {
                 InputProps={{ inputProps: { min: 0 } }}
               />
             </Grid>
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <TextField
                 label="Pflanzenanzahl"
                 name="pflanzenanzahl"
@@ -154,8 +174,8 @@ const RoomForm = ({ initialData, onSubmit, isLoading }) => {
             Räumliche Parameter
           </Typography>
           
-          <Grid container spacing={2}>
-            <Grid item xs={12} md={6}>
+          <Grid container spacing={2} sx={{ width: '100%' }}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <Typography gutterBottom>
                 Länge: {formData.length} cm ({(formData.length / 100).toFixed(2)} m)
               </Typography>
@@ -174,7 +194,7 @@ const RoomForm = ({ initialData, onSubmit, isLoading }) => {
               />
             </Grid>
             
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <Typography gutterBottom>
                 Breite: {formData.width} cm ({(formData.width / 100).toFixed(2)} m)
               </Typography>
@@ -193,7 +213,7 @@ const RoomForm = ({ initialData, onSubmit, isLoading }) => {
               />
             </Grid>
             
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <Typography gutterBottom>
                 Höhe: {formData.height} cm ({(formData.height / 100).toFixed(2)} m)
               </Typography>
@@ -212,7 +232,7 @@ const RoomForm = ({ initialData, onSubmit, isLoading }) => {
               />
             </Grid>
             
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <Typography gutterBottom>
                 Rastergröße: {formData.grid_size} cm
               </Typography>

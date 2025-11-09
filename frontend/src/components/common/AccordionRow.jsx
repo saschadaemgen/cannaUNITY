@@ -1,18 +1,12 @@
 // frontend/src/apps/trackandtrace/components/common/AccordionRow.jsx
-import { Box, IconButton, Typography, Collapse } from '@mui/material'
+import { Box, IconButton, Typography, Collapse, useTheme, alpha } from '@mui/material'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import { useState, useEffect } from 'react'
 import useAnimationSettings from '@/hooks/useAnimationSettings'
 
 /**
  * AccordionRow Komponente für ausklappbare Tabellenzeilen mit Animation
- *
- * @param {boolean} isExpanded - Ist die Zeile ausgeklappt
- * @param {function} onClick - Handler für Klick auf die Zeile
- * @param {Array} columns - Array mit Spalten-Konfigurationen
- * @param {string} borderColor - Farbe des linken Rands (default: 'success.main')
- * @param {string} expandIconPosition - Position des Expand-Icons ('start' oder 'end')
- * @param {React.ReactNode} children - Inhalt, der beim Ausklappen angezeigt wird
+ * Jetzt mit voller Dark Mode Unterstützung!
  */
 const AccordionRow = ({ 
   isExpanded, 
@@ -20,9 +14,10 @@ const AccordionRow = ({
   columns,
   borderColor = 'success.main',
   expandIconPosition = 'end',
-  children
+  children,
+  borderless = false
 }) => {
-  // Animations-Einstellungen abrufen
+  const theme = useTheme();
   const animSettings = useAnimationSettings('slide', 300, true);
   
   // Lokaler expandierter Zustand für Animation
@@ -35,28 +30,36 @@ const AccordionRow = ({
   
   // Berechne Animations-Dauer basierend auf den Einstellungen
   const animationDuration = animSettings.enabled ? 
-    Math.min(animSettings.duration / 2, 300) : // Halbiere die globale Dauer, max 300ms
-    0; // Keine Animation, wenn Animationen deaktiviert sind
+    Math.min(animSettings.duration / 2, 300) : 
+    0;
 
   return (
     <Box
       sx={{ 
-        mb: 1.2, 
+        mb: borderless ? 0 : 1.2, 
         overflow: 'hidden', 
-        borderRadius: '4px',
-        border: expanded ? '1px solid rgba(76, 175, 80, 0.5)' : 'none'
+        borderRadius: borderless ? 0 : '4px',
+        border: borderless ? 'none' : (expanded ? `1px solid ${alpha(theme.palette.success.main, 0.5)}` : 'none'),
+        borderBottom: borderless ? `1px solid ${alpha(theme.palette.divider, 0.08)}` : undefined,
+        '&:last-child': borderless ? { borderBottom: 'none' } : undefined
       }}
     >
       <Box
         sx={{
           display: 'flex',
           alignItems: 'center',
-          backgroundColor: expanded ? 'rgba(0, 0, 0, 0.04)' : 'white',
-          '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.04)' },
-          borderLeft: '4px solid',
-          borderColor: borderColor,
+          backgroundColor: expanded 
+            ? alpha(theme.palette.action.hover, 0.04) 
+            : theme.palette.background.paper,
+          '&:hover': { 
+            backgroundColor: alpha(theme.palette.action.hover, 0.08),
+            transform: borderless ? 'translateX(2px)' : undefined,
+            transition: 'all 150ms ease'
+          },
+          borderLeft: borderless ? 'none' : '4px solid',
+          borderColor: borderless ? undefined : borderColor,
           cursor: 'pointer',
-          height: '48px',
+          height: '52px',
           width: '100%',
         }}
         onClick={onClick}
@@ -78,7 +81,7 @@ const AccordionRow = ({
               onClick()
             }}
           >
-            <IconButton size="small">
+            <IconButton size="small" sx={{ color: theme.palette.text.secondary }}>
               <ExpandMoreIcon 
                 sx={{ 
                   transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)',
@@ -111,7 +114,11 @@ const AccordionRow = ({
             }}
           >
             {column.icon && (
-              <column.icon sx={{ color: column.iconColor || 'inherit', fontSize: '0.9rem', mr: 0.8 }} />
+              <column.icon sx={{ 
+                color: column.iconColor || theme.palette.text.secondary, 
+                fontSize: '0.9rem', 
+                mr: 0.8 
+              }} />
             )}
             {typeof column.content === 'string' || typeof column.content === 'number' ? (
               <Typography
@@ -122,7 +129,7 @@ const AccordionRow = ({
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                   fontSize: '0.8rem',
-                  color: column.color || 'inherit',
+                  color: column.color || theme.palette.text.primary,
                   lineHeight: 1.4,
                 }}
               >
@@ -151,7 +158,7 @@ const AccordionRow = ({
               onClick()
             }}
           >
-            <IconButton size="small">
+            <IconButton size="small" sx={{ color: theme.palette.text.secondary }}>
               <ExpandMoreIcon 
                 sx={{ 
                   transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)',
@@ -174,8 +181,8 @@ const AccordionRow = ({
           sx={{ 
             width: '100%',
             padding: '14px 20px 20px 20px',
-            backgroundColor: 'rgba(0, 0, 0, 0.02)',
-            borderTop: '1px solid rgba(0, 0, 0, 0.12)'
+            backgroundColor: alpha(theme.palette.background.default, 0.5),
+            borderTop: `1px solid ${alpha(theme.palette.divider, 0.12)}`
           }}
         >
           {children}

@@ -1,19 +1,18 @@
 // frontend/src/apps/rooms/pages/RoomList.jsx
 import React, { useState, useEffect } from 'react';
 import { 
-  Box, Typography, Button, Container, Paper, 
-  Fade, Alert, Snackbar
+  Box, Alert, Snackbar, alpha, Typography, Button
 } from '@mui/material';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import AddIcon from '@mui/icons-material/Add';
 import axios from 'axios';
 
 // Komponenten importieren
 import RoomTable from '../components/RoomTable';
-import PageHeader from '@/components/common/PageHeader';
 import LoadingIndicator from '@/components/common/LoadingIndicator';
 
 const RoomList = () => {
+  const navigate = useNavigate();
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -22,7 +21,6 @@ const RoomList = () => {
   const [expandedRoomId, setExpandedRoomId] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [showFilters, setShowFilters] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   
   useEffect(() => {
@@ -89,97 +87,136 @@ const RoomList = () => {
   // Zeige einen Ladeindikator, falls die Daten noch geladen werden
   if (loading) {
     return (
-      <Container maxWidth="xl" sx={{ width: '100%' }}>
-        <Box sx={{ my: 4 }}>
-          <PageHeader 
-            title="Raumliste"
-            showFilters={false}
-            setShowFilters={() => {}}
-            actions={
-              <Button 
-                variant="contained" 
-                color="primary" 
-                component={Link} 
-                to="/rooms/new"
-                startIcon={<AddIcon />}
-                disabled
-              >
-                Neuen Raum hinzufügen
-              </Button>
-            }
-          />
-          <LoadingIndicator />
-        </Box>
-      </Container>
+      <Box sx={{ 
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center' 
+      }}>
+        <LoadingIndicator />
+      </Box>
     );
   }
   
   // Sicherheitsprüfung vor dem Rendern
   if (!Array.isArray(rooms)) {
     return (
-      <Container maxWidth="xl" sx={{ width: '100%' }}>
-        <Box sx={{ my: 4 }}>
-          <Alert severity="error" onClose={handleCloseError}>
-            Die Daten haben ein unerwartetes Format
-          </Alert>
-        </Box>
-      </Container>
+      <Box sx={{ 
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        p: 2 
+      }}>
+        <Alert severity="error" onClose={handleCloseError}>
+          Die Daten haben ein unerwartetes Format
+        </Alert>
+      </Box>
     );
   }
   
   return (
-    <Container maxWidth="xl" sx={{ width: '100%' }}>
-      <Fade in={true} timeout={800}>
-        <Box sx={{ my: 4 }}>
-          <PageHeader 
-            title="Raumliste"
-            showFilters={showFilters}
-            setShowFilters={setShowFilters}
-            actions={
-              <Button 
-                variant="contained" 
-                color="primary" 
-                component={Link} 
-                to="/rooms/new"
-                startIcon={<AddIcon />}
-              >
-                Neuen Raum hinzufügen
-              </Button>
+    <Box sx={{ 
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden'
+    }}>
+      {/* Header mit Titel */}
+      <Box sx={{ 
+        p: 2, 
+        bgcolor: 'background.paper',
+        borderBottom: theme => `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }}>
+        <Typography variant="h5" sx={{ fontWeight: 500 }}>
+          Raumverwaltung: Übersicht
+        </Typography>
+        
+        {/* Neuer Raum Button oben rechts */}
+        <Box
+          sx={{
+            border: theme => `1px solid ${alpha(theme.palette.divider, 0.3)}`,
+            borderRadius: '4px',
+            p: 0.75,
+            display: 'inline-flex',
+            alignItems: 'center',
+            backgroundColor: 'background.paper',
+            '&:hover': {
+              backgroundColor: theme => alpha(theme.palette.warning.main, 0.08),
+              borderColor: theme => alpha(theme.palette.warning.main, 0.5)
             }
-          />
-          
-          {error && (
-            <Alert 
-              severity="error" 
-              onClose={handleCloseError}
-              sx={{ mb: 2 }}
-            >
-              {error}
-            </Alert>
-          )}
-          
-          {/* Hier kann später ein Filter-Bereich eingefügt werden */}
-          {showFilters && (
-            <Fade in={showFilters} timeout={500}>
-              <Paper sx={{ p: 2, mb: 2 }}>
-                <Typography variant="subtitle1">
-                  Filter-Optionen können hier später hinzugefügt werden
-                </Typography>
-              </Paper>
-            </Fade>
-          )}
-          
-          {/* RoomTable Komponente einbinden */}
-          <RoomTable 
-            data={rooms}
-            expandedRoomId={expandedRoomId}
-            onExpandRoom={handleAccordionChange}
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={handlePageChange}
-          />
+          }}
+        >
+          <Button 
+            variant="text" 
+            color="warning" 
+            onClick={() => navigate('/rooms/new')}
+            startIcon={<AddIcon />}
+            sx={{ 
+              textTransform: 'none',
+              fontSize: '0.875rem'
+            }}
+          >
+            Neuer Raum
+          </Button>
         </Box>
-      </Fade>
+      </Box>
+      
+      {error && (
+        <Alert 
+          severity="error" 
+          onClose={handleCloseError}
+          sx={{ 
+            borderRadius: 0,
+            flexShrink: 0 
+          }}
+        >
+          {error}
+        </Alert>
+      )}
+      
+      {/* RoomTable Komponente - volle Höhe und Breite */}
+      <Box sx={{ 
+        flex: 1, 
+        overflow: 'auto',
+        position: 'relative',
+        // Schöne Scrollbar für Webkit-Browser
+        '&::-webkit-scrollbar': {
+          width: '8px',
+          height: '8px',
+        },
+        '&::-webkit-scrollbar-track': {
+          backgroundColor: 'transparent',
+        },
+        '&::-webkit-scrollbar-thumb': {
+          backgroundColor: theme => alpha(theme.palette.primary.main, 0.2),
+          borderRadius: '4px',
+          '&:hover': {
+            backgroundColor: theme => alpha(theme.palette.primary.main, 0.3),
+          },
+        },
+      }}>
+        <RoomTable 
+          data={rooms}
+          expandedRoomId={expandedRoomId}
+          onExpandRoom={handleAccordionChange}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={handlePageChange}
+        />
+      </Box>
       
       <Snackbar
         open={!!successMessage}
@@ -187,7 +224,7 @@ const RoomList = () => {
         onClose={handleCloseSuccess}
         message={successMessage}
       />
-    </Container>
+    </Box>
   );
 };
 

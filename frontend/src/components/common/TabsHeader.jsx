@@ -18,7 +18,7 @@ const TabsHeader = ({
   ariaLabel = 'tabs'
 }) => {
   return (
-    <Paper sx={{ mb: 2, width: '100%', overflow: 'hidden', borderRadius: 0 }}>
+    <Paper sx={{ mb: 0, width: '100%', overflow: 'hidden', borderRadius: 0 }}>
       <Tabs 
         value={tabValue} 
         onChange={onTabChange} 

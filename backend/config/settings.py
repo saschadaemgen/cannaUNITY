@@ -33,14 +33,15 @@ INSTALLED_APPS = [
     'rooms',
     'options',
     'buchhaltung',
+    'laborreports',
     'interface',
     'controller',
-    'logocore',
-    'ha',
     'wawi',
     'unifi_access',
     'unifi_protect',
+    'unifi_api_debug',
     'trackandtrace',
+    'taskmanager',
 ]
 
 # 🔄 Middleware
@@ -139,15 +140,19 @@ TIME_ZONE = 'Europe/Berlin'
 USE_I18N = True
 USE_TZ = True
 
-
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, "static"),
 ]
+STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")  # oder ein anderer Zielpfad
 
 # 📁 Media Dateien
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+# 📤 File Upload Einstellungen
+DATA_UPLOAD_MAX_MEMORY_SIZE = 104857600  # 100MB in Bytes
+FILE_UPLOAD_MAX_MEMORY_SIZE = 104857600  # 100MB in Bytes
 
 # 🆔 Primärschlüssel-Typ
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
@@ -157,6 +162,7 @@ UNIFI_ACCESS_HOST = os.getenv('UNIFI_ACCESS_HOST')
 UNIFI_ACCESS_TOKEN = os.getenv('UNIFI_ACCESS_TOKEN')
 HOME_ASSISTANT_ACCESS_TOKEN = os.getenv('HOME_ASSISTANT_ACCESS_TOKEN')
 HOME_ASSISTANT_API_URL = os.getenv('HOME_ASSISTANT_API_URL')
+UNIFI_DEVICE_ID = os.getenv("UNIFI_DEVICE_ID")
 
 # 📝 Logging-Konfiguration für Debugging
 LOGGING = {

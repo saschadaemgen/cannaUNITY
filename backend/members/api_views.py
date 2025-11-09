@@ -1,4 +1,4 @@
-# /api_views.py
+# /members/api_views.py
 import os
 import secrets
 import string
@@ -25,12 +25,7 @@ import requests
 from dotenv import load_dotenv
 from django.conf import settings
 
-# Umgebungsvariablen laden
 load_dotenv()
-
-# ============================================================================
-# 🧑‍💼 ALLGEMEINE HILFSFUNKTIONEN
-# ============================================================================
 
 def team_member_required(view_func):
     """
@@ -1217,3 +1212,276 @@ def debug_member_creation(request):
             "message": str(e),
             "traceback": traceback.format_exc() if settings.DEBUG else "Aktivieren Sie DEBUG für weitere Details."
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+@team_member_required
+def create_nfc_session_api(request, member_id):
+    """
+    Erstellt eine NFC-Enrollment-Session für einen Benutzer.
+    """
+    member = get_object_or_404(Member, id=member_id)
+    
+    if not UNIFI_ACCESS_HOST or not UNIFI_ACCESS_TOKEN:
+        return Response({
+            "error": "UniFi-Konfiguration fehlt"
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    # Device ID aus Umgebungsvariablen holen
+    device_id = os.getenv("UNIFI_DEVICE_ID")
+    if not device_id:
+        return Response({
+            "error": "Keine Device-ID konfiguriert"
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    url = f"{UNIFI_ACCESS_HOST}/api/v1/developer/credentials/nfc_cards/sessions"
+    headers = {
+        "Authorization": f"Bearer {UNIFI_ACCESS_TOKEN}",
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+    }
+    
+    data = {
+        "device_id": device_id,
+        "reset_ua_card": request.data.get('reset_ua_card', False)
+    }
+    
+    try:
+        response = requests.post(url, json=data, headers=headers, verify=False)
+        
+        if response.status_code in (200, 201):
+            result = response.json()
+            if result.get("code") == "SUCCESS":
+                session_id = result["data"].get("session_id")
+                print(f"✅ NFC-Session erstellt: {session_id} für Member {member_id}")
+                return Response({
+                    "success": True,
+                    "session_id": session_id,
+                    "message": "NFC-Session erstellt. Halten Sie jetzt die Karte an den Reader."
+                })
+        
+        # Fehlerfall
+        error_msg = "Unbekannter Fehler"
+        if response.status_code == 400:
+            error_msg = "Ungültige Anfrage - prüfen Sie die Device-ID"
+        elif response.status_code == 401:
+            error_msg = "Authentifizierung fehlgeschlagen - prüfen Sie das API-Token"
+        elif response.status_code == 404:
+            error_msg = "Device nicht gefunden"
+            
+        return Response({
+            "error": f"Fehler beim Erstellen der NFC-Session: {error_msg}"
+        }, status=response.status_code)
+        
+    except Exception as e:
+        print(f"❌ Fehler beim Erstellen der NFC-Session: {str(e)}")
+        return Response({
+            "error": f"Verbindungsfehler: {str(e)}"
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+@team_member_required
+def get_nfc_token_api(request, member_id, session_id):
+    """
+    Ruft das NFC-Token für eine Session ab.
+    """
+    member = get_object_or_404(Member, id=member_id)
+    
+    if not UNIFI_ACCESS_HOST or not UNIFI_ACCESS_TOKEN:
+        return Response({
+            "error": "UniFi-Konfiguration fehlt"
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    url = f"{UNIFI_ACCESS_HOST}/api/v1/developer/credentials/nfc_cards/sessions/{session_id}"
+    headers = {
+        "Authorization": f"Bearer {UNIFI_ACCESS_TOKEN}",
+        "Accept": "application/json",
+    }
+    
+    try:
+        response = requests.get(url, headers=headers, verify=False)
+        
+        if response.status_code == 200:
+            result = response.json()
+            if result.get("code") == "SUCCESS" and result.get("data"):
+                token = result["data"].get("token")
+                card_id = result["data"].get("card_id")
+                
+                if token:
+                    print(f"✅ NFC-Token abgerufen: {token} für Member {member_id}")
+                    return Response({
+                        "success": True,
+                        "token": token,
+                        "card_id": card_id,
+                        "message": "NFC-Karte erfolgreich gescannt!"
+                    })
+                else:
+                    return Response({
+                        "success": False,
+                        "message": "Karte noch nicht gescannt. Bitte halten Sie die Karte länger an den Reader."
+                    }, status=status.HTTP_202_ACCEPTED)
+        
+        return Response({
+            "error": "Session nicht gefunden oder abgelaufen"
+        }, status=status.HTTP_404_NOT_FOUND)
+        
+    except Exception as e:
+        print(f"❌ Fehler beim Abrufen des NFC-Tokens: {str(e)}")
+        return Response({
+            "error": f"Verbindungsfehler: {str(e)}"
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+@team_member_required
+def assign_nfc_card_api(request, member_id):
+    """
+    Weist eine NFC-Karte einem Benutzer zu.
+    """
+    member = get_object_or_404(Member, id=member_id)
+    
+    # UniFi-ID extrahieren
+    unifi_id = extract_unifi_id(member, request.data)
+    if not unifi_id:
+        return Response({
+            "error": "Keine UniFi-ID gefunden. Erstellen Sie zuerst einen UniFi-Benutzer."
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    token = request.data.get('token')
+    if not token:
+        return Response({
+            "error": "Kein NFC-Token übergeben"
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    if not UNIFI_ACCESS_HOST or not UNIFI_ACCESS_TOKEN:
+        return Response({
+            "error": "UniFi-Konfiguration fehlt"
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    url = f"{UNIFI_ACCESS_HOST}/api/v1/developer/users/{unifi_id}/nfc_cards"
+    headers = {
+        "Authorization": f"Bearer {UNIFI_ACCESS_TOKEN}",
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+    }
+    
+    data = {
+        "token": token,
+        "force_add": request.data.get('force_add', True)  # Standard: Überschreiben erlauben
+    }
+    
+    try:
+        response = requests.put(url, json=data, headers=headers, verify=False)
+        
+        if response.status_code in (200, 204):
+            result = response.json() if response.content else {}
+            if result.get("code") == "SUCCESS" or response.status_code == 204:
+                print(f"✅ NFC-Karte zugewiesen: {token} an UniFi-User {unifi_id}")
+                
+                # Optional: NFC-Info in Notizen speichern
+                card_id = request.data.get('card_id', 'Unbekannt')
+                notes = member.notes or ""
+                nfc_info = f"\nNFC-Karte zugewiesen: {card_id} (Token: {token[:16]}...)"
+                member.notes = notes + nfc_info
+                member.save(update_fields=['notes'])
+                
+                return Response({
+                    "success": True,
+                    "message": "NFC-Karte erfolgreich zugewiesen!",
+                    "card_id": card_id
+                })
+        
+        # Fehlerbehandlung
+        error_detail = ""
+        if response.status_code == 400:
+            error_detail = "Ungültige Anfrage"
+        elif response.status_code == 409:
+            error_detail = "Karte bereits zugewiesen"
+        
+        return Response({
+            "error": f"Fehler beim Zuweisen der NFC-Karte: {error_detail}"
+        }, status=response.status_code)
+        
+    except Exception as e:
+        print(f"❌ Fehler beim Zuweisen der NFC-Karte: {str(e)}")
+        return Response({
+            "error": f"Verbindungsfehler: {str(e)}"
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+@team_member_required
+def update_member_balance_api(request, member_id):
+    """
+    Aktualisiert den Kontostand eines Mitglieds nach einer Cannabis-Ausgabe
+    """
+    member = get_object_or_404(Member, id=member_id)
+    
+    amount = request.data.get('amount')
+    transaction_type = request.data.get('transaction_type', 'distribution')
+    notes = request.data.get('notes', '')
+    distribution_id = request.data.get('distribution_id')
+    
+    if amount is None:
+        return Response(
+            {"error": "Betrag ist erforderlich"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    try:
+        amount = float(amount)
+    except (ValueError, TypeError):
+        return Response(
+            {"error": "Ungültiger Betrag"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # Alten Kontostand speichern
+    old_balance = float(member.kontostand)
+    
+    # Neuen Kontostand berechnen
+    if transaction_type == 'distribution':
+        # Cannabis-Ausgabe = Abbuchung
+        new_balance = old_balance - amount
+    else:
+        # Andere Transaktionen (z.B. Einzahlung)
+        new_balance = old_balance + amount
+    
+    # Prüfen ob genug Guthaben vorhanden ist
+    if new_balance < 0 and transaction_type == 'distribution':
+        return Response({
+            "error": "Unzureichendes Guthaben",
+            "current_balance": old_balance,
+            "required_amount": amount,
+            "shortage": abs(new_balance)
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Kontostand aktualisieren
+    member.kontostand = new_balance
+    member.save(update_fields=['kontostand'])
+    
+    # Optional: Transaktion in den Notizen vermerken
+    if distribution_id:
+        transaction_note = f"\nCannabis-Ausgabe #{distribution_id}: -{amount:.2f}€ (Neuer Stand: {new_balance:.2f}€)"
+        member.notes = (member.notes or "") + transaction_note
+        member.save(update_fields=['notes'])
+    
+    # Joomla-Kontostand synchronisieren
+    try:
+        sync_joomla_user(member)
+    except Exception as e:
+        print(f"⚠️ Joomla-Sync fehlgeschlagen: {str(e)}")
+    
+    return Response({
+        "success": True,
+        "old_balance": old_balance,
+        "new_balance": new_balance,
+        "transaction_amount": amount,
+        "transaction_type": transaction_type,
+        "message": f"Kontostand erfolgreich aktualisiert"
+    })

@@ -6,7 +6,6 @@ import MemberList from '@/apps/members/pages/MemberList'
 import MemberCreate from '@/apps/members/pages/MemberCreate'
 import MemberEdit from '@/apps/members/pages/MemberEdit'
 import MemberDelete from '@/apps/members/pages/MemberDelete'
-
 import RoomList from '@/apps/rooms/pages/RoomList'
 import RoomDetail from '@/apps/rooms/pages/RoomDetail'
 import RoomCreate from '@/apps/rooms/pages/RoomCreate'
@@ -40,18 +39,32 @@ import HarvestPage from '@/apps/trackandtrace/pages/Harvest/HarvestPage'
 import DryingPage from '@/apps/trackandtrace/pages/Drying/DryingPage'
 import ProcessingPage from '@/apps/trackandtrace/pages/Processing/ProcessingPage'
 import LabTestingPage from '@/apps/trackandtrace/pages/LabTesting/LabTestingPage'
-
 import PackagingPage from '@/apps/trackandtrace/pages/Packaging/PackagingPage'
 import ProductDistributionPage from '@/apps/trackandtrace/pages/ProductDistribution/ProductDistributionPage';
-
+import DistributionKioskMain from '@/apps/trackandtrace/pages/DistributionKiosk/DistributionKioskMain'
 import ProtectSensorPage from '@/apps/unifi_protect/pages/ProtectSensorPage'
 import StrainPage from '@/apps/wawi/pages/Strain/StrainPage'
-import ControllerDashboard from '@/apps/controller/pages/Dashboard';
-import IrrigationControllerPage from '@/apps/controller/pages/Irrigation/IrrigationControllerPage';
-import LightControllerPage from '@/apps/controller/pages/Light/LightControllerPage';
-import MonitoringPage from '@/apps/controller/pages/Monitoring/MonitoringPage';
-import ControllerLogsPage from '@/apps/controller/pages/Logs/ControllerLogsPage';
-import MQTTTerminalPage from '@/apps/controller/pages/MQTTTerminal/MQTTTerminalPage';
+import ControllerDashboard from '../apps/controller/pages/ControllerDashboard'
+import ControlUnitEdit from '../apps/controller/pages/ControlUnitEdit'
+import ControlUnitSchedule from '../apps/controller/pages/ControlUnitSchedule'
+import ReportList from '@/apps/laborreports/pages/ReportList';
+import ReportCreate from '@/apps/laborreports/pages/ReportCreate';
+import ReportView from '@/apps/laborreports/pages/ReportView';
+import ReportEdit from '@/apps/laborreports/pages/ReportEdit';
+import DebugDashboard from '@/apps/unifi_api_debug/pages/DebugDashboard'
+import TaskDashboard from '@/apps/taskmanager/pages/TaskDashboard'
+import TaskScheduleList from '@/apps/taskmanager/pages/TaskScheduleList'
+import TaskScheduleCreate from '@/apps/taskmanager/pages/TaskScheduleCreate'
+import TaskScheduleDetail from '@/apps/taskmanager/pages/TaskScheduleDetail'
+import TaskScheduleEdit from '@/apps/taskmanager/pages/TaskScheduleEdit'
+import TaskBookingList from '@/apps/taskmanager/pages/TaskBookingList'
+import MemberTaskDashboard from '@/apps/taskmanager/pages/MemberTaskDashboard'
+import TaskTypeList from '@/apps/taskmanager/pages/TaskTypeList'
+import TaskTypeCreate from '@/apps/taskmanager/pages/TaskTypeCreate'
+import TaskTypeDetail from '@/apps/taskmanager/pages/TaskTypeDetail'
+import TaskTypeEdit from '@/apps/taskmanager/pages/TaskTypeEdit'
+import SeedPurchaseCreate from '../apps/trackandtrace/pages/SeedPurchase/SeedPurchaseCreate'
+
 
 export const router = createBrowserRouter([
   {
@@ -78,6 +91,8 @@ export const router = createBrowserRouter([
       { path: 'rooms/item-types', element: <RoomItemTypeList /> },
       { path: 'rooms/item-types/new', element: <RoomItemTypeCreate /> },
       { path: 'rooms/item-types/:id/edit', element: <RoomItemTypeEdit /> },
+      { path: 'trace/samen/neu', element: <SeedPurchaseCreate /> },
+
 
       // Dashboards
       { path: 'unifi-access', element: <Dashboard /> },
@@ -112,28 +127,61 @@ export const router = createBrowserRouter([
       { path: 'trace/laborkontrolle', element: <LabTestingPage /> },
       { path: 'trace/verpackung', element: <PackagingPage /> },
       { path: 'trace/ausgabe', element: <ProductDistributionPage /> },
+      
 
       // WAWI - Cannabis-Sortenverwaltung
       { path: 'wawi/strains', element: <StrainPage /> },
 
-      { path: 'controllers', element: <ControllerDashboard /> },
-      { path: 'controllers/dashboard', element: <ControllerDashboard /> },
-      { path: 'controllers/irrigation', element: <IrrigationControllerPage /> },
-      { path: 'controllers/lighting', element: <LightControllerPage /> },
-      { path: 'controllers/monitoring', element: <MonitoringPage /> },
-      { path: 'controllers/logs', element: <ControllerLogsPage /> },
-      { path: 'controllers/mqtt', element: <MQTTTerminalPage /> },
+      // Grow-Controller Routen
+      { path: 'controller', element: <ControllerDashboard /> },
+      { path: 'controller/units/:id/edit', element: <ControlUnitEdit /> },
+      { path: 'controller/units/:id/schedule', element: <ControlUnitSchedule /> },
+
+      // Laborreports-Routen
+      { path: 'laborreports', element: <ReportList /> },
+      { path: 'laborreports/neu', element: <ReportCreate /> },
+      { path: 'laborreports/:id', element: <ReportView /> },
+      { path: 'laborreports/:id/edit', element: <ReportEdit /> },
 
       // Sicherheit
       { path: 'unifi-protect/sensoren', element: <ProtectSensorPage /> },
 
       // Optional: zukünftige Seiten
       { path: 'netzwerk', element: <div>Gemeinschaftsnetzwerk</div> },
+      { path: 'unifi-api-debug', element: <DebugDashboard /> },
+
+      // TaskManager-Routen (WICHTIG: Spezifische Routen ZUERST!)
+      { path: 'taskmanager', element: <TaskDashboard /> },
+      { path: 'taskmanager/dashboard', element: <TaskDashboard /> },
+      
+      // Schedule-Routen (spezifische zuerst!)
+      { path: 'taskmanager/schedules', element: <TaskScheduleList /> },
+      { path: 'taskmanager/schedules/new', element: <TaskScheduleCreate /> },
+      { path: 'taskmanager/schedules/:id', element: <TaskScheduleDetail /> },
+      { path: 'taskmanager/schedules/:id/edit', element: <TaskScheduleEdit /> },
+      
+      // Booking-Routen
+      { path: 'taskmanager/bookings', element: <TaskBookingList /> },
+      
+      // TaskType-Routen (spezifische zuerst!)
+      { path: 'taskmanager/task-types', element: <TaskTypeList /> },
+      { path: 'taskmanager/task-types/new', element: <TaskTypeCreate /> },
+      { path: 'taskmanager/task-types/:id', element: <TaskTypeDetail /> },
+      { path: 'taskmanager/task-types/:id/edit', element: <TaskTypeEdit /> },
+      
+      // Member-Routen
+      { path: 'taskmanager/member/:memberId', element: <MemberTaskDashboard /> },
+
     ],
   },
 
+  // Standalone Routes (außerhalb des MainLayout)
   {
     path: '/login',
     element: <Login />,
+  },
+  {
+    path: '/trace/distribution-ui',
+    element: <DistributionKioskMain />,
   },
 ])

@@ -30,17 +30,17 @@ STANDARD_KONTORAHMEN = [
     ("4000", "Mitgliedsbeiträge", "ERTRAG", "1. Erträge (Einnahmen)", Decimal("0.00")),
     ("4010", "Erlöse aus Samen- & Stecklingsverkauf (19% MwSt)", "ERTRAG", "1. Erträge (Einnahmen)", Decimal("0.00")),
     ("4020", "Sonstige betriebliche Erträge", "ERTRAG", "1. Erträge (Einnahmen)", Decimal("0.00")),
-    ("4900", "Ertrag aus Förderkreditbonus (zweckgebunden für Mitgliedsbeiträge)", "ERTRAG", "1. Erträge (Einnahmen)", Decimal("0.00")),
 
     # 2. Finanzkonten (Kasse, Bank, Online-Zahlung)
     ("1000", "Hauptkasse", "AKTIV", "2. Finanzkonten (Kasse, Bank, Online-Zahlung)", Decimal("0.00")),
     ("1200", "Bankkonto", "AKTIV", "2. Finanzkonten (Kasse, Bank, Online-Zahlung)", Decimal("0.00")),
     ("1210", "PayPal Business Konto", "AKTIV", "2. Finanzkonten (Kasse, Bank, Online-Zahlung)", Decimal("0.00")),
 
-    # 3. Förderkredite & Rückzahlungen
-    ("2100", "Vereinsförderkredite", "PASSIV", "3. Förderkredite & Rückzahlungen", Decimal("0.00")),
-    ("2101", "Bonus Förderkredite", "PASSIV", "3. Förderkredite & Rückzahlungen", Decimal("0.00")),
-    ("2200", "Rückzahlungen Vereinsförderkredite", "PASSIV", "3. Förderkredite & Rückzahlungen", Decimal("0.00")),
+    # 3. Verbindlichkeiten & Rückzahlungen
+    ("2500", "Externe Darlehen (Verbindlichkeiten)", "PASSIV", "3. Verbindlichkeiten & Rückzahlungen", Decimal("0.00")),
+    ("2510", "Langfristige Darlehen", "PASSIV", "3. Verbindlichkeiten & Rückzahlungen", Decimal("0.00")),
+    ("2520", "Kurzfristige Darlehen", "PASSIV", "3. Verbindlichkeiten & Rückzahlungen", Decimal("0.00")),
+    ("2530", "Privatdarlehen von Mitgliedern", "PASSIV", "3. Verbindlichkeiten & Rückzahlungen", Decimal("0.00")),
 
     # 4. Material- & Warenaufwand
     ("3100", "Wareneinkauf (Stecklinge, Erde, Dünger)", "AUFWAND", "4. Material- & Warenaufwand", Decimal("0.00")),
@@ -91,11 +91,7 @@ STANDARD_KONTORAHMEN = [
     ("5470", "Büro- & Verwaltungskosten (Drucker, Papier, Schreibwaren)", "AUFWAND", "8.2. Verwaltung & Sonstiges", Decimal("0.00")),
     ("5480", "Kommunikationskosten (Telefon, Internet, Mobilfunk)", "AUFWAND", "8.2. Verwaltung & Sonstiges", Decimal("0.00")),
 
-    # 9. Finanzierungskosten & Rücklagen (Ergänzungen für externe Darlehen)
-    ("2500", "Externe Darlehen (Verbindlichkeiten)", "PASSIV", "9. Finanzierungskosten & Rücklagen", Decimal("0.00")),
-    ("2510", "Langfristige Darlehen", "PASSIV", "9. Finanzierungskosten & Rücklagen", Decimal("0.00")),
-    ("2520", "Kurzfristige Darlehen", "PASSIV", "9. Finanzierungskosten & Rücklagen", Decimal("0.00")),
-    ("2530", "Privatdarlehen von Mitgliedern", "PASSIV", "9. Finanzierungskosten & Rücklagen", Decimal("0.00")),
+    # 9. Finanzierungskosten & Rücklagen
     ("5500", "Tilgung & Zinsen für externe Darlehen", "AUFWAND", "9. Finanzierungskosten & Rücklagen", Decimal("0.00")),
 
     # 10. Forschung & Entwicklung
@@ -167,7 +163,7 @@ STANDARD_KONTORAHMEN = [
 CATEGORY_CHOICES = [
     ("1. Erträge (Einnahmen)", "1. Erträge (Einnahmen)"),
     ("2. Finanzkonten (Kasse, Bank, Online-Zahlung)", "2. Finanzkonten (Kasse, Bank, Online-Zahlung)"),
-    ("3. Förderkredite & Rückzahlungen", "3. Förderkredite & Rückzahlungen"),
+    ("3. Verbindlichkeiten & Rückzahlungen", "3. Verbindlichkeiten & Rückzahlungen"),
     ("4. Material- & Warenaufwand", "4. Material- & Warenaufwand"),
     ("5. Betriebskosten (Fixkosten & Nebenkosten)", "5. Betriebskosten (Fixkosten & Nebenkosten)"),
     ("6. Technische Anlagen & Maschinen", "6. Technische Anlagen & Maschinen"),
@@ -189,7 +185,7 @@ CATEGORY_CHOICES = [
 CATEGORY_ORDER = {
     "1. Erträge (Einnahmen)": 1,
     "2. Finanzkonten (Kasse, Bank, Online-Zahlung)": 2,
-    "3. Förderkredite & Rückzahlungen": 3,
+    "3. Verbindlichkeiten & Rückzahlungen": 3,
     "4. Material- & Warenaufwand": 4,
     "5. Betriebskosten (Fixkosten & Nebenkosten)": 5,
     "6. Technische Anlagen & Maschinen": 6,

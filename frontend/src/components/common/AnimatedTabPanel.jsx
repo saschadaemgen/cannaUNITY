@@ -12,6 +12,7 @@ import { Box, Fade, Slide, Grow } from '@mui/material'
  * @param {number} duration - Überschreibung der globalen Animationsdauer (optional)
  * @param {string} direction - Richtung für slide-Animation ('left', 'right', 'up', 'down')
  * @param {node} children - Inhalt des Tab-Panels
+ * @param {object} sx - Zusätzliche Style-Props
  */
 const AnimatedTabPanel = ({ 
   value, 
@@ -19,7 +20,8 @@ const AnimatedTabPanel = ({
   animationType, 
   duration,
   direction = 'right',
-  children 
+  children,
+  sx = {}
 }) => {
   const isActive = value === index;
   const [animSettings, setAnimSettings] = useState({
@@ -60,7 +62,13 @@ const AnimatedTabPanel = ({
         role="tabpanel"
         id={`tabpanel-${index}`}
         aria-labelledby={`tab-${index}`}
-        style={{ width: '100%', display: isActive ? 'block' : 'none' }}
+        style={{ 
+          width: '100%', 
+          display: isActive ? 'block' : 'none',
+          margin: 0,
+          padding: 0,
+          ...sx
+        }}
       >
         {isActive && children}
       </div>
@@ -73,7 +81,12 @@ const AnimatedTabPanel = ({
     overflowX: 'hidden',
     position: 'relative',
     maxWidth: '100%',
-    overflowY: isActive ? 'visible' : 'hidden'
+    overflowY: isActive ? 'visible' : 'hidden',
+    margin: 0,
+    padding: 0,
+    marginTop: 0,
+    paddingTop: 0,
+    ...sx
   };
   
   // Animation basierend auf dem Typ wählen
@@ -137,7 +150,11 @@ const AnimatedTabPanel = ({
       style={{
         width: '100%',
         position: 'relative',
-        overflow: 'hidden'
+        overflow: 'hidden',
+        margin: 0,
+        padding: 0,
+        marginTop: 0,
+        paddingTop: 0
       }}
     >
       {renderAnimatedContent()}

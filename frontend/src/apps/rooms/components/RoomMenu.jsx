@@ -1,4 +1,4 @@
-// src/apps/rooms/components/RoomMenu.jsx
+// frontend/src/apps/rooms/components/RoomMenu.jsx
 import React from 'react'
 import {
   List,
@@ -8,108 +8,50 @@ import {
   ListItemText,
   Typography,
   Box,
-  Divider,
   useTheme,
   alpha,
-  Paper,
   Tooltip
 } from '@mui/material'
 import { NavLink, useLocation } from 'react-router-dom'
 
-// Hauptfunktionen
+// Icons
+import DashboardIcon from '@mui/icons-material/Dashboard'
 import MeetingRoomIcon from '@mui/icons-material/MeetingRoom'
 import AddIcon from '@mui/icons-material/Add'
 import CategoryIcon from '@mui/icons-material/Category'
-import DashboardCustomizeIcon from '@mui/icons-material/DashboardCustomize'
-import CalendarMonthIcon from '@mui/icons-material/CalendarMonth'
-import DeviceThermostatIcon from '@mui/icons-material/DeviceThermostat'
+import DesignServicesIcon from '@mui/icons-material/DesignServices'
 
-// Admin-Tools
-import SettingsIcon from '@mui/icons-material/Settings'
-import PhotoCameraIcon from '@mui/icons-material/PhotoCamera'
-import ImportExportIcon from '@mui/icons-material/ImportExport'
-import InfoIcon from '@mui/icons-material/Info'
-
-// Hauptfunktionen
-const mainFeatures = [
+const menuItems = [
+  {
+    label: 'Übersicht',
+    icon: <DashboardIcon />,
+    path: '/rooms',
+    color: '#2196f3'
+  },
   {
     label: 'Raumliste',
-    stepLabel: 'ROOM 1',
     icon: <MeetingRoomIcon />,
     path: '/rooms',
-    color: '#3f51b5' // Indigo
+    color: '#4caf50'
   },
   {
     label: 'Neuer Raum',
-    stepLabel: 'ROOM 2',
     icon: <AddIcon />,
     path: '/rooms/new',
-    color: '#4caf50' // Grün
+    color: '#ff9800'
   },
   {
-    label: 'Elemente-Bibliothek',
-    stepLabel: 'ROOM 3',
+    label: 'Element-Typen',
     icon: <CategoryIcon />,
     path: '/rooms/item-types',
-    color: '#ff9800', // Orange
-    subtitle: 'Verfügbare Objekte'
-  },
-  {
-    label: 'Neuer Elementtyp',
-    stepLabel: 'ROOM 4',
-    icon: <AddIcon />,
-    path: '/rooms/item-types/new',
-    color: '#ff5722' // Deep Orange
+    color: '#9c27b0'
   },
   {
     label: 'Raumdesigner',
-    stepLabel: 'ROOM 5',
-    icon: <DashboardCustomizeIcon />,
-    path: '/rooms/designer',
-    color: '#9c27b0', // Lila
-    subtitle: 'Visuelle Gestaltung'
-  },
-  {
-    label: 'Raumbelegung',
-    stepLabel: 'ROOM 6',
-    icon: <CalendarMonthIcon />,
-    path: '/rooms/calendar',
-    color: '#2196f3' // Blau
-  },
-  {
-    label: 'Klima & Sensoren',
-    stepLabel: 'ROOM 7',
-    icon: <DeviceThermostatIcon />,
-    path: '/rooms/climate',
-    color: '#009688' // Türkis
-  }
-]
-
-// Administrative Funktionen
-const adminFunctions = [
-  {
-    label: 'Raumeinstellungen',
-    icon: <SettingsIcon />,
-    path: '/rooms/settings',
-    color: '#607d8b' // Blaugrau
-  },
-  {
-    label: 'Raumaufnahmen',
-    icon: <PhotoCameraIcon />,
-    path: '/rooms/photos',
-    color: '#e91e63' // Pink
-  },
-  {
-    label: 'Import/Export',
-    icon: <ImportExportIcon />,
-    path: '/rooms/import-export',
-    color: '#673ab7' // Deep Purple
-  },
-  {
-    label: 'Raumstatus',
-    icon: <InfoIcon />,
-    path: '/rooms/status',
-    color: '#f44336' // Rot
+    icon: <DesignServicesIcon />,
+    path: '/rooms/designer-info',
+    color: '#f44336',
+    disabled: true
   }
 ]
 
@@ -118,138 +60,86 @@ export default function RoomMenu({ collapsed = false }) {
   const location = useLocation()
 
   const isActive = (path) => {
-    return location.pathname === path
+    return location.pathname === path || 
+           (path === '/rooms' && location.pathname === '/rooms/') ||
+           (path === '/rooms/item-types' && location.pathname.startsWith('/rooms/item-types'))
   }
 
-  // Funktion zum Rendern eines Menüelements
-  const renderMenuItem = (item, index) => {
+  const renderMenuItem = (item) => {
     const active = isActive(item.path)
-    const itemColor = item.color || theme.palette.info.main
+    const itemColor = item.color || theme.palette.primary.main
     
-    // Basis-Komponente für Listen-Items
     const menuItem = (
       <ListItemButton
-        component={NavLink}
-        to={item.path}
+        component={item.disabled ? 'div' : NavLink}
+        to={item.disabled ? undefined : item.path}
+        disabled={item.disabled}
         sx={{
-          position: 'relative',
           borderRadius: '8px',
-          height: collapsed ? '42px' : (item.subtitle ? '48px' : '42px'),
+          mb: 0.5,
           color: active ? itemColor : theme.palette.text.primary,
           backgroundColor: active ? alpha(itemColor, 0.1) : 'transparent',
-          padding: collapsed ? '8px' : undefined,
-          justifyContent: collapsed ? 'center' : undefined,
           '&:hover': {
             backgroundColor: active 
               ? alpha(itemColor, 0.15) 
               : alpha(theme.palette.action.hover, 0.08)
           },
-          '&.active': {
-            fontWeight: 'bold',
-            '&::before': {
-              content: '""',
-              position: 'absolute',
-              left: collapsed ? '-4px' : '-8px',
-              top: '50%',
-              transform: 'translateY(-50%)',
-              height: '60%',
-              width: '4px',
-              backgroundColor: itemColor,
-              borderRadius: '0 4px 4px 0'
-            }
-          }
+          '&.Mui-disabled': {
+            opacity: 0.5
+          },
+          justifyContent: collapsed ? 'center' : 'flex-start',
+          px: collapsed ? 1 : 2,
+          position: 'relative',
+          '&::before': active ? {
+            content: '""',
+            position: 'absolute',
+            left: 0,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            height: '60%',
+            width: '3px',
+            backgroundColor: itemColor,
+            borderRadius: '0 3px 3px 0'
+          } : {}
         }}
       >
         <ListItemIcon 
           sx={{ 
             color: active ? itemColor : theme.palette.text.secondary,
-            minWidth: collapsed ? 0 : '36px',
-            marginRight: collapsed ? 0 : undefined
+            minWidth: collapsed ? 0 : 40
           }}
         >
           {item.icon}
         </ListItemIcon>
         
         {!collapsed && (
-          <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-            {item.stepLabel && (
-              <Typography 
-                variant="caption" 
-                sx={{ 
-                  fontSize: '0.65rem', 
-                  fontWeight: 'bold',
-                  color: active ? itemColor : theme.palette.text.secondary,
-                  lineHeight: 1,
-                  letterSpacing: '0.5px'
-                }}
-              >
-                {item.stepLabel}
-              </Typography>
-            )}
-            <Typography 
-              sx={{
-                fontSize: '0.9rem',
-                fontWeight: active ? 600 : 400,
-                lineHeight: 1.2,
-                mt: item.stepLabel ? '1px' : 0
-              }}
-            >
-              {item.label}
-            </Typography>
-            {item.subtitle && (
-              <Typography 
-                variant="caption" 
-                sx={{ 
-                  fontSize: '0.7rem', 
-                  color: theme.palette.text.secondary,
-                  ml: 0,
-                  lineHeight: 1,
-                  mt: '-1px'
-                }}
-              >
-                {item.subtitle}
-              </Typography>
-            )}
-          </Box>
+          <ListItemText 
+            primary={item.label}
+            primaryTypographyProps={{
+              fontSize: '0.875rem',
+              fontWeight: active ? 600 : 400
+            }}
+          />
         )}
         
-        {/* Active-Indikator-Punkt nur anzeigen, wenn nicht kollabiert */}
         {active && !collapsed && (
           <Box 
             sx={{ 
-              position: 'absolute',
-              right: '8px',
-              width: '6px',
-              height: '6px',
+              width: 6,
+              height: 6,
               borderRadius: '50%',
               backgroundColor: itemColor,
+              ml: 'auto'
             }}
           />
         )}
       </ListItemButton>
     )
     
-    // Im kollabierten Zustand: Tooltip um das Element herum
     return (
-      <ListItem key={item.label} disablePadding sx={{ mb: 0.5, px: collapsed ? 0.5 : 0 }}>
+      <ListItem key={item.label} disablePadding sx={{ px: collapsed ? 0.5 : 1 }}>
         {collapsed ? (
-          <Tooltip 
-            title={
-              <Box>
-                {item.stepLabel && (
-                  <Typography variant="caption" sx={{ fontWeight: 'bold' }}>
-                    {item.stepLabel}
-                  </Typography>
-                )}
-                <Typography variant="body2">{item.label}</Typography>
-                {item.subtitle && (
-                  <Typography variant="caption">{item.subtitle}</Typography>
-                )}
-              </Box>
-            } 
-            placement="right"
-            arrow
-          >
+          <Tooltip title={item.label} placement="right" arrow>
             {menuItem}
           </Tooltip>
         ) : menuItem}
@@ -257,130 +147,48 @@ export default function RoomMenu({ collapsed = false }) {
     )
   }
 
-  // Überschriften-Rendering anpassen
-  const renderHeader = () => {
-    if (collapsed) {
-      return null;  // Wir zeigen kein Header im eingeklappten Modus
-    }
-    
-    return (
-      <Paper 
-        elevation={0}
-        sx={{ 
-          mx: 2, 
-          mb: 2, 
-          p: 1.5, 
-          background: alpha(theme.palette.info.main, 0.05),
-          borderRadius: '8px',
-          borderLeft: `4px solid ${theme.palette.info.main}`
-        }}
-      >
+  return (
+    <Box>
+      {!collapsed && (
         <Typography 
-          variant="subtitle1" 
-          color="info.main" 
+          variant="overline" 
           sx={{ 
-            fontWeight: 'bold', 
-            display: 'flex', 
-            alignItems: 'center'
+            px: 3, 
+            py: 1, 
+            display: 'block',
+            color: theme.palette.text.secondary,
+            fontWeight: 600,
+            fontSize: '0.7rem',
+            letterSpacing: '0.08em'
           }}
         >
           Raumverwaltung
         </Typography>
-        <Typography variant="caption" color="text.secondary">
-          Räume, Elemente & Belegung
-        </Typography>
-      </Paper>
-    )
-  }
-  
-  // Admin-Titel-Rendering anpassen
-  const renderAdminSeparator = () => {
-    if (collapsed) {
-      return <Divider sx={{ my: 2, mx: 1 }} />
-    }
-    
-    return (
-      <Box sx={{ mx: 2, my: 2 }}>
-        <Divider>
-          <Box 
+      )}
+      
+      <List sx={{ px: collapsed ? 0 : 1 }}>
+        {menuItems.map(renderMenuItem)}
+      </List>
+      
+      {!collapsed && (
+        <Box sx={{ 
+          px: 3, 
+          py: 2, 
+          mt: 2,
+          borderTop: `1px solid ${alpha(theme.palette.divider, 0.08)}`
+        }}>
+          <Typography 
+            variant="caption" 
             sx={{ 
-              px: 1.5,
-              py: 0.5,
-              borderRadius: '12px',
-              backgroundColor: alpha(theme.palette.info.main, 0.05),
-              border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,
+              color: theme.palette.text.disabled,
+              display: 'block',
+              lineHeight: 1.4
             }}
           >
-            <Typography 
-              variant="caption" 
-              sx={{ 
-                fontSize: '0.7rem',
-                fontWeight: 'bold',
-                color: theme.palette.info.main,
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px'
-              }}
-            >
-              Admin-Tools
-            </Typography>
-          </Box>
-        </Divider>
-      </Box>
-    )
-  }
-  
-  // Footer anpassen
-  const renderFooter = () => {
-    if (collapsed) return null
-    
-    return (
-      <Box 
-        sx={{ 
-          mt: 2, 
-          mx: 2, 
-          p: 1.5, 
-          backgroundColor: alpha(theme.palette.grey[500], 0.05),
-          borderRadius: '8px',
-          boxShadow: 'inset 0 0 8px rgba(0,0,0,0.03)',
-          borderTop: `1px solid ${alpha(theme.palette.grey[500], 0.1)}`
-        }}
-      >
-        <Typography 
-          variant="caption" 
-          color="text.secondary"
-          sx={{ 
-            display: 'block', 
-            fontSize: '0.7rem',
-            fontStyle: 'italic'
-          }}
-        >
-          Raumverwaltung v1.9
-        </Typography>
-      </Box>
-    )
-  }
-
-  return (
-    <>
-      {renderHeader()}
-      
-      {/* Hauptfunktionen */}
-      <Box sx={{ px: collapsed ? 0 : 1 }}>
-        <List>
-          {mainFeatures.map(renderMenuItem)}
-        </List>
-      </Box>
-      
-      {renderAdminSeparator()}
-      
-      {/* Administrative Funktionen */}
-      <Box sx={{ px: collapsed ? 0 : 1 }}>
-        <List>
-          {adminFunctions.map(renderMenuItem)}
-        </List>
-      </Box>
-      
-      {renderFooter()}
-    </>
+            Tipp: Erstelle zuerst einen Raum, um den Designer zu verwenden
+          </Typography>
+        </Box>
+      )}
+    </Box>
   )
 }

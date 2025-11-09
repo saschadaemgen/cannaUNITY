@@ -24,13 +24,28 @@ const AccountImport = () => {
         📥 Konten importieren
       </Typography>
 
-      <Typography gutterBottom>
-        Mit einem Klick werden alle Standardkonten (ohne Förderkredit) importiert.
+      <Typography gutterBottom sx={{ mb: 3 }}>
+        Mit einem Klick werden alle Standardkonten importiert.
       </Typography>
 
-      <Button variant="contained" color="success" onClick={handleImport}>
-        Import starten
-      </Button>
+      <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
+        <Button 
+          variant="contained" 
+          color="success" 
+          onClick={handleImport}
+          size="large"
+        >
+          Import starten
+        </Button>
+        
+        <Button 
+          variant="outlined" 
+          onClick={() => navigate('/buchhaltung/konten')}
+          size="large"
+        >
+          Zurück zur Kontenübersicht
+        </Button>
+      </Box>
 
       {result && (
         <Alert severity="success" sx={{ mt: 3 }}>
@@ -44,10 +59,6 @@ const AccountImport = () => {
           {error}
         </Alert>
       )}
-
-      <Button variant="outlined" sx={{ mt: 3 }} onClick={() => navigate('/buchhaltung/konten')}>
-        Zurück zur Kontenübersicht
-      </Button>
     </Box>
   )
 }
