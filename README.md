@@ -3,328 +3,334 @@
 ![GitHub Repo stars](https://img.shields.io/github/stars/saschadaemgen/cannaUNITY?style=social)
 ![GitHub license](https://img.shields.io/github/license/saschadaemgen/cannaUNITY)
 ![GitHub last commit](https://img.shields.io/github/last-commit/saschadaemgen/cannaUNITY)
-![Security Badge](https://img.shields.io/badge/Sicherheit-Enterprise%20Grade-green)
-![Encryption Badge](https://img.shields.io/badge/Verschlüsselung-AES--256-blue)
-![GDPR Badge](https://img.shields.io/badge/DSGVO-Konform-brightgreen)
+![Security Badge](https://img.shields.io/badge/Security-Enterprise%20Grade-green)
+![Encryption Badge](https://img.shields.io/badge/Encryption-AES--256-blue)
+![GDPR Badge](https://img.shields.io/badge/GDPR-Compliant-brightgreen)
 
-> **Modulares Open-Source-Software Framework für Cannabis Social Clubs und Anbauvereinigungen gemäß dem deutschem Konsumcannabisgesetz § (KCanG)**
-> Mitgliederverwaltung · eVereinsverwaltung · Berichtsverwaltung · Aufgabenplanung ·  Growcontroller · Zutrittskontrolle · eStempelkarte · Track & Trace · Buchhaltung · WaWi · Raumautomation · Sicherheitssystem · IOS & Android APP · Verwaltungs, Administrations und User UI`s,
+> **Modular Open-Source Software Framework for Cannabis Social Clubs and Cultivation Associations in accordance with the German Consumer Cannabis Act § (KCanG)**
+> Member Management · eAssociation Management · Report Management · Task Planning · Grow Controller · Access Control · eTimecard · Track & Trace · Accounting · Inventory Management · Room Automation · Security System · iOS & Android APP · Administration, Admin and User UIs
 
-(Masteransicht für "festes" UI Panel 1920x1080p)
+(Kiosk Mode for "fixed" UI Panel 1920x1080p)
 
 <p align="center">
-  <img src="screenshots\WaWi\sorte_bearbeiten.png" alt="Vorschau" width="1920">
+  <img src="screenshots/touchscreen-ui/produktausgabe_kiosk_modus_step_1.png" alt="Preview" width="1920">
+</p>
+
+(Master view for "fixed" UI Panel 1920x1080p)
+
+<p align="center">
+  <img src="screenshots\WaWi\sorte_bearbeiten.png" alt="Preview" width="1920">
 </p>
 
 ---
 
-## 📦 Was ist cannaUNITY?
+## 📦 What is cannaUNITY?
 
-**cannaUNITY** ist ein professionelles Open-Source-Framework zur Organisation, Verwaltung und Automatisierung von Cannabis-Anbauvereinigungen gemäß Konsumcannabisgesetz (KCanG).
+**cannaUNITY** is a professional open-source framework for organizing, managing, and automating cannabis cultivation associations in accordance with the Consumer Cannabis Act (KCanG).
 
-> **Hinweis:**  
-> Dieses Repository enthält das **Framework** als technischen Baukasten und ist nicht als sofort lauffähiges Komplettsystem vorgesehen. Für die produktive Nutzung muss das Framework von Entwickler:innen in bestehende oder neue Systemlandschaften integriert werden.
-
----
-
-## 🧩 Konzept und Zielsetzung
-
-cannaUNITY stellt sämtliche Bausteine und Schnittstellen bereit, um die gesetzlichen und organisatorischen Anforderungen moderner Cannabis-Anbauvereinigungen digital, automatisiert und transparent abzubilden.  
-Kernpunkte sind u.a.:
-
-- **Zugangskontrolle** (UniFi Access, alters-/THC-gerecht)
-- **KI-gestützte, DSGVO-konforme Protokollierung** (UniFi Protect)
-- **Automatisierte Anlagensteuerung** (SIMATIC S7 Integration)
-- **Warenwirtschaft und Buchhaltung** (GoB-konform, prozessbasiert)
-
-> **ℹ️ Zielgruppe:**  
-> - Entwickler:innen und Tech-Teams, die individuelle oder erweiterbare Lösungen aufsetzen möchten  
-> - Integratoren und Dienstleister, die Vereine technisch unterstützen  
-> - Vereine mit eigenem IT-Know-how
+> **Note:**  
+> This repository contains the **framework** as a technical toolkit and is not intended as a ready-to-use complete system. For productive use, the framework must be integrated by developers into existing or new system landscapes.
 
 ---
 
-## 🚧 Aktueller Status
+## 🧩 Concept and Objectives
 
-- Dieses Repository bildet das **Open-Source-Framework** ab und richtet sich vor allem an Entwickler:innen und technische Teams.
-- Eine kostenpflichtige **Professional-Version** (einsatzfertige Komplettlösung, inkl. Konfigurations- und Installationspaketen) befindet sich in Planung.
-- Zusätzlich werden zukünftig **passende Hardware-Komponenten** (Miete oder Kauf im Paket) angeboten, um eine nahtlose End-to-End-Lösung zu ermöglichen.
+cannaUNITY provides all building blocks and interfaces to digitally, automatically, and transparently map the legal and organizational requirements of modern cannabis cultivation associations.  
+Key points include:
 
-> **⚠️ Wichtig:**  
-> Das Framework alleine ist nicht als Plug-and-Play-Lösung gedacht!  
-> Eine spätere produktive Nutzung erfordert Integration und ggf. Anpassung an die jeweilige Systemumgebung.
+- **Access Control** (UniFi Access, age/THC-appropriate)
+- **AI-powered, GDPR-compliant Logging** (UniFi Protect)
+- **Automated System Control** (SIMATIC S7 Integration)
+- **Inventory Management and Accounting** (GoB-compliant, process-based)
+
+> **ℹ️ Target Audience:**  
+> - Developers and tech teams who want to set up customized or expandable solutions  
+> - Integrators and service providers who technically support associations  
+> - Associations with their own IT expertise
+
+---
+
+## 🚧 Current Status
+
+- This repository represents the **open-source framework** and is primarily aimed at developers and technical teams.
+- A paid **Professional Version** (ready-to-use complete solution, including configuration and installation packages) is in planning.
+- Additionally, **matching hardware components** (rental or purchase as a package) will be offered in the future to enable a seamless end-to-end solution.
+
+> **⚠️ Important:**  
+> The framework alone is not intended as a plug-and-play solution!  
+> Later productive use requires integration and possibly adaptation to the respective system environment.
 
 ---
 
 ## 💡 Highlights
 
-- **Modulares, modernes, erweiterbares Framework**
-- **Rechtssicherheit** (Transparenz, Nachvollziehbarkeit, Datenschutz)
-- **Automatisierung** aller operativen und dokumentationspflichtigen Prozesse
-- **Flexible Hardware-Integration**
-- **10 Schritte UUID Track & Trace**
-- **GoB-konforme Buchhaltung und Warenwirtschaft**
-- **Zukunftssicher**: Roadmap zur Professional-Version mit Hardware-Bundles
+- **Modular, modern, extensible framework**
+- **Legal compliance** (transparency, traceability, data protection)
+- **Automation** of all operational and documentation-required processes
+- **Flexible hardware integration**
+- **10-step UUID Track & Trace**
+- **GoB-compliant accounting and inventory management**
+- **Future-proof**: Roadmap to Professional Version with hardware bundles
 
 ---
 
 ## 📈 Roadmap
 
-- [ ] Framework-Release als Open Source Final v1.xx
-- [ ] Entwicklung der Professional-Version (einsatzfertige Komplettlösung)
-- [ ] Erweiterung um offizielle Hardware-Angebote (Miete/Kauf)
-- [ ] Unterstützung weiterer Schnittstellen und Technologien
+- [ ] Framework release as Open Source Final v1.xx
+- [ ] Development of the Professional Version (ready-to-use complete solution)
+- [ ] Expansion with official hardware offerings (rental/purchase)
+- [ ] Support for additional interfaces and technologies
 
 ---
 
-**cannaUNITY** steht für ein Höchstmaß an Transparenz, Sicherheit und technischer Zukunftsfähigkeit in Cannabis-Anbauvereinen – heute als Framework, morgen als vollintegrierte Komplettlösung.
-"Crescit sub pondere virtus." – "Tugend wächst unter Belastung."
+**cannaUNITY** stands for the highest level of transparency, security, and technical future-readiness in cannabis cultivation associations – today as a framework, tomorrow as a fully integrated complete solution.
+"Crescit sub pondere virtus." – "Virtue grows under pressure."
 
 ---
 
 ## 🧪 Features
 
-- ✅ Echtzeit UUID-Track & Trace von Pflanzen, Verarbeitung & Produktausgabe
-- ✅ Erzeugung von Batch und Chargenummern inkl. 128 Bit UUID Anbindung
-- ✅ Native Android, IOS & Windows APP
-- ✅ Matrix 2.0 Protocol Integration + Element X Intregration
-- ✅ WordPress oder Joomla CMS Online Anbindung über ZKP/SSH Tunnel
-- ✅ Digitalisierte Produktausgabe mit Limitkontrolle
-- ✅ Verschlüsselte Mitgliederkommunikation - Ende-zu-Ende verschlüsselte Gruppen-Chats
-- ✅ RFID/NFC Arbeitszeiterfassung mit Minijob/Pflichtstunden & Ehrenamt Erkennung
-- ✅ Automatische KI Personenerkennung per UniFi Protect AI Key API / Webhook Anbindung
-- ✅ Dynamische Mitgliederprofile mit UUID RFID Ausweisen inkl. Evolis Kartendruckeranbindung
-- ✅ SIMATIC S7 1200 G2 Integration mit API-gesteuerter Licht-, Klima- und Prozessautomation
-- ✅ Vollständig redundante Raumsteuerungen mit Zentraler UI Anbindung & Alarmserver
-- ✅ Native API Unterstützung für UniFi (Ubiquiti) Access, Protect, AI Key und Network
-- ✅ Raumautomation (Loxone, Honeywell)
-- ✅ Growcontroller mit Anbindung für WYSIWYG Raum Designer
-- ✅ Laborberichtsverwaltung inkl. HPLC & GC (CSV Import)
-- ✅ Vollständige Protokollierung für Behördenzugriff
-- ✅ Touchpanelsteuerung & Custom UI Panels für Raumanzeige
-- ✅ Anonymisierte Produktausgabe mit UUID Verknüpfung über ZKP (Online)
-- ✅ Warenwirtschaftssystem (WaWi) mit Anbindung an Track & Trace / Buchhaltung  
-- ✅ GMP konforme Laborberichte erstellen,verwalten & speichern.
-- ✅ GoB-konforme Buchhaltung mit vollständiger Journaldarstellung
-- ✅ Stornobuchungen mit gegenbuchender Rückabwicklung (SOLL/HABEN)
-- ✅ Einzel- und Mehrfachbuchungen inkl. Subtransaktionen & Kontenwahl
-- ✅ Vollständige Verknüpfung zu Mitgliedskonten & Mitgliedsbeiträgen
-- ✅ Filterbare Journalansicht nach Jahr, Monat, Typ & Stornostatus
-- ✅ Multi-Chain ForeignKey Track&Trace: Lückenlose Rückverfolgung aller Produkte („Chain-of-Custody“) per ForeignKey
+- ✅ Real-time UUID Track & Trace of plants, processing & product dispensing
+- ✅ Generation of batch and lot numbers including 128-bit UUID integration
+- ✅ Native Android, iOS & Windows APP
+- ✅ Matrix 2.0 Protocol Integration + Element X Integration
+- ✅ WordPress or Joomla CMS online connection via ZKP/SSH Tunnel
+- ✅ Digitized product dispensing with limit control
+- ✅ Encrypted member communication - end-to-end encrypted group chats
+- ✅ RFID/NFC time tracking with mini-job/mandatory hours & volunteer recognition
+- ✅ Automatic AI person recognition via UniFi Protect AI Key API / Webhook integration
+- ✅ Dynamic member profiles with UUID RFID cards including Evolis card printer integration
+- ✅ SIMATIC S7 1200 G2 integration with API-controlled light, climate, and process automation
+- ✅ Fully redundant room controls with central UI connection & alarm server
+- ✅ Native API support for UniFi (Ubiquiti) Access, Protect, AI Key and Network
+- ✅ Room automation (Loxone, Honeywell)
+- ✅ Grow controller with integration for WYSIWYG room designer
+- ✅ Laboratory report management including HPLC & GC (CSV import)
+- ✅ Complete logging for authority access
+- ✅ Touch panel control & custom UI panels for room display
+- ✅ Anonymized product dispensing with UUID linking via ZKP (online)
+- ✅ Inventory management system (WaWi) with Track & Trace / Accounting integration  
+- ✅ Create, manage & store GMP-compliant laboratory reports
+- ✅ GoB-compliant accounting with complete journal display
+- ✅ Reversal bookings with counter-booking unwinding (DEBIT/CREDIT)
+- ✅ Single and multiple bookings including sub-transactions & account selection
+- ✅ Complete linking to member accounts & membership fees
+- ✅ Filterable journal view by year, month, type & reversal status
+- ✅ Multi-Chain ForeignKey Track&Trace: Seamless traceability of all products ("Chain-of-Custody") via ForeignKey
 
 ---
 
 <p align="center">
-  <img src="screenshots/trackandtrace/produktausgabe_step_2.png" alt="Vorschau" width="1920">
+  <img src="screenshots/trackandtrace/produktausgabe_step_2.png" alt="Preview" width="1920">
 </p>
 
 ---
 
-## 🧠 Architekturüberblick
+## 🧠 Architecture Overview
 
 - **Backend:** Django 5.x (API-only), Django REST Framework, PostgreSQL (P) / SQLite (E)
 - **Frontend:** React + Vite + Material UI (SPA)
-- **Datenmodell:** Multi-Chain ForeignKey-Verknüpfung aller Track&Trace-Objekte (von der Verpackungseinheit bis zur Ur-Saat oder Mutterpflanze), mit dynamischer UI-Filterung und garantiert konsistenter Herkunftskette. Einzigartige Flexibilität, maximale Nachvollziehbarkeit.
-- **Schnittstellen:** UniFi Access/Protect (native), Wordpress, Joomla, Siemens SIMATIC S7 1200 G2, Loxone Mini Server, Agilent 1260 Infinity HPLC, TSC TC200, Evolis Primacy, MQTTS, REST, 
-- **Technologien:** TokenAuth, Matrix 2.0, WebSocket, Axios, passkey-auth, Container-kompatibel
+- **Data Model:** Multi-Chain ForeignKey linking of all Track&Trace objects (from packaging unit to original seed or mother plant), with dynamic UI filtering and guaranteed consistent provenance chain. Unique flexibility, maximum traceability.
+- **Interfaces:** UniFi Access/Protect (native), WordPress, Joomla, Siemens SIMATIC S7 1200 G2, Loxone Mini Server, Agilent 1260 Infinity HPLC, TSC TC200, Evolis Primacy, MQTTS, REST
+- **Technologies:** TokenAuth, Matrix 2.0, WebSocket, Axios, passkey-auth, container-compatible
 
 ```
 flowchart LR
-    PU[Verpackungseinheit] --> PVB[Verarbeitungschargen]
-    PVB --> DRY[Trocknung]
-    DRY --> HRV[Ernte]
-    HRV --> BLF[Blühpflanze]
-    BLF --> SEED[SeedPurchase/Mutterpflanze]
-    SEED --> STR[Genetik / Strain]
+    PU[Packaging Unit] --> PVB[Processing Batches]
+    PVB --> DRY[Drying]
+    DRY --> HRV[Harvest]
+    HRV --> BLF[Flowering Plant]
+    BLF --> SEED[SeedPurchase/Mother Plant]
+    SEED --> STR[Genetics / Strain]
 ```
 
 ---
 
 <p align="center">
-  <img src="screenshots/mitglieder/joomla_unifi_integration.png" alt="Vorschau" width="1920">
+  <img src="screenshots/mitglieder/joomla_unifi_integration.png" alt="Preview" width="1920">
 </p>
 
 ---
 
-## 🛡️ § KCanG konform, Datenschutz & Anonymisierungskonzept
+## 🛡️ § KCanG Compliant, Data Protection & Anonymization Concept
 
-**cannaUNITY** basiert vollständig auf dem Zero-Knowledge-Prinzip:  
-Es findet eine strikte Trennung zwischen personenbezogenen Daten (lokal) und anonymisierten Online-Daten (UUID-basiert) statt. Der Onlinebereich erhält **niemals** Zugriff auf echte Identitäten oder/und personenbezogene Daten!
+**cannaUNITY** is completely based on the zero-knowledge principle:  
+There is a strict separation between personal data (local) and anonymized online data (UUID-based). The online area **never** receives access to real identities or personal data!
 
-### Authentifizierung & Zugriffskontrolle
+### Authentication & Access Control
 
 ```
-[Lokal: Root-Server]                              [Online-Server]
+[Local: Root Server]                              [Online Server]
  ┌──────────────────────────┐                     ┌────────────────────────────┐
- │ Django Backend           │                     │ Sync-Datenbank/API         │
- │ Lokale PostgreSQL DB     │                     │ Login/API für Mobile App   │
- │ Interne UI (Admin, Web)  │                     │                            │
+ │ Django Backend           │                     │ Sync Database/API          │
+ │ Local PostgreSQL DB      │                     │ Login/API for Mobile App   │
+ │ Internal UI (Admin, Web) │                     │                            │
  └────────────┬─────────────┘                     └────────────┬──────────────┘
-              │    🔄 Pull/Push per API                  🔄 Pull durch App
+              │    🔄 Pull/Push via API                  🔄 Pull by App
               ▼                                           ▼
-     → Einweg-Kommunikation:                   [React Native App (z. B. iOS)]
-     Lokaler Cronjob sendet Daten →            Zugriff **nur auf Online-API**
+     → One-way Communication:                   [React Native App (e.g., iOS)]
+     Local Cronjob sends Data →                Access **only to Online API**
 
-Optional > Push Gateway: Lokaler Server → Mini-API auf VPS → schiebt Daten an App-API
+Optional > Push Gateway: Local Server → Mini-API on VPS → pushes data to App API
 ```
 
-- **Online-Login:** Joomla/Passkey (biometrisch), alternativ 3-Faktor mit PIN  
-- **Zutritt zur Anlage (Außenbereiche):** UniFi Access mit RFID, Gesichtserkennung, optional PIN  
-- **Innenbereiche (z. B. Blütekammer):** Zugang ausschließlich per NFC/RFID, automatische Arbeitszeiterfassung  
-- **Produktionsschritte:** Track&Trace-Eingaben erfolgen über RFID/NFC-Terminals mit Rollenbindung
+- **Online Login:** Joomla/Passkey (biometric), alternatively 3-factor with PIN  
+- **Facility Access (Outdoor Areas):** UniFi Access with RFID, facial recognition, optional PIN  
+- **Interior Areas (e.g., Flowering Chamber):** Access exclusively via NFC/RFID, automatic time tracking  
+- **Production Steps:** Track&Trace entries are made via RFID/NFC terminals with role binding
 
 ---
 
-## 🔁 UUID Track & Trace: Vom Samen bis zur Ausgabe inkl. MMS
+## 🔁 UUID Track & Trace: From Seed to Dispensing incl. MMS
 
 <p align="center">
-  <img src="screenshots/trackandtrace/samen_verwaltung_aktiv.png" alt="Vorschau" width="1920">
+  <img src="screenshots/trackandtrace/samen_verwaltung_aktiv.png" alt="Preview" width="1920">
 </p>
 
-Jeder Verarbeitungsschritt ist dokumentiert und manipulationssicher protokolliert:
+Every processing step is documented and tamper-proof logged:
 
-1. **Einkauf** des Samens
-2. **Einpflanzung** – entweder zur Mutterpflanze oder direkt zur Blühpflanze
-3. **Stecklingsbehandlung**
-4. **Wuchsbetreuung**
-5. **Ernte**
-6. **Trocknung**
-7. **Laborkontrolle**
-8. **Verarbeitung**
-9. **Produktausgabe** an Mitglieder (anonymisiert)
-10. **Vernichtung** (optional, wenn nötig)
+1. **Purchase** of seed
+2. **Planting** – either as mother plant or directly as flowering plant
+3. **Cutting Treatment**
+4. **Growth Care**
+5. **Harvest**
+6. **Drying**
+7. **Laboratory Control**
+8. **Processing**
+9. **Product Dispensing** to members (anonymized)
+10. **Destruction** (optional, if necessary)
 
-Jeder Schritt wird über die Mitarbeiterkonten per RFID/NFC bestätigt und in Echtzeit dokumentiert.
+Each step is confirmed via employee accounts using RFID/NFC and documented in real-time.
 
-- 🚦 **Einzigartig bei cannaUNITY:**  
-> Dank Multi-Chain ForeignKey-Architektur werden sämtliche Verarbeitungswege (Samen, Stecklinge, Mischkulturen) vollständig lückenlos abgebildet – von der Verpackungseinheit bis zum Ursprung der Genetik.  
-> Jede Verarbeitungskette bleibt auch nach Migration, Umbenennung oder Anpassung nachvollziehbar und referenziert immer auf die echten Objekte – keine Redundanzen, keine „Schattenfelder“, keine Datenverluste.
+- 🚦 **Unique to cannaUNITY:**  
+> Thanks to Multi-Chain ForeignKey architecture, all processing paths (seeds, cuttings, mixed cultures) are completely seamlessly mapped – from packaging unit to the origin of genetics.  
+> Every processing chain remains traceable even after migration, renaming, or adjustment and always references the real objects – no redundancies, no "shadow fields," no data loss.
 
 <p align="center">
-  <img src="screenshots/trackandtrace/track_and_trace.png" alt="Vorschau" width="1920">
+  <img src="screenshots/trackandtrace/track_and_trace.png" alt="Preview" width="1920">
 </p>
 
-Multimedia-Support im Track&Trace-Modul
+Multimedia Support in Track&Trace Module
 
-Das Track & Trace-System unterstützt ab sofort die Upload- und Zuordnung von Multimedia-Dateien (Bilder und Videos) zu den jeweiligen Arbeitsschritten einzelner Chargen. Die Implementierung ist derzeit für die Schritte 1 bis 5 produktiv freigeschaltet:
+The Track & Trace system now supports upload and assignment of multimedia files (images and videos) to the respective work steps of individual batches. The implementation is currently productively enabled for steps 1 to 5:
 
-✅ Schritt 1: Sameneinkauf (SeedPurchase)
-✅ Schritt 2: Mutterpflanzen (MotherPlantBatch)
-✅ Schritt 3: Blühpflanzen aus Samen (FloweringPlantBatch)
-✅ Schritt 4: Stecklinge (CuttingBatch)
-✅ Schritt 5: Blühpflanzen aus Stecklingen (BloomingCuttingBatch)
-✅ Schritt 6: Ernte
-✅ Schritt 7: Trocknung
-✅ Schritt 8: Verarbeitung
-✅ Schritt 9: Laborkontrolle
-✅ Schritt 10: Verpackung
-✅ Schritt 11: Produktausgabe
+✅ Step 1: Seed Purchase (SeedPurchase)
+✅ Step 2: Mother Plants (MotherPlantBatch)
+✅ Step 3: Flowering Plants from Seeds (FloweringPlantBatch)
+✅ Step 4: Cuttings (CuttingBatch)
+✅ Step 5: Flowering Plants from Cuttings (BloomingCuttingBatch)
+✅ Step 6: Harvest
+✅ Step 7: Drying
+✅ Step 8: Processing
+✅ Step 9: Laboratory Control
+✅ Step 10: Packaging
+✅ Step 11: Product Dispensing
 
-✅ Zusätzlich: Multimedia Verwaltung, Cannabis Bewertung & Vernichtung.
+✅ Additionally: Multimedia Management, Cannabis Rating & Destruction.
 
-Die Dateien werden backend-seitig sicher gespeichert und sind nur innerhalb des geschlossenen Vereinsnetzwerks zugänglich. Zusätzlich wurden serverseitige Hooks vorbereitet, um Inhalte optional automatisiert in verifizierten, privaten Facebook-Gruppen zu teilen, die ausschließlich aus zuvor freigegebenen Vereinsmitgliedern bestehen.
+Files are securely stored on the backend and are only accessible within the closed association network. Additionally, server-side hooks have been prepared to optionally automatically share content in verified, private Facebook groups consisting exclusively of previously approved association members.
 
 ---
 
-## 🔧UniFi Protect Sensoren – Automatisiertes Raumklima-Monitoring für Cannabis Track & Trace 
+## 🔧 UniFi Protect Sensors – Automated Room Climate Monitoring for Cannabis Track & Trace
 
 <p align="center">
-  <img src="screenshots/unifi_protect/sensoren_history.png" alt="Vorschau" width="1920">
+  <img src="screenshots/unifi_protect/sensoren_history.png" alt="Preview" width="1920">
 </p>
 
-Unsere Plattform unterstützt ab sofort die neueste Generation der UniFi Protect Sensoren (UP-Sense), vollständig integriert und zukunftssicher dank SuperLink-Architektur. Damit bieten wir als erste Softwarelösung ein nahtloses, GMP-konformes Monitoring für Temperatur, Luftfeuchtigkeit, Licht und mehr – direkt in allen sensiblen Produktionsbereichen.
+Our platform now supports the latest generation of UniFi Protect Sensors (UP-Sense), fully integrated and future-proof thanks to SuperLink architecture. This makes us the first software solution to offer seamless, GMP-compliant monitoring of temperature, humidity, light, and more – directly in all sensitive production areas.
 
-## Was macht das Feature so einzigartig?
+## What makes this feature so unique?
 
-✅ Native Anbindung an UniFi Protect 6.0 mit AI-gestütztem Monitoring
-✅ Echtzeit-Status und lückenlose Historisierung aller Sensorwerte für EU-GMP/BfArM Compliance & Audits
-✅ SuperLink-Ready: Bereits vorbereitet auf kommende Langstrecken-Sensoren (2km Reichweite) – keine Codeänderungen bei Umrüstung nötig
-✅ Multi-Sensor-Überwachung mit intelligentem Alarm- und Konfliktmanagement
-✅ Automatischer Datenexport und PDF-Reports für Behördeninspektionen
-✅ Touch-optimiertes Frontend mit Live-Status, Signalstärke, Quick-Ranges & leistungsfähigen Charts
+✅ Native connection to UniFi Protect 6.0 with AI-powered monitoring
+✅ Real-time status and seamless historization of all sensor values for EU-GMP/BfArM compliance & audits
+✅ SuperLink-Ready: Already prepared for upcoming long-range sensors (2km range) – no code changes needed when upgrading
+✅ Multi-sensor monitoring with intelligent alarm and conflict management
+✅ Automatic data export and PDF reports for authority inspections
+✅ Touch-optimized frontend with live status, signal strength, quick ranges & powerful charts
 
-## Typische Anwendungsbereiche:
+## Typical Application Areas:
 
-✅ Präzise Klimasteuerung in Blütekammern, Trocknungsräumen und Lagerbereichen
-✅ Explosionsschutz-Monitoring im Extraktionslabor
-✅ Manipulationssichere Speicherung aller Werte für maximale Nachvollziehbarkeit
+✅ Precise climate control in flowering chambers, drying rooms, and storage areas
+✅ Explosion protection monitoring in extraction laboratory
+✅ Tamper-proof storage of all values for maximum traceability
 
-Mit dieser Integration setzt ihr auf Industrie-Standards und maximale Skalierbarkeit: Ob kleine Räume via Bluetooth oder künftig ganze Lagerhallen per SuperLink – unser System ist bereit!
+With this integration, you're relying on industry standards and maximum scalability: Whether small rooms via Bluetooth or entire warehouses via SuperLink in the future – our system is ready!
 
-## 🔧 Integration & Automatisierung
+## 🔧 Integration & Automation
 
 <p align="center">
-  <img src="screenshots\controller\dashboard_simatic_g2.png" alt="Vorschau" width="1920">
+  <img src="screenshots\controller\dashboard_simatic_g2.png" alt="Preview" width="1920">
 </p>
 
-cannaUNITY setzt ab sofort vollständig auf die neueste Generation der Siemens SIMATIC S7-1200 G2 Steuerungstechnik. Die zuvor integrierte Siemens LOGO8!-Anbindung wurde aufgrund ihrer konzeptionellen Limitierungen entfernt. Die LOGO-Serie bot keine strukturierte API, keine fernkonfigurierbaren Zeitschaltlogiken und war für den mehrraumfähigen Growcontroller-Betrieb weder skalierbar noch wartbar.
+cannaUNITY now fully relies on the latest generation of Siemens SIMATIC S7-1200 G2 control technology. The previously integrated Siemens LOGO8! connection was removed due to its conceptual limitations. The LOGO series offered no structured API, no remotely configurable time switching logic, and was neither scalable nor maintainable for multi-room grow controller operation.
 
-Die SIMATIC G2 hingegen ermöglicht erstmals die vollständige Steuerung industrieller Prozesse über eine moderne Webarchitektur mit echter API-Kommunikation – sicher, performant, redundant und vollständig integrierbar in das cannaUNITY-Frontend.
+The SIMATIC G2, on the other hand, enables for the first time complete control of industrial processes via a modern web architecture with genuine API communication – secure, performant, redundant, and fully integrable into the cannaUNITY frontend.
 
-🔌 Highlights der SIMATIC G2 Integration
-✅ Web-API mit strukturierter REST-Kommunikation (HTTPS, JSON)
-✅ MQTT-Anbindung mit Topic-Flexibilität über LMQTT_FB
-✅ Matrix 2.0 & TLS Verschlüsselung, Multisession, Authentifizierung, 
-✅ Zeitschalt-, Rampen- und Szenensteuerung über Django konfigurierbar
-✅ UUID-basierte Verknüpfung jeder SPS zu einem Raumobjekt
-✅ Redundanter Autonomiebetrieb: Räume funktionieren auch ohne Zentrale
-✅ Unveränderliche Audit-Trails - Blockchain-ähnliche Event-Ketten für Behörden-Compliance
+🔌 Highlights of SIMATIC G2 Integration
+✅ Web API with structured REST communication (HTTPS, JSON)
+✅ MQTT connection with topic flexibility via LMQTT_FB
+✅ Matrix 2.0 & TLS encryption, multi-session, authentication
+✅ Time switching, ramp, and scene control configurable via Django
+✅ UUID-based linking of each PLC to a room object
+✅ Redundant autonomous operation: Rooms function even without central server
+✅ Immutable audit trails - blockchain-like event chains for authority compliance
 
-🌞 0–10 V Lichtsteuerung & Tageslichtprofile
-Über das SM1232-AQ Analogausgangsmodul steuert cannaUNITY sämtliche 0–10 V LED-Growlampen energieeffizient und dynamisch – direkt aus dem zentralen UI. Die Lichtprofile beinhalten Sonnenaufgangs- und Sonnenuntergangssimulationen mit fein abgestufter Dimmung bis auf exakt 0 %, was viele andere Systeme technisch nicht unterstützen.
+🌞 0-10V Light Control & Daylight Profiles
+Via the SM1232-AQ analog output module, cannaUNITY controls all 0-10V LED grow lights energy-efficiently and dynamically – directly from the central UI. The light profiles include sunrise and sunset simulations with finely graduated dimming down to exactly 0%, which many other systems technically do not support.
 
-Die Licht, Ph, EC, Klima und Lüstungssteuerung erfolgt über benutzerfreundliche Zeitraster mit Rampenfunktionen, die in der cannaUNITY-Oberfläche konfiguriert und per API an die SPS übertragen werden. Jeder Raum agiert dabei unabhängig und besitzt eine eigene SPS – vollständig synchronisiert, aber autark funktionsfähig.
+Light, pH, EC, climate, and ventilation control is done via user-friendly time grids with ramp functions, configured in the cannaUNITY interface and transmitted to the PLC via API. Each room operates independently and has its own PLC – fully synchronized but autonomously functional.
 
-Mit dieser Architektur bringt cannaUNITY industrielle SPS-Technik erstmals in eine visuell steuerbare Webumgebung für Grower – ohne SPS-Kenntnisse, ohne STEP7, ohne klassische Programmierung. Die Steuerung erfolgt vollständig über ein interaktives UI, das nicht nur Licht, sondern auch Klima, Bewässerung, Trocknung und Prozesszyklen in Echtzeit erfasst und ansprechbar macht.
+With this architecture, cannaUNITY brings industrial PLC technology for the first time into a visually controllable web environment for growers – without PLC knowledge, without STEP7, without classic programming. Control is entirely via an interactive UI that captures and addresses not only light but also climate, irrigation, drying, and process cycles in real-time.
 
 ---
 
-## 📘 Buchhaltungssystem: GoB-konforme, modulare Finanzübersicht
+## 📘 Accounting System: GoB-Compliant, Modular Financial Overview
 
 <p align="center">
-  <img src="screenshots/buchhaltung/buchungsjournal.png" alt="Vorschau" width="1920">
+  <img src="screenshots/buchhaltung/buchungsjournal.png" alt="Preview" width="1920">
 </p>
 
-Das integrierte Buchhaltungssystem ist vollständig GoB-konform aufgebaut und erlaubt eine transparente, strukturierte Abbildung aller finanziellen Vorgänge im Verein.
-Es wurde speziell für Anbauvereinigungen entwickelt und verbindet klassische Buchhaltungsprinzipien mit moderner, filterbarer Darstellung im Webinterface.
+The integrated accounting system is fully GoB-compliant and allows transparent, structured representation of all financial transactions in the association.
+It was specifically developed for cultivation associations and combines classic accounting principles with modern, filterable display in the web interface.
 
-Unterstützte Funktionen & Module:
-1. Hauptbuch – T-Konten-Übersicht mit SOLL-/HABEN-Salden und Journalanzeige
-2. Gewinn- und Verlustrechnung (GuV) – gruppierte Darstellung nach Kostenarten
-3. Bilanz – Stichtagsbezogene Bilanz mit Prüfung der Bilanzgleichheit
-4. Mitgliederverknüpfung – automatische Verbindung von Buchungen zu Mitgliedsbeiträgen
-5. Storno-Logik – rückwirkende Stornierung mit Gegenbuchung & Filteroptionen
-6. Mehrfachbuchungen – Subtransaktionen mit durchgehender Buchungsnummerierung
-7. Filterfunktionen – nach Jahr, Monat, Buchungstyp, Stornostatus und Zweck
-8. Schnittstellenvorbereitung – DATEV, CSV, PDF-Export geplant
-9. Zukunftssicher – Unterstützung für Jahresabschluss, EÜR/Umschaltung, Saldenübernahme
-10. Warenwirtschaftssystem mit Anbindung an Track and Trace + Buchhaltung
+Supported Functions & Modules:
+1. General Ledger – T-account overview with DEBIT/CREDIT balances and journal display
+2. Profit and Loss Statement (P&L) – grouped display by cost types
+3. Balance Sheet – Date-specific balance sheet with balance equation verification
+4. Member Linking – automatic connection of bookings to membership fees
+5. Reversal Logic – retroactive reversal with counter-booking & filter options
+6. Multiple Bookings – sub-transactions with continuous booking numbering
+7. Filter Functions – by year, month, booking type, reversal status, and purpose
+8. Interface Preparation – DATEV, CSV, PDF export planned
+9. Future-Proof – support for annual closing, EÜR/switching, balance transfer
+10. Inventory Management System with Track and Trace + Accounting integration
 
-Jede Buchung wird revisionssicher gespeichert, über das Journal vollständig einsehbar gemacht und kann in Echtzeit ausgewertet werden.
-Die Umsetzung folgt den Grundsätzen ordnungsgemäßer Buchführung (GoB) und bildet die Basis für steuerlich relevante Auswertungen.
+Each booking is stored in an audit-proof manner, made fully visible through the journal, and can be evaluated in real-time.
+The implementation follows the principles of proper bookkeeping (GoB) and forms the basis for tax-relevant evaluations.
 
 ---
 
-## 🌿 Warenwirtschaftssystem: Integrierte Cannabis-Genetikverwaltung mit Track & Trace
+## 🌿 Inventory Management System: Integrated Cannabis Genetics Management with Track & Trace
 
 <p align="center">
-  <img src="screenshots/WaWi/sorte_liste_detail.png" alt="Vorschau" width="1195">
+  <img src="screenshots/WaWi/sorte_liste_detail.png" alt="Preview" width="1195">
 </p>
 
-Das Warenwirtschaftssystem bildet das Herzstück der Cannabis-Verwaltung und verbindet nahtlos Genetik-Stammdaten mit operativer Bestandsführung.
-Durch die bidirektionale Integration mit Track & Trace und Buchhaltung entsteht ein geschlossener Kreislauf vom Sameneinkauf bis zur Ernte.
-Unterstützte Funktionen & Module:
+The inventory management system forms the heart of cannabis management and seamlessly connects genetics master data with operational inventory management.
+Through bidirectional integration with Track & Trace and Accounting, a closed loop is created from seed purchase to harvest.
+Supported Functions & Modules:
 
-1. Genetik-Datenbank – Über 40 Attribute pro Strain (THC/CBD, Terpene, Wachstum)
-2. Preisstaffel-System – Flexible Mengenrabatte mit automatischer Kalkulation
-3. Track & Trace Integration – Live-Bestandsanzeige aus operativen Daten
-4. Buchhaltungs-Workflow – Bestellanforderung → Freigabe → Buchung
-5. RFID-Autorisierung über UniFi Access – Manipulationssichere Dokumentation aller Aktionen
-6. Medien-Verwaltung – Multi-Image Support mit Metadaten & Drag & Drop
-7. Einkaufs-Aggregation – Chargenübergreifende Bestandsermittlung
-8. Unveränderliche Audit-Trails – Lückenlose Änderungshistorie für Compliance
-9. API-Schnittstellen – REST-basierte Kommunikation zwischen Systemen
-10. Echtzeit-Metriken – Verfügbare Samen, Pflanzenkonvertierungen, Verluste
+1. Genetics Database – Over 40 attributes per strain (THC/CBD, terpenes, growth)
+2. Price Tier System – Flexible volume discounts with automatic calculation
+3. Track & Trace Integration – Live inventory display from operational data
+4. Accounting Workflow – Purchase request → Approval → Booking
+5. RFID Authorization via UniFi Access – Tamper-proof documentation of all actions
+6. Media Management – Multi-image support with metadata & drag & drop
+7. Purchase Aggregation – Cross-batch inventory determination
+8. Immutable Audit Trails – Seamless change history for compliance
+9. API Interfaces – REST-based communication between systems
+10. Real-Time Metrics – Available seeds, plant conversions, losses
 
 ```
 Track&Trace DB → Django ORM → API Endpoint → React Component → UI Update
@@ -332,58 +338,58 @@ Track&Trace DB → Django ORM → API Endpoint → React Component → UI Update
      └──────────── User Actions ←───────────────────┘
 ```
 
-Jede Bestellung durchläuft automatisch den Freigabeprozess der Buchhaltung, wird im Track & Trace als Wareneingang erfasst und aktualisiert sofort die Bestandsübersicht im Warenwirtschaftssystem.
-Die Lösung erfüllt alle regulatorischen Anforderungen des Konsumcannabisgesetzes (KCanG) und ermöglicht eine revisionssichere Dokumentation der gesamten Supply Chain.
+Each order automatically goes through the accounting approval process, is recorded in Track & Trace as goods receipt, and immediately updates the inventory overview in the inventory management system.
+The solution meets all regulatory requirements of the Consumer Cannabis Act (KCanG) and enables audit-proof documentation of the entire supply chain.
 
 ---
 
-## 🐳 Bereitstellung & Infrastruktur
+## 🐳 Deployment & Infrastructure
 
-Geplant sind:
+Planned:
 
-- Eigene **Docker-Images** mit Standardkonfiguration
-- **Proxmox-kompatible Images** für einfache VM-Einbindung
-- Eigene **Linux-Distribution (cannaOS)** für speziell konfigurierte Mini-PCs
-- (Kostenplichtig) Vorkonfigurierte Endkunden Lösungen.
-- (Kostenplichtig) Vollständige Hardware Sets zum Kauf/Miete. 
+- Own **Docker images** with standard configuration
+- **Proxmox-compatible images** for easy VM integration
+- Own **Linux distribution (cannaOS)** for specially configured mini PCs
+- (Paid) Pre-configured end-customer solutions
+- (Paid) Complete hardware sets for purchase/rental
 
 ---
 
-## 📂 Projektstruktur (Auszug)
+## 📂 Project Structure (Excerpt)
 
 ```
 cannaUNITY/
 ├── backend/
-│   ├── config/            # Django-Einstellungen
-│   ├── members/           # Mitgliederverwaltung
-│   ├── rooms/             # Räume & Sensorik
-│   └── static/frontend/   # Build der React-App
+│   ├── config/            # Django settings
+│   ├── members/           # Member management
+│   ├── rooms/             # Rooms & sensors
+│   └── static/frontend/   # React app build
 ├── frontend/
 │   ├── src/
-│   │   ├── apps/          # React-Apps pro Django-Modul
+│   │   ├── apps/          # React apps per Django module
 │   │   ├── layout/        # Topbar, Sidebar, Footer
 │   │   └── main.jsx
 ```
 
 ---
 
-## 🔐 Authentifizierungskonzept
+## 🔐 Authentication Concept
 
-### 🏗️ Zero-Knowledge Architektur
-- **Airgapped PostgreSQL**: Row-Level-Security (RLS) mit pgcrypto Extension, AES-256-GCM für sensitive Spalten
-- **Anonymous Cloud Layer**: MariaDB mit verschlüsselten UIDs (HMAC-SHA3-512), Zero-PII Storage Policy
-- **Unidirektionale Replikation**: SSH-Tunnel (Ed25519) mit Read-Only pg_read_all_data Role, Write via REST mit mTLS
-- **Network Segregation**: DMZ-Architektur mit Jump-Host, iptables Egress-Only Rules für lokales Netz
+### 🏗️ Zero-Knowledge Architecture
+- **Airgapped PostgreSQL**: Row-Level-Security (RLS) with pgcrypto Extension, AES-256-GCM for sensitive columns
+- **Anonymous Cloud Layer**: MariaDB with encrypted UIDs (HMAC-SHA3-512), Zero-PII Storage Policy
+- **Unidirectional Replication**: SSH Tunnel (Ed25519) with Read-Only pg_read_all_data Role, Write via REST with mTLS
+- **Network Segregation**: DMZ architecture with Jump-Host, iptables Egress-Only Rules for local network
 
-### 🛡️ Multi-Faktor-Authentifizierung (3FA)
-📱 Device Certificate (X.509) + 🤳 Biometrie + 🔢 PIN = ✅ Zugang
+### 🛡️ Multi-Factor Authentication (3FA)
+📱 Device Certificate (X.509) + 🤳 Biometrics + 🔢 PIN = ✅ Access
 
-- **Possession Factor**: Device-Fingerprinting via X.509 Client Certs + Hardware-Attestation (iOS: DeviceCheck API, Android: SafetyNet/Play Integrity)
-- **Inherence Factor**: Biometric Templates in Secure Enclave (iOS) / Trusted Execution Environment (Android), FIDO2/WebAuthn Level 2 konform
-- **Knowledge Factor**: Argon2id gehashte PIN (m=64MB, t=3, p=4), Timing-Attack resistent implementiert
-- **Zero-Password Architecture**: Vollständiger Verzicht auf traditionelle Passwörter, NIST 800-63B compliant
+- **Possession Factor**: Device fingerprinting via X.509 Client Certs + Hardware Attestation (iOS: DeviceCheck API, Android: SafetyNet/Play Integrity)
+- **Inherence Factor**: Biometric templates in Secure Enclave (iOS) / Trusted Execution Environment (Android), FIDO2/WebAuthn Level 2 compliant
+- **Knowledge Factor**: Argon2id hashed PIN (m=64MB, t=3, p=4), timing-attack resistant implementation
+- **Zero-Password Architecture**: Complete elimination of traditional passwords, NIST 800-63B compliant
 
-### 🎯 Token-Hierarchie & Kryptografie
+### 🎯 Token Hierarchy & Cryptography
 | Token Type | 🔐 Crypto | ⏱️ TTL | 🎯 Purpose |
 |------------|-----------|--------|------------|
 | **QR-Code** | RSA-4096 OAEP | 5 min | Initial Device Registration |
@@ -392,114 +398,115 @@ cannaUNITY/
 
 - **Storage Layer**: Expo SecureStore (iOS: Keychain kSecAttrAccessibleWhenUnlockedThisDeviceOnly, Android: AES-256 via Android Keystore)
 
-### 🚪 Physischer Zugang & IoT Integration
-- **UniFi Access API v2**: OAuth2 Device Flow, Webhook-basierte Echtzeit-Synchronisation
-- **NFC/RFID**: MIFARE DESFire EV3 mit AES-128 Mutual Authentication, UID-basierte Zuordnung
-- **BLE Beacon Access**: iBeacon/Eddystone mit Rolling Proximity UUIDs, RSSI-basierte Distanzverifikation
-- **Audit Logging**: PostgreSQL Event Triggers → Kafka → Elasticsearch, WORM-Storage für Compliance
+### 🚪 Physical Access & IoT Integration
+- **UniFi Access API v2**: OAuth2 Device Flow, webhook-based real-time synchronization
+- **NFC/RFID**: MIFARE DESFire EV3 with AES-128 Mutual Authentication, UID-based assignment
+- **BLE Beacon Access**: iBeacon/Eddystone with Rolling Proximity UUIDs, RSSI-based distance verification
+- **Audit Logging**: PostgreSQL Event Triggers → Kafka → Elasticsearch, WORM storage for compliance
 
 ### 🔒 Security Hardening & Compliance
-- **Matrix Protocol Security**: E2EE via Olm/Megolm, Double Ratchet Algorithm, Ed25519 Signatures, Cross-Signing für Device Verification, Immutable Event DAG
-- **TLS Configuration**: TLS 1.3 only, HSTS mit Preloading, Certificate Transparency Monitoring
-- **API Security**: OAuth 2.1 (draft-ietf-oauth-v2-1-09), PKCE mandatory, DPoP für Token Binding
-- **Rate Limiting**: Token Bucket Algorithm (nginx-limit-req), Distributed mit Redis, Adaptive Thresholds
-- **Geo-Restrictions**: MaxMind GeoIP2 mit Precision City, Haversine Distance Calculation, Configurable Radius
-- **DSGVO/GDPR**: Privacy by Design (Art. 25), Pseudonymisierung (Art. 4), Right to Erasure via Crypto-Shredding
-- **Penetration Testing**: OWASP MASVS Level 2 konform, regelmäßige Security Audits mit Metasploit/Burp Suite
+- **Matrix Protocol Security**: E2EE via Olm/Megolm, Double Ratchet Algorithm, Ed25519 Signatures, Cross-Signing for Device Verification, Immutable Event DAG
+- **TLS Configuration**: TLS 1.3 only, HSTS with Preloading, Certificate Transparency Monitoring
+- **API Security**: OAuth 2.1 (draft-ietf-oauth-v2-1-09), PKCE mandatory, DPoP for Token Binding
+- **Rate Limiting**: Token Bucket Algorithm (nginx-limit-req), distributed with Redis, adaptive thresholds
+- **Geo-Restrictions**: MaxMind GeoIP2 with Precision City, Haversine Distance Calculation, configurable radius
+- **GDPR**: Privacy by Design (Art. 25), Pseudonymization (Art. 4), Right to Erasure via Crypto-Shredding
+- **Penetration Testing**: OWASP MASVS Level 2 compliant, regular security audits with Metasploit/Burp Suite
 
-cannaUNITY revolutioniert die Cannabis-Vereinsverwaltung durch die Integration des Matrix-Protokolls. Mit Synapse als Server-Backend und Element X als Client entsteht eine zukunftssichere Infrastruktur für Track & Trace und Mitgliederkommunikation.
+cannaUNITY revolutionizes cannabis association management through integration of the Matrix protocol. With Synapse as server backend and Element X as client, a future-proof infrastructure for Track & Trace and member communication is created.
 
-Hinweis:
-Diese Integration befindet sich in aktiver Entwicklung und schafft neue Maßstäbe für Datenschutz und Manipulationssicherheit in der Cannabis-Branche.
-
----
-
-## 🚀 Module (Auszug)
-
-| Modul            | Beschreibung                                                                 |
-|------------------|------------------------------------------------------------------------------|
-| `members`        | Mitglieder, Limits, Pflichtstunden, Statusverwaltung                         |
-| `trackandtrace`  | Verarbeitungsschritte (Seed → Bloom → Ausgabe) inkl. Vernichtungen           |
-| `access`         | UniFi Access: RFID, FaceID, Logs, Zutrittsrechte                             |
-| `rooms`          | Raumverwaltung mit Klima, Sensoren & Automation                              |
-| `taskmanager`    | Aufgabenreservierung, Stundenkonto, Abgleiche                                |
-| `buchhaltung`    | GoB-konforme Buchhaltung mit HBCI Abgleich,                                  |
-| `interface`      | Touchpanels, Raumterminals, Infodisplays                                     |
-| `controller`     | Anbindung Siemens/Loxone,                         |
-| `security`       | Alarmsysteme, Notfallzugänge, Behördenzugriff                                |
+Note:
+This integration is under active development and sets new standards for data protection and tamper-proofing in the cannabis industry.
 
 ---
 
-## 🧱 Betrieb in der Produktion – Sicherheitskonzept
+## 🚀 Modules (Excerpt)
 
-Dieser Abschnitt beschreibt empfohlene Maßnahmen zur Absicherung des cannaUNITY-Systems beim Einsatz auf einem öffentlichen Server oder im produktiven Umfeld.
+| Module           | Description                                                                 |
+|------------------|-----------------------------------------------------------------------------|
+| `members`        | Members, limits, mandatory hours, status management                         |
+| `trackandtrace`  | Processing steps (Seed → Bloom → Dispensing) incl. destructions             |
+| `access`         | UniFi Access: RFID, FaceID, logs, access rights                             |
+| `rooms`          | Room management with climate, sensors & automation                          |
+| `taskmanager`    | Task reservation, hour account, reconciliations                             |
+| `buchhaltung`    | GoB-compliant accounting with HBCI reconciliation                           |
+| `interface`      | Touch panels, room terminals, info displays                                 |
+| `controller`     | Siemens/Loxone integration                                                  |
+| `security`       | Alarm systems, emergency access, authority access                           |
 
-### 🔒 1. Sicherheit auf Rootserver & Betriebssystemebene (Linux)
+---
 
-**System-Härtung**
-- SSH-Zugriff ausschließlich mit Public-Key
-- Root-Login deaktivieren
-- Firewall (z. B. `ufw`) mit Whitelist für Web & SSH
-- Fail2Ban zum Schutz vor Brute-Force-Angriffen
+## 🧱 Production Operation – Security Concept
+
+This section describes recommended measures for securing the cannaUNITY system when deployed on a public server or in a productive environment.
+
+### 🔒 1. Security at Root Server & Operating System Level (Linux)
+
+**System Hardening**
+- SSH access exclusively with public key
+- Disable root login
+- Firewall (e.g., `ufw`) with whitelist for web & SSH
+- Fail2Ban for brute-force attack protection
 
 **Reverse Proxy**
-- Einsatz von **NGINX** oder **Traefik** vor Django/React
+- Use **NGINX** or **Traefik** in front of Django/React
 - HTTPS via **Let's Encrypt / Certbot**
-- CORS, HSTS, CSP-Header definieren
+- Define CORS, HSTS, CSP headers
 
-**Automatische Updates / Patch-Management**
-- `unattended-upgrades` oder zentrale Ansible-Skripte
-- Überwachung auf bekannte CVEs für Abhängigkeiten
+**Automatic Updates / Patch Management**
+- `unattended-upgrades` or centralized Ansible scripts
+- Monitor for known CVEs in dependencies
 
 **Deployment & User Isolation**
-- Trennung von Systemusern für Dienste (z. B. `cannaunity-web`, `cannaunity-db`)
-- Nutzung von `systemd`-Services mit `PrivateTmp`, `ProtectSystem=strict`
+- Separation of system users for services (e.g., `cannaunity-web`, `cannaunity-db`)
+- Use `systemd` services with `PrivateTmp`, `ProtectSystem=strict`
 
-### ⚙️ 2. Django: Sicherheit & Absicherung der API
+### ⚙️ 2. Django: Security & API Protection
 
-- `DEBUG = False` und `ALLOWED_HOSTS` korrekt gesetzt
-- `SECRET_KEY` sicher gespeichert (z. B. in `.env` oder Vault)
-- Nutzung von **HTTPOnly- & Secure-Cookies** für Authentifizierungs-Token
-- Aktivierung von **CSRF-Schutz**, besonders bei API POST-Endpunkten
+- `DEBUG = False` and `ALLOWED_HOSTS` correctly set
+- `SECRET_KEY` securely stored (e.g., in `.env` or Vault)
+- Use **HTTPOnly & Secure Cookies** for authentication tokens
+- Enable **CSRF protection**, especially for API POST endpoints
 - `SECURE_BROWSER_XSS_FILTER = True`, `SECURE_CONTENT_TYPE_NOSNIFF = True`
-- **Logging & Audit-Logs** für API-Zugriffe (z. B. mit `django-auditlog`)
+- **Logging & Audit Logs** for API access (e.g., with `django-auditlog`)
 
-### 🎨 3. React/Vite: Sicherheit im Frontend
+### 🎨 3. React/Vite: Frontend Security
 
-- Kein Zugriff auf `.env`-Variablen mit sensiblen Inhalten im Frontend
-- Build-Version mit `vite build` erzeugen, Hashes aktiv
-- Public-Folder prüfen auf unerwünschte Dateien
-- Schutz vor XSS über kontrollierte Komponenten & `dangerouslySetInnerHTML` vermeiden
-- CSP-Header über NGINX erzwingen
+- No access to `.env` variables with sensitive content in frontend
+- Create build version with `vite build`, hashes active
+- Check public folder for unwanted files
+- Protection against XSS via controlled components & avoid `dangerouslySetInnerHTML`
+- Enforce CSP headers via NGINX
 
-### 🧊 4. Datenbanksicherheit (PostgreSQL + Verschlüsselung)
+### 🧊 4. Database Security (PostgreSQL + Encryption)
 
-- **Festplattenverschlüsselung** auf Betriebssystemebene (`LUKS`, `dm-crypt`)
-- **SSL/TLS aktivieren** in PostgreSQL (`ssl = on`, Zertifikate einrichten)
-- **Rollenbasierte Zugriffssteuerung** (kein Public Access, least privilege)
-- Einsatz von `pgcrypto` für spaltenbasierte Verschlüsselung sensibler Felder:
+- **Disk encryption** at operating system level (`LUKS`, `dm-crypt`)
+- **Enable SSL/TLS** in PostgreSQL (`ssl = on`, set up certificates)
+- **Role-based access control** (no public access, least privilege)
+- Use `pgcrypto` for column-based encryption of sensitive fields:
 
   ```sql
   SELECT pgp_sym_encrypt('0123 456789', 'my_secret_key');
   ```
 
-- **Key Management** über HashiCorp Vault, Azure Key Vault oder eigene Lösung
-- Zugriffsprotokollierung & Audit-Tools wie [`pgAudit`](https://www.pgaudit.org/)
+- **Key Management** via HashiCorp Vault, Azure Key Vault, or custom solution
+- Access logging & audit tools like [`pgAudit`](https://www.pgaudit.org/)
 
-### 💡 Zusätzliche Empfehlungen
+### 💡 Additional Recommendations
 
-- **Backups** regelmäßig & verschlüsselt (z. B. `borg`, `restic`)
-- **Monitoring & Alerting** (z. B. UptimeRobot, Netdata, Prometheus/Grafana)
-- **Zero-Trust-Netzwerkprinzip** (VPN, IP-Whitelisting, kein offenes Netz)
-- **Security-Review aller Django-Endpoints** vor Deployment
+- **Backups** regular & encrypted (e.g., `borg`, `restic`)
+- **Monitoring & Alerting** (e.g., UptimeRobot, Netdata, Prometheus/Grafana)
+- **Zero-Trust Network Principle** (VPN, IP whitelisting, no open network)
+- **Security review of all Django endpoints** before deployment
 
-> Hinweis: Diese Empfehlungen sind bewusst auf ein produktives Setup auf eigenem Rootserver abgestimmt. Für Cloud-Deployments (AWS, Azure, etc.) gelten abweichende Best Practices – inklusive VPC-Isolierung und IAM-Kontrollstrukturen.
+> Note: These recommendations are intentionally tailored to a productive setup on a dedicated root server. For cloud deployments (AWS, Azure, etc.), different best practices apply – including VPC isolation and IAM control structures.
 
 ---
 
-## 📃 Lizenz & Hinweise zur Nutzung
+## 📃 License & Usage Notes
 
-cannaUNITY ist ein freies Open-Source-Projekt unter der MIT-Lizenz.
-Die aktuelle Version v0.6.20-pa dient ausschließlich der Mitentwicklung und Systemintegration. Die Software wird ohne Gewährleistung bereitgestellt. Die Nutzung erfolgt auf eigenes Risiko. Eine Haftung für Schäden oder Datenverluste wird ausgeschlossen.
+cannaUNITY is a free open-source project under the MIT License.
+The current version v0.6.20-pa is intended exclusively for co-development and system integration. The software is provided without warranty. Use is at your own risk. Liability for damages or data loss is excluded.
 
 Copyright (c) 2025 Sascha Dämgen IT and More ✨
+INT Fork Version by cannatoshi
