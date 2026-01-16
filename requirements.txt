@@ -34,7 +34,7 @@ passlib==1.7.4
 pillow==11.3.0
 prompt_toolkit==3.0.51
 psycopg2==2.9.10
-pyasn1==0.6.1
+pyasn1==0.6.2
 pyasn1_modules==0.4.2
 pycparser==2.22
 pymodbus==3.9.2
