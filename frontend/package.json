@@ -18,7 +18,7 @@
     "@mui/material": "^7.1.0",
     "@mui/x-data-grid": "^8.27.0",
     "@mui/x-date-pickers": "^8.27.0",
-    "axios": "^1.13.5",
+    "axios": "^1.15.2",
     "date-fns": "^4.1.0",
     "dayjs": "^1.11.19",
     "echarts": "^6.0.0",
